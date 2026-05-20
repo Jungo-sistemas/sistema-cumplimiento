@@ -40,12 +40,7 @@
         </div>
 
         <a href="{{ route('documents.index') }}"
-           class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white
-                  px-4 py-2 text-sm text-gray-600 font-medium hover:bg-gray-50 transition shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
-                 viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
-            </svg>
+           class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50 shrink-0">
             Volver
         </a>
     </div>

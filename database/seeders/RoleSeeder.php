@@ -12,7 +12,7 @@ class RoleSeeder extends Seeder
     {
         Role::updateOrCreate(
             ['slug' => 'admin'],
-            ['name' => 'administrador']
+            ['name' => 'Administrador']
         );
 
         Role::updateOrCreate(

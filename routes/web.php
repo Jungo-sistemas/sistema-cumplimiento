@@ -16,6 +16,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserInvitationController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DocumentVersionController;
+use App\Http\Controllers\RegulationController;
+use App\Http\Controllers\RegulationVersionController;
 
 Route::get('/', function () {
     return auth()->check()
@@ -43,6 +45,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/documents/categories/{category}', [DocumentController::class, 'showCategory'])
         ->name('documents.categories.show');
 
+    Route::post('/documents/categories/{category}/documents', [DocumentController::class, 'store'])
+        ->name('documents.categories.documents.store');
+
     // Document catalog versions
     Route::get('/documents/categories/{category}/documents/{document}', [DocumentVersionController::class, 'show'])
         ->name('documents.document.show');
@@ -58,6 +63,35 @@ Route::middleware('auth')->group(function () {
 
     Route::delete('/documents/categories/{category}/documents/{document}/versions/{version}', [DocumentVersionController::class, 'destroy'])
         ->name('document-versions.destroy');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Processes / Regulations
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/processes', [RegulationController::class, 'index'])
+        ->name('processes.index');
+
+    Route::post('/processes', [RegulationController::class, 'store'])
+        ->name('processes.store');
+
+    Route::get('/processes/{regulation}', [RegulationController::class, 'show'])
+        ->name('processes.show');
+
+    Route::put('/processes/{regulation}', [RegulationController::class, 'update'])
+        ->name('processes.update');
+
+    Route::post('/processes/{regulation}/versions', [RegulationVersionController::class, 'store'])
+        ->name('processes.versions.store');
+
+    Route::get('/regulation-versions/{version}/preview', [RegulationVersionController::class, 'preview'])
+        ->name('regulation-versions.preview');
+
+    Route::get('/regulation-versions/{version}/download', [RegulationVersionController::class, 'download'])
+        ->name('regulation-versions.download');
+
+    Route::delete('/processes/{regulation}/versions/{version}', [RegulationVersionController::class, 'destroy'])
+        ->name('regulation-versions.destroy');
 
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

@@ -124,6 +124,12 @@
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
                                 Documentos
                             </a>
+
+                            <a href="{{ route('processes.index') }}"
+                               @click="mobileMenuOpen = false"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Procesos
+                            </a>
                         @endif
 
                         <a href="{{ route('assets.index') }}"
@@ -206,6 +212,11 @@
                             <a href="{{ route('documents.index') }}"
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
                                 Documentos
+                            </a>
+
+                            <a href="{{ route('processes.index') }}"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Procesos
                             </a>
                         @endif
 

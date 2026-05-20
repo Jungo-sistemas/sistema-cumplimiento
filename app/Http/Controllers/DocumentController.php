@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Company;
 use App\Models\Document;
 use App\Models\DocumentFolder;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class DocumentController extends Controller
@@ -95,9 +96,51 @@ class DocumentController extends Controller
             ->orderBy('name')
             ->get();
 
+        $users = User::query()
+            ->where('group_id', $category->group_id)
+            ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'operative']))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return view('documents.category', [
-            'category' => $category,
+            'category'  => $category,
             'documents' => $documents,
+            'users'     => $users,
         ]);
+    }
+
+    public function store(Request $request, DocumentFolder $category)
+    {
+        $user = auth()->user();
+
+        abort_unless($user->canAccessCompany($category->company), 403);
+        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+
+        $data = $request->validateWithBag('createDocument', [
+            'name'                    => ['required', 'string', 'max:255'],
+            'reference'               => ['nullable', 'string', 'max:255'],
+            'document_type'           => ['nullable', 'string', 'max:255'],
+            'responsible_name'        => ['nullable', 'string', 'max:255'],
+            'authorized_access_notes' => ['nullable', 'string', 'max:1000'],
+            'is_required'             => ['nullable', 'boolean'],
+        ]);
+
+        Document::create([
+            'group_id'                => $category->group_id,
+            'company_id'              => $category->company_id,
+            'document_folder_id'      => $category->id,
+            'name'                    => strtoupper($data['name']),
+            'reference'               => $data['reference'] ?? null,
+            'document_type'           => $data['document_type'] ?? null,
+            'responsible_name'        => $data['responsible_name'] ?? null,
+            'authorized_access_notes' => $data['authorized_access_notes'] ?? null,
+            'is_required'             => !empty($data['is_required']),
+            'is_active'               => true,
+            'uploaded_by'             => $user->id,
+        ]);
+
+        return redirect()
+            ->route('documents.categories.show', $category)
+            ->with('success', 'Documento creado correctamente.');
     }
 }

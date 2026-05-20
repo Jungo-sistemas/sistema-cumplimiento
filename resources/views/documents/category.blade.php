@@ -22,11 +22,29 @@
             @endif
         </div>
 
-        <a href="{{ $category->parent ? route('documents.folders.show', $category->parent) : route('documents.index') }}"
-           class="text-sm text-gray-500 hover:underline">
-            ← Volver
-        </a>
+        <div class="flex items-center gap-3">
+            @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
+                <button type="button"
+                        x-data
+                        @click="$dispatch('open-modal', 'create-document')"
+                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                    + Nuevo documento
+                </button>
+            @endif
+
+            <a href="{{ $category->parent ? route('documents.folders.show', $category->parent) : route('documents.index') }}"
+               class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50">
+                Volver
+            </a>
+        </div>
     </div>
+
+    {{-- Alerts --}}
+    @if(session('success'))
+        <div class="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-green-800 text-sm">
+            {{ session('success') }}
+        </div>
+    @endif
 
     {{-- TABLA DE DOCUMENTOS --}}
     <div class="mt-6 bg-white border rounded-lg shadow-sm overflow-hidden">
@@ -132,7 +150,7 @@
                             {{-- Acción --}}
                             <td class="px-4 py-3 text-right">
                                 <a href="{{ route('documents.document.show', [$category, $document]) }}"
-                                   class="text-[#1A428A] font-semibold text-sm hover:underline">
+                                   class="text-blue-600 font-semibold text-sm hover:underline">
                                     Gestionar →
                                 </a>
                             </td>
@@ -150,5 +168,114 @@
             </table>
         </div>
     </div>
+
+
+    {{-- MODAL: Crear documento --}}
+    @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
+        <x-modal name="create-document" :show="$errors->createDocument->isNotEmpty()" focusable maxWidth="lg">
+            <form method="POST"
+                  action="{{ route('documents.categories.documents.store', $category) }}"
+                  class="p-6">
+                @csrf
+
+                <h2 class="text-lg font-semibold text-[#1A428A] mb-4">Nuevo documento</h2>
+
+                <div class="space-y-4">
+
+                    {{-- Nombre --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Nombre <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text"
+                               name="name"
+                               value="{{ old('name') }}"
+                               required
+                               class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
+                        @if($errors->createDocument->has('name'))
+                            <p class="text-sm text-red-600 mt-1">{{ $errors->createDocument->first('name') }}</p>
+                        @endif
+                    </div>
+
+                    {{-- Referencia / Oficio --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Referencia / Oficio
+                        </label>
+                        <input type="text"
+                               name="reference"
+                               value="{{ old('reference') }}"
+                               class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
+                    </div>
+
+                    {{-- Tipo de documento --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Tipo de documento
+                        </label>
+                        <select name="document_type"
+                                class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
+                            <option value="">— Seleccionar —</option>
+                            <option value="Original" @selected(old('document_type') === 'Original')>Original</option>
+                            <option value="Copia"    @selected(old('document_type') === 'Copia')>Copia</option>
+                        </select>
+                    </div>
+
+                    {{-- Responsable --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Responsable
+                        </label>
+                        <select name="responsible_name"
+                                class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
+                            <option value="">— Seleccionar usuario —</option>
+                            @foreach($users as $u)
+                                <option value="{{ $u->name }}"
+                                        @selected(old('responsible_name') === $u->name)>
+                                    {{ $u->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- Accesos Autorizados --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Accesos Autorizados
+                        </label>
+                        <textarea name="authorized_access_notes"
+                                  rows="2"
+                                  class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">{{ old('authorized_access_notes') }}</textarea>
+                    </div>
+
+                    {{-- ¿Requerido? --}}
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox"
+                               name="is_required"
+                               id="is_required_modal"
+                               value="1"
+                               {{ old('is_required') ? 'checked' : '' }}
+                               class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]">
+                        <label for="is_required_modal" class="text-sm text-gray-700">
+                            Documento requerido
+                        </label>
+                    </div>
+
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button"
+                            x-on:click="$dispatch('close')"
+                            class="px-4 py-2 rounded-md border border-gray-300 bg-white text-sm text-gray-700 font-semibold hover:bg-gray-50">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                        Guardar
+                    </button>
+                </div>
+            </form>
+        </x-modal>
+    @endif
 
 </x-layouts.vigia>

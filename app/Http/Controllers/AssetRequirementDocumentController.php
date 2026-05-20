@@ -58,6 +58,7 @@ class AssetRequirementDocumentController extends Controller
     {
         $this->assertRequirementBelongsToAsset($asset, $requirement);
         $this->assertSameCompany($asset);
+        abort_unless(auth()->user()->isAdmin() || auth()->user()->isOperative(), 403);
 
         if (method_exists($asset, 'isInactive') ? $asset->isInactive() : ($asset->status === 'inactive')) {
             return back()->with('error', 'El activo está desactivado. No puedes subir documentación oficial.');
@@ -130,6 +131,7 @@ class AssetRequirementDocumentController extends Controller
         $this->assertRequirementBelongsToAsset($asset, $requirement);
         $this->assertSameCompany($asset);
         $this->assertDocumentBelongsToRequirement($document, $requirement);
+        abort_unless(auth()->user()->isAdmin() || auth()->user()->isOperative(), 403);
 
         if (method_exists($asset, 'isInactive') ? $asset->isInactive() : ($asset->status === 'inactive')) {
             abort(403, 'Asset inactive');

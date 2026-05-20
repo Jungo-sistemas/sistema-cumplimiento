@@ -276,7 +276,6 @@
                                 @endif
                             </div>
 
-                            @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
                                 <div class="mt-4 pt-3 border-t flex flex-wrap justify-end gap-2">
                                     @if($isRenewal)
                                         <a href="{{ route('assets.requirements.documents.index', [$asset, $requirement]) }}"
@@ -285,64 +284,67 @@
                                             Documentación oficial
                                         </a>
 
-                                        <form method="POST" action="{{ route('requirements.tasks.destroy', [$requirement, $task]) }}"
-                                              onsubmit="return confirm('¿Eliminar esta tarea?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                class="px-4 py-2 rounded-md bg-[#DB0000] text-white font-semibold hover:bg-red-700
-                                                {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
-                                                Eliminar
-                                            </button>
-                                        </form>
+                                        @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
+                                            <form method="POST" action="{{ route('requirements.tasks.destroy', [$requirement, $task]) }}"
+                                                  onsubmit="return confirm('¿Eliminar esta tarea?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                    class="px-4 py-2 rounded-md bg-[#DB0000] text-white font-semibold hover:bg-red-700
+                                                    {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
+                                                    Eliminar
+                                                </button>
+                                            </form>
+                                        @endif
                                     @else
                                         <a href="{{ route('tasks.documents.index', $task) }}"
                                            class="px-4 py-2 rounded-md border font-semibold bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
                                             {{ $hasDocs ? 'Ver evidencias (' . ($task->documents_count ?? 0) . ')' : 'Subir evidencia' }}
                                         </a>
 
-                                        @if(!$taskCompleted)
-                                            <form method="POST" action="{{ route('requirements.tasks.complete', [$requirement, $task]) }}">
+                                        @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
+                                            @if(!$taskCompleted)
+                                                <form method="POST" action="{{ route('requirements.tasks.complete', [$requirement, $task]) }}">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <button type="submit"
+                                                        class="px-4 py-2 rounded-md font-semibold
+                                                        {{ ($assetInactive || !$hasDocs) ? 'bg-gray-100 text-gray-500 border border-gray-300 cursor-not-allowed' : 'bg-[#1A428A] text-white hover:bg-[#15356d]' }}"
+                                                        {{ ($assetInactive || !$hasDocs) ? 'disabled' : '' }}>
+                                                        Completar
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <form method="POST" action="{{ route('requirements.tasks.reopen', [$requirement, $task]) }}">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <button type="submit"
+                                                        class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50
+                                                        {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
+                                                        Reabrir
+                                                    </button>
+                                                </form>
+                                            @endif
+
+                                            <a href="{{ route('requirements.tasks.edit', [$requirement, $task]) }}"
+                                               class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50
+                                               {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
+                                                Editar
+                                            </a>
+
+                                            <form method="POST" action="{{ route('requirements.tasks.destroy', [$requirement, $task]) }}"
+                                                  onsubmit="return confirm('¿Eliminar esta tarea?')">
                                                 @csrf
-                                                @method('PATCH')
+                                                @method('DELETE')
                                                 <button type="submit"
-                                                    class="px-4 py-2 rounded-md font-semibold
-                                                    {{ ($assetInactive || !$hasDocs) ? 'bg-gray-100 text-gray-500 border border-gray-300 cursor-not-allowed' : 'bg-[#1A428A] text-white hover:bg-[#15356d]' }}"
-                                                    {{ ($assetInactive || !$hasDocs) ? 'disabled' : '' }}>
-                                                    Completar
-                                                </button>
-                                            </form>
-                                        @else
-                                            <form method="POST" action="{{ route('requirements.tasks.reopen', [$requirement, $task]) }}">
-                                                @csrf
-                                                @method('PATCH')
-                                                <button type="submit"
-                                                    class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50
+                                                    class="px-4 py-2 rounded-md bg-[#DB0000] text-white font-semibold hover:bg-red-700
                                                     {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
-                                                    Reabrir
+                                                    Eliminar
                                                 </button>
                                             </form>
                                         @endif
-
-                                        <a href="{{ route('requirements.tasks.edit', [$requirement, $task]) }}"
-                                           class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50
-                                           {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
-                                            Editar
-                                        </a>
-
-                                        <form method="POST" action="{{ route('requirements.tasks.destroy', [$requirement, $task]) }}"
-                                              onsubmit="return confirm('¿Eliminar esta tarea?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                class="px-4 py-2 rounded-md bg-[#DB0000] text-white font-semibold hover:bg-red-700
-                                                {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
-                                                Eliminar
-                                            </button>
-                                        </form>
                                     @endif
                                 </div>
-                            @endif
                         </div>
                     @empty
                         <div class="text-sm text-gray-500">No hay tareas todavía.</div>

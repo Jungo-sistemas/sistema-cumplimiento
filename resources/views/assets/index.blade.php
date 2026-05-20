@@ -12,10 +12,12 @@
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-semibold text-[#1A428A]">Lista de activos</h1>
 
-        <a href="{{ route('assets.create', array_filter(['company_id' => request('company_id', $selectedCompanyId ?? null)])) }}"
-           class="bg-[#1A428A] text-white px-4 py-2 rounded-md font-semibold hover:bg-[#15356d]">
-            + Nuevo activo
-        </a>
+        @can('create', App\Models\Asset::class)
+            <a href="{{ route('assets.create', array_filter(['company_id' => request('company_id', $selectedCompanyId ?? null)])) }}"
+               class="bg-[#1A428A] text-white px-4 py-2 rounded-md font-semibold hover:bg-[#15356d]">
+                + Nuevo activo
+            </a>
+        @endcan
     </div>
 
     <form method="GET"

@@ -48,6 +48,7 @@ class TaskDocumentController extends Controller
         $task->loadMissing('requirement.company');
 
         abort_if(! $request->user()->canAccessCompany($task->requirement->company), 403);
+        abort_unless($request->user()->isAdmin() || $request->user()->isOperative(), 403);
 
         if ($task->type === Task::TYPE_RENEWAL) {
             return back()->withErrors([
