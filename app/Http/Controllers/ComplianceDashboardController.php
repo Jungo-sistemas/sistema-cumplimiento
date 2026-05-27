@@ -17,6 +17,10 @@ class ComplianceDashboardController extends Controller
     {
         $user = $request->user();
 
+        if ($user->isSuperAdmin()) {
+            return redirect()->route('superadmin.dashboard');
+        }
+
         $companies = Company::query()
             ->when($user->hasGroupScope(), function ($query) use ($user) {
                 $query->where('group_id', $user->group_id);

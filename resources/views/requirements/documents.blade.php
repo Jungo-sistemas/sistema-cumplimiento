@@ -105,6 +105,36 @@
                     {{ session('error') }}
                 </div>
             @endif
+
+            @if(session('renewal_suggestion'))
+                @php $rSug = session('renewal_suggestion'); @endphp
+                <div class="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                    <p class="font-semibold text-blue-800 text-sm">¿Crear tarea de renovación?</p>
+                    <p class="text-sm text-blue-700 mt-1">
+                        Se sugiere crear: <span class="font-medium">{{ $rSug['title'] }}</span>
+                        con fecha límite <span class="font-medium">{{ \Carbon\Carbon::parse($rSug['due_date'])->format('d/m/Y') }}</span>.
+                    </p>
+                    <div class="mt-3 flex items-center gap-3">
+                        <form method="POST"
+                              action="{{ route('assets.requirements.renewal-task', [$asset, $requirement]) }}">
+                            @csrf
+                            <input type="hidden" name="title"    value="{{ $rSug['title'] }}">
+                            <input type="hidden" name="due_date" value="{{ $rSug['due_date'] }}">
+                            @if(!empty($rSug['responsible_user_id']))
+                                <input type="hidden" name="responsible_user_id" value="{{ $rSug['responsible_user_id'] }}">
+                            @endif
+                            <button type="submit"
+                                    class="px-4 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                Crear tarea
+                            </button>
+                        </form>
+                        <a href="{{ route('assets.requirements.documents.index', [$asset, $requirement]) }}"
+                           class="px-4 py-1.5 rounded-md border border-gray-300 bg-white text-sm text-gray-700 font-semibold hover:bg-gray-50">
+                            No por ahora
+                        </a>
+                    </div>
+                </div>
+            @endif
         </div>
 
         <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">

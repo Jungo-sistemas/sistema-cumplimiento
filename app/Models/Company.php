@@ -11,7 +11,7 @@ class Company extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'group_id', 'show_in_processes', 'asset_limit'];
 
     public function users()
     {
@@ -42,6 +42,11 @@ class Company extends Model
     {
         return $this->hasMany(AssetObligation::class);
     }
+    public function regulations()
+    {
+        return $this->hasMany(Regulation::class);
+    }
+
     public function group()
     {
         return $this->belongsTo(Group::class);

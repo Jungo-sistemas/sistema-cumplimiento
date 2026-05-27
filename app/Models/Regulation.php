@@ -25,8 +25,13 @@ class Regulation extends Model
         'document_type',
         'code',
         'name',
+        'details',
         'is_active',
         'created_by',
+    ];
+
+    protected $casts = [
+        'details' => 'array',
     ];
 
     /*

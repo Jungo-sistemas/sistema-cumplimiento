@@ -74,7 +74,7 @@ class AssetRequirementDocumentController extends Controller
             'expires_at.after' => 'La fecha de vencimiento debe ser posterior a hoy.',
         ]);
 
-        $uploadOfficialDocumentService->handle(
+        $document = $uploadOfficialDocumentService->handle(
             requirement: $requirement,
             file: $request->file('file'),
             issuedAt: $data['issued_at'] ?? null,
@@ -82,7 +82,21 @@ class AssetRequirementDocumentController extends Controller
             notes: $data['notes'] ?? null,
         );
 
-        return back()->with('success', 'Documento oficial guardado correctamente. Se actualizó el histórico y la renovación.');
+        if ($document->expires_at) {
+            $requirement->loadMissing(['asset', 'template']);
+            $dueDate = Carbon::parse($document->expires_at)->subDays(60);
+            if ($dueDate->isPast()) {
+                $dueDate = Carbon::today()->addDay();
+            }
+            $titleBase = $requirement->template?->name ?? $requirement->type ?? 'Requerimiento';
+            session()->flash('renewal_suggestion', [
+                'title'               => 'Renovar ' . $titleBase . ' ' . $dueDate->year,
+                'due_date'            => $dueDate->toDateString(),
+                'responsible_user_id' => $requirement->asset?->responsible_user_id,
+            ]);
+        }
+
+        return back()->with('success', 'Documento oficial guardado correctamente.');
     }
 
     public function download(Asset $asset, AssetRequirement $requirement, AssetRequirementDocument $document)
@@ -275,6 +289,37 @@ class AssetRequirementDocumentController extends Controller
                 $task->delete();
             }
         }
+    }
+
+    public function storeRenewalTask(Request $request, Asset $asset, AssetRequirement $requirement)
+    {
+        $this->assertRequirementBelongsToAsset($asset, $requirement);
+        $this->assertSameCompany($asset);
+        abort_unless(auth()->user()->isAdmin() || auth()->user()->isOperative(), 403);
+
+        $data = $request->validate([
+            'title'               => ['required', 'string', 'max:160'],
+            'due_date'            => ['required', 'date'],
+            'responsible_user_id' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        $task = Task::create([
+            'asset_requirement_id' => $requirement->id,
+            'type'                 => Task::TYPE_RENEWAL,
+            'title'                => $data['title'],
+            'description'          => 'Tarea de renovación creada al registrar un nuevo documento oficial.',
+            'status'               => TaskStatus::PENDING,
+            'due_date'             => $data['due_date'],
+            'requires_document'    => false,
+        ]);
+
+        if (! empty($data['responsible_user_id'])) {
+            $task->users()->sync([$data['responsible_user_id']]);
+        }
+
+        return redirect()
+            ->route('assets.requirements.documents.index', [$asset, $requirement])
+            ->with('success', 'Tarea de renovación creada correctamente.');
     }
 
     private function assertRequirementBelongsToAsset(Asset $asset, AssetRequirement $requirement): void

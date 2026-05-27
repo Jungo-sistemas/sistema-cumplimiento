@@ -104,39 +104,63 @@
 
                 <div class="min-h-0 flex-1 overflow-y-auto p-4">
                     <nav class="space-y-1 text-sm">
-                        <a href="{{ route('dashboard') }}"
-                           @click="mobileMenuOpen = false"
-                           class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                            Tablero
-                        </a>
-
-                        @if($user?->isAdmin())
-                            <a href="{{ route('users.index') }}"
+                        @if($user?->isSuperAdmin())
+                            <p class="mb-1 px-3 text-xs font-bold uppercase tracking-wider text-gray-400">Sistema</p>
+                            <a href="{{ route('superadmin.dashboard') }}"
                                @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Panel general
+                            </a>
+                            <a href="{{ route('superadmin.groups') }}"
+                               @click="mobileMenuOpen = false"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.groups') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Grupos
+                            </a>
+                            <a href="{{ route('superadmin.companies') }}"
+                               @click="mobileMenuOpen = false"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.companies') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Empresas
+                            </a>
+                            <a href="{{ route('superadmin.users') }}"
+                               @click="mobileMenuOpen = false"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.users') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
                                 Usuarios
                             </a>
-                        @endif
-
-                        @if($user?->isAdmin() || $user?->isOperative() || $user?->isReadonly())
-                            <a href="{{ route('documents.index') }}"
+                        @else
+                            <a href="{{ route('dashboard') }}"
                                @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Documentos
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Tablero
                             </a>
 
-                            <a href="{{ route('processes.index') }}"
+                            @if($user?->isAdmin())
+                                <a href="{{ route('users.index') }}"
+                                   @click="mobileMenuOpen = false"
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                    Usuarios
+                                </a>
+                            @endif
+
+                            @if($user?->isAdmin() || $user?->isOperative() || $user?->isReadonly())
+                                <a href="{{ route('documents.index') }}"
+                                   @click="mobileMenuOpen = false"
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                    Documentos
+                                </a>
+
+                                <a href="{{ route('processes.index') }}"
+                                   @click="mobileMenuOpen = false"
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                    Procesos
+                                </a>
+                            @endif
+
+                            <a href="{{ route('assets.index') }}"
                                @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Procesos
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('assets.*') || !empty($navContext['asset']) ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Activos y Actividades
                             </a>
                         @endif
-
-                        <a href="{{ route('assets.index') }}"
-                           @click="mobileMenuOpen = false"
-                           class="block rounded-md px-3 py-2 {{ request()->routeIs('assets.*') || !empty($navContext['asset']) ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                            Activos y Actividades
-                        </a>
 
                         @if(!empty($navContext['asset']))
                             <a href="{{ route('assets.show', $navContext['asset']) }}"
@@ -196,34 +220,54 @@
                     </div>
 
                     <nav class="space-y-1 text-sm">
-                        <a href="{{ route('dashboard') }}"
-                           class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                            Tablero
-                        </a>
-
-                        @if($user?->isAdmin())
-                            <a href="{{ route('users.index') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                        @if($user?->isSuperAdmin())
+                            <p class="mb-1 px-3 text-xs font-bold uppercase tracking-wider text-gray-400">Sistema</p>
+                            <a href="{{ route('superadmin.dashboard') }}"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Panel general
+                            </a>
+                            <a href="{{ route('superadmin.groups') }}"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.groups') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Grupos
+                            </a>
+                            <a href="{{ route('superadmin.companies') }}"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.companies') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Empresas
+                            </a>
+                            <a href="{{ route('superadmin.users') }}"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.users') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
                                 Usuarios
                             </a>
-                        @endif
-
-                        @if(auth()->user()->isAdmin() || auth()->user()->isOperative() || auth()->user()->isReadonly())
-                            <a href="{{ route('documents.index') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Documentos
+                        @else
+                            <a href="{{ route('dashboard') }}"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Tablero
                             </a>
 
-                            <a href="{{ route('processes.index') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Procesos
+                            @if($user?->isAdmin())
+                                <a href="{{ route('users.index') }}"
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                    Usuarios
+                                </a>
+                            @endif
+
+                            @if(auth()->user()->isAdmin() || auth()->user()->isOperative() || auth()->user()->isReadonly())
+                                <a href="{{ route('documents.index') }}"
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                    Documentos
+                                </a>
+
+                                <a href="{{ route('processes.index') }}"
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                    Procesos
+                                </a>
+                            @endif
+
+                            <a href="{{ route('assets.index') }}"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('assets.*') || !empty($navContext['asset']) ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Activos y Actividades
                             </a>
                         @endif
-
-                        <a href="{{ route('assets.index') }}"
-                           class="block rounded-md px-3 py-2 {{ request()->routeIs('assets.*') || !empty($navContext['asset']) ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                            Activos y Actividades
-                        </a>
 
                         @if(!empty($navContext['asset']))
                             <a href="{{ route('assets.show', $navContext['asset']) }}"

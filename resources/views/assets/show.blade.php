@@ -518,16 +518,32 @@
                                 $riskVal = strtolower($req->risk_level ?? 'normal');
                                 $statusVal = $req->computed_status ?? 'pending';
 
-                                $statusLabel = match ($statusVal) {
-                                    'missing_document' => 'Falta documento oficial',
-                                    'pending' => 'Pendiente',
-                                    'in_progress' => 'En progreso',
-                                    'completed' => 'Completado',
-                                    'expired' => 'Vencido',
-                                    default => \App\Enums\RequirementStatus::tryFrom($statusVal)?->label()
-                                        ?? $req->status?->label()
-                                        ?? 'Pendiente',
-                                };
+                                $renewalPending = (int) ($req->renewal_pending ?? 0);
+                                $checkinPending = (int) ($req->checkin_pending ?? 0);
+
+                                if ($statusVal === 'completed' && ($renewalPending || $checkinPending)) {
+                                    if ($renewalPending && $checkinPending) {
+                                        $statusVal   = 'special_both';
+                                        $statusLabel = 'Procesos pendientes';
+                                    } elseif ($renewalPending) {
+                                        $statusVal   = 'special_renewal';
+                                        $statusLabel = 'Renovación';
+                                    } else {
+                                        $statusVal   = 'special_checkin';
+                                        $statusLabel = 'Check out';
+                                    }
+                                } else {
+                                    $statusLabel = match ($statusVal) {
+                                        'missing_document' => 'Falta documento oficial',
+                                        'pending'          => 'Pendiente',
+                                        'in_progress'      => 'En progreso',
+                                        'completed'        => 'Completado',
+                                        'expired'          => 'Vencido',
+                                        default            => \App\Enums\RequirementStatus::tryFrom($statusVal)?->label()
+                                                              ?? $req->status?->label()
+                                                              ?? 'Pendiente',
+                                    };
+                                }
                             @endphp
 
                             <tr class="hover:bg-gray-50">
@@ -553,10 +569,13 @@
                                     @php
                                         $statusClasses = match ($statusVal) {
                                             'missing_document' => 'bg-red-50 text-red-700 border-red-200',
-                                            'expired' => 'bg-red-50 text-red-700 border-red-200',
-                                            'completed' => 'bg-green-50 text-green-700 border-green-200',
-                                            'in_progress' => 'bg-yellow-50 text-yellow-700 border-yellow-200',
-                                            default => 'bg-gray-50 text-gray-800 border-gray-200',
+                                            'expired'          => 'bg-red-50 text-red-700 border-red-200',
+                                            'completed'        => 'bg-green-50 text-green-700 border-green-200',
+                                            'in_progress'      => 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                                            'special_renewal'  => 'bg-blue-50 text-blue-700 border-blue-200',
+                                            'special_checkin'  => 'bg-blue-50 text-blue-700 border-blue-200',
+                                            'special_both'     => 'bg-orange-50 text-orange-700 border-orange-200',
+                                            default            => 'bg-gray-50 text-gray-800 border-gray-200',
                                         };
                                     @endphp
 

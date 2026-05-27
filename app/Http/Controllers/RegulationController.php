@@ -19,9 +19,31 @@ class RegulationController extends Controller
             : (int) $user->company_id;
 
         $companies = $user->hasGroupScope()
-            ? Company::where('group_id', $user->group_id)->orderBy('name')->get()
+            ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->orderBy('name')->get()
             : collect();
 
+        // Group user with no company selected → company card grid
+        if ($user->hasGroupScope() && ! $selectedCompanyId) {
+            $companiesQuery = Company::where('group_id', $user->group_id)
+                ->where('show_in_processes', true)
+                ->withCount(['regulations' => fn ($q) => $q->where('is_active', true)]);
+
+            if ($request->filled('q')) {
+                $companiesQuery->where('name', 'like', '%' . $request->q . '%');
+            }
+
+            return view('processes.index', [
+                'cardView'            => true,
+                'companiesWithCounts' => $companiesQuery->orderBy('name')->get(),
+                'companies'           => $companies,
+                'selectedCompanyId'   => null,
+                'processTypes'        => collect(),
+                'documentTypes'       => Regulation::DOCUMENT_TYPES,
+                'regulations'         => collect(),
+            ]);
+        }
+
+        // Table view
         $processTypes = ProcessType::where('group_id', $user->group_id)
             ->where('is_active', true)
             ->orderBy('sort_order')
@@ -46,10 +68,6 @@ class RegulationController extends Controller
             $query->where('document_type', $request->document_type);
         }
 
-        if ($request->filled('status')) {
-            // We filter in PHP after loading since status is computed
-        }
-
         if ($request->filled('q')) {
             $search = '%' . strtoupper($request->q) . '%';
             $query->where(function ($q) use ($search) {
@@ -60,18 +78,38 @@ class RegulationController extends Controller
 
         $regulations = $query->orderBy('code')->orderBy('name')->get();
 
-        // Filter by status (computed) if requested
-        if ($request->filled('status')) {
-            $regulations = $regulations->filter(
-                fn ($r) => $r->statusColor() === $request->status
-            )->values();
-        }
-
         return view('processes.index', [
-            'regulations'       => $regulations,
-            'processTypes'      => $processTypes,
+            'cardView'            => false,
+            'companiesWithCounts' => collect(),
+            'regulations'         => $regulations,
+            'processTypes'        => $processTypes,
+            'companies'           => $companies,
+            'selectedCompanyId'   => $selectedCompanyId,
+            'documentTypes'       => Regulation::DOCUMENT_TYPES,
+        ]);
+    }
+
+    public function create(Request $request)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+
+        $selectedCompanyId = $user->hasGroupScope()
+            ? ($request->filled('company_id') ? (int) $request->company_id : null)
+            : (int) $user->company_id;
+
+        $companies = $user->hasGroupScope()
+            ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->orderBy('name')->get()
+            : collect();
+
+        $processTypes = ProcessType::where('group_id', $user->group_id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')->orderBy('name')->get();
+
+        return view('processes.create', [
             'companies'         => $companies,
             'selectedCompanyId' => $selectedCompanyId,
+            'processTypes'      => $processTypes,
             'documentTypes'     => Regulation::DOCUMENT_TYPES,
         ]);
     }
@@ -109,30 +147,58 @@ class RegulationController extends Controller
         abort_unless($user->isAdmin() || $user->isOperative(), 403);
 
         $data = $request->validateWithBag('createRegulation', [
-            'company_id'      => ['required', 'exists:companies,id'],
-            'process_type_id' => ['required', 'exists:process_types,id'],
-            'document_type'   => ['nullable', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
-            'code'            => ['nullable', 'string', 'max:50'],
-            'name'            => ['required', 'string', 'max:255'],
+            'company_id'                  => ['required', 'exists:companies,id'],
+            'process_type_id'             => ['required', 'exists:process_types,id'],
+            'document_type'               => ['required', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
+            'nombre'                      => ['required', 'string', 'max:255'],
+            'codigo'                      => ['nullable', 'string', 'max:50'],
+            'quien_elabora'               => ['required', 'string', 'max:255'],
+            'quien_aprueba'               => ['required', 'string', 'max:255'],
+            'fecha_vigencia'              => ['required', 'date'],
+            'problema_resuelve'           => ['required', 'string'],
+            'resultado_esperado'          => ['required', 'string'],
+            'areas_aplica'                => ['required', 'string'],
+            'fuera_alcance'               => ['required', 'string'],
+            'indicador_proceso'           => ['required', 'string'],
+            'indicador_resultado'         => ['required', 'string'],
+            'meta_valor'                  => ['required', 'string', 'max:255'],
+            'frecuencia_medicion'         => ['required', 'string', 'max:255'],
+            'que_detona'                  => ['required', 'string'],
+            'lista_actividades'           => ['required', 'string'],
+            'areas_ejecutan'              => ['required', 'string'],
+            'decisiones_control'          => ['required', 'string'],
+            'documentos_usados'           => ['required', 'string'],
+            'resultado_entregable'        => ['required', 'string'],
+            'areas_roles_mapa'            => ['required', 'string', 'max:255'],
+            'procedimientos_relacionados' => ['required', 'string'],
+            'proveedores_clientes'        => ['required', 'string'],
+            'terminos_abreviaturas'       => ['required', 'string'],
+            'riesgos_errores'             => ['required', 'string'],
+            'requerimientos_normativos'   => ['required', 'string'],
         ]);
 
         $company = Company::findOrFail($data['company_id']);
         abort_unless($user->canAccessCompany($company), 403);
 
-        Regulation::create([
+        $details = collect($data)
+            ->except(['company_id', 'process_type_id', 'document_type', 'nombre', 'codigo'])
+            ->toArray();
+
+        $regulation = Regulation::create([
             'group_id'        => $user->group_id,
             'company_id'      => $company->id,
             'process_type_id' => $data['process_type_id'],
-            'document_type'   => $data['document_type'] ?? null,
-            'code'            => $data['code'] ? strtoupper($data['code']) : null,
-            'name'            => strtoupper($data['name']),
+            'document_type'   => $data['document_type'],
+            'code'            => $data['codigo'] ? strtoupper($data['codigo']) : null,
+            'name'            => strtoupper($data['nombre']),
+            'details'         => $details,
             'is_active'       => true,
             'created_by'      => $user->id,
         ]);
 
         return redirect()
-            ->route('processes.index')
-            ->with('success', 'Reglamento creado correctamente.');
+            ->route('processes.index', ['company_id' => $regulation->company_id])
+            ->with('success', 'Proceso creado correctamente.');
     }
 
     public function update(Request $request, Regulation $regulation)

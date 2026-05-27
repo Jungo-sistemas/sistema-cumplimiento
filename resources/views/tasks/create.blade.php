@@ -76,10 +76,43 @@
         @endif
 
         {{-- Form --}}
-        <form method="POST" action="{{ route('requirements.tasks.store', $requirement) }}" class="mt-6">
+        <form method="POST" action="{{ route('requirements.tasks.store', $requirement) }}" class="mt-6"
+              x-data="{
+                  taskType: '{{ old('type', 'manual') }}',
+                  expiresAt: '{{ $requirement->expires_at?->format('Y-m-d') ?? '' }}',
+                  renewalDate() {
+                      if (!this.expiresAt) return '';
+                      const d = new Date(this.expiresAt + 'T00:00:00');
+                      d.setDate(d.getDate() - 60);
+                      const today = new Date();
+                      today.setHours(0,0,0,0);
+                      if (d <= today) { today.setDate(today.getDate() + 1); return today.toISOString().split('T')[0]; }
+                      return d.toISOString().split('T')[0];
+                  }
+              }">
             @csrf
 
             <div class="grid grid-cols-1 gap-5">
+                {{-- Tipo de tarea --}}
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700">Tipo de tarea</label>
+                    <select
+                        name="type"
+                        x-model="taskType"
+                        class="mt-1 block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                    >
+                        <option value="manual">Manual</option>
+                        <option value="renewal">Renovación</option>
+                        <option value="review">Revisión</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500" x-show="taskType === 'renewal'">
+                        La fecha límite se calculará 60 días antes del vencimiento del documento oficial.
+                    </p>
+                    <p class="mt-1 text-xs text-gray-500" x-show="taskType !== 'renewal'">
+                        Las tareas manuales y de revisión requieren evidencia para completarse.
+                    </p>
+                </div>
+
                 {{-- Título --}}
                 <div>
                     <label class="block text-sm font-semibold text-gray-700">Título</label>
@@ -150,12 +183,11 @@
                     <input
                         type="date"
                         name="due_date"
-                        value="{{ old('due_date') }}"
+                        :value="taskType === 'renewal' ? renewalDate() : '{{ old('due_date') }}'"
+                        :readonly="taskType === 'renewal'"
                         class="mt-1 block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                        :class="taskType === 'renewal' ? 'bg-gray-50 text-gray-500' : ''"
                     >
-                    <p class="mt-1 text-xs text-gray-500">
-                        Todas las tareas requieren evidencia obligatoria.
-                    </p>
                     @error('due_date')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror

@@ -20,6 +20,8 @@ class StoreTaskRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:160'],
 
+            'type' => ['nullable', 'string', 'in:manual,initial,renewal,checkout,checkin,review'],
+
             'description' => ['nullable', 'string', 'max:2000'],
 
             'due_date' => ['nullable', 'date'],

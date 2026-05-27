@@ -9,16 +9,60 @@
         $filtersGridClass = $showCompanyColumn ? 'md:grid-cols-7' : 'md:grid-cols-6';
     @endphp
 
+    {{-- License limit alert --}}
+    @if(session('license_limit'))
+        <div class="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-4 flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 text-orange-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            </svg>
+            <div>
+                <p class="font-semibold text-orange-800 text-sm">Límite de licencia alcanzado</p>
+                <p class="text-sm text-orange-700 mt-0.5">
+                    Has alcanzado el número máximo de activos permitidos en tu plan actual.
+                    Para agregar más activos, comunícate con tu administrador para actualizar tu licencia.
+                </p>
+            </div>
+        </div>
+    @endif
+
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-semibold text-[#1A428A]">Lista de activos</h1>
 
         @can('create', App\Models\Asset::class)
-            <a href="{{ route('assets.create', array_filter(['company_id' => request('company_id', $selectedCompanyId ?? null)])) }}"
-               class="bg-[#1A428A] text-white px-4 py-2 rounded-md font-semibold hover:bg-[#15356d]">
-                + Nuevo activo
-            </a>
+            @if(!($licenseInfo['at_limit'] ?? false))
+                <a href="{{ route('assets.create', array_filter(['company_id' => request('company_id', $selectedCompanyId ?? null)])) }}"
+                   class="bg-[#1A428A] text-white px-4 py-2 rounded-md font-semibold hover:bg-[#15356d]">
+                    + Nuevo activo
+                </a>
+            @else
+                <span class="px-4 py-2 rounded-md bg-gray-100 text-gray-400 font-semibold text-sm cursor-not-allowed"
+                      title="Límite de licencia alcanzado">
+                    + Nuevo activo
+                </span>
+            @endif
         @endcan
     </div>
+
+    {{-- License usage bar (only when limit is set) --}}
+    @if(!is_null($licenseInfo['limit'] ?? null))
+        @php
+            $pct   = $licenseInfo['percent'];
+            $color = $pct >= 100 ? 'bg-red-500' : ($pct >= 80 ? 'bg-orange-400' : 'bg-[#1A428A]');
+            $scope = $licenseInfo['scope'] === 'group' ? 'del grupo' : 'de la empresa';
+        @endphp
+        <div class="mt-3 mb-1">
+            <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
+                <span>Activos {{ $scope }}: <span class="font-semibold text-gray-700">{{ $licenseInfo['current'] }} / {{ $licenseInfo['limit'] }}</span></span>
+                <span class="{{ $pct >= 100 ? 'text-red-600 font-semibold' : ($pct >= 80 ? 'text-orange-600 font-semibold' : '') }}">
+                    {{ $pct >= 100 ? 'Límite alcanzado' : $licenseInfo['remaining'].' disponibles' }}
+                </span>
+            </div>
+            <div class="h-1.5 w-full rounded-full bg-gray-200">
+                <div class="h-1.5 rounded-full {{ $color }} transition-all"
+                     style="width: {{ $pct }}%"></div>
+            </div>
+        </div>
+    @endif
 
     <form method="GET"
           action="{{ route('assets.index') }}"

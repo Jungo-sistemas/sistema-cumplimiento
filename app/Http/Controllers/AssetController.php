@@ -11,6 +11,7 @@ use App\Models\AssetType;
 use App\Models\Company;
 use App\Models\RequirementTemplate;
 use App\Models\User;
+use App\Services\LicenseService;
 use App\Services\SyncAssetRequirementsService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -20,8 +21,10 @@ use Illuminate\Support\Str;
 
 class AssetController extends Controller
 {
-    public function __construct(private SyncAssetRequirementsService $syncAssetRequirementsService)
-    {
+    public function __construct(
+        private SyncAssetRequirementsService $syncAssetRequirementsService,
+        private LicenseService $licenseService,
+    ) {
         $this->authorizeResource(Asset::class, 'asset');
     }
 
@@ -113,7 +116,14 @@ class AssetController extends Controller
             ->orderBy('location')
             ->pluck('location');
 
-        return view('assets.index', compact('assets', 'assetTypes', 'locations', 'companies', 'selectedCompanyId'));
+        // License info for the current context
+        $licenseCompany = $selectedCompanyId
+            ? Company::find($selectedCompanyId)
+            : ($user->hasGroupScope() ? null : Company::find($user->company_id));
+
+        $licenseInfo = $licenseCompany ? $this->licenseService->info($licenseCompany) : null;
+
+        return view('assets.index', compact('assets', 'assetTypes', 'locations', 'companies', 'selectedCompanyId', 'licenseInfo'));
     }
 
     public function create(Request $request)
@@ -140,6 +150,14 @@ class AssetController extends Controller
         $selectedCompany = Company::findOrFail($selectedCompanyId);
 
         abort_unless($user->canAccessCompany($selectedCompany), 403);
+
+        $licenseInfo = $this->licenseService->info($selectedCompany);
+
+        if ($licenseInfo['at_limit']) {
+            return redirect()
+                ->route('assets.index')
+                ->with('license_limit', true);
+        }
 
         $parentAssets = Asset::query()
             ->where('company_id', $selectedCompany->id)
@@ -196,7 +214,8 @@ class AssetController extends Controller
             'mexicoStates',
             'parentAssets',
             'companies',
-            'selectedCompanyId'
+            'selectedCompanyId',
+            'licenseInfo'
         ));
     }
 
@@ -208,6 +227,12 @@ class AssetController extends Controller
         $company = Company::findOrFail((int) $data['company_id']);
 
         abort_unless($user->canAccessCompany($company), 403);
+
+        if (! $this->licenseService->hasCapacity($company)) {
+            return redirect()
+                ->route('assets.index')
+                ->with('license_limit', true);
+        }
 
         if (! empty($data['code'])) {
             $data['code'] = Str::upper(trim($data['code']));
@@ -316,8 +341,10 @@ class AssetController extends Controller
                 });
             })
             ->withCount([
-                'tasks as tasks_total',
-                'tasks as tasks_done' => fn ($q) => $q->where('status', TaskStatus::COMPLETED),
+                'tasks as tasks_total'     => fn ($q) => $q->where('status', '!=', 'cancelled'),
+                'tasks as tasks_done'      => fn ($q) => $q->where('status', TaskStatus::COMPLETED),
+                'tasks as renewal_pending' => fn ($q) => $q->where('type', 'renewal')->whereNotIn('status', ['completed', 'cancelled']),
+                'tasks as checkin_pending' => fn ($q) => $q->where('type', 'checkin')->whereNotIn('status', ['completed', 'cancelled']),
             ])
             ->orderBy('id');
 
@@ -375,6 +402,8 @@ class AssetController extends Controller
             $requirement->computed_status = $computedStatus;
             $requirement->computed_progress = $progress;
             $requirement->has_official_document = $hasOfficialDocument;
+            $requirement->renewal_pending  = (int) ($requirement->renewal_pending ?? 0);
+            $requirement->checkin_pending  = (int) ($requirement->checkin_pending ?? 0);
 
             return $requirement;
         });

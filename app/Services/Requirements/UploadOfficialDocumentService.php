@@ -78,7 +78,6 @@ class UploadOfficialDocumentService
             ]);
 
             $this->completeOpenRenewalTask($requirement);
-            $this->syncNextRenewalTask($requirement, $newDocument);
 
             return $newDocument;
         });

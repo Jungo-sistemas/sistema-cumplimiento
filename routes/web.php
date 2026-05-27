@@ -18,6 +18,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DocumentVersionController;
 use App\Http\Controllers\RegulationController;
 use App\Http\Controllers\RegulationVersionController;
+use App\Http\Controllers\SuperAdminController;
 
 Route::get('/', function () {
     return auth()->check()
@@ -30,6 +31,26 @@ Route::get('/dashboard', [ComplianceDashboardController::class, 'index'])
     ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+
+    /*
+    |--------------------------------------------------------------------------
+    | Superadmin
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('superadmin')->name('superadmin.')->group(function () {
+        Route::get('/', [SuperAdminController::class, 'dashboard'])->name('dashboard');
+        Route::get('/groups', [SuperAdminController::class, 'groups'])->name('groups');
+        Route::post('/groups', [SuperAdminController::class, 'storeGroup'])->name('groups.store');
+        Route::delete('/groups/{group}', [SuperAdminController::class, 'destroyGroup'])->name('groups.destroy');
+        Route::patch('/groups/{group}/limit', [SuperAdminController::class, 'updateGroupLimit'])->name('groups.limit');
+        Route::get('/companies', [SuperAdminController::class, 'companies'])->name('companies');
+        Route::post('/companies', [SuperAdminController::class, 'storeCompany'])->name('companies.store');
+        Route::delete('/companies/{company}', [SuperAdminController::class, 'destroyCompany'])->name('companies.destroy');
+        Route::patch('/companies/{company}/limit', [SuperAdminController::class, 'updateCompanyLimit'])->name('companies.limit');
+        Route::get('/users', [SuperAdminController::class, 'users'])->name('users');
+        Route::post('/users', [SuperAdminController::class, 'storeUser'])->name('users.store');
+        Route::delete('/users/{user}', [SuperAdminController::class, 'destroyUser'])->name('users.destroy');
+    });
 
     /*
     |--------------------------------------------------------------------------
@@ -71,6 +92,9 @@ Route::middleware('auth')->group(function () {
     */
     Route::get('/processes', [RegulationController::class, 'index'])
         ->name('processes.index');
+
+    Route::get('/processes/create', [RegulationController::class, 'create'])
+        ->name('processes.create');
 
     Route::post('/processes', [RegulationController::class, 'store'])
         ->name('processes.store');
@@ -136,6 +160,9 @@ Route::middleware('auth')->group(function () {
 
     Route::delete('assets/{asset}/requirements/{requirement}/documents/{document}', [AssetRequirementDocumentController::class, 'destroy'])
         ->name('assets.requirements.documents.destroy');
+
+    Route::post('assets/{asset}/requirements/{requirement}/renewal-task', [AssetRequirementDocumentController::class, 'storeRenewalTask'])
+        ->name('assets.requirements.renewal-task');
 
     // Tasks for a requirement
     Route::get('requirements/{requirement}/tasks/create', [RequirementTaskController::class, 'create'])

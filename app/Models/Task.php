@@ -26,7 +26,8 @@ class Task extends Model
         'type',
         'due_date',
         'completed_at',
-        'requires_document'
+        'completed_by',
+        'requires_document',
     ];
 
     protected $casts = [

@@ -98,15 +98,18 @@ class RequirementTaskController extends Controller
     {
         $this->guardRequirement($requirement);
 
+        $type = $request->type ?? Task::TYPE_MANUAL;
+
         $task = Task::create([
             'asset_requirement_id' => $requirement->id,
-            'title' => $request->title,
-            'description' => $request->description,
-            'due_date' => $request->due_date,
-            'requires_document' => true,
-            'status' => TaskStatus::PENDING,
-            'completed_at' => null,
-            'completed_by' => null,
+            'type'                 => $type,
+            'title'                => $request->title,
+            'description'          => $request->description,
+            'due_date'             => $request->due_date,
+            'requires_document'    => ! in_array($type, [Task::TYPE_RENEWAL, Task::TYPE_CHECKIN]),
+            'status'               => TaskStatus::PENDING,
+            'completed_at'         => null,
+            'completed_by'         => null,
         ]);
 
         $responsibleUserId = (int) $request->responsible_user_id;
@@ -250,7 +253,7 @@ class RequirementTaskController extends Controller
                 ]);
             }
         } else {
-            if ($task->documents()->count() === 0) {
+            if ($task->requires_document && $task->documents()->count() === 0) {
                 return back()->withErrors([
                     'task' => 'Debes subir al menos una evidencia para completar esta tarea.',
                 ]);
@@ -347,22 +350,22 @@ class RequirementTaskController extends Controller
 
         $alreadyOpen = Task::query()
             ->where('asset_requirement_id', $requirement->id)
-            ->where('title', $title)
+            ->where('type', Task::TYPE_CHECKIN)
             ->whereNull('completed_at')
-            ->whereHas('users', fn ($q) => $q->where('users.id', $responsibleUser->id))
             ->exists();
 
         if ($alreadyOpen) {
-            return back()->with('error', 'Ya existe un Check in pendiente asignado a ese responsable para este requerimiento.');
+            return back()->with('error', 'Ya existe un Check in pendiente para este requerimiento.');
         }
 
         $checkin = Task::create([
             'asset_requirement_id' => $requirement->id,
-            'title' => $title,
-            'description' => "Check in del requerimiento: {$titleReq}",
-            'status' => TaskStatus::PENDING,
-            'due_date' => $data['return_at'],
-            'requires_document' => false,
+            'type'                 => Task::TYPE_CHECKIN,
+            'title'                => $title,
+            'description'          => "Check in del requerimiento: {$titleReq}",
+            'status'               => TaskStatus::PENDING,
+            'due_date'             => $data['return_at'],
+            'requires_document'    => false,
         ]);
 
         $checkin->users()->sync([$responsibleUser->id]);

@@ -36,7 +36,7 @@ class UserController extends Controller
 
         $authUser = auth()->user();
 
-        $roles = Role::orderBy('name')->get();
+        $roles = Role::where('slug', '!=', 'superadmin')->orderBy('name')->get();
 
         $companies = Company::query()
             ->when($authUser->hasGroupScope(), function ($query) use ($authUser) {
@@ -71,18 +71,25 @@ class UserController extends Controller
 
         $role = Role::findOrFail($request->role_id);
 
+        // Block assigning roles above the creator's own role
+        abort_if($role->slug === 'superadmin', 403);
+
+        // An admin with group scope can create group-scope admins.
+        // An admin with company scope can only create company-scope users.
+        $scopeLevel = ($role->slug === 'admin' && $authUser->hasGroupScope()) ? 'group' : 'company';
+
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'role_id' => $role->id,
-            'company_id' => $company->id,
-            'group_id' => $company->group_id,
-            'scope_level' => $role->slug === 'admin' ? 'group' : 'company',
-            'password' => null,
-            'status' => 'invited',
-            'invite_token' => Str::random(64),
-            'invite_expires_at' => now()->addDays(3),
-            'invited_by' => $authUser->id,
+            'name'                   => $request->name,
+            'email'                  => $request->email,
+            'role_id'                => $role->id,
+            'company_id'             => $company->id,
+            'group_id'               => $company->group_id,
+            'scope_level'            => $scopeLevel,
+            'password'               => null,
+            'status'                 => 'invited',
+            'invite_token'           => Str::random(64),
+            'invite_expires_at'      => now()->addDays(3),
+            'invited_by'             => $authUser->id,
         ]);
 
         Mail::to($user->email)->send(new UserInvitationMail($user));

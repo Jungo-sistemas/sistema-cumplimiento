@@ -72,7 +72,17 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->role?->slug === 'admin';
+        return in_array($this->role?->slug, ['admin', 'superadmin']);
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->role?->slug === 'superadmin';
+    }
+
+    public function isGlobalScope(): bool
+    {
+        return $this->scope_level === 'global';
     }
 
     public function isOperative(): bool
@@ -111,6 +121,10 @@ class User extends Authenticatable
             return false;
         }
 
+        if ($this->isGlobalScope()) {
+            return true;
+        }
+
         if ($this->hasGroupScope()) {
             return $this->group_id === $company->group_id;
         }
@@ -120,6 +134,10 @@ class User extends Authenticatable
 
     public function canAccessGroup(Group $group): bool
     {
+        if ($this->isGlobalScope()) {
+            return true;
+        }
+
         return $this->group_id === $group->id;
     }
 }
