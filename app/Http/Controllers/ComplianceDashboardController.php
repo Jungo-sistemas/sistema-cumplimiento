@@ -22,17 +22,21 @@ class ComplianceDashboardController extends Controller
         }
 
         $companies = Company::query()
-            ->when($user->hasGroupScope(), function ($query) use ($user) {
-                $query->where('group_id', $user->group_id);
+            ->when($user->isGlobalScope(), function ($query) {
+                // global-scope non-superadmin: see all companies
             }, function ($query) use ($user) {
-                $query->where('id', $user->company_id);
+                if ($user->hasGroupScope()) {
+                    $query->where('group_id', $user->group_id);
+                } else {
+                    $query->where('id', $user->company_id);
+                }
             })
             ->orderBy('name')
             ->get(['id', 'name']);
 
         $companyId = $request->filled('company_id')
             ? (int) $request->company_id
-            : (int) $user->company_id;
+            : ($user->company_id ?? $companies->first()?->id);
 
         $company = Company::findOrFail($companyId);
 

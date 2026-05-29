@@ -182,27 +182,51 @@
         </div>
 
         {{-- Edit user modal --}}
-        <div x-show="editOpen" x-transition.opacity
-             class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        <div x-show="editOpen"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4"
              style="display:none;"
+             @click.self="editOpen = false"
              @keydown.escape.window="editOpen = false">
-            <div class="w-full max-w-lg rounded-xl bg-white shadow-xl p-6" @click.stop>
-                <h2 class="mb-4 text-lg font-semibold text-gray-800">
-                    Editar usuario: <span class="text-[#1A428A]" x-text="editUserName"></span>
-                </h2>
+
+            <div x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                 x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                 class="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
+
+                {{-- Modal header --}}
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <div>
+                        <p class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-0.5">Editar usuario</p>
+                        <h2 class="text-base font-semibold text-gray-900" x-text="editUserName"></h2>
+                    </div>
+                    <button type="button" @click="editOpen = false"
+                        class="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
 
                 <template x-if="editUserId">
                     <form method="POST" :action="`/superadmin/users/${editUserId}`">
                         @csrf
                         @method('PATCH')
 
-                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div class="px-6 py-5 space-y-4">
 
                             {{-- Rol --}}
-                            <div class="sm:col-span-2">
-                                <label class="mb-1 block text-sm font-medium text-gray-700">Rol <span class="text-red-500">*</span></label>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                                    Rol <span class="text-red-500">*</span>
+                                </label>
                                 <select name="role_id" x-model="editRole" required
-                                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
                                     <option value="">Seleccionar rol…</option>
                                     @foreach($roles as $role)
                                         <option value="{{ $role->id }}" data-slug="{{ $role->slug }}">{{ $role->name }}</option>
@@ -210,45 +234,58 @@
                                 </select>
                             </div>
 
-                            {{-- Grupo --}}
-                            <div x-show="editRole !== superadminId">
-                                <label class="mb-1 block text-sm font-medium text-gray-700">Grupo</label>
-                                <select name="group_id" x-model="editGroup"
-                                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
-                                    <option value="">Sin grupo</option>
-                                    @foreach($groups as $group)
-                                        <option value="{{ $group->id }}">{{ $group->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                            {{-- Grupo + Empresa (ocultos para superadmin) --}}
+                            <div x-show="editRole !== superadminId"
+                                 x-transition:enter="transition ease-out duration-150"
+                                 x-transition:enter-start="opacity-0 -translate-y-1"
+                                 x-transition:enter-end="opacity-100 translate-y-0"
+                                 class="grid grid-cols-2 gap-3">
 
-                            {{-- Empresa --}}
-                            <div x-show="editRole !== superadminId">
-                                <label class="mb-1 block text-sm font-medium text-gray-700">Empresa</label>
-                                <select name="company_id" x-model="editCompany"
-                                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
-                                    <option value="">Sin empresa</option>
-                                    @foreach($companies as $company)
-                                        <option value="{{ $company->id }}">{{ $company->name }} ({{ $company->group?->name ?? '—' }})</option>
-                                    @endforeach
-                                </select>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Grupo</label>
+                                    <select name="group_id" x-model="editGroup"
+                                        class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                        <option value="">Sin grupo</option>
+                                        @foreach($groups as $group)
+                                            <option value="{{ $group->id }}">{{ $group->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Empresa</label>
+                                    <select name="company_id" x-model="editCompany"
+                                        class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                        <option value="">Sin empresa</option>
+                                        @foreach($companies as $company)
+                                            <option value="{{ $company->id }}">{{ $company->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
                             </div>
 
                             {{-- Nota superadmin --}}
-                            <div x-show="editRole === superadminId" class="sm:col-span-2">
-                                <p class="rounded-md bg-purple-50 border border-purple-200 px-3 py-2 text-sm text-purple-700">
-                                    El Superadministrador tiene acceso global — empresa y grupo se limpiarán automáticamente.
-                                </p>
+                            <div x-show="editRole === superadminId"
+                                 x-transition:enter="transition ease-out duration-150"
+                                 x-transition:enter-start="opacity-0"
+                                 x-transition:enter-end="opacity-100"
+                                 class="flex items-start gap-2.5 rounded-lg bg-purple-50 border border-purple-200 px-4 py-3">
+                                <svg class="w-4 h-4 text-purple-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <p class="text-sm text-purple-700">Acceso global — empresa y grupo se limpian automáticamente.</p>
                             </div>
+
                         </div>
 
-                        <div class="mt-5 flex gap-2 justify-end">
+                        {{-- Modal footer --}}
+                        <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50">
                             <button type="button" @click="editOpen = false"
-                                class="px-4 py-2 rounded-md border border-gray-300 text-gray-600 text-sm font-semibold hover:bg-gray-50">
+                                class="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-100 transition-colors">
                                 Cancelar
                             </button>
                             <button type="submit"
-                                class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                class="px-5 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d] transition-colors shadow-sm">
                                 Guardar cambios
                             </button>
                         </div>

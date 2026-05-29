@@ -17,24 +17,48 @@
     }">
 
     {{-- Edit user modal --}}
-    <div x-show="editOpen" x-transition.opacity
-         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+    <div x-show="editOpen"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4"
          style="display:none;"
+         @click.self="editOpen = false"
          @keydown.escape.window="editOpen = false">
-        <div class="w-full max-w-sm rounded-xl bg-white shadow-xl p-6" @click.stop>
-            <h2 class="mb-4 text-lg font-semibold text-gray-800">
-                Cambiar rol: <span class="text-[#1A428A]" x-text="editUserName"></span>
-            </h2>
+
+        <div x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+             class="w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden">
+
+            {{-- Header --}}
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-0.5">Cambiar rol</p>
+                    <h2 class="text-base font-semibold text-gray-900" x-text="editUserName"></h2>
+                </div>
+                <button type="button" @click="editOpen = false"
+                    class="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
 
             <template x-if="editUserId">
                 <form method="POST" :action="`/users/${editUserId}`">
                     @csrf
                     @method('PATCH')
 
-                    <div class="mb-4">
-                        <label class="mb-1 block text-sm font-medium text-gray-700">Rol <span class="text-red-500">*</span></label>
+                    <div class="px-6 py-5">
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                            Rol <span class="text-red-500">*</span>
+                        </label>
                         <select name="role_id" x-model="editRole" required
-                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
                             <option value="">Seleccionar rol…</option>
                             @foreach($roles as $role)
                                 <option value="{{ $role->id }}">{{ $role->name }}</option>
@@ -42,13 +66,14 @@
                         </select>
                     </div>
 
-                    <div class="flex gap-2 justify-end">
+                    {{-- Footer --}}
+                    <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50">
                         <button type="button" @click="editOpen = false"
-                            class="px-4 py-2 rounded-md border border-gray-300 text-gray-600 text-sm font-semibold hover:bg-gray-50">
+                            class="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-100 transition-colors">
                             Cancelar
                         </button>
                         <button type="submit"
-                            class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                            class="px-5 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d] transition-colors shadow-sm">
                             Guardar
                         </button>
                     </div>
