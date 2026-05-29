@@ -1,6 +1,24 @@
 <x-layouts.vigia title="Usuarios del Sistema">
 
-    <div x-data="{ showForm: false, selectedRole: '{{ old('role_id', '') }}' }">
+    <div x-data="{
+        showForm: false,
+        selectedRole: '{{ old('role_id', '') }}',
+        superadminId: '{{ $roles->where('slug', 'superadmin')->first()?->id }}',
+        editOpen: false,
+        editUserId: null,
+        editUserName: '',
+        editRole: '',
+        editGroup: '',
+        editCompany: '',
+        openEdit(id, name, roleId, groupId, companyId) {
+            this.editUserId = id;
+            this.editUserName = name;
+            this.editRole = String(roleId ?? '');
+            this.editGroup = String(groupId ?? '');
+            this.editCompany = String(companyId ?? '');
+            this.editOpen = true;
+        }
+    }">
 
         {{-- Header --}}
         <div class="mb-6 flex items-center justify-between">
@@ -163,6 +181,82 @@
             </form>
         </div>
 
+        {{-- Edit user modal --}}
+        <div x-show="editOpen" x-transition.opacity
+             class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+             style="display:none;"
+             @keydown.escape.window="editOpen = false">
+            <div class="w-full max-w-lg rounded-xl bg-white shadow-xl p-6" @click.stop>
+                <h2 class="mb-4 text-lg font-semibold text-gray-800">
+                    Editar usuario: <span class="text-[#1A428A]" x-text="editUserName"></span>
+                </h2>
+
+                <template x-if="editUserId">
+                    <form method="POST" :action="`/superadmin/users/${editUserId}`">
+                        @csrf
+                        @method('PATCH')
+
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+                            {{-- Rol --}}
+                            <div class="sm:col-span-2">
+                                <label class="mb-1 block text-sm font-medium text-gray-700">Rol <span class="text-red-500">*</span></label>
+                                <select name="role_id" x-model="editRole" required
+                                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                                    <option value="">Seleccionar rol…</option>
+                                    @foreach($roles as $role)
+                                        <option value="{{ $role->id }}" data-slug="{{ $role->slug }}">{{ $role->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- Grupo --}}
+                            <div x-show="editRole !== superadminId">
+                                <label class="mb-1 block text-sm font-medium text-gray-700">Grupo</label>
+                                <select name="group_id" x-model="editGroup"
+                                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                                    <option value="">Sin grupo</option>
+                                    @foreach($groups as $group)
+                                        <option value="{{ $group->id }}">{{ $group->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- Empresa --}}
+                            <div x-show="editRole !== superadminId">
+                                <label class="mb-1 block text-sm font-medium text-gray-700">Empresa</label>
+                                <select name="company_id" x-model="editCompany"
+                                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                                    <option value="">Sin empresa</option>
+                                    @foreach($companies as $company)
+                                        <option value="{{ $company->id }}">{{ $company->name }} ({{ $company->group?->name ?? '—' }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- Nota superadmin --}}
+                            <div x-show="editRole === superadminId" class="sm:col-span-2">
+                                <p class="rounded-md bg-purple-50 border border-purple-200 px-3 py-2 text-sm text-purple-700">
+                                    El Superadministrador tiene acceso global — empresa y grupo se limpiarán automáticamente.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="mt-5 flex gap-2 justify-end">
+                            <button type="button" @click="editOpen = false"
+                                class="px-4 py-2 rounded-md border border-gray-300 text-gray-600 text-sm font-semibold hover:bg-gray-50">
+                                Cancelar
+                            </button>
+                            <button type="submit"
+                                class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                Guardar cambios
+                            </button>
+                        </div>
+                    </form>
+                </template>
+            </div>
+        </div>
+
         {{-- Users table --}}
         <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
             <div class="overflow-x-auto">
@@ -210,15 +304,22 @@
                                 </td>
                                 <td class="px-5 py-3 text-right">
                                     @if($user->id !== auth()->id())
-                                        <form method="POST" action="{{ route('superadmin.users.destroy', $user) }}" class="inline"
-                                            onsubmit="return confirm('¿Eliminar al usuario «{{ $user->name }}»?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                class="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
-                                                Eliminar
+                                        <div class="inline-flex gap-2">
+                                            <button type="button"
+                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', '{{ $user->company_id ?? '' }}')"
+                                                class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                                Editar
                                             </button>
-                                        </form>
+                                            <form method="POST" action="{{ route('superadmin.users.destroy', $user) }}" class="inline"
+                                                onsubmit="return confirm('¿Eliminar al usuario «{{ $user->name }}»?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                    class="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
+                                                    Eliminar
+                                                </button>
+                                            </form>
+                                        </div>
                                     @else
                                         <span class="text-xs text-gray-400 italic">Tú</span>
                                     @endif

@@ -3,6 +3,60 @@
         <span class="text-gray-700 font-medium">Usuarios</span>
     </x-slot>
 
+    <div x-data="{
+        editOpen: false,
+        editUserId: null,
+        editUserName: '',
+        editRole: '',
+        openEdit(id, name, roleId) {
+            this.editUserId = id;
+            this.editUserName = name;
+            this.editRole = String(roleId ?? '');
+            this.editOpen = true;
+        }
+    }">
+
+    {{-- Edit user modal --}}
+    <div x-show="editOpen" x-transition.opacity
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+         style="display:none;"
+         @keydown.escape.window="editOpen = false">
+        <div class="w-full max-w-sm rounded-xl bg-white shadow-xl p-6" @click.stop>
+            <h2 class="mb-4 text-lg font-semibold text-gray-800">
+                Cambiar rol: <span class="text-[#1A428A]" x-text="editUserName"></span>
+            </h2>
+
+            <template x-if="editUserId">
+                <form method="POST" :action="`/users/${editUserId}`">
+                    @csrf
+                    @method('PATCH')
+
+                    <div class="mb-4">
+                        <label class="mb-1 block text-sm font-medium text-gray-700">Rol <span class="text-red-500">*</span></label>
+                        <select name="role_id" x-model="editRole" required
+                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                            <option value="">Seleccionar rol…</option>
+                            @foreach($roles as $role)
+                                <option value="{{ $role->id }}">{{ $role->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="flex gap-2 justify-end">
+                        <button type="button" @click="editOpen = false"
+                            class="px-4 py-2 rounded-md border border-gray-300 text-gray-600 text-sm font-semibold hover:bg-gray-50">
+                            Cancelar
+                        </button>
+                        <button type="submit"
+                            class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                            Guardar
+                        </button>
+                    </div>
+                </form>
+            </template>
+        </div>
+    </div>
+
     <div class="bg-white rounded-xl shadow p-6">
         <div class="flex items-center justify-between mb-6">
             <div>
@@ -80,17 +134,23 @@
                             @if(auth()->user()->isAdmin())
                                 <td class="px-4 py-3 text-right">
                                     @if($user->id !== auth()->id())
-                                        <form method="POST"
-                                              action="{{ route('users.destroy', $user) }}"
-                                              onsubmit="return confirm('¿Seguro que quieres eliminar este usuario?');">
-                                            @csrf
-                                            @method('DELETE')
-
-                                            <button type="submit"
-                                                class="px-3 py-1.5 rounded-md bg-[#DB0000] text-white text-sm font-semibold hover:bg-red-700">
-                                                Eliminar
+                                        <div class="inline-flex gap-2">
+                                            <button type="button"
+                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}')"
+                                                class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                                Editar
                                             </button>
-                                        </form>
+                                            <form method="POST"
+                                                  action="{{ route('users.destroy', $user) }}"
+                                                  onsubmit="return confirm('¿Seguro que quieres eliminar este usuario?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                    class="px-3 py-1.5 rounded-md bg-[#DB0000] text-white text-sm font-semibold hover:bg-red-700">
+                                                    Eliminar
+                                                </button>
+                                            </form>
+                                        </div>
                                     @else
                                         <span class="text-xs text-gray-400">Tú</span>
                                     @endif
@@ -111,5 +171,7 @@
         <div class="mt-4">
             {{ $users->links() }}
         </div>
+    </div>
+
     </div>
 </x-layouts.vigia>

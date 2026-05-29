@@ -49,6 +49,7 @@ Route::middleware('auth')->group(function () {
         Route::patch('/companies/{company}/limit', [SuperAdminController::class, 'updateCompanyLimit'])->name('companies.limit');
         Route::get('/users', [SuperAdminController::class, 'users'])->name('users');
         Route::post('/users', [SuperAdminController::class, 'storeUser'])->name('users.store');
+        Route::patch('/users/{user}', [SuperAdminController::class, 'updateUser'])->name('users.update');
         Route::delete('/users/{user}', [SuperAdminController::class, 'destroyUser'])->name('users.destroy');
     });
 
@@ -129,6 +130,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::get('/users/create', [UserController::class, 'create'])->name('users.create');
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
+    Route::patch('/users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 
     // Assets CRUD

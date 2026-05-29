@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Company;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -12,30 +11,34 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        $firstCompany = Company::firstOrFail();
-
         $superadminRole = Role::where('slug', 'superadmin')->firstOrFail();
         $adminRole      = Role::where('slug', 'admin')->firstOrFail();
 
-        // Super administrador de plataforma
+        // Super administrador de plataforma — acceso global, sin empresa
         User::updateOrCreate(
             ['email' => 'dev2.int@vigia.com.mx'],
             [
-                'name'       => 'Super Admin',
-                'password'   => Hash::make('REEMPLAZA_ESTA_CONTRASEÑA'),
-                'company_id' => $firstCompany->id,
-                'role_id'    => $superadminRole->id,
+                'name'        => 'Super Admin',
+                'password'    => Hash::make('REEMPLAZA_ESTA_CONTRASEÑA'),
+                'company_id'  => null,
+                'group_id'    => null,
+                'scope_level' => 'global',
+                'role_id'     => $superadminRole->id,
+                'status'      => 'active',
             ]
         );
 
-        // Administrador general — cambia el email antes de ejecutar
+        // Administrador general — acceso global, asignar empresa/grupo después si se requiere
         User::updateOrCreate(
             ['email' => 'admin@vigia.com.mx'],
             [
-                'name'       => 'Administrador',
-                'password'   => Hash::make('REEMPLAZA_ESTA_CONTRASEÑA'),
-                'company_id' => $firstCompany->id,
-                'role_id'    => $adminRole->id,
+                'name'        => 'Administrador',
+                'password'    => Hash::make('REEMPLAZA_ESTA_CONTRASEÑA'),
+                'company_id'  => null,
+                'group_id'    => null,
+                'scope_level' => 'global',
+                'role_id'     => $adminRole->id,
+                'status'      => 'active',
             ]
         );
     }

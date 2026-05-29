@@ -248,6 +248,44 @@ class SuperAdminController extends Controller
             ->with('success', 'Usuario invitado correctamente.');
     }
 
+    public function updateUser(Request $request, User $user)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        $request->validate([
+            'role_id'    => ['required', 'exists:roles,id'],
+            'company_id' => ['nullable', 'exists:companies,id'],
+            'group_id'   => ['nullable', 'exists:groups,id'],
+        ]);
+
+        $role = Role::findOrFail($request->role_id);
+
+        if ($role->slug === 'superadmin') {
+            $scopeLevel = 'global';
+            $companyId  = null;
+            $groupId    = null;
+        } elseif ($role->slug === 'admin') {
+            $scopeLevel = 'group';
+            $companyId  = $request->company_id;
+            $groupId    = $request->group_id;
+        } else {
+            $scopeLevel = 'company';
+            $companyId  = $request->company_id;
+            $groupId    = $request->group_id;
+        }
+
+        $user->update([
+            'role_id'     => $role->id,
+            'company_id'  => $companyId,
+            'group_id'    => $groupId,
+            'scope_level' => $scopeLevel,
+        ]);
+
+        return redirect()
+            ->route('superadmin.users')
+            ->with('success', "Usuario «{$user->name}» actualizado correctamente.");
+    }
+
     public function destroyUser(User $user)
     {
         abort_unless(auth()->user()->isSuperAdmin(), 403);

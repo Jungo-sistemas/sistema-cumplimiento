@@ -19,15 +19,26 @@ class UserController extends Controller
         $authUser = auth()->user();
 
         $users = User::with(['role', 'company', 'group'])
-            ->when($authUser->hasGroupScope(), function ($query) use ($authUser) {
-                $query->where('group_id', $authUser->group_id);
+            ->when($authUser->isGlobalScope(), function ($query) {
+                // global-scope admins see all users except superadmins
+                $query->whereHas('role', fn ($q) => $q->where('slug', '!=', 'superadmin'));
             }, function ($query) use ($authUser) {
-                $query->where('company_id', $authUser->company_id);
+                if ($authUser->hasGroupScope()) {
+                    $query->where('group_id', $authUser->group_id);
+                } else {
+                    $query->where('company_id', $authUser->company_id);
+                }
             })
             ->latest()
             ->paginate(10);
 
-        return view('users.index', compact('users'));
+        $allowedRoleSlugs = ($authUser->hasGroupScope() || $authUser->isGlobalScope())
+            ? ['admin', 'operative', 'readonly']
+            : ['operative', 'readonly'];
+
+        $roles = Role::whereIn('slug', $allowedRoleSlugs)->orderBy('name')->get();
+
+        return view('users.index', compact('users', 'roles'));
     }
 
     public function create()
@@ -108,13 +119,48 @@ class UserController extends Controller
             ->with('success', 'Invitación enviada correctamente.');
     }
 
+    public function update(Request $request, User $user)
+    {
+        abort_unless(auth()->user()->isAdmin(), 403);
+
+        $authUser = auth()->user();
+
+        if (! $authUser->isGlobalScope() && ! $authUser->canAccessCompany($user->company)) {
+            abort(403);
+        }
+
+        if ($user->id === $authUser->id) {
+            return back()->with('error', 'No puedes cambiar tu propio rol.');
+        }
+
+        $request->validate([
+            'role_id' => ['required', 'exists:roles,id'],
+        ]);
+
+        $role = Role::findOrFail($request->role_id);
+
+        abort_if($role->slug === 'superadmin', 403);
+        abort_if($role->slug === 'admin' && ! $authUser->hasGroupScope() && ! $authUser->isGlobalScope(), 403);
+
+        $scopeLevel = ($role->slug === 'admin') ? 'group' : 'company';
+
+        $user->update([
+            'role_id'     => $role->id,
+            'scope_level' => $scopeLevel,
+        ]);
+
+        return redirect()
+            ->route('users.index')
+            ->with('success', "Rol de «{$user->name}» actualizado correctamente.");
+    }
+
     public function destroy(User $user)
     {
         abort_unless(auth()->user()->isAdmin(), 403);
 
         $authUser = auth()->user();
 
-        if (! $user->company || ! $authUser->canAccessCompany($user->company)) {
+        if (! $authUser->isGlobalScope() && (! $user->company || ! $authUser->canAccessCompany($user->company))) {
             abort(403);
         }
 
