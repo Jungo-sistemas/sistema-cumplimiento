@@ -105,6 +105,9 @@ Route::middleware('auth')->group(function () {
     Route::put('/processes/{regulation}', [RegulationController::class, 'update'])
         ->name('processes.update');
 
+    Route::get('/processes/{regulation}/print', [RegulationController::class, 'printView'])
+        ->name('processes.print');
+
     Route::post('/processes/{regulation}/versions', [RegulationVersionController::class, 'store'])
         ->name('processes.versions.store');
 

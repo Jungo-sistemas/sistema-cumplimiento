@@ -53,18 +53,25 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                     Empresa
                 </label>
-                <select
-                    name="company_id"
-                    class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
-                    required
-                >
-                    <option value="">Selecciona una empresa</option>
-                    @foreach($companies as $company)
-                        <option value="{{ $company->id }}" @selected(old('company_id') == $company->id)>
-                            {{ $company->name }}
-                        </option>
-                    @endforeach
-                </select>
+                @if($singleCompany)
+                    <input type="hidden" name="company_id" value="{{ $singleCompany->id }}">
+                    <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                        {{ $singleCompany->name }}
+                    </div>
+                @else
+                    <select
+                        name="company_id"
+                        class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                        required
+                    >
+                        <option value="">Selecciona una empresa</option>
+                        @foreach($companies as $company)
+                            <option value="{{ $company->id }}" @selected(old('company_id') == $company->id)>
+                                {{ $company->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                @endif
             </div>
 
             <div>
@@ -79,10 +86,22 @@
                     <option value="">Selecciona un rol</option>
                     @foreach($roles as $role)
                         <option value="{{ $role->id }}" @selected(old('role_id') == $role->id)>
-                            {{ $role->name }}
+                            @switch($role->slug)
+                                @case('admin') Administrador @break
+                                @case('operative') Operativo @break
+                                @case('readonly') Solo lectura @break
+                                @default {{ $role->name }}
+                            @endswitch
                         </option>
                     @endforeach
                 </select>
+                <p class="mt-1 text-xs text-gray-400">
+                    @if($singleCompany)
+                        Operativo: puede gestionar activos y tareas. Solo lectura: solo consulta.
+                    @else
+                        Administrador: gestiona usuarios y configuración del grupo. Operativo: gestiona activos y tareas. Solo lectura: solo consulta.
+                    @endif
+                </p>
             </div>
 
             <div class="flex justify-end gap-3">

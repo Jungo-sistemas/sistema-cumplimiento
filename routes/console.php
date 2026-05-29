@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 Schedule::command('requirements:expire')
     ->dailyAt('00:05');
+
+Schedule::command('requirements:notify-due-soon')
+    ->dailyAt('08:00');

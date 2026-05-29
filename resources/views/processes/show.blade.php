@@ -85,6 +85,290 @@
             @endif
         </div>
 
+        @if(false) {{-- Vista del documento movida a processes.print --}}
+        <div class="mt-8">
+            {{-- Encabezado de sección con botón imprimir --}}
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-semibold text-gray-700">Vista del documento</h2>
+                <button onclick="window.print()"
+                        class="px-3 py-1.5 rounded-md border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                    </svg>
+                    Imprimir
+                </button>
+            </div>
+
+            {{-- Documento --}}
+            <div id="doc-preview" class="border border-gray-300 rounded-xl overflow-hidden text-sm text-gray-900 bg-white print:border-0 print:rounded-none">
+
+                {{-- ── Encabezado tabla superior ── --}}
+                <table class="w-full border-collapse text-xs">
+                    <tr>
+                        <td class="border border-gray-400 p-3 text-center w-1/4 align-middle text-gray-500 italic">
+                            <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">LOGO EMPRESA</div>
+                            <div class="text-xs text-gray-400">(insertar logotipo)</div>
+                        </td>
+                        <td class="border border-gray-400 p-3 text-center align-middle">
+                            <div class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{{ strtoupper($regulation->document_type ?? 'PROCEDIMIENTO') }}</div>
+                            <div class="font-semibold text-gray-800 text-sm">{{ $regulation->name }}</div>
+                        </td>
+                        <td class="border border-gray-400 p-3 text-center w-[120px] align-middle">
+                            <div class="text-xs font-bold text-gray-500 uppercase">CÓDIGO</div>
+                            <div class="font-mono font-bold text-[#1A428A] text-sm mt-0.5">{{ $regulation->code ?? '—' }}</div>
+                        </td>
+                        <td class="border border-gray-400 p-3 text-center w-[80px] align-middle">
+                            <div class="text-xs font-bold text-gray-500 uppercase">VERSIÓN</div>
+                            <div class="font-bold text-gray-800 text-sm mt-0.5">{{ str_pad($vNum, 2, '0', STR_PAD_LEFT) }}</div>
+                        </td>
+                    </tr>
+                    <tr class="bg-gray-100">
+                        <td class="border border-gray-400 p-2">
+                            <div class="text-xs font-bold text-gray-600 uppercase">ELABORADO POR:</div>
+                            <div class="text-xs text-gray-700 mt-0.5">{{ $d['quien_elabora'] ?? '—' }}</div>
+                        </td>
+                        <td class="border border-gray-400 p-2">
+                            <div class="text-xs font-bold text-gray-600 uppercase">APROBADO POR:</div>
+                            <div class="text-xs text-gray-700 mt-0.5">{{ $d['quien_aprueba'] ?? '—' }}</div>
+                        </td>
+                        <td class="border border-gray-400 p-2">
+                            <div class="text-xs font-bold text-gray-600 uppercase">Fecha efectividad:</div>
+                            <div class="text-xs text-gray-700 mt-0.5">{{ $fechaFmt }}</div>
+                        </td>
+                        <td class="border border-gray-400 p-2 text-center">
+                            <div class="text-xs font-bold text-gray-600 uppercase">Página:</div>
+                            <div class="text-xs text-gray-700 mt-0.5">1 de 2</div>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="p-6 space-y-6">
+
+                    {{-- OBJETIVO --}}
+                    <div>
+                        <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">OBJETIVO</h3>
+                        <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">{{ $d['resultado_esperado'] ?? '' }}</div>
+                    </div>
+
+                    {{-- ALCANCE --}}
+                    <div>
+                        <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">ALCANCE</h3>
+                        @if(!empty($d['problema_resuelve']))
+                            <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-700 mb-3 leading-relaxed whitespace-pre-line">{{ $d['problema_resuelve'] }}</div>
+                        @endif
+
+                        @if(!empty($d['areas_aplica']))
+                            <p class="font-semibold text-gray-800 text-sm mb-1">Este procedimiento aplica a:</p>
+                            <ul class="list-disc list-inside space-y-0.5 text-sm text-gray-700 mb-3 ml-2">
+                                @foreach($parseLines($d['areas_aplica']) as $line)
+                                    <li>{{ $line }}</li>
+                                @endforeach
+                            </ul>
+                        @endif
+
+                        @if(!empty($d['fuera_alcance']))
+                            <p class="font-semibold text-gray-800 text-sm mb-1">Queda fuera del alcance:</p>
+                            <ul class="list-disc list-inside space-y-0.5 text-sm text-gray-700 ml-2">
+                                @foreach($parseLines($d['fuera_alcance']) as $line)
+                                    <li>{{ $line }}</li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
+
+                    {{-- TÓPICOS --}}
+                    @if(!empty($d['requerimientos_normativos']))
+                    <div>
+                        <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">TÓPICOS</h3>
+                        <ul class="list-disc list-inside space-y-0.5 text-sm text-gray-700 ml-2">
+                            @foreach($parseLines($d['requerimientos_normativos']) as $line)
+                                <li>{{ $line }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    @endif
+
+                    {{-- INDICADORES --}}
+                    @if(!empty($d['indicador_proceso']) || !empty($d['indicador_resultado']))
+                    <div>
+                        <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">INDICADORES</h3>
+                        <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 ml-2">
+                            @if(!empty($d['indicador_proceso']))
+                                <li><span class="font-medium">Proceso:</span> {{ $d['indicador_proceso'] }}</li>
+                            @endif
+                            @if(!empty($d['indicador_resultado']))
+                                <li><span class="font-medium">Resultado:</span> {{ $d['indicador_resultado'] }}</li>
+                            @endif
+                            @if(!empty($d['meta_valor']))
+                                <li><span class="font-medium">Meta:</span> {{ $d['meta_valor'] }}</li>
+                            @endif
+                            @if(!empty($d['frecuencia_medicion']))
+                                <li><span class="font-medium">Frecuencia:</span> {{ $d['frecuencia_medicion'] }}</li>
+                            @endif
+                        </ul>
+                    </div>
+                    @endif
+
+                    {{-- DEFINICIONES Y ABREVIATURAS --}}
+                    @if(!empty($d['terminos_abreviaturas']))
+                    <div>
+                        <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">DEFINICIONES Y ABREVIATURAS</h3>
+                        @php $terms = $parseTerms($d['terminos_abreviaturas']); @endphp
+                        <table class="w-full border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-[#e8eef8]">
+                                    <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800 w-1/3">Término / Abreviatura</th>
+                                    <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Definición</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($terms as $row)
+                                <tr class="{{ $loop->odd ? 'bg-white' : 'bg-gray-50' }}">
+                                    <td class="border border-gray-300 px-3 py-2 font-medium text-gray-800">{{ $row['term'] }}</td>
+                                    <td class="border border-gray-300 px-3 py-2 text-gray-700">{{ $row['def'] }}</td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @endif
+
+                    {{-- Pie de página 1 --}}
+                    <div class="border-t border-gray-300 pt-3 text-center text-xs text-gray-400 italic">
+                        Documento controlado — Prohibida su reproducción parcial o total sin autorización | Versión <em>impresa no controlada</em>. Verifique vigencia en el sistema.
+                    </div>
+                </div>
+
+                {{-- ── Segunda "página": encabezado + descripción + historial + anexos ── --}}
+                <div class="border-t-4 border-[#1A428A]">
+                    {{-- Repetir encabezado --}}
+                    <table class="w-full border-collapse text-xs">
+                        <tr>
+                            <td class="border border-gray-400 p-3 text-center w-1/4 align-middle text-gray-400 italic">
+                                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">LOGO EMPRESA</div>
+                                <div class="text-xs">(insertar logotipo)</div>
+                            </td>
+                            <td class="border border-gray-400 p-3 text-center align-middle">
+                                <div class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{{ strtoupper($regulation->document_type ?? 'PROCEDIMIENTO') }}</div>
+                                <div class="font-semibold text-gray-800 text-sm">{{ $regulation->name }}</div>
+                            </td>
+                            <td class="border border-gray-400 p-3 text-center w-[120px] align-middle">
+                                <div class="text-xs font-bold text-gray-500 uppercase">CÓDIGO</div>
+                                <div class="font-mono font-bold text-[#1A428A] text-sm mt-0.5">{{ $regulation->code ?? '—' }}</div>
+                            </td>
+                            <td class="border border-gray-400 p-3 text-center w-[80px] align-middle">
+                                <div class="text-xs font-bold text-gray-500 uppercase">VERSIÓN</div>
+                                <div class="font-bold text-gray-800 text-sm mt-0.5">{{ str_pad($vNum, 2, '0', STR_PAD_LEFT) }}</div>
+                            </td>
+                        </tr>
+                        <tr class="bg-gray-100">
+                            <td class="border border-gray-400 p-2">
+                                <div class="text-xs font-bold text-gray-600 uppercase">ELABORADO POR:</div>
+                                <div class="text-xs text-gray-700 mt-0.5">{{ $d['quien_elabora'] ?? '—' }}</div>
+                            </td>
+                            <td class="border border-gray-400 p-2">
+                                <div class="text-xs font-bold text-gray-600 uppercase">APROBADO POR:</div>
+                                <div class="text-xs text-gray-700 mt-0.5">{{ $d['quien_aprueba'] ?? '—' }}</div>
+                            </td>
+                            <td class="border border-gray-400 p-2">
+                                <div class="text-xs font-bold text-gray-600 uppercase">Fecha efectividad:</div>
+                                <div class="text-xs text-gray-700 mt-0.5">{{ $fechaFmt }}</div>
+                            </td>
+                            <td class="border border-gray-400 p-2 text-center">
+                                <div class="text-xs font-bold text-gray-600 uppercase">Página:</div>
+                                <div class="text-xs text-gray-700 mt-0.5">2 de 2</div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="p-6 space-y-6">
+
+                        {{-- DESCRIPCIÓN DEL PROCESO / ACTIVIDADES --}}
+                        @if(!empty($d['lista_actividades']) || !empty($d['que_detona']))
+                        <div>
+                            <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">DESCRIPCIÓN DEL PROCESO / ACTIVIDADES</h3>
+                            @if(!empty($d['que_detona']))
+                                <p class="font-medium text-gray-700 text-sm mb-1">Detonante:</p>
+                                <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-700 mb-3 whitespace-pre-line">{{ $d['que_detona'] }}</div>
+                            @endif
+                            @if(!empty($d['lista_actividades']))
+                                <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">{{ $d['lista_actividades'] }}</div>
+                            @endif
+                            @if(!empty($d['decisiones_control']))
+                                <p class="font-medium text-gray-700 text-sm mt-3 mb-1">Decisiones y puntos de control:</p>
+                                <div class="text-sm text-gray-700 whitespace-pre-line ml-2">{{ $d['decisiones_control'] }}</div>
+                            @endif
+                            @if(!empty($d['resultado_entregable']))
+                                <p class="font-medium text-gray-700 text-sm mt-3 mb-1">Resultado / Entregable:</p>
+                                <div class="text-sm text-gray-700 whitespace-pre-line ml-2">{{ $d['resultado_entregable'] }}</div>
+                            @endif
+                        </div>
+                        @endif
+
+                        {{-- HISTORIAL DE REVISIONES Y CAMBIOS --}}
+                        <div>
+                            <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">HISTORIAL DE REVISIONES Y CAMBIOS</h3>
+                            <table class="w-full border-collapse text-sm">
+                                <thead>
+                                    <tr class="bg-[#e8eef8]">
+                                        <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800 w-16">Versión</th>
+                                        <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800 w-24">Fecha</th>
+                                        <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Elaboró</th>
+                                        <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Descripción del cambio</th>
+                                        <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Aprobó</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($versionHistory as $v)
+                                    <tr class="{{ $loop->odd ? 'bg-white' : 'bg-gray-50' }}">
+                                        <td class="border border-gray-300 px-3 py-2 text-center font-medium">{{ str_pad($v->version_number, 2, '0', STR_PAD_LEFT) }}</td>
+                                        <td class="border border-gray-300 px-3 py-2">{{ $v->issued_at?->format('d/m/Y') ?? $v->created_at->format('d/m/Y') }}</td>
+                                        <td class="border border-gray-300 px-3 py-2 text-gray-600">{{ $v->uploader?->name ?? $d['quien_elabora'] ?? '—' }}</td>
+                                        <td class="border border-gray-300 px-3 py-2 text-gray-700">{{ $v->change_description ?: ($v->version_number == 1 ? 'Creación inicial del documento' : '—') }}</td>
+                                        <td class="border border-gray-300 px-3 py-2 text-gray-600">{{ $d['quien_aprueba'] ?? '—' }}</td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="5" class="border border-gray-300 px-3 py-2 text-gray-400 text-center italic">Sin versiones registradas</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {{-- ANEXOS --}}
+                        @if(!empty($d['procedimientos_relacionados']) || !empty($d['documentos_usados']))
+                        <div>
+                            <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">ANEXOS</h3>
+                            <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700 ml-2">
+                                @foreach($parseLines($d['procedimientos_relacionados'] ?? '') as $line)
+                                    <li>{{ $line }}</li>
+                                @endforeach
+                                @foreach($parseLines($d['documentos_usados'] ?? '') as $line)
+                                    <li>{{ $line }}</li>
+                                @endforeach
+                            </ol>
+                        </div>
+                        @endif
+
+                        {{-- AVISO DE CONTROL --}}
+                        @if(!empty($d['riesgos_errores']))
+                        <div class="border-t border-gray-300 pt-3">
+                            <p class="text-sm text-gray-700"><span class="font-bold text-[#1A428A]">AVISO DE CONTROL:</span> {{ $d['riesgos_errores'] }}</p>
+                        </div>
+                        @endif
+
+                        {{-- Pie de página 2 --}}
+                        <div class="border-t border-gray-300 pt-3 text-center text-xs text-gray-400 italic">
+                            Documento controlado — Prohibida su reproducción parcial o total sin autorización | Versión <em>impresa no controlada</em>. Verifique vigencia en el sistema.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        @endif
+
         {{-- Columnas: subir + versión actual --}}
         <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -129,28 +413,7 @@
                                           class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">{{ old('change_description') }}</textarea>
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de emisión</label>
-                                    <input type="date"
-                                           name="issued_at"
-                                           value="{{ old('issued_at') }}"
-                                           class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
-                                    @error('issued_at')
-                                        <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de vencimiento</label>
-                                    <input type="date"
-                                           name="valid_until"
-                                           value="{{ old('valid_until') }}"
-                                           class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
-                                    @error('valid_until')
-                                        <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                            </div>
+                            <p class="text-xs text-gray-400">La vigencia se asigna automáticamente: 1 año a partir de la fecha de subida.</p>
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Responsable</label>

@@ -32,7 +32,7 @@
                 @if($user->isAdmin() || $user->isOperative())
                     <a href="{{ route('processes.create', $selectedCompanyId ? ['company_id' => $selectedCompanyId] : []) }}"
                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
-                        + Nuevo reglamento
+                        Nuevo reglamento
                     </a>
                 @endif
             </div>
@@ -190,16 +190,13 @@
                     <thead class="bg-gray-50 text-gray-600">
                         <tr>
                             <th class="text-left px-4 py-3 font-semibold">Código</th>
-                            <th class="text-left px-4 py-3 font-semibold">Descripción</th>
+                            <th class="text-left px-4 py-3 font-semibold">Nombre</th>
                             <th class="text-left px-4 py-3 font-semibold">Proceso</th>
                             <th class="text-left px-4 py-3 font-semibold">Tipo</th>
                             <th class="text-left px-4 py-3 font-semibold">Versión</th>
                             <th class="text-left px-4 py-3 font-semibold">Vigencia</th>
                             <th class="text-left px-4 py-3 font-semibold">Estatus</th>
-                            @if($user->hasGroupScope())
-                                <th class="text-left px-4 py-3 font-semibold">Empresa</th>
-                            @endif
-                            <th class="px-4 py-3"></th>
+                            <th class="text-right px-4 py-3 font-semibold">Acciones</th>
                         </tr>
                     </thead>
 
@@ -217,8 +214,13 @@
                                     {{ $regulation->code ?? '—' }}
                                 </td>
 
-                                <td class="px-4 py-3 font-medium text-gray-800">
-                                    {{ $regulation->name }}
+                                <td class="px-4 py-3 font-medium text-gray-800 max-w-[220px]">
+                                    @php $nombre = $regulation->name; @endphp
+                                    @if(strlen($nombre) > 40)
+                                        <span title="{{ $nombre }}">{{ mb_substr($nombre, 0, 40) }}…</span>
+                                    @else
+                                        {{ $nombre }}
+                                    @endif
                                 </td>
 
                                 <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
@@ -295,18 +297,21 @@
                                         </div>
                                     </div>
                                 </td>
-
-                                @if($user->hasGroupScope())
-                                    <td class="px-4 py-3 text-xs text-indigo-600 font-medium whitespace-nowrap">
-                                        {{ $regulation->company->name ?? '—' }}
-                                    </td>
-                                @endif
-
                                 <td class="px-4 py-3 text-right">
-                                    <a href="{{ route('processes.show', $regulation) }}"
-                                       class="text-blue-600 font-semibold text-sm hover:underline">
-                                        Gestionar →
-                                    </a>
+                                    <div class="flex items-center justify-end gap-2">
+                                        <a href="{{ route('processes.print', $regulation) }}"
+                                           target="_blank"
+                                           class="px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 text-xs font-semibold hover:bg-gray-50 flex items-center gap-1">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                                            </svg>
+                                            Imprimir
+                                        </a>
+                                        <a href="{{ route('processes.show', $regulation) }}"
+                                           class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d]">
+                                            Gestionar
+                                        </a>
+                                    </div>
                                 </td>
 
                             </tr>

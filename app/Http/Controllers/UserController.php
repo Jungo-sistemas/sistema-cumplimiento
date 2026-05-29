@@ -36,7 +36,14 @@ class UserController extends Controller
 
         $authUser = auth()->user();
 
-        $roles = Role::where('slug', '!=', 'superadmin')->orderBy('name')->get();
+        $allowedRoleSlugs = ['admin', 'operative', 'readonly'];
+
+        // Company-scope admins cannot assign the admin role (group-wide)
+        if (! $authUser->hasGroupScope()) {
+            $allowedRoleSlugs = ['operative', 'readonly'];
+        }
+
+        $roles = Role::whereIn('slug', $allowedRoleSlugs)->orderBy('name')->get();
 
         $companies = Company::query()
             ->when($authUser->hasGroupScope(), function ($query) use ($authUser) {
@@ -47,7 +54,9 @@ class UserController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('users.create', compact('roles', 'companies'));
+        $singleCompany = $companies->count() === 1 ? $companies->first() : null;
+
+        return view('users.create', compact('roles', 'companies', 'singleCompany'));
     }
 
     public function store(Request $request)

@@ -41,8 +41,37 @@ class DocumentController extends Controller
             $foldersQuery->where('company_id', $user->company_id);
         }
 
+        $matchingCategories = collect();
+        $matchingDocuments  = collect();
+
         if ($request->filled('q')) {
-            $foldersQuery->where('name', 'like', '%' . strtoupper($request->q) . '%');
+            $q = strtoupper($request->q);
+
+            $foldersQuery->where('name', 'like', '%' . $q . '%');
+
+            $categoriesQuery = DocumentFolder::query()
+                ->where('level', 'category')
+                ->where('group_id', $user->group_id)
+                ->where('is_active', true)
+                ->where('name', 'like', '%' . $q . '%')
+                ->with('parent');
+
+            $documentsQuery = Document::query()
+                ->where('group_id', $user->group_id)
+                ->where('is_active', true)
+                ->where('name', 'like', '%' . $q . '%')
+                ->with(['folder.parent', 'currentVersion']);
+
+            if ($selectedCompanyId) {
+                $categoriesQuery->where('company_id', $selectedCompanyId);
+                $documentsQuery->where('company_id', $selectedCompanyId);
+            } elseif (! $user->hasGroupScope()) {
+                $categoriesQuery->where('company_id', $user->company_id);
+                $documentsQuery->where('company_id', $user->company_id);
+            }
+
+            $matchingCategories = $categoriesQuery->orderBy('name')->get();
+            $matchingDocuments  = $documentsQuery->orderBy('name')->get();
         }
 
         $folders = $foldersQuery
@@ -52,9 +81,11 @@ class DocumentController extends Controller
             ->get();
 
         return view('documents.index', [
-            'folders' => $folders,
-            'companies' => $companies,
-            'selectedCompanyId' => $selectedCompanyId,
+            'folders'            => $folders,
+            'companies'          => $companies,
+            'selectedCompanyId'  => $selectedCompanyId,
+            'matchingCategories' => $matchingCategories,
+            'matchingDocuments'  => $matchingDocuments,
         ]);
     }
 

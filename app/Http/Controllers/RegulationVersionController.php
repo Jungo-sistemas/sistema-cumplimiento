@@ -21,8 +21,6 @@ class RegulationVersionController extends Controller
             'file'               => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
             'change_description' => ['nullable', 'string', 'max:1000'],
             'responsible_name'   => ['nullable', 'string', 'max:255'],
-            'issued_at'          => ['nullable', 'date'],
-            'valid_until'        => ['nullable', 'date'],
         ]);
 
         DB::transaction(function () use ($data, $request, $regulation, $user) {
@@ -46,8 +44,8 @@ class RegulationVersionController extends Controller
                 'original_name'      => $file->getClientOriginalName(),
                 'disk'               => 'private',
                 'mime_type'          => $file->getMimeType(),
-                'issued_at'          => $data['issued_at'] ?? null,
-                'valid_until'        => $data['valid_until'] ?? null,
+                'issued_at'          => now()->toDateString(),
+                'valid_until'        => now()->addYear()->toDateString(),
                 'is_current'         => true,
                 'uploaded_by'        => $user->id,
             ]);

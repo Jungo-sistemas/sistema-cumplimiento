@@ -226,4 +226,18 @@ class RegulationController extends Controller
             ->route('processes.show', $regulation)
             ->with('success', 'Reglamento actualizado correctamente.');
     }
+
+    public function printView(Regulation $regulation)
+    {
+        $user = auth()->user();
+
+        abort_unless($user->canAccessCompany($regulation->company), 403);
+
+        $regulation->load(['processType', 'company', 'currentVersion']);
+
+        $versionHistory = $regulation->versions()->with('uploader')->get();
+        $currentVersion = $versionHistory->firstWhere('is_current', true);
+
+        return view('processes.print', compact('regulation', 'versionHistory', 'currentVersion'));
+    }
 }
