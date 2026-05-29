@@ -31,7 +31,7 @@ return new class extends Migration {
 
             $table->timestamps();
 
-            $table->index(['asset_requirement_id', 'company_id']);
+            $table->index(['asset_requirement_id', 'company_id'], 'ard_requirement_company_idx');
         });
     }
 
