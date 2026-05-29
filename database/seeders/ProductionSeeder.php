@@ -23,5 +23,8 @@ class ProductionSeeder extends Seeder
 
         // Document catalog for ALCOM (requires company + group to exist)
         $this->call(DocumentCatalogSeeder::class);
+
+        // Admin users — edit AdminUserSeeder.php to set passwords before running
+        $this->call(AdminUserSeeder::class);
     }
 }
