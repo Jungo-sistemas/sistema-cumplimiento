@@ -7,7 +7,26 @@
         <span class="text-gray-700 font-medium">Agregar usuario</span>
     </x-slot>
 
-    <div class="bg-white rounded-xl shadow p-6 max-w-3xl">
+    @php
+        $adminRoleId     = $roles->where('slug', 'admin')->first()?->id;
+        $companiesByGroup = $companies->groupBy('group_id')->map->values();
+    @endphp
+
+    <div class="bg-white rounded-xl shadow p-6 max-w-3xl"
+         x-data="{
+             selectedRole: '{{ old('role_id', '') }}',
+             selectedGroup: '{{ old('group_id', '') }}',
+             selectedCompany: '{{ old('company_id', '') }}',
+             adminRoleId: '{{ $adminRoleId }}',
+             companiesByGroup: @json($companiesByGroup),
+             get isAdmin() { return this.selectedRole === this.adminRoleId },
+             get needsCompany() { return this.selectedRole !== '' && !this.isAdmin },
+             get availableCompanies() {
+                 if (!this.selectedGroup) return [];
+                 return this.companiesByGroup[this.selectedGroup] ?? [];
+             }
+         }">
+
         <h1 class="text-2xl font-semibold text-[#1A428A]">Agregar usuario</h1>
 
         @if ($errors->any())
@@ -20,72 +39,31 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('users.store') }}" class="mt-6 space-y-6">
+        <form method="POST" action="{{ route('users.store') }}" class="mt-6 space-y-5">
             @csrf
 
+            {{-- Nombre --}}
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre
-                </label>
-                <input
-                    type="text"
-                    name="name"
-                    value="{{ old('name') }}"
-                    class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
-                    required
-                >
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <input type="text" name="name" value="{{ old('name') }}" required
+                    class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
             </div>
 
+            {{-- Correo --}}
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Correo
-                </label>
-                <input
-                    type="email"
-                    name="email"
-                    value="{{ old('email') }}"
-                    class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
-                    required
-                >
+                <label class="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
+                <input type="email" name="email" value="{{ old('email') }}" required
+                    class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
             </div>
 
+            {{-- Rol --}}
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Empresa
-                </label>
-                @if($singleCompany)
-                    <input type="hidden" name="company_id" value="{{ $singleCompany->id }}">
-                    <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                        {{ $singleCompany->name }}
-                    </div>
-                @else
-                    <select
-                        name="company_id"
-                        class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
-                        required
-                    >
-                        <option value="">Selecciona una empresa</option>
-                        @foreach($companies as $company)
-                            <option value="{{ $company->id }}" @selected(old('company_id') == $company->id)>
-                                {{ $company->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                @endif
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Rol
-                </label>
-                <select
-                    name="role_id"
-                    class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
-                    required
-                >
+                <label class="block text-sm font-medium text-gray-700 mb-1">Rol <span class="text-red-500">*</span></label>
+                <select name="role_id" x-model="selectedRole" required
+                    class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
                     <option value="">Selecciona un rol</option>
                     @foreach($roles as $role)
-                        <option value="{{ $role->id }}" @selected(old('role_id') == $role->id)>
+                        <option value="{{ $role->id }}">
                             @switch($role->slug)
                                 @case('admin') Administrador @break
                                 @case('operative') Operativo @break
@@ -96,20 +74,81 @@
                     @endforeach
                 </select>
                 <p class="mt-1 text-xs text-gray-400">
-                    @if($singleCompany)
-                        Operativo: puede gestionar activos y tareas. Solo lectura: solo consulta.
-                    @else
-                        Administrador: gestiona usuarios y configuración del grupo. Operativo: gestiona activos y tareas. Solo lectura: solo consulta.
-                    @endif
+                    Administrador: gestiona usuarios del grupo.
+                    Operativo: gestiona activos y tareas.
+                    Solo lectura: solo consulta.
                 </p>
             </div>
 
-            <div class="flex justify-end gap-3">
+            {{-- Empresa fija (company-scope admin con una sola empresa) --}}
+            @if($singleCompany)
+                <input type="hidden" name="company_id" value="{{ $singleCompany->id }}">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
+                    <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                        {{ $singleCompany->name }}
+                    </div>
+                </div>
+            @else
+
+                {{-- Grupo (visible cuando hay rol seleccionado) --}}
+                <div x-show="selectedRole !== ''" x-transition>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Grupo <span class="text-red-500">*</span>
+                    </label>
+                    @if($groups->count() === 1)
+                        <input type="hidden" name="group_id" value="{{ $groups->first()->id }}"
+                               x-init="selectedGroup = '{{ $groups->first()->id }}'">
+                        <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                            {{ $groups->first()->name }}
+                        </div>
+                    @else
+                        <select name="group_id" x-model="selectedGroup" required
+                            class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
+                            <option value="">Selecciona un grupo</option>
+                            @foreach($groups as $group)
+                                <option value="{{ $group->id }}">{{ $group->name }}</option>
+                            @endforeach
+                        </select>
+                    @endif
+                </div>
+
+                {{-- Empresa (solo para operativo y solo lectura) --}}
+                <div x-show="needsCompany && selectedGroup !== ''" x-transition>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Empresa <span class="text-red-500">*</span>
+                    </label>
+                    <select name="company_id" x-model="selectedCompany"
+                        :required="needsCompany"
+                        class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
+                        <option value="">Selecciona una empresa</option>
+                        <template x-for="company in availableCompanies" :key="company.id">
+                            <option :value="company.id" x-text="company.name"
+                                :selected="selectedCompany == company.id"></option>
+                        </template>
+                    </select>
+                    <p x-show="selectedGroup !== '' && availableCompanies.length === 0"
+                       class="mt-1 text-xs text-yellow-600">
+                        Este grupo no tiene empresas registradas.
+                    </p>
+                </div>
+
+                {{-- Nota para rol admin --}}
+                <div x-show="isAdmin && selectedGroup !== ''" x-transition
+                     class="flex items-start gap-2 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
+                    <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <p class="text-sm text-blue-700">El administrador tendrá acceso a todas las empresas del grupo seleccionado.</p>
+                </div>
+
+            @endif
+
+            <div class="flex justify-end gap-3 pt-2">
                 <a href="{{ route('users.index') }}"
                    class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">
                     Cancelar
                 </a>
-
                 <button type="submit"
                         class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
                     Enviar invitación
