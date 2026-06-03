@@ -36,22 +36,30 @@ class AssetController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $companies = Company::query()
+        $allCompanies = Company::query()
             ->when($user->hasGroupScope(), function ($query) use ($user) {
                 $query->where('group_id', $user->group_id);
             }, function ($query) use ($user) {
                 $query->where('id', $user->company_id);
             })
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'otras']);
 
-        $selectedCompanyId = $request->filled('company_id')
+        $companies      = $allCompanies->where('otras', false)->values();
+        $otrasCompanies = $allCompanies->where('otras', true)->values();
+
+        // Determine filter state
+        $filterOtras       = $request->boolean('otras');
+        $selectedCompanyId = $request->filled('company_id') && is_numeric($request->company_id)
             ? (int) $request->company_id
             : null;
 
+        // State to restore Alpine.js selects on page load
+        $filterGrupo  = $filterOtras ? 'otras' : ($selectedCompanyId ? (string) $selectedCompanyId : '');
+        $filterOtraId = ($filterOtras && $selectedCompanyId) ? (string) $selectedCompanyId : '';
+
         if ($selectedCompanyId) {
             $selectedCompany = Company::findOrFail($selectedCompanyId);
-
             abort_unless($user->canAccessCompany($selectedCompany), 403);
         }
 
@@ -70,7 +78,13 @@ class AssetController extends Controller
                 $query->where('company_id', $user->company_id);
             });
 
-        if ($selectedCompanyId) {
+        if ($filterOtras) {
+            if ($selectedCompanyId) {
+                $query->where('company_id', $selectedCompanyId);
+            } else {
+                $query->whereHas('company', fn ($q) => $q->where('otras', true));
+            }
+        } elseif ($selectedCompanyId) {
             $query->where('company_id', $selectedCompanyId);
         }
 
@@ -105,7 +119,13 @@ class AssetController extends Controller
                 $query->where('company_id', $user->company_id);
             });
 
-        if ($selectedCompanyId) {
+        if ($filterOtras) {
+            if ($selectedCompanyId) {
+                $locationsQuery->where('company_id', $selectedCompanyId);
+            } else {
+                $locationsQuery->whereHas('company', fn ($q) => $q->where('otras', true));
+            }
+        } elseif ($selectedCompanyId) {
             $locationsQuery->where('company_id', $selectedCompanyId);
         }
 
@@ -123,7 +143,10 @@ class AssetController extends Controller
 
         $licenseInfo = $licenseCompany ? $this->licenseService->info($licenseCompany) : null;
 
-        return view('assets.index', compact('assets', 'assetTypes', 'locations', 'companies', 'selectedCompanyId', 'licenseInfo'));
+        return view('assets.index', compact(
+            'assets', 'assetTypes', 'locations', 'companies', 'otrasCompanies',
+            'selectedCompanyId', 'filterGrupo', 'filterOtraId', 'licenseInfo'
+        ));
     }
 
     public function create(Request $request)

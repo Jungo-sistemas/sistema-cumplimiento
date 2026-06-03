@@ -13,14 +13,17 @@ use Illuminate\Support\Facades\DB;
 
 class EC_Seeder extends Seeder
 {
+    const MDI_RAZON_SOCIAL = 'Mercantil Distribuidora, S.A. de C.V.';
+
     public function run(): void
     {
         DB::transaction(function () {
-            $company = Company::where('name', 'Empresa Demo')->firstOrFail();
-            $responsibleUser = User::where('email', 'test@example.com')->firstOrFail();
+            $company = Company::where('name', 'MDI')->firstOrFail();
+            $responsibleUser = User::where('email', 'admin@vigia.com.mx')->firstOrFail();
             $assetType = AssetType::where('name', 'EC')->firstOrFail();
             $syncService = app(SyncAssetRequirementsService::class);
-            $defaultDate = Carbon::now()->addMonths(6)->startOfDay();
+            $defaultStartDate = Carbon::now()->startOfDay();
+            $defaultDueDate = Carbon::now()->addYear()->startOfDay();
 
             $csvPath = database_path('seeders/examples/EC_ejemplos.csv');
 
@@ -58,6 +61,12 @@ class EC_Seeder extends Seeder
 
                 $data = $this->combineRow($headers, $row);
 
+                // Solo procesar registros de MDI
+                $razonSocial = trim((string) ($data['razon_social'] ?? ''));
+                if ($razonSocial !== self::MDI_RAZON_SOCIAL) {
+                    continue;
+                }
+
                 $code = trim((string) ($data['code'] ?? ''));
                 $station = trim((string) ($data['station'] ?? ''));
                 $location = trim((string) ($data['location'] ?? ''));
@@ -66,6 +75,8 @@ class EC_Seeder extends Seeder
                 if ($code === '' || $station === '') {
                     continue;
                 }
+
+                $startDate = $this->parseInicioVigencia($data['inicio_vigencia'] ?? null, $defaultStartDate);
 
                 $asset = Asset::updateOrCreate(
                     [
@@ -79,8 +90,8 @@ class EC_Seeder extends Seeder
                         'vault_location' => $vaultLocation !== '' ? $vaultLocation : null,
                         'responsible_user_id' => $responsibleUser->id,
                         'status' => 'active',
-                        'compliance_start_date' => $defaultDate,
-                        'compliance_due_date' => $defaultDate,
+                        'compliance_start_date' => $startDate,
+                        'compliance_due_date' => $defaultDueDate,
                         'parent_asset_id' => null,
                     ]
                 );
@@ -92,28 +103,31 @@ class EC_Seeder extends Seeder
         });
     }
 
+    protected function parseInicioVigencia(?string $dateStr, Carbon $fallback): Carbon
+    {
+        if (!$dateStr || trim($dateStr) === '') {
+            return $fallback;
+        }
+
+        try {
+            return Carbon::createFromFormat('d/m/Y', trim($dateStr))->startOfDay();
+        } catch (\Exception $e) {
+            return $fallback;
+        }
+    }
+
     protected function combineRow(array $headers, array $row): array
     {
         $row = array_pad($row, count($headers), null);
         $raw = array_combine($headers, $row);
 
         return [
-            'code' => $this->findValue($raw, [
-                'PERMISO CRE',
-            ]),
-            'station' => $this->findValue($raw, [
-                'Estación',
-                'Estacion',
-            ]),
-            'location' => $this->findValue($raw, [
-                'Estado',
-                'ESTADO',
-            ]),
-            'vault_location' => $this->findValue($raw, [
-                'DIRECCION',
-                'Dirección',
-                'Direccion',
-            ]),
+            'razon_social'    => $this->findValue($raw, ['Razon social', 'Razón social', 'RAZON SOCIAL']),
+            'code'            => $this->findValue($raw, ['PERMISO CRE']),
+            'station'         => $this->findValue($raw, ['Estación', 'Estacion']),
+            'location'        => $this->findValue($raw, ['Estado', 'ESTADO']),
+            'vault_location'  => $this->findValue($raw, ['DIRECCION', 'Dirección', 'Direccion']),
+            'inicio_vigencia' => $this->findValue($raw, ['INICIO DE VIGENCIA']),
         ];
     }
 

@@ -11,7 +11,11 @@ class Company extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'group_id', 'show_in_processes', 'asset_limit'];
+    protected $fillable = ['name', 'group_id', 'show_in_processes', 'asset_limit', 'otras'];
+
+    protected $casts = [
+        'otras' => 'boolean',
+    ];
 
     public function users()
     {

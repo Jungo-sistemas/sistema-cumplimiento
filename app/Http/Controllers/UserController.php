@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\UserInvitationMail;
 use App\Models\Company;
+use App\Models\Group;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -47,27 +48,28 @@ class UserController extends Controller
 
         $authUser = auth()->user();
 
-        $allowedRoleSlugs = ['admin', 'operative', 'readonly'];
-
-        // Company-scope admins cannot assign the admin role (group-wide)
-        if (! $authUser->hasGroupScope()) {
-            $allowedRoleSlugs = ['operative', 'readonly'];
-        }
+        $canAssignAdmin = $authUser->hasGroupScope() || $authUser->isGlobalScope();
+        $allowedRoleSlugs = $canAssignAdmin ? ['admin', 'operative', 'readonly'] : ['operative', 'readonly'];
 
         $roles = Role::whereIn('slug', $allowedRoleSlugs)->orderBy('name')->get();
 
-        $companies = Company::query()
-            ->when($authUser->hasGroupScope(), function ($query) use ($authUser) {
-                $query->where('group_id', $authUser->group_id);
-            }, function ($query) use ($authUser) {
-                $query->where('id', $authUser->company_id);
-            })
+        $groups = Group::query()
+            ->when($authUser->hasGroupScope(), fn ($q) => $q->where('id', $authUser->group_id))
             ->orderBy('name')
             ->get();
 
-        $singleCompany = $companies->count() === 1 ? $companies->first() : null;
+        $companies = Company::query()
+            ->when($authUser->hasGroupScope(), fn ($q) => $q->where('group_id', $authUser->group_id))
+            ->when(! $authUser->hasGroupScope() && ! $authUser->isGlobalScope(),
+                fn ($q) => $q->where('id', $authUser->company_id))
+            ->orderBy('name')
+            ->get();
 
-        return view('users.create', compact('roles', 'companies', 'singleCompany'));
+        $singleCompany = (! $authUser->hasGroupScope() && ! $authUser->isGlobalScope() && $companies->count() === 1)
+            ? $companies->first()
+            : null;
+
+        return view('users.create', compact('roles', 'groups', 'companies', 'singleCompany'));
     }
 
     public function store(Request $request)
@@ -77,39 +79,47 @@ class UserController extends Controller
         $authUser = auth()->user();
 
         $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role_id' => ['required', 'exists:roles,id'],
-            'company_id' => ['required', 'exists:companies,id'],
+            'name'     => ['required', 'string', 'max:255'],
+            'email'    => ['required', 'email', 'max:255', 'unique:users,email'],
+            'role_id'  => ['required', 'exists:roles,id'],
+            'group_id' => ['nullable', 'exists:groups,id'],
         ]);
-
-        $company = Company::findOrFail($request->company_id);
-
-        if (! $authUser->canAccessCompany($company)) {
-            abort(403);
-        }
 
         $role = Role::findOrFail($request->role_id);
 
-        // Block assigning roles above the creator's own role
         abort_if($role->slug === 'superadmin', 403);
+        abort_if($role->slug === 'admin' && ! $authUser->hasGroupScope() && ! $authUser->isGlobalScope(), 403);
 
-        // An admin with group scope can create group-scope admins.
-        // An admin with company scope can only create company-scope users.
-        $scopeLevel = ($role->slug === 'admin' && $authUser->hasGroupScope()) ? 'group' : 'company';
+        if ($role->slug === 'admin') {
+            $groupId    = $request->group_id ?? $authUser->group_id;
+            $companyId  = null;
+            $scopeLevel = 'group';
+        } else {
+            $request->validate(['company_id' => ['required', 'exists:companies,id']]);
+
+            $company = Company::findOrFail($request->company_id);
+
+            if (! $authUser->isGlobalScope() && ! $authUser->canAccessCompany($company)) {
+                abort(403);
+            }
+
+            $companyId  = $company->id;
+            $groupId    = $request->group_id ?? $company->group_id;
+            $scopeLevel = 'company';
+        }
 
         $user = User::create([
-            'name'                   => $request->name,
-            'email'                  => $request->email,
-            'role_id'                => $role->id,
-            'company_id'             => $company->id,
-            'group_id'               => $company->group_id,
-            'scope_level'            => $scopeLevel,
-            'password'               => null,
-            'status'                 => 'invited',
-            'invite_token'           => Str::random(64),
-            'invite_expires_at'      => now()->addDays(3),
-            'invited_by'             => $authUser->id,
+            'name'              => $request->name,
+            'email'             => $request->email,
+            'role_id'           => $role->id,
+            'company_id'        => $companyId,
+            'group_id'          => $groupId,
+            'scope_level'       => $scopeLevel,
+            'password'          => null,
+            'status'            => 'invited',
+            'invite_token'      => Str::random(64),
+            'invite_expires_at' => now()->addDays(3),
+            'invited_by'        => $authUser->id,
         ]);
 
         Mail::to($user->email)->send(new UserInvitationMail($user));

@@ -69,18 +69,45 @@
           class="grid grid-cols-1 {{ $filtersGridClass }} gap-4 items-end">
 
         @if($showCompanyColumn)
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">Empresa</label>
-                <select name="company_id" class="w-full rounded-md border-gray-300 text-sm">
-                    <option value="">Todas</option>
+            <div x-data="{
+                    grupo: '{{ $filterGrupo }}',
+                    otraId: '{{ $filterOtraId }}'
+                }"
+                class="flex flex-col gap-1"
+            >
+                <label class="block text-xs text-gray-500">Empresa</label>
 
+                {{-- Selector principal: empresas normales + opción "Otras" --}}
+                <select
+                    x-model="grupo"
+                    @change="otraId = ''"
+                    class="w-full rounded-md border-gray-300 text-sm"
+                >
+                    <option value="">Todas</option>
                     @foreach($companies as $company)
-                        <option value="{{ $company->id }}"
-                            @selected((string) request('company_id', $selectedCompanyId) === (string) $company->id)>
-                            {{ $company->name }}
-                        </option>
+                        <option value="{{ $company->id }}">{{ $company->name }}</option>
                     @endforeach
+                    @if($otrasCompanies->isNotEmpty())
+                        <option value="otras">Otras</option>
+                    @endif
                 </select>
+
+                {{-- Sub-filtro: aparece solo al seleccionar "Otras" --}}
+                <div x-show="grupo === 'otras'" x-transition style="display:none">
+                    <select
+                        x-model="otraId"
+                        class="w-full rounded-md border-gray-300 text-sm"
+                    >
+                        <option value="">Todas las otras</option>
+                        @foreach($otrasCompanies as $company)
+                            <option value="{{ $company->id }}">{{ $company->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                {{-- Inputs ocultos que se envían realmente al servidor --}}
+                <input type="hidden" name="company_id" :value="grupo !== 'otras' ? grupo : otraId">
+                <input type="hidden" name="otras"      :value="grupo === 'otras' ? '1' : ''">
             </div>
         @endif
 

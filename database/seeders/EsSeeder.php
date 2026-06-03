@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Asset;
 use App\Models\AssetType;
 use App\Models\Company;
+use App\Models\Group;
 use App\Models\User;
 use App\Services\SyncAssetRequirementsService;
 use Database\Seeders\Concerns\NormalizesLocation;
@@ -12,33 +13,26 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
-class PlantasSeeder extends Seeder
+class EsSeeder extends Seeder
 {
     use NormalizesLocation;
 
     const MDI_RAZON_SOCIAL = 'Mercantil Distribuidora, S.A. de C.V.';
 
-    // Sorted longest-first to avoid partial replacements (e.g. "agto" before "ago")
-    const SPANISH_MONTHS = [
-        'agto' => '08', 'ene' => '01', 'feb' => '02', 'mzo' => '03',
-        'mar' => '03', 'abr' => '04', 'may' => '05', 'jun' => '06',
-        'jul' => '07', 'ago' => '08', 'sep' => '09', 'oct' => '10',
-        'nov' => '11', 'dic' => '12',
-    ];
-
     public function run(): void
     {
         DB::transaction(function () {
-            $company = Company::where('name', 'MDI')->firstOrFail();
+            $mdiCompany      = Company::where('name', 'MDI')->firstOrFail();
+            $vigiaGroup      = Group::where('slug', 'vigia')->firstOrFail();
             $responsibleUser = User::whereIn('email', ['admin@vigia.com.mx', 'dev2.int@vigia.com.mx'])
                 ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
                 ->firstOrFail();
-            $assetType = AssetType::where('name', 'Plantas')->firstOrFail();
-            $syncService = app(SyncAssetRequirementsService::class);
+            $assetType       = AssetType::where('name', 'ES')->firstOrFail();
+            $syncService     = app(SyncAssetRequirementsService::class);
             $defaultStartDate = Carbon::now()->startOfDay();
-            $defaultDueDate = Carbon::now()->addYear()->startOfDay();
+            $defaultDueDate   = Carbon::now()->addYear()->startOfDay();
 
-            $csvPath = database_path('seeders/examples/Plantas_ejemplos.csv');
+            $csvPath = database_path('seeders/examples/ES_ejemplos.csv');
 
             if (! file_exists($csvPath)) {
                 throw new \RuntimeException("No se encontró el archivo CSV en: {$csvPath}");
@@ -47,7 +41,7 @@ class PlantasSeeder extends Seeder
             $handle = fopen($csvPath, 'r');
 
             if ($handle === false) {
-                throw new \RuntimeException("No se pudo abrir el archivo CSV.");
+                throw new \RuntimeException('No se pudo abrir el archivo CSV.');
             }
 
             // Fila 1: título, se ignora
@@ -74,19 +68,28 @@ class PlantasSeeder extends Seeder
 
                 $data = $this->combineRow($headers, $row);
 
-                // Solo procesar registros de MDI
-                $razonSocial = trim((string) ($data['razon_social'] ?? ''));
-                if ($razonSocial !== self::MDI_RAZON_SOCIAL) {
+                $razonSocial   = trim((string) ($data['razon_social'] ?? ''));
+                $code          = trim((string) ($data['code'] ?? ''));
+                $name          = trim((string) ($data['name'] ?? ''));
+                $location      = trim((string) ($data['location'] ?? ''));
+                $vaultLocation = trim((string) ($data['vault_location'] ?? ''));
+
+                if ($razonSocial === '' || $code === '' || $name === '') {
                     continue;
                 }
 
-                $code = trim((string) ($data['code'] ?? ''));
-                $name = trim((string) ($data['name'] ?? ''));
-                $location = trim((string) ($data['location'] ?? ''));
-                $vaultLocation = trim((string) ($data['vault_location'] ?? ''));
-
-                if ($code === '' || $name === '') {
-                    continue;
+                // Para MDI usamos la empresa ya existente;
+                // para cualquier otra razón social creamos una empresa con otras = true.
+                if ($razonSocial === self::MDI_RAZON_SOCIAL) {
+                    $company = $mdiCompany;
+                } else {
+                    $company = Company::firstOrCreate(
+                        ['name' => $razonSocial],
+                        [
+                            'otras'    => true,
+                            'group_id' => $vigiaGroup->id,
+                        ]
+                    );
                 }
 
                 $startDate = $this->parseInicioVigencia($data['inicio_vigencia'] ?? null, $defaultStartDate);
@@ -94,18 +97,18 @@ class PlantasSeeder extends Seeder
                 $asset = Asset::updateOrCreate(
                     [
                         'company_id' => $company->id,
-                        'code' => $code,
+                        'code'       => $code,
                     ],
                     [
-                        'asset_type_id' => $assetType->id,
-                        'name' => $name,
-                        'location' => $this->normalizeLocation($location),
-                        'vault_location' => $vaultLocation !== '' ? $vaultLocation : null,
-                        'responsible_user_id' => $responsibleUser->id,
-                        'status' => 'active',
+                        'asset_type_id'         => $assetType->id,
+                        'name'                  => $name,
+                        'location'              => $this->normalizeLocation($location),
+                        'vault_location'        => $vaultLocation !== '' ? $vaultLocation : null,
+                        'responsible_user_id'   => $responsibleUser->id,
+                        'status'                => 'active',
                         'compliance_start_date' => $startDate,
-                        'compliance_due_date' => $defaultDueDate,
-                        'parent_asset_id' => null,
+                        'compliance_due_date'   => $defaultDueDate,
+                        'parent_asset_id'       => null,
                     ]
                 );
 
@@ -116,42 +119,15 @@ class PlantasSeeder extends Seeder
         });
     }
 
-    // Handles Spanish abbreviated month formats with mixed separators:
-    // "03-nov-99", "8-agto-2000", "8 mzo 2011", "8 agto 00", etc.
+    // Dates in ES CSV use dd/mm/yyyy format (e.g. "28/01/2022")
     protected function parseInicioVigencia(?string $dateStr, Carbon $fallback): Carbon
     {
-        if (!$dateStr || trim($dateStr) === '') {
+        if (! $dateStr || trim($dateStr) === '') {
             return $fallback;
-        }
-
-        $normalized = strtolower(trim($dateStr));
-
-        foreach (self::SPANISH_MONTHS as $abbr => $num) {
-            $normalized = str_replace($abbr, $num, $normalized);
-        }
-
-        // Unify spaces and dashes into a single dash
-        $normalized = preg_replace('/[\s-]+/', '-', $normalized);
-        $normalized = trim($normalized, '-');
-
-        $parts = explode('-', $normalized);
-        if (count($parts) !== 3) {
-            return $fallback;
-        }
-
-        [$day, $month, $year] = $parts;
-
-        if (!is_numeric($day) || !is_numeric($month) || !is_numeric($year)) {
-            return $fallback;
-        }
-
-        $year = (int) $year;
-        if ($year < 100) {
-            $year = $year >= 50 ? 1900 + $year : 2000 + $year;
         }
 
         try {
-            return Carbon::createFromDate($year, (int) $month, (int) $day)->startOfDay();
+            return Carbon::createFromFormat('d/m/Y', trim($dateStr))->startOfDay();
         } catch (\Exception $e) {
             return $fallback;
         }
@@ -163,11 +139,11 @@ class PlantasSeeder extends Seeder
         $raw = array_combine($headers, $row);
 
         return [
-            'razon_social'    => $this->findValue($raw, ['Razón Social', 'Razon social', 'Razón social', 'RAZON SOCIAL']),
-            'code'            => $this->findValue($raw, ['PERMISO CNE (ALTA)']),
-            'name'            => $this->findValue($raw, ['Nombre de Planta']),
-            'location'        => $this->findValue($raw, ['ESTADO', 'Estado']),
-            'vault_location'  => $this->findValue($raw, ['Direccion CNE', 'Dirección CNE', 'DIRECCION']),
+            'razon_social'    => $this->findValue($raw, ['Razon social', 'Razón Social', 'Razón social', 'RAZON SOCIAL']),
+            'code'            => $this->findValue($raw, ['PERMISO CRE', 'PERMISO CRE ']),
+            'name'            => $this->findValue($raw, ['Estacion', 'Estación', 'ESTACION']),
+            'location'        => $this->findValue($raw, ['Estado', 'ESTADO']),
+            'vault_location'  => $this->findValue($raw, ['DIRECCION', 'Direccion', 'Dirección']),
             'inicio_vigencia' => $this->findValue($raw, ['INICIO DE VIGENCIA']),
         ];
     }
