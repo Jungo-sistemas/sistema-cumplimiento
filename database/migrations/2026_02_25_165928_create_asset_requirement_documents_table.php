@@ -31,7 +31,8 @@ return new class extends Migration {
 
             $table->timestamps();
 
-            $table->index(['asset_requirement_id', 'company_id'], 'ard_requirement_company_idx');
+            // nombre corto explícito para no pasar el límite de 64 caracteres de MySQL
+            $table->index(['asset_requirement_id', 'company_id'], 'ard_req_company_idx');
         });
     }
 

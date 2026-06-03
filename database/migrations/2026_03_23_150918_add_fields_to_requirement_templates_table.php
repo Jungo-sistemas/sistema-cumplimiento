@@ -11,7 +11,6 @@ return new class extends Migration
         Schema::table('requirement_templates', function (Blueprint $table) {
             $table->foreignId('asset_type_id')
                 ->nullable()
-                ->after('company_id')
                 ->constrained('asset_types')
                 ->nullOnDelete();
 

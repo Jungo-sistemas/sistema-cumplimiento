@@ -7,11 +7,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement('ALTER TABLE requirement_templates ALTER COLUMN name TYPE TEXT');
+        DB::statement('ALTER TABLE requirement_templates MODIFY COLUMN name VARCHAR(500)');
     }
 
     public function down(): void
     {
-        DB::statement('ALTER TABLE requirement_templates ALTER COLUMN name TYPE VARCHAR(255)');
+        DB::statement('ALTER TABLE requirement_templates MODIFY COLUMN name VARCHAR(255)');
     }
 };

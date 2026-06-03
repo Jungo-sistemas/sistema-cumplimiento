@@ -22,9 +22,10 @@ return new class extends Migration {
 
             $table->text('notes')->nullable()->after('replaced_by_document_id');
 
-            $table->index(['asset_requirement_id', 'is_current']);
-            $table->index(['asset_requirement_id', 'version_number']);
-            $table->index(['company_id', 'status']);
+            // nombres cortos explícitos (el límite de MySQL es 64 caracteres)
+            $table->index(['asset_requirement_id', 'is_current'], 'ard_req_current_idx');
+            $table->index(['asset_requirement_id', 'version_number'], 'ard_req_version_idx');
+            $table->index(['company_id', 'status'], 'ard_company_status_idx');
         });
     }
 
@@ -33,9 +34,10 @@ return new class extends Migration {
         Schema::table('asset_requirement_documents', function (Blueprint $table) {
             $table->dropForeign(['replaced_by_document_id']);
 
-            $table->dropIndex(['asset_requirement_id', 'is_current']);
-            $table->dropIndex(['asset_requirement_id', 'version_number']);
-            $table->dropIndex(['company_id', 'status']);
+            // se borran por el mismo nombre con el que se crearon
+            $table->dropIndex('ard_req_current_idx');
+            $table->dropIndex('ard_req_version_idx');
+            $table->dropIndex('ard_company_status_idx');
 
             $table->dropColumn([
                 'uploaded_at',

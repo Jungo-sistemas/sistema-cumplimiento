@@ -20,8 +20,8 @@ class AdminUserSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'dev2.int@vigia.com.mx'],
             [
-                'name'        => 'Super Admin',
-                'password'    => Hash::make('REEMPLAZA_ESTA_CONTRASEÑA'),
+                'name'        => 'Andre Galindo',
+                'password'    => Hash::make('ASgp+200802'),
                 'company_id'  => null,
                 'group_id'    => null,
                 'scope_level' => 'global',
@@ -35,7 +35,7 @@ class AdminUserSeeder extends Seeder
             ['email' => 'admin@vigia.com.mx'],
             [
                 'name'        => 'Administrador',
-                'password'    => Hash::make('REEMPLAZA_ESTA_CONTRASEÑA'),
+                'password'    => Hash::make('ASgalP*4007*'),
                 'company_id'  => null,
                 'group_id'    => $vigiaGroup?->id,
                 'scope_level' => $vigiaGroup ? 'group' : 'global',

@@ -9,10 +9,17 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // 1. Primero quitamos la FK de company_id, que es la que se apoya en atr_unique
+        Schema::table('asset_type_requirement_templates', function (Blueprint $table) {
+            $table->dropForeign(['company_id']);
+        });
+
+        // 2. Ahora sí se puede borrar el índice único compuesto
         Schema::table('asset_type_requirement_templates', function (Blueprint $table) {
             $table->dropUnique('atr_unique');
         });
 
+        // 3. Limpiamos duplicados antes de crear el nuevo índice único global
         $duplicateGroups = DB::table('asset_type_requirement_templates')
             ->select(
                 'asset_type_id',
@@ -71,11 +78,12 @@ return new class extends Migration
             }
         }
 
+        // 4. Ya sin FK ni índice, quitamos la columna company_id
         Schema::table('asset_type_requirement_templates', function (Blueprint $table) {
-            $table->dropForeign(['company_id']);
             $table->dropColumn('company_id');
         });
 
+        // 5. Creamos el nuevo índice único global (sin company_id)
         Schema::table('asset_type_requirement_templates', function (Blueprint $table) {
             $table->unique(
                 ['asset_type_id', 'requirement_template_id'],
