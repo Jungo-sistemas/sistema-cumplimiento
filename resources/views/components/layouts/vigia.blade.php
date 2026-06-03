@@ -155,56 +155,73 @@
                                 </a>
                             @endif
 
-                            <a href="{{ route('assets.index') }}"
-                               @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('assets.*') || !empty($navContext['asset']) ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Activos y Actividades
-                            </a>
-                        @endif
+                            @php $inCumplimiento = request()->routeIs('assets.*') || !empty($navContext['asset']); @endphp
+                            <div x-data="{ open: {{ $inCumplimiento ? 'true' : 'false' }} }">
+                                <button
+                                    type="button"
+                                    @click="open = !open"
+                                    class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm {{ $inCumplimiento ? 'font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}"
+                                >
+                                    <span>Cumplimiento</span>
+                                    <svg :class="{ 'rotate-180': open }" class="h-4 w-4 transition-transform duration-200"
+                                         xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                </button>
 
-                        @if(!empty($navContext['asset']))
-                            <a href="{{ route('assets.show', $navContext['asset']) }}"
-                               @click="mobileMenuOpen = false"
-                               class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                <span class="mr-2 text-gray-400">└</span>
-                                {{ $navContext['asset']->name }}
-                            </a>
-                        @endif
+                                <div x-show="open" class="mt-1 space-y-1 pl-2">
+                                    <a href="{{ route('assets.index') }}"
+                                       @click="mobileMenuOpen = false"
+                                       class="block rounded-md px-3 py-2 {{ $inCumplimiento ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                        Energético
+                                    </a>
 
-                        @if(!empty($navContext['requirement']))
-                            <a href="{{ route('assets.requirements.show', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
-                               @click="mobileMenuOpen = false"
-                               class="ml-8 block rounded-md px-3 py-2 {{ empty($navContext['task']) && empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                <span class="mr-2 text-gray-400">└</span>
-                                {{ $navContext['requirement']->name ?? $navContext['requirement']->title ?? $navContext['requirement']->template?->name ?? 'Requerimiento' }}
-                            </a>
-                        @endif
+                                    @if(!empty($navContext['asset']))
+                                        <a href="{{ route('assets.show', $navContext['asset']) }}"
+                                           @click="mobileMenuOpen = false"
+                                           class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                            <span class="mr-2 text-gray-400">└</span>
+                                            {{ $navContext['asset']->name }}
+                                        </a>
+                                    @endif
 
-                        @if(!empty($navContext['task']))
-                            <a href="{{ route('requirements.tasks.show', [$navContext['requirement']->id, $navContext['task']->id]) }}"
-                               @click="mobileMenuOpen = false"
-                               class="ml-12 block rounded-md px-3 py-2 {{ empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                <span class="mr-2 text-gray-400">└</span>
-                                {{ $navContext['task']->title ?? $navContext['task']->name ?? 'Tarea' }}
-                            </a>
-                        @endif
+                                    @if(!empty($navContext['requirement']))
+                                        <a href="{{ route('assets.requirements.show', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
+                                           @click="mobileMenuOpen = false"
+                                           class="ml-8 block rounded-md px-3 py-2 {{ empty($navContext['task']) && empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                            <span class="mr-2 text-gray-400">└</span>
+                                            {{ $navContext['requirement']->name ?? $navContext['requirement']->title ?? $navContext['requirement']->template?->name ?? 'Requerimiento' }}
+                                        </a>
+                                    @endif
 
-                        @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'requirement')
-                            <a href="{{ route('assets.requirements.documents.index', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
-                               @click="mobileMenuOpen = false"
-                               class="ml-12 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
-                                <span class="mr-2 text-gray-400">└</span>
-                                Documentos
-                            </a>
-                        @endif
+                                    @if(!empty($navContext['task']))
+                                        <a href="{{ route('requirements.tasks.show', [$navContext['requirement']->id, $navContext['task']->id]) }}"
+                                           @click="mobileMenuOpen = false"
+                                           class="ml-12 block rounded-md px-3 py-2 {{ empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                            <span class="mr-2 text-gray-400">└</span>
+                                            {{ $navContext['task']->title ?? $navContext['task']->name ?? 'Tarea' }}
+                                        </a>
+                                    @endif
 
-                        @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'task')
-                            <a href="{{ route('tasks.documents.index', $navContext['task']->id) }}"
-                               @click="mobileMenuOpen = false"
-                               class="ml-16 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
-                                <span class="mr-2 text-gray-400">└</span>
-                                Documentos
-                            </a>
+                                    @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'requirement')
+                                        <a href="{{ route('assets.requirements.documents.index', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
+                                           @click="mobileMenuOpen = false"
+                                           class="ml-12 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
+                                            <span class="mr-2 text-gray-400">└</span>
+                                            Documentos
+                                        </a>
+                                    @endif
+
+                                    @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'task')
+                                        <a href="{{ route('tasks.documents.index', $navContext['task']->id) }}"
+                                           @click="mobileMenuOpen = false"
+                                           class="ml-16 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
+                                            <span class="mr-2 text-gray-400">└</span>
+                                            Documentos
+                                        </a>
+                                    @endif
+                                </div>
+                            </div>
                         @endif
                     </nav>
                 </div>
@@ -263,50 +280,67 @@
                                 </a>
                             @endif
 
-                            <a href="{{ route('assets.index') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('assets.*') || !empty($navContext['asset']) ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Activos y Actividades
-                            </a>
-                        @endif
+                            @php $inCumplimiento = request()->routeIs('assets.*') || !empty($navContext['asset']); @endphp
+                            <div x-data="{ open: {{ $inCumplimiento ? 'true' : 'false' }} }">
+                                <button
+                                    type="button"
+                                    @click="open = !open"
+                                    class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm {{ $inCumplimiento ? 'font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}"
+                                >
+                                    <span>Cumplimiento</span>
+                                    <svg :class="{ 'rotate-180': open }" class="h-4 w-4 transition-transform duration-200"
+                                         xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                </button>
 
-                        @if(!empty($navContext['asset']))
-                            <a href="{{ route('assets.show', $navContext['asset']) }}"
-                               class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                <span class="mr-2 text-gray-400">└</span>
-                                {{ $navContext['asset']->name }}
-                            </a>
-                        @endif
+                                <div x-show="open" class="mt-1 space-y-1 pl-2">
+                                    <a href="{{ route('assets.index') }}"
+                                       class="block rounded-md px-3 py-2 {{ $inCumplimiento ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                        Energético
+                                    </a>
 
-                        @if(!empty($navContext['requirement']))
-                            <a href="{{ route('assets.requirements.show', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
-                               class="ml-8 block rounded-md px-3 py-2 {{ empty($navContext['task']) && empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                <span class="mr-2 text-gray-400">└</span>
-                                {{ $navContext['requirement']->name ?? $navContext['requirement']->title ?? $navContext['requirement']->template?->name ?? 'Requerimiento' }}
-                            </a>
-                        @endif
+                                    @if(!empty($navContext['asset']))
+                                        <a href="{{ route('assets.show', $navContext['asset']) }}"
+                                           class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                            <span class="mr-2 text-gray-400">└</span>
+                                            {{ $navContext['asset']->name }}
+                                        </a>
+                                    @endif
 
-                        @if(!empty($navContext['task']))
-                            <a href="{{ route('requirements.tasks.show', [$navContext['requirement']->id, $navContext['task']->id]) }}"
-                               class="ml-12 block rounded-md px-3 py-2 {{ empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                <span class="mr-2 text-gray-400">└</span>
-                                {{ $navContext['task']->title ?? $navContext['task']->name ?? 'Tarea' }}
-                            </a>
-                        @endif
+                                    @if(!empty($navContext['requirement']))
+                                        <a href="{{ route('assets.requirements.show', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
+                                           class="ml-8 block rounded-md px-3 py-2 {{ empty($navContext['task']) && empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                            <span class="mr-2 text-gray-400">└</span>
+                                            {{ $navContext['requirement']->name ?? $navContext['requirement']->title ?? $navContext['requirement']->template?->name ?? 'Requerimiento' }}
+                                        </a>
+                                    @endif
 
-                        @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'requirement')
-                            <a href="{{ route('assets.requirements.documents.index', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
-                               class="ml-12 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
-                                <span class="mr-2 text-gray-400">└</span>
-                                Documentos
-                            </a>
-                        @endif
+                                    @if(!empty($navContext['task']))
+                                        <a href="{{ route('requirements.tasks.show', [$navContext['requirement']->id, $navContext['task']->id]) }}"
+                                           class="ml-12 block rounded-md px-3 py-2 {{ empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                            <span class="mr-2 text-gray-400">└</span>
+                                            {{ $navContext['task']->title ?? $navContext['task']->name ?? 'Tarea' }}
+                                        </a>
+                                    @endif
 
-                        @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'task')
-                            <a href="{{ route('tasks.documents.index', $navContext['task']->id) }}"
-                               class="ml-16 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
-                                <span class="mr-2 text-gray-400">└</span>
-                                Documentos
-                            </a>
+                                    @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'requirement')
+                                        <a href="{{ route('assets.requirements.documents.index', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
+                                           class="ml-12 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
+                                            <span class="mr-2 text-gray-400">└</span>
+                                            Documentos
+                                        </a>
+                                    @endif
+
+                                    @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'task')
+                                        <a href="{{ route('tasks.documents.index', $navContext['task']->id) }}"
+                                           class="ml-16 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
+                                            <span class="mr-2 text-gray-400">└</span>
+                                            Documentos
+                                        </a>
+                                    @endif
+                                </div>
+                            </div>
                         @endif
                     </nav>
                 </div>

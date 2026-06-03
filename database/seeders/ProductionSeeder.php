@@ -26,5 +26,9 @@ class ProductionSeeder extends Seeder
 
         // Admin users — edit AdminUserSeeder.php to set passwords before running
         $this->call(AdminUserSeeder::class);
+
+        // Asset examples from CSV files (requires admin user and asset types to exist)
+        $this->call(EsSeeder::class);
+        $this->call(PlantasSeeder::class);
     }
 }
