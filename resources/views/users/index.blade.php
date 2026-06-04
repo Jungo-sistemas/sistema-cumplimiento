@@ -165,6 +165,7 @@
                                                 class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
                                                 Editar
                                             </button>
+                                            @if(!$user->isAdmin() || auth()->user()->isSuperAdmin())
                                             <form method="POST"
                                                   action="{{ route('users.destroy', $user) }}"
                                                   onsubmit="return confirm('¿Seguro que quieres eliminar este usuario?');">
@@ -175,6 +176,7 @@
                                                     Eliminar
                                                 </button>
                                             </form>
+                                            @endif
                                         </div>
                                     @else
                                         <span class="text-xs text-gray-400">Tú</span>
