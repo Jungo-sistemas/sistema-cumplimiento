@@ -178,6 +178,10 @@ class UserController extends Controller
             return back()->with('error', 'No puedes eliminar tu propia cuenta.');
         }
 
+        if ($user->isAdmin() && ! $authUser->isSuperAdmin()) {
+            return back()->with('error', 'Solo el superadministrador puede eliminar administradores.');
+        }
+
         $user->delete();
 
         return redirect()
