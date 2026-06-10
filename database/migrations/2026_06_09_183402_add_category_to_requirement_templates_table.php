@@ -2,29 +2,36 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('requirement_templates', function (Blueprint $table) {
-            // Drop both existing unique indexes on (name, asset_type_id, compliance_scope)
             $table->dropUnique('requirement_templates_name_asset_type_scope_unique');
             $table->dropUnique('requirement_templates_unique_name_asset_scope');
 
-            // Add category: expediente | alta | modificacion | baja
-            $table->string('category')->default('expediente')->after('compliance_scope');
-
-            // New unique index includes category
-            $table->unique(
-                ['name', 'asset_type_id', 'compliance_scope', 'category'],
-                'requirement_templates_unique'
-            );
+            // varchar(50) keeps the index within MySQL's 3072-byte limit
+            $table->string('category', 50)->default('expediente')->after('compliance_scope');
         });
+
+        // MySQL: name is varchar(500) so we need a prefix index to stay within 3072 bytes
+        // PostgreSQL: no length limit on index keys, use standard unique index
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement(
+                'CREATE UNIQUE INDEX requirement_templates_unique
+                 ON requirement_templates (name(80), asset_type_id, compliance_scope, category)'
+            );
+        } else {
+            Schema::table('requirement_templates', function (Blueprint $table) {
+                $table->unique(
+                    ['name', 'asset_type_id', 'compliance_scope', 'category'],
+                    'requirement_templates_unique'
+                );
+            });
+        }
     }
 
     public function down(): void
