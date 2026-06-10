@@ -21,25 +21,32 @@ return new class extends Migration
             }
         }
 
-        Schema::table('requirement_templates', function (Blueprint $table) {
-            // varchar(50) keeps the index within MySQL's 3072-byte limit
-            $table->string('category', 50)->default('expediente')->after('compliance_scope');
-        });
-
-        // MySQL: name is varchar(500) so we need a prefix index to stay within 3072 bytes
-        // PostgreSQL: no length limit on index keys, use standard unique index
-        if (DB::getDriverName() === 'mysql') {
-            DB::statement(
-                'CREATE UNIQUE INDEX requirement_templates_unique
-                 ON requirement_templates (name(80), asset_type_id, compliance_scope, category)'
-            );
-        } else {
+        if (! Schema::hasColumn('requirement_templates', 'category')) {
             Schema::table('requirement_templates', function (Blueprint $table) {
-                $table->unique(
-                    ['name', 'asset_type_id', 'compliance_scope', 'category'],
-                    'requirement_templates_unique'
-                );
+                $table->string('category', 50)->default('expediente')->after('compliance_scope');
             });
+        }
+
+        // MySQL: use prefix index to stay within 3072-byte limit
+        // PostgreSQL: standard unique index
+        $indexExists = DB::getDriverName() === 'mysql'
+            ? ! empty(DB::select("SHOW INDEX FROM requirement_templates WHERE Key_name = 'requirement_templates_unique'"))
+            : Schema::hasIndex('requirement_templates', 'requirement_templates_unique');
+
+        if (! $indexExists) {
+            if (DB::getDriverName() === 'mysql') {
+                DB::statement(
+                    'CREATE UNIQUE INDEX requirement_templates_unique
+                     ON requirement_templates (name(80), asset_type_id, compliance_scope, category)'
+                );
+            } else {
+                Schema::table('requirement_templates', function (Blueprint $table) {
+                    $table->unique(
+                        ['name', 'asset_type_id', 'compliance_scope', 'category'],
+                        'requirement_templates_unique'
+                    );
+                });
+            }
         }
     }
 
