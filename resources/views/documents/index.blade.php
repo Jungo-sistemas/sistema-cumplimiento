@@ -103,9 +103,7 @@
                                 <p class="font-semibold text-gray-800 leading-snug group-hover:text-[#1A428A] transition">
                                     {{ $folder->name }}
                                 </p>
-                                @if($user->hasGroupScope() && $folder->company)
-                                    <p class="mt-1 text-xs font-medium text-indigo-600">{{ $folder->company->name }}</p>
-                                @endif
+                                        {{-- carpetas generales: sin badge de empresa --}}
                             </div>
                         </div>
 

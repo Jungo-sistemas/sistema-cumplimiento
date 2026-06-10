@@ -18,28 +18,23 @@ class DocumentController extends Controller
             ? ($request->filled('company_id') ? (int) $request->company_id : null)
             : (int) $user->company_id;
 
+        // Excluir empresas "otras" del filtro de documentos
         $companies = $user->hasGroupScope()
             ? Company::query()
                 ->where('group_id', $user->group_id)
+                ->where('otras', false)
                 ->orderBy('name')
                 ->get()
             : collect();
 
+        // Las carpetas son generales (company_id = null), a nivel de grupo
         $foldersQuery = DocumentFolder::query()
-            ->withCount([
-                'children as categories_count',
-                'documents as documents_count',
-            ])
+            ->withCount('children as categories_count')
             ->whereNull('parent_id')
             ->where('level', 'folder')
             ->where('group_id', $user->group_id)
+            ->whereNull('company_id')
             ->where('is_active', true);
-
-        if ($selectedCompanyId) {
-            $foldersQuery->where('company_id', $selectedCompanyId);
-        } elseif (! $user->hasGroupScope()) {
-            $foldersQuery->where('company_id', $user->company_id);
-        }
 
         $matchingCategories = collect();
         $matchingDocuments  = collect();
@@ -63,10 +58,8 @@ class DocumentController extends Controller
                 ->with(['folder.parent', 'currentVersion']);
 
             if ($selectedCompanyId) {
-                $categoriesQuery->where('company_id', $selectedCompanyId);
                 $documentsQuery->where('company_id', $selectedCompanyId);
-            } elseif (! $user->hasGroupScope()) {
-                $categoriesQuery->where('company_id', $user->company_id);
+            } elseif (! $user->hasGroupScope() && $user->company_id) {
                 $documentsQuery->where('company_id', $user->company_id);
             }
 
@@ -75,7 +68,6 @@ class DocumentController extends Controller
         }
 
         $folders = $foldersQuery
-            ->with('company')
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
@@ -93,22 +85,44 @@ class DocumentController extends Controller
     {
         $user = auth()->user();
 
-        $folder->load('company');
+        $this->authorizeFolder($user, $folder);
 
-        abort_unless($user->canAccessCompany($folder->company), 403);
+        $selectedCompanyId = $user->hasGroupScope()
+            ? ($request->filled('company_id') ? (int) $request->company_id : null)
+            : (int) $user->company_id;
 
-        $categories = DocumentFolder::query()
-            ->withCount('documents')
-            ->where('parent_id', $folder->id)
-            ->where('level', 'category')
-            ->where('is_active', true)
-            ->orderBy('sort_order')
+        $companies = $user->hasGroupScope()
+            ? Company::where('group_id', $user->group_id)
+                ->where('otras', false)
+                ->orderBy('name')
+                ->get()
+            : collect();
+
+        $documentsQuery = Document::query()
+            ->with(['currentVersion', 'company:id,name'])
+            ->where('document_folder_id', $folder->id)
+            ->where('is_active', true);
+
+        if ($selectedCompanyId) {
+            $documentsQuery->where('company_id', $selectedCompanyId);
+        } elseif (! $user->hasGroupScope() && $user->company_id) {
+            $documentsQuery->where('company_id', $user->company_id);
+        }
+
+        $documents = $documentsQuery->orderBy('name')->get();
+
+        $users = User::query()
+            ->where('group_id', $folder->group_id)
+            ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'operative']))
             ->orderBy('name')
-            ->get();
+            ->get(['id', 'name']);
 
         return view('documents.folder', [
-            'folder' => $folder,
-            'categories' => $categories,
+            'folder'            => $folder,
+            'documents'         => $documents,
+            'companies'         => $companies,
+            'selectedCompanyId' => $selectedCompanyId,
+            'users'             => $users,
         ]);
     }
 
@@ -116,16 +130,33 @@ class DocumentController extends Controller
     {
         $user = auth()->user();
 
-        abort_unless($user->canAccessCompany($category->company), 403);
+        $this->authorizeFolder($user, $category);
 
         $category->load('parent');
 
-        $documents = Document::query()
-            ->with(['currentVersion', 'folder'])
+        $selectedCompanyId = $user->hasGroupScope()
+            ? ($request->filled('company_id') ? (int) $request->company_id : null)
+            : (int) $user->company_id;
+
+        $companies = $user->hasGroupScope()
+            ? Company::where('group_id', $user->group_id)
+                ->where('otras', false)
+                ->orderBy('name')
+                ->get()
+            : collect();
+
+        $documentsQuery = Document::query()
+            ->with(['currentVersion', 'folder', 'company:id,name'])
             ->where('document_folder_id', $category->id)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
+            ->where('is_active', true);
+
+        if ($selectedCompanyId) {
+            $documentsQuery->where('company_id', $selectedCompanyId);
+        } elseif (! $user->hasGroupScope() && $user->company_id) {
+            $documentsQuery->where('company_id', $user->company_id);
+        }
+
+        $documents = $documentsQuery->orderBy('name')->get();
 
         $users = User::query()
             ->where('group_id', $category->group_id)
@@ -134,9 +165,11 @@ class DocumentController extends Controller
             ->get(['id', 'name']);
 
         return view('documents.category', [
-            'category'  => $category,
-            'documents' => $documents,
-            'users'     => $users,
+            'category'          => $category,
+            'documents'         => $documents,
+            'users'             => $users,
+            'companies'         => $companies,
+            'selectedCompanyId' => $selectedCompanyId,
         ]);
     }
 
@@ -144,11 +177,12 @@ class DocumentController extends Controller
     {
         $user = auth()->user();
 
-        abort_unless($user->canAccessCompany($category->company), 403);
+        $this->authorizeFolder($user, $category);
         abort_unless($user->isAdmin() || $user->isOperative(), 403);
 
         $data = $request->validateWithBag('createDocument', [
             'name'                    => ['required', 'string', 'max:255'],
+            'company_id'              => ['nullable', 'exists:companies,id'],
             'reference'               => ['nullable', 'string', 'max:255'],
             'document_type'           => ['nullable', 'string', 'max:255'],
             'responsible_name'        => ['nullable', 'string', 'max:255'],
@@ -156,16 +190,21 @@ class DocumentController extends Controller
             'is_required'             => ['nullable', 'boolean'],
         ]);
 
+        // For general categories (company_id=null), use request company_id or user's company
+        $companyId = $category->company_id
+            ?? ($data['company_id'] ?? null)
+            ?? ($user->hasGroupScope() ? null : $user->company_id);
+
         Document::create([
             'group_id'                => $category->group_id,
-            'company_id'              => $category->company_id,
+            'company_id'              => $companyId,
             'document_folder_id'      => $category->id,
             'name'                    => strtoupper($data['name']),
             'reference'               => $data['reference'] ?? null,
             'document_type'           => $data['document_type'] ?? null,
             'responsible_name'        => $data['responsible_name'] ?? null,
             'authorized_access_notes' => $data['authorized_access_notes'] ?? null,
-            'is_required'             => !empty($data['is_required']),
+            'is_required'             => ! empty($data['is_required']),
             'is_active'               => true,
             'uploaded_by'             => $user->id,
         ]);
@@ -173,5 +212,20 @@ class DocumentController extends Controller
         return redirect()
             ->route('documents.categories.show', $category)
             ->with('success', 'Documento creado correctamente.');
+    }
+
+    // General folders (company_id=null) are accessible to any user in the same group.
+    // Company-specific folders (legacy) require canAccessCompany.
+    private function authorizeFolder($user, DocumentFolder $folder): void
+    {
+        if ($folder->company_id !== null) {
+            $folder->loadMissing('company');
+            abort_unless($user->canAccessCompany($folder->company), 403);
+        } else {
+            abort_unless(
+                $user->isGlobalScope() || $user->group_id === $folder->group_id,
+                403
+            );
+        }
     }
 }

@@ -22,7 +22,7 @@ class DocumentVersionController extends Controller
         $this->assertDocumentBelongsToCategory($document, $category);
 
         $user = auth()->user();
-        abort_unless($user->canAccessCompany($document->company), 403);
+        $this->authorizeDocumentAccess($user, $document, $category);
 
         $document->load([
             'versions.uploader',
@@ -48,7 +48,7 @@ class DocumentVersionController extends Controller
         $this->assertDocumentBelongsToCategory($document, $category);
 
         $user = auth()->user();
-        abort_unless($user->canAccessCompany($document->company), 403);
+        $this->authorizeDocumentAccess($user, $document, $category);
         abort_unless($user->isAdmin() || $user->isOperative(), 403);
 
         $data = $request->validate([
@@ -141,7 +141,7 @@ class DocumentVersionController extends Controller
         $this->assertDocumentBelongsToCategory($document, $category);
 
         $user = auth()->user();
-        abort_unless($user->canAccessCompany($document->company), 403);
+        $this->authorizeDocumentAccess($user, $document, $category);
         abort_unless($user->isAdmin() || $user->isOperative(), 403);
         abort_unless((int) $version->document_id === (int) $document->id, 404);
 
@@ -182,6 +182,19 @@ class DocumentVersionController extends Controller
     {
         if ((int) $document->document_folder_id !== (int) $category->id) {
             abort(404);
+        }
+    }
+
+    // General folders (company_id=null) are accessible to any user in the same group.
+    private function authorizeDocumentAccess($user, Document $document, DocumentFolder $folder): void
+    {
+        if ($document->company_id !== null) {
+            abort_unless($user->canAccessCompany($document->company), 403);
+        } else {
+            abort_unless(
+                $user->isGlobalScope() || $user->group_id === $folder->group_id,
+                403
+            );
         }
     }
 

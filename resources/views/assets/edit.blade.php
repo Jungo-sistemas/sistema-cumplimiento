@@ -50,7 +50,17 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('assets.update', $asset) }}" class="mt-6">
+        <form method="POST" action="{{ route('assets.update', $asset) }}" class="mt-6"
+              x-data="{
+                  typeId: '{{ old('asset_type_id', $asset->asset_type_id) }}',
+                  vehicleIds: @json($vehicleTypeIds),
+                  marca: '{{ old('marca', $asset->marca ?? '') }}',
+                  modelo: '{{ old('modelo', $asset->modelo ?? '') }}',
+                  placas: '{{ old('placas', $asset->placas ?? '') }}',
+                  nameCustomized: true,
+                  get isVehicle() { return this.vehicleIds.includes(Number(this.typeId)); },
+                  syncName() {}
+              }">
             @csrf
             @method('PUT')
 
@@ -100,6 +110,7 @@
                     <select
                         name="asset_type_id"
                         id="asset_type_id"
+                        x-model="typeId"
                         class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
                         required
                     >
@@ -231,6 +242,9 @@
                     @enderror
                 </div>
             </div>
+
+            {{-- Sección datos del vehículo --}}
+            @include('assets.partials.vehicle-fields', ['asset' => $asset])
 
             <div class="mt-8 flex justify-end gap-3 border-t pt-6">
                 <a href="{{ route('assets.show', $asset) }}"

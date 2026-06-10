@@ -39,6 +39,35 @@
         </div>
     </div>
 
+    {{-- FILTRO DE EMPRESA --}}
+    @if(auth()->user()->hasGroupScope() && $companies->isNotEmpty())
+        <form method="GET" action="{{ route('documents.categories.show', $category) }}"
+              class="mt-4 flex items-end gap-3">
+            <div class="min-w-[200px]">
+                <label class="block text-xs text-gray-500 mb-1">Empresa</label>
+                <select name="company_id" class="w-full rounded-md border-gray-300 text-sm">
+                    <option value="">Todas</option>
+                    @foreach($companies as $company)
+                        <option value="{{ $company->id }}"
+                            @selected((string) $selectedCompanyId === (string) $company->id)>
+                            {{ $company->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <button type="submit"
+                    class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                Filtrar
+            </button>
+            @if($selectedCompanyId)
+                <a href="{{ route('documents.categories.show', $category) }}"
+                   class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50">
+                    Limpiar
+                </a>
+            @endif
+        </form>
+    @endif
+
     {{-- Alerts --}}
     @if(session('success'))
         <div class="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-green-800 text-sm">
@@ -54,12 +83,14 @@
                 <thead class="bg-gray-50 text-gray-600">
                     <tr>
                         <th class="text-left px-4 py-3 font-semibold">Nombre del Documento</th>
+                        @if(auth()->user()->hasGroupScope())
+                            <th class="text-left px-4 py-3 font-semibold">Empresa</th>
+                        @endif
                         <th class="text-left px-4 py-3 font-semibold">Referencia / Oficio</th>
                         <th class="text-left px-4 py-3 font-semibold">Fecha</th>
                         <th class="text-left px-4 py-3 font-semibold">Vencimiento</th>
                         <th class="text-left px-4 py-3 font-semibold">Tipo</th>
                         <th class="text-left px-4 py-3 font-semibold">Responsable</th>
-                        <th class="text-left px-4 py-3 font-semibold">Accesos Autorizados</th>
                         <th class="text-left px-4 py-3 font-semibold">Archivo</th>
                         <th class="px-4 py-3"></th>
                     </tr>
@@ -84,6 +115,13 @@
                                     </span>
                                 @endif
                             </td>
+
+                            {{-- Empresa (solo admins de grupo) --}}
+                            @if(auth()->user()->hasGroupScope())
+                                <td class="px-4 py-3 text-sm text-gray-600">
+                                    {{ $document->company?->name ?? '—' }}
+                                </td>
+                            @endif
 
                             {{-- Referencia / Oficio --}}
                             <td class="px-4 py-3 text-gray-600">
@@ -158,8 +196,12 @@
                         </tr>
                     @empty
                         <tr class="border-t">
-                            <td colspan="9" class="px-6 py-6 text-center text-gray-500">
-                                No hay documentos en esta categoría.
+                            <td colspan="{{ auth()->user()->hasGroupScope() ? 9 : 8 }}"
+                                class="px-6 py-6 text-center text-gray-500">
+                                No hay documentos en esta categoría
+                                @if(auth()->user()->hasGroupScope() && $selectedCompanyId)
+                                    para la empresa seleccionada
+                                @endif.
                             </td>
                         </tr>
                     @endforelse
@@ -181,6 +223,28 @@
                 <h2 class="text-lg font-semibold text-[#1A428A] mb-4">Nuevo documento</h2>
 
                 <div class="space-y-4">
+
+                    {{-- Empresa (solo para admins de grupo en carpetas generales) --}}
+                    @if(auth()->user()->hasGroupScope() && $companies->isNotEmpty())
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Empresa <span class="text-red-500">*</span>
+                            </label>
+                            <select name="company_id" required
+                                    class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
+                                <option value="">— Seleccionar empresa —</option>
+                                @foreach($companies as $company)
+                                    <option value="{{ $company->id }}"
+                                        @selected(old('company_id', $selectedCompanyId) == $company->id)>
+                                        {{ $company->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @if($errors->createDocument->has('company_id'))
+                                <p class="text-sm text-red-600 mt-1">{{ $errors->createDocument->first('company_id') }}</p>
+                            @endif
+                        </div>
+                    @endif
 
                     {{-- Nombre --}}
                     <div>

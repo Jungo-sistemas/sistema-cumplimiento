@@ -30,7 +30,22 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('assets.store') }}" class="mt-6">
+        <form method="POST" action="{{ route('assets.store') }}" class="mt-6"
+              x-data="{
+                  typeId: '{{ old('asset_type_id', '') }}',
+                  vehicleIds: @json($vehicleTypeIds),
+                  marca: '{{ old('marca', '') }}',
+                  modelo: '{{ old('modelo', '') }}',
+                  placas: '{{ old('placas', '') }}',
+                  nameCustomized: {{ old('name') ? 'true' : 'false' }},
+                  get isVehicle() { return this.vehicleIds.includes(Number(this.typeId)); },
+                  syncName() {
+                      if (this.nameCustomized) return;
+                      const parts = [this.marca.trim(), this.modelo.trim()].filter(Boolean);
+                      if (this.placas.trim()) parts.push('— ' + this.placas.trim().toUpperCase());
+                      this.$refs.nameInput.value = parts.join(' ').toUpperCase();
+                  }
+              }">
             @csrf
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -74,10 +89,13 @@
                 <div class="{{ $nameFieldClass }}">
                     <label class="block text-sm font-medium text-gray-700">
                         Nombre de activo
+                        <span x-show="isVehicle" class="ml-1 text-xs text-blue-500 font-normal">(auto-generado desde marca + modelo + placas)</span>
                     </label>
                     <input
                         type="text"
                         name="name"
+                        x-ref="nameInput"
+                        @input="nameCustomized = true"
                         value="{{ old('name') }}"
                         class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
                         required
@@ -114,6 +132,7 @@
                     <select
                         name="asset_type_id"
                         id="asset_type_id"
+                        x-model="typeId"
                         class="{{ $selectClass }}"
                         required
                     >
@@ -264,6 +283,9 @@
                     @enderror
                 </div>
             </div>
+
+            {{-- Sección datos del vehículo --}}
+            @include('assets.partials.vehicle-fields')
 
             <div class="mt-6 flex justify-end gap-3">
                 <a

@@ -231,6 +231,10 @@ class AssetController extends Controller
             'Zacatecas',
         ];
 
+        $vehicleTypeIds = AssetType::whereIn('name', \App\Models\Asset::VEHICLE_TYPES)
+            ->pluck('id')
+            ->toArray();
+
         return view('assets.create', compact(
             'assetTypes',
             'responsibles',
@@ -238,7 +242,8 @@ class AssetController extends Controller
             'parentAssets',
             'companies',
             'selectedCompanyId',
-            'licenseInfo'
+            'licenseInfo',
+            'vehicleTypeIds'
         ));
     }
 
@@ -547,7 +552,11 @@ class AssetController extends Controller
             'Zacatecas',
         ];
 
-        return view('assets.edit', compact('asset', 'responsibles', 'assetTypes', 'mexicoStates', 'parentAssets'));
+        $vehicleTypeIds = AssetType::whereIn('name', \App\Models\Asset::VEHICLE_TYPES)
+            ->pluck('id')
+            ->toArray();
+
+        return view('assets.edit', compact('asset', 'responsibles', 'assetTypes', 'mexicoStates', 'parentAssets', 'vehicleTypeIds'));
     }
 
     public function update(UpdateAssetRequest $request, Asset $asset)

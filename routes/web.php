@@ -64,27 +64,40 @@ Route::middleware('auth')->group(function () {
     Route::get('/documents/folders/{folder}', [DocumentController::class, 'showFolder'])
         ->name('documents.folders.show');
 
+    // Documents directly in a folder (general folders, no categories)
+    Route::post('/documents/folders/{category}/documents', [DocumentController::class, 'store'])
+        ->name('documents.folders.documents.store');
+
+    Route::get('/documents/folders/{category}/documents/{document}', [DocumentVersionController::class, 'show'])
+        ->name('documents.folder.document.show');
+
+    Route::post('/documents/folders/{category}/documents/{document}/versions', [DocumentVersionController::class, 'store'])
+        ->name('documents.folder.document.versions.store');
+
+    Route::delete('/documents/folders/{category}/documents/{document}/versions/{version}', [DocumentVersionController::class, 'destroy'])
+        ->name('document-versions.folder.destroy');
+
+    // Legacy category routes (kept for backward compatibility)
     Route::get('/documents/categories/{category}', [DocumentController::class, 'showCategory'])
         ->name('documents.categories.show');
 
     Route::post('/documents/categories/{category}/documents', [DocumentController::class, 'store'])
         ->name('documents.categories.documents.store');
 
-    // Document catalog versions
     Route::get('/documents/categories/{category}/documents/{document}', [DocumentVersionController::class, 'show'])
         ->name('documents.document.show');
 
     Route::post('/documents/categories/{category}/documents/{document}/versions', [DocumentVersionController::class, 'store'])
         ->name('documents.document.versions.store');
 
+    Route::delete('/documents/categories/{category}/documents/{document}/versions/{version}', [DocumentVersionController::class, 'destroy'])
+        ->name('document-versions.destroy');
+
     Route::get('/document-versions/{version}/preview', [DocumentVersionController::class, 'preview'])
         ->name('document-versions.preview');
 
     Route::get('/document-versions/{version}/download', [DocumentVersionController::class, 'download'])
         ->name('document-versions.download');
-
-    Route::delete('/documents/categories/{category}/documents/{document}/versions/{version}', [DocumentVersionController::class, 'destroy'])
-        ->name('document-versions.destroy');
 
     /*
     |--------------------------------------------------------------------------

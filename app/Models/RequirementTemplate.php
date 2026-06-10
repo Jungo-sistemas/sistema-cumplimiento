@@ -10,12 +10,20 @@ class RequirementTemplate extends Model
 {
     use HasFactory;
 
+    // Valid categories: expediente | alta | modificacion | baja
+    const CATEGORIES = [
+        'expediente' => 'Expediente',
+        'alta'       => 'Alta / Modificación',
+        'baja'       => 'Baja',
+    ];
+
     protected $fillable = [
         'asset_type_id',
         'name',
         'description',
         'authority',
         'compliance_scope',
+        'category',
     ];
 
     public function company()
