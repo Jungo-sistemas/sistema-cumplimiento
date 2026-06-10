@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
@@ -33,6 +34,15 @@ Route::middleware('guest')->group(function () {
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
+
+    Route::get('two-factor', [TwoFactorController::class, 'create'])
+        ->name('two-factor');
+
+    Route::post('two-factor', [TwoFactorController::class, 'store'])
+        ->name('two-factor.store');
+
+    Route::post('two-factor/resend', [TwoFactorController::class, 'resend'])
+        ->name('two-factor.resend');
 });
 
 Route::middleware('auth')->group(function () {

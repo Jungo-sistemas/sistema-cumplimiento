@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Controllers\Auth\TwoFactorController;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,15 +27,20 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        // Get user before logging out to trigger 2FA
+        $user = Auth::user();
+
+        // Log out immediately — full login completes only after 2FA verification
+        Auth::guard('web')->logout();
+
+        // Generate and email the 6-digit code
+        TwoFactorController::generateAndSendCode($user);
+
+        // Store pending user and regenerate session
         $request->session()->regenerate();
+        $request->session()->put('two_factor_pending_user_id', $user->id);
 
-        $user = $request->user();
-
-        if ($user->isSuperAdmin()) {
-            return redirect()->route('superadmin.dashboard');
-        }
-
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->route('two-factor');
     }
 
     /**

@@ -20,9 +20,10 @@ class ProductionSeeder extends Seeder
         $this->call(ComercializacionRequirementTemplateSeeder::class);
         $this->call(ECRequirementTemplateSeeder::class);
         $this->call(EsRequirementTemplateSeeder::class);
+        $this->call(VehiculosRequirementTemplateSeeder::class);
 
-        // Document catalog for ALCOM (requires company + group to exist)
-        $this->call(DocumentCatalogSeeder::class);
+        // General document folders (5 categories, group-scoped, no company-specific)
+        $this->call(GeneralDocumentFoldersSeeder::class);
 
         // Admin users — edit AdminUserSeeder.php to set passwords before running
         $this->call(AdminUserSeeder::class);

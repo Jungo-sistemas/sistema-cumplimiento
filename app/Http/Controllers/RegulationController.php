@@ -19,13 +19,14 @@ class RegulationController extends Controller
             : (int) $user->company_id;
 
         $companies = $user->hasGroupScope()
-            ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->orderBy('name')->get()
+            ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
             : collect();
 
         // Group user with no company selected → company card grid
         if ($user->hasGroupScope() && ! $selectedCompanyId) {
             $companiesQuery = Company::where('group_id', $user->group_id)
                 ->where('show_in_processes', true)
+                ->where('otras', false)
                 ->withCount(['regulations' => fn ($q) => $q->where('is_active', true)]);
 
             if ($request->filled('q')) {
@@ -99,7 +100,7 @@ class RegulationController extends Controller
             : (int) $user->company_id;
 
         $companies = $user->hasGroupScope()
-            ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->orderBy('name')->get()
+            ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
             : collect();
 
         $processTypes = ProcessType::where('group_id', $user->group_id)

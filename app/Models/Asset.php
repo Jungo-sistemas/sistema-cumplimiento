@@ -25,7 +25,24 @@ class Asset extends Model
         'status',
         'compliance_start_date',
         'compliance_due_date',
+        // Campos para activos tipo vehículo
+        'no_economico',
+        'numero_serie',
+        'marca',
+        'modelo',
+        'placas',
+        'marca_recipiente',
+        'capacidad_litros',
+        'serie_recipiente',
     ];
+
+    // Asset types that use vehicle-specific fields
+    const VEHICLE_TYPES = ['Tracto', 'Semirremolque', 'ATQ', 'Carro tanque', 'Cilindrera'];
+
+    public function isVehicle(): bool
+    {
+        return in_array($this->assetType?->name, self::VEHICLE_TYPES);
+    }
 
     protected $casts = [
         'compliance_start_date' => 'date',

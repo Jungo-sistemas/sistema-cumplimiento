@@ -69,6 +69,16 @@ class UpdateAssetRequest extends FormRequest
                     $query->where('company_id', $companyId);
                 }),
             ],
+
+            // Vehicle-specific fields
+            'no_economico'     => ['nullable', 'string', 'max:100'],
+            'numero_serie'     => ['nullable', 'string', 'max:100'],
+            'marca'            => ['nullable', 'string', 'max:100'],
+            'modelo'           => ['nullable', 'string', 'max:100'],
+            'placas'           => ['nullable', 'string', 'max:20'],
+            'marca_recipiente' => ['nullable', 'string', 'max:100'],
+            'capacidad_litros' => ['nullable', 'integer', 'min:1'],
+            'serie_recipiente' => ['nullable', 'string', 'max:100'],
         ];
     }
 

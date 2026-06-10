@@ -19,7 +19,10 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(RoleSeeder::class);
         $this->call(AssetTypeSeeder::class);
-        $this->call([CompanySeeder::class]);
+        $this->call(CompanySeeder::class);
+        $this->call(GroupSeeder::class);
+        $this->call(AssignCompaniesToGroupsSeeder::class);
+        $this->call(GeneralDocumentFoldersSeeder::class);
 
         $company = Company::factory()->create([
             'name' => 'Empresa Demo',

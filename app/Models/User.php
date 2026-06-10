@@ -26,12 +26,15 @@ class User extends Authenticatable
         'invitation_accepted_at',
         'invited_by',
         'email_verified_at',
+        'two_factor_code',
+        'two_factor_expires_at',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
         'invite_token',
+        'two_factor_code',
     ];
 
     protected $with = ['role', 'company'];
@@ -39,10 +42,11 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'invite_expires_at' => 'datetime',
+            'email_verified_at'      => 'datetime',
+            'invite_expires_at'      => 'datetime',
             'invitation_accepted_at' => 'datetime',
-            'password' => 'hashed',
+            'two_factor_expires_at'  => 'datetime',
+            'password'               => 'hashed',
         ];
     }
 
