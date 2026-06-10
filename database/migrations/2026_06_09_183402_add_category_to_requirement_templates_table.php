@@ -9,10 +9,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('requirement_templates', function (Blueprint $table) {
-            $table->dropUnique('requirement_templates_name_asset_type_scope_unique');
-            $table->dropUnique('requirement_templates_unique_name_asset_scope');
+        // Drop old indexes safely — production may only have one of them
+        foreach ([
+            'requirement_templates_name_asset_type_scope_unique',
+            'requirement_templates_unique_name_asset_scope',
+        ] as $index) {
+            try {
+                Schema::table('requirement_templates', fn (Blueprint $t) => $t->dropUnique($index));
+            } catch (\Exception $e) {
+                // Index didn't exist — skip
+            }
+        }
 
+        Schema::table('requirement_templates', function (Blueprint $table) {
             // varchar(50) keeps the index within MySQL's 3072-byte limit
             $table->string('category', 50)->default('expediente')->after('compliance_scope');
         });
