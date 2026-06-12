@@ -54,6 +54,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/users', [SuperAdminController::class, 'storeUser'])->name('users.store');
         Route::patch('/users/{user}', [SuperAdminController::class, 'updateUser'])->name('users.update');
         Route::delete('/users/{user}', [SuperAdminController::class, 'destroyUser'])->name('users.destroy');
+
+        // API Tokens
+        Route::get('/api-tokens', [ApiTokenController::class, 'index'])->name('api-tokens.index');
+        Route::post('/api-tokens', [ApiTokenController::class, 'store'])->name('api-tokens.store');
+        Route::delete('/api-tokens/{apiToken}', [ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
     });
 
     /*
@@ -153,13 +158,6 @@ Route::middleware('auth')->group(function () {
     Route::delete('/settings/positions/remove', [JobPositionController::class, 'removeUser'])
         ->name('job-positions.remove');
 
-    // API Tokens
-    Route::get('/settings/api-tokens', [ApiTokenController::class, 'index'])
-        ->name('settings.api-tokens.index');
-    Route::post('/settings/api-tokens', [ApiTokenController::class, 'store'])
-        ->name('settings.api-tokens.store');
-    Route::delete('/settings/api-tokens/{apiToken}', [ApiTokenController::class, 'destroy'])
-        ->name('settings.api-tokens.destroy');
 
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

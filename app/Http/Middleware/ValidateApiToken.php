@@ -25,7 +25,7 @@ class ValidateApiToken
 
         $token->updateQuietly(['last_used_at' => now()]);
 
-        $request->attributes->set('api_company_id', $token->company_id);
+        $request->attributes->set('api_group_id', $token->group_id);
 
         return $next($request);
     }
