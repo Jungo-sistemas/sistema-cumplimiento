@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
         $this->call(GroupSeeder::class);
         $this->call(AssignCompaniesToGroupsSeeder::class);
         $this->call(GeneralDocumentFoldersSeeder::class);
+        $this->call(ProcessTypeSeeder::class);
+        $this->call(JobPositionSeeder::class);
 
         $company = Company::factory()->create([
             'name' => 'Empresa Demo',

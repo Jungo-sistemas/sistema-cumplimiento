@@ -18,6 +18,8 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DocumentVersionController;
 use App\Http\Controllers\RegulationController;
 use App\Http\Controllers\RegulationVersionController;
+use App\Http\Controllers\RegulationApprovalController;
+use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\SuperAdminController;
 
 Route::get('/', function () {
@@ -133,6 +135,22 @@ Route::middleware('auth')->group(function () {
 
     Route::delete('/processes/{regulation}/versions/{version}', [RegulationVersionController::class, 'destroy'])
         ->name('regulation-versions.destroy');
+
+    // Approval flow
+    Route::post('/processes/{regulation}/approve', [RegulationApprovalController::class, 'approve'])
+        ->name('processes.approve');
+    Route::post('/processes/{regulation}/reject', [RegulationApprovalController::class, 'reject'])
+        ->name('processes.reject');
+    Route::post('/processes/{regulation}/resubmit', [RegulationApprovalController::class, 'resubmit'])
+        ->name('processes.resubmit');
+
+    // Job positions (admin de grupo)
+    Route::get('/settings/positions', [JobPositionController::class, 'index'])
+        ->name('job-positions.index');
+    Route::post('/settings/positions/assign', [JobPositionController::class, 'assignUser'])
+        ->name('job-positions.assign');
+    Route::delete('/settings/positions/remove', [JobPositionController::class, 'removeUser'])
+        ->name('job-positions.remove');
 
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

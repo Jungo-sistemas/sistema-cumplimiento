@@ -253,6 +253,26 @@
                                     <p x-show="errors.fecha_vigencia" x-text="errors.fecha_vigencia" class="text-sm text-red-600 mt-1"></p>
                                 </div>
 
+                                {{-- impact_level --}}
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Nivel de impacto <span class="text-red-500">*</span>
+                                    </label>
+                                    <p class="text-xs text-gray-400 mt-0.5 mb-1">Determina el flujo de aprobación requerido</p>
+                                    <select
+                                        name="impact_level"
+                                        x-model="form.impact_level"
+                                        :class="errors.impact_level ? 'border-red-400' : 'border-gray-300'"
+                                        class="w-full rounded-md text-sm focus:border-blue-600 focus:ring-blue-600"
+                                    >
+                                        <option value="">— Seleccionar —</option>
+                                        @foreach($impactLevels as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                    <p x-show="errors.impact_level" x-text="errors.impact_level" class="text-sm text-red-600 mt-1"></p>
+                                </div>
+
                             </div>
                         </div>
                     </div>
@@ -688,6 +708,7 @@
                 quien_elabora:                '',
                 quien_aprueba:                '',
                 fecha_vigencia:               '',
+                impact_level:                 '',
                 problema_resuelve:            '',
                 resultado_esperado:           '',
                 areas_aplica:                 '',
@@ -741,7 +762,7 @@
             },
 
             init() {
-                this.blockFieldMap[1] = ['process_type_id', 'document_type', 'nombre', 'codigo', 'quien_elabora', 'quien_aprueba', 'fecha_vigencia'];
+                this.blockFieldMap[1] = ['process_type_id', 'document_type', 'nombre', 'codigo', 'quien_elabora', 'quien_aprueba', 'fecha_vigencia', 'impact_level'];
             },
 
             blockColor(b) {

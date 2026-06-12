@@ -18,6 +18,20 @@ class Regulation extends Model
         'Registro',
     ];
 
+    public const IMPACT_LEVELS = [
+        'alto'       => 'Alto',
+        'medio_alto' => 'Medio - Alto',
+        'medio'      => 'Medio',
+        'bajo'       => 'Bajo',
+    ];
+
+    public const APPROVAL_STATUSES = [
+        'pending_review'        => 'En revisión',
+        'pending_authorization' => 'En autorización',
+        'approved'              => 'Aprobado',
+        'rejected'              => 'Rechazado',
+    ];
+
     protected $fillable = [
         'group_id',
         'company_id',
@@ -28,6 +42,8 @@ class Regulation extends Model
         'details',
         'is_active',
         'created_by',
+        'impact_level',
+        'approval_status',
     ];
 
     protected $casts = [
@@ -121,5 +137,62 @@ class Regulation extends Model
         }
 
         return (int) now()->diffInDays($version->valid_until, false);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Approval relationships
+    |--------------------------------------------------------------------------
+    */
+
+    public function approvals()
+    {
+        return $this->hasMany(RegulationApproval::class)->orderBy('step_number')->orderBy('id');
+    }
+
+    public function approvalStep(int $step)
+    {
+        return $this->hasMany(RegulationApproval::class)->where('step_number', $step);
+    }
+
+    public function pendingApprovals()
+    {
+        return $this->hasMany(RegulationApproval::class)->where('status', 'pending');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Approval helpers
+    |--------------------------------------------------------------------------
+    */
+
+    public function isFullyApproved(): bool
+    {
+        return $this->approval_status === 'approved';
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->approval_status === 'rejected';
+    }
+
+    public function approvalStatusLabel(): string
+    {
+        return self::APPROVAL_STATUSES[$this->approval_status] ?? $this->approval_status;
+    }
+
+    public function approvalStatusColor(): string
+    {
+        return match ($this->approval_status) {
+            'approved'              => 'green',
+            'rejected'              => 'red',
+            'pending_authorization' => 'blue',
+            default                 => 'yellow',
+        };
+    }
+
+    public function impactLevelLabel(): string
+    {
+        return self::IMPACT_LEVELS[$this->impact_level] ?? $this->impact_level ?? '—';
     }
 }
