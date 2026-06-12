@@ -12,9 +12,9 @@ class AssetTypeController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $companyId = $request->attributes->get('api_company_id');
+        $groupId = $request->attributes->get('api_group_id');
 
-        $types = AssetType::where('company_id', $companyId)
+        $types = AssetType::whereHas('company', fn ($q) => $q->where('group_id', $groupId))
             ->orderBy('name')
             ->get(['id', 'name']);
 
@@ -23,14 +23,17 @@ class AssetTypeController extends Controller
 
     public function requirements(Request $request, AssetType $assetType): JsonResponse
     {
-        $companyId = $request->attributes->get('api_company_id');
+        $groupId = $request->attributes->get('api_group_id');
 
-        if ((int) $assetType->company_id !== (int) $companyId) {
+        $belongsToGroup = $assetType->company()
+            ->where('group_id', $groupId)
+            ->exists();
+
+        if (! $belongsToGroup) {
             return response()->json(['error' => 'No encontrado.'], 404);
         }
 
         $requirements = RequirementTemplate::where('asset_type_id', $assetType->id)
-            ->where('company_id', $companyId)
             ->orderBy('name')
             ->pluck('name');
 

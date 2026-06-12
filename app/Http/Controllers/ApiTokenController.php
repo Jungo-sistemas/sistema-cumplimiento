@@ -3,59 +3,47 @@
 namespace App\Http\Controllers;
 
 use App\Models\ApiToken;
-use App\Models\Company;
+use App\Models\Group;
 use Illuminate\Http\Request;
 
 class ApiTokenController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
-        $user = auth()->user();
-        abort_unless($user->isAdmin(), 403);
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
 
-        $companies = $user->hasGroupScope()
-            ? Company::where('group_id', $user->group_id)->orderBy('name')->get()
-            : Company::where('id', $user->company_id)->get();
+        $groups  = Group::orderBy('name')->get();
+        $tokens  = ApiToken::with('group')->latest()->get();
 
-        $tokens = ApiToken::whereIn('company_id', $companies->pluck('id'))
-            ->with('company')
-            ->latest()
-            ->get();
-
-        return view('settings.api-tokens', compact('tokens', 'companies'));
+        return view('superadmin.api-tokens', compact('tokens', 'groups'));
     }
 
     public function store(Request $request)
     {
-        $user = auth()->user();
-        abort_unless($user->isAdmin(), 403);
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
 
         $data = $request->validate([
-            'name'       => ['required', 'string', 'max:100'],
-            'company_id' => ['required', 'exists:companies,id'],
+            'name'     => ['required', 'string', 'max:100'],
+            'group_id' => ['required', 'exists:groups,id'],
         ]);
-
-        $company = Company::findOrFail($data['company_id']);
-        abort_unless($user->canAccessCompany($company), 403);
 
         $raw    = bin2hex(random_bytes(32));
         $hashed = hash('sha256', $raw);
 
         ApiToken::create([
-            'company_id' => $company->id,
-            'name'       => $data['name'],
-            'token'      => $hashed,
+            'group_id' => $data['group_id'],
+            'name'     => $data['name'],
+            'token'    => $hashed,
         ]);
 
-        return back()->with('generated_token', $raw)
-                     ->with('success', 'Token generado. Cópialo ahora, no se mostrará de nuevo.');
+        return back()
+            ->with('generated_token', $raw)
+            ->with('success', 'Token generado. Cópialo ahora, no se mostrará de nuevo.');
     }
 
     public function destroy(ApiToken $apiToken)
     {
-        $user = auth()->user();
-        abort_unless($user->isAdmin(), 403);
-        abort_unless($user->canAccessCompany($apiToken->company), 403);
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
 
         $apiToken->delete();
 
