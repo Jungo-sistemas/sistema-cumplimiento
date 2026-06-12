@@ -6,9 +6,13 @@
         @if(! $cardView && $user->hasGroupScope())
             <a href="{{ route('processes.index') }}" class="text-blue-600 hover:underline">Procesos</a>
             <span class="mx-2 text-gray-400">/</span>
-            <span class="text-gray-700 font-medium">
-                {{ $companies->firstWhere('id', $selectedCompanyId)?->name ?? 'Empresa' }}
-            </span>
+            @if($globalSearch)
+                <span class="text-gray-700 font-medium">Búsqueda: "{{ request('q') }}"</span>
+            @else
+                <span class="text-gray-700 font-medium">
+                    {{ $companies->firstWhere('id', $selectedCompanyId)?->name ?? 'Empresa' }}
+                </span>
+            @endif
         @else
             <span class="text-gray-700 font-medium">Procesos</span>
         @endif
@@ -20,8 +24,19 @@
             {{ $cardView ? 'Procesos' : 'Reglamentos' }}
         </h1>
 
-        @if(! $cardView)
-            <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2">
+            @if($user->isAdmin() && $user->hasGroupScope())
+                <a href="{{ route('job-positions.index') }}"
+                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-600 text-sm hover:bg-gray-50"
+                   title="Configurar puestos de aprobación">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Puestos
+                </a>
+            @endif
+
+            @if(! $cardView)
                 @if($user->hasGroupScope())
                     <a href="{{ route('processes.index') }}"
                        class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50">
@@ -35,26 +50,49 @@
                         Nuevo reglamento
                     </a>
                 @endif
-            </div>
-        @endif
+            @endif
+        </div>
     </div>
 
     {{-- FILTROS --}}
     <form method="GET" action="{{ route('processes.index') }}"
           class="mt-4 flex flex-wrap items-end gap-3">
 
-        @if($cardView && $user->hasGroupScope())
-            {{-- Vista de tarjetas: solo buscar empresa --}}
-            <div class="flex-1 min-w-[180px] max-w-xs">
-                <label class="block text-xs text-gray-500 mb-1">Buscar empresa</label>
-                <input type="text"
-                       name="q"
-                       value="{{ request('q') }}"
-                       placeholder="Nombre de empresa..."
-                       class="w-full rounded-md border-gray-300 text-sm">
+        @if($cardView || ($user->hasGroupScope() && !$selectedCompanyId))
+            {{-- Selector de empresa (aplica en card view y en búsqueda global) --}}
+            <div class="min-w-[200px]">
+                <label class="block text-xs text-gray-500 mb-1">Empresa</label>
+                <select name="company_id"
+                        class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                    <option value="">Todas las empresas</option>
+                    @foreach($companies as $c)
+                        <option value="{{ $c->id }}" @selected(request('company_id') == $c->id)>
+                            {{ $c->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            {{-- Búsqueda global: nombre o código de reglamento --}}
+            <div class="flex-1 min-w-[220px]">
+                <label class="block text-xs text-gray-500 mb-1">Buscar reglamento</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none"
+                             viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
+                        </svg>
+                    </span>
+                    <input type="text"
+                           name="q"
+                           value="{{ request('q') }}"
+                           placeholder="Código, nombre… en cualquier empresa"
+                           class="w-full rounded-md border-gray-300 text-sm pl-9 focus:border-[#1A428A] focus:ring-[#1A428A]">
+                </div>
             </div>
         @else
-            {{-- Vista de tabla: mantener company_id, filtrar por proceso, tipo y búsqueda --}}
+            {{-- Vista de tabla dentro de una empresa --}}
             @if($selectedCompanyId)
                 <input type="hidden" name="company_id" value="{{ $selectedCompanyId }}">
             @endif
@@ -64,8 +102,7 @@
                 <select name="process_type_id" class="w-full rounded-md border-gray-300 text-sm">
                     <option value="">Todos</option>
                     @foreach($processTypes as $pt)
-                        <option value="{{ $pt->id }}"
-                            @selected(request('process_type_id') == $pt->id)>
+                        <option value="{{ $pt->id }}" @selected(request('process_type_id') == $pt->id)>
                             {{ $pt->name }}
                         </option>
                     @endforeach
@@ -84,22 +121,31 @@
                 </select>
             </div>
 
-            <div class="flex-1 min-w-[180px] max-w-xs">
+            <div class="flex-1 min-w-[180px]">
                 <label class="block text-xs text-gray-500 mb-1">Buscar</label>
-                <input type="text"
-                       name="q"
-                       value="{{ request('q') }}"
-                       placeholder="Código o nombre..."
-                       class="w-full rounded-md border-gray-300 text-sm">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none"
+                             viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
+                        </svg>
+                    </span>
+                    <input type="text"
+                           name="q"
+                           value="{{ request('q') }}"
+                           placeholder="Código o nombre..."
+                           class="w-full rounded-md border-gray-300 text-sm pl-9">
+                </div>
             </div>
         @endif
 
         <button type="submit"
                 class="px-5 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
-            Filtrar
+            Buscar
         </button>
 
-        <a href="{{ $cardView ? route('processes.index') : route('processes.index', ['company_id' => $selectedCompanyId]) }}"
+        <a href="{{ route('processes.index') }}"
            class="px-5 py-2 rounded-md border border-gray-300 bg-white text-sm text-gray-700 font-semibold hover:bg-gray-50">
             Limpiar
         </a>
@@ -183,18 +229,35 @@
 
     @else
 
-        {{-- VISTA DE TABLA: reglamentos de la empresa --}}
-        <div class="mt-4 bg-white border rounded-lg shadow-sm overflow-hidden">
+        {{-- Encabezado de resultado de búsqueda global --}}
+        @if($globalSearch)
+            <div class="mt-4 flex items-center gap-2 text-sm text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#1A428A]" fill="none"
+                     viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
+                </svg>
+                Resultados para <strong class="text-gray-700 mx-1">"{{ request('q') }}"</strong>
+                en todas las empresas
+            </div>
+        @endif
+
+        {{-- VISTA DE TABLA --}}
+        <div class="mt-3 bg-white border rounded-lg shadow-sm overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead class="bg-gray-50 text-gray-600">
                         <tr>
+                            @if($globalSearch)
+                                <th class="text-left px-4 py-3 font-semibold">Empresa</th>
+                            @endif
                             <th class="text-left px-4 py-3 font-semibold">Código</th>
                             <th class="text-left px-4 py-3 font-semibold">Nombre</th>
                             <th class="text-left px-4 py-3 font-semibold">Proceso</th>
                             <th class="text-left px-4 py-3 font-semibold">Tipo</th>
                             <th class="text-left px-4 py-3 font-semibold">Versión</th>
                             <th class="text-left px-4 py-3 font-semibold">Vigencia</th>
+                            <th class="text-left px-4 py-3 font-semibold">Flujo</th>
                             <th class="text-left px-4 py-3 font-semibold">Estatus</th>
                             <th class="text-right px-4 py-3 font-semibold">Acciones</th>
                         </tr>
@@ -203,12 +266,19 @@
                     <tbody>
                         @forelse($regulations as $regulation)
                             @php
-                                $version  = $regulation->currentVersion;
-                                $color    = $regulation->statusColor();
-                                $daysLeft = $regulation->daysUntilExpiry();
+                                $version    = $regulation->currentVersion;
+                                $color      = $regulation->statusColor();
+                                $daysLeft   = $regulation->daysUntilExpiry();
+                                $hasPending = $user->isAdmin() && isset($pendingApprovalIds[$regulation->id]);
                             @endphp
 
                             <tr class="border-t hover:bg-gray-50">
+
+                                @if($globalSearch)
+                                    <td class="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">
+                                        {{ $regulation->company->name ?? '—' }}
+                                    </td>
+                                @endif
 
                                 <td class="px-4 py-3 font-mono text-gray-700 whitespace-nowrap">
                                     {{ $regulation->code ?? '—' }}
@@ -247,6 +317,40 @@
                                     @endif
                                 </td>
 
+                                {{-- Columna Aprobación --}}
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    @if($regulation->impact_level)
+                                        @php
+                                            $apColor = $regulation->approvalStatusColor();
+                                            $apLabel = $regulation->approvalStatusLabel();
+                                        @endphp
+                                        <div class="flex flex-col gap-1">
+                                            <span class="inline-flex items-center gap-1 text-xs
+                                                {{ $apColor === 'green'  ? 'text-green-700' : '' }}
+                                                {{ $apColor === 'yellow' ? 'text-yellow-700' : '' }}
+                                                {{ $apColor === 'red'    ? 'text-red-600' : '' }}
+                                                {{ $apColor === 'blue'   ? 'text-blue-600' : '' }}">
+                                                <span class="h-2 w-2 rounded-full shrink-0
+                                                    {{ $apColor === 'green'  ? 'bg-green-500' : '' }}
+                                                    {{ $apColor === 'yellow' ? 'bg-yellow-400' : '' }}
+                                                    {{ $apColor === 'red'    ? 'bg-red-500' : '' }}
+                                                    {{ $apColor === 'blue'   ? 'bg-blue-500' : '' }}">
+                                                </span>
+                                                {{ $apLabel }}
+                                            </span>
+                                            @if($hasPending)
+                                                <span class="inline-flex items-center gap-1 text-xs font-semibold text-yellow-700 bg-yellow-50 border border-yellow-200 rounded px-1.5 py-0.5">
+                                                    <span class="h-1.5 w-1.5 rounded-full bg-yellow-400 animate-pulse"></span>
+                                                    Tu aprobación
+                                                </span>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <span class="text-xs text-gray-400">—</span>
+                                    @endif
+                                </td>
+
+                                {{-- Columna Estatus de vigencia --}}
                                 <td class="px-4 py-3 whitespace-nowrap">
                                     <div x-data="{ open: false }" class="relative inline-block">
                                         <button type="button"
@@ -298,18 +402,35 @@
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    <div class="flex items-center justify-end gap-2">
-                                        <a href="{{ route('processes.print', $regulation) }}"
-                                           target="_blank"
-                                           class="px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 text-xs font-semibold hover:bg-gray-50 flex items-center gap-1">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                                            </svg>
-                                            Imprimir
-                                        </a>
+                                    <div class="flex items-center justify-end gap-2 flex-wrap">
+                                        @if($hasPending)
+                                            {{-- Acciones rápidas de aprobación desde el índice --}}
+                                            <form method="POST"
+                                                  action="{{ route('processes.approve', $regulation) }}">
+                                                @csrf
+                                                <button type="submit"
+                                                        onclick="return confirm('¿Aprobar «{{ addslashes($regulation->name) }}»?')"
+                                                        class="px-3 py-1.5 rounded-md bg-green-600 text-white text-xs font-semibold hover:bg-green-700">
+                                                    Aprobar
+                                                </button>
+                                            </form>
+                                            <a href="{{ route('processes.show', $regulation) }}#aprobacion"
+                                               class="px-3 py-1.5 rounded-md border border-red-300 text-red-600 text-xs font-semibold hover:bg-red-50">
+                                                Rechazar
+                                            </a>
+                                        @else
+                                            <a href="{{ route('processes.print', $regulation) }}"
+                                               target="_blank"
+                                               class="px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 text-xs font-semibold hover:bg-gray-50 flex items-center gap-1">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                                                </svg>
+                                                Imprimir
+                                            </a>
+                                        @endif
                                         <a href="{{ route('processes.show', $regulation) }}"
                                            class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d]">
-                                            Gestionar
+                                            {{ $hasPending ? 'Ver detalle' : 'Gestionar' }}
                                         </a>
                                     </div>
                                 </td>
@@ -317,7 +438,7 @@
                             </tr>
                         @empty
                             <tr class="border-t">
-                                <td colspan="{{ $user->hasGroupScope() ? 9 : 8 }}"
+                                <td colspan="{{ $globalSearch ? 10 : 9 }}"
                                     class="px-6 py-8 text-center text-gray-500">
                                     No hay reglamentos para los filtros seleccionados.
                                 </td>
@@ -329,7 +450,13 @@
         </div>
 
         <p class="mt-3 text-xs text-gray-400">
-            {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural('reglamento', $regulations->count()) }} encontrados
+            @if($globalSearch)
+                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural('reglamento', $regulations->count()) }}
+                encontrados en {{ $regulations->pluck('company_id')->unique()->count() }}
+                {{ \Illuminate\Support\Str::plural('empresa', $regulations->pluck('company_id')->unique()->count()) }}
+            @else
+                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural('reglamento', $regulations->count()) }} encontrados
+            @endif
         </p>
 
     @endif

@@ -83,8 +83,16 @@ class StoreAssetRequest extends FormRequest
             'responsible_user_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->where(function ($query) use ($companyId) {
-                    $query->where('company_id', $companyId);
+                Rule::exists('users', 'id')->where(function ($query) use ($companyId, $user) {
+                    if ($user->isGlobalScope()) {
+                        return;
+                    }
+                    if ($user->hasGroupScope()) {
+                        $groupId = \App\Models\Company::find($companyId)?->group_id ?? $user->group_id;
+                        $query->where('group_id', $groupId);
+                    } else {
+                        $query->where('company_id', $user->company_id);
+                    }
                 }),
             ],
 

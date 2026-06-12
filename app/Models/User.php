@@ -75,6 +75,11 @@ class User extends Authenticatable
         return $this->belongsTo(User::class, 'invited_by');
     }
 
+    public function jobPositions()
+    {
+        return $this->belongsToMany(JobPosition::class, 'user_job_positions');
+    }
+
     public function isAdmin(): bool
     {
         return in_array($this->role?->slug, ['admin', 'superadmin']);

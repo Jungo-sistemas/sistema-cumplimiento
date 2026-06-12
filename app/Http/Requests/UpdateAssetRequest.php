@@ -14,10 +14,24 @@ class UpdateAssetRequest extends FormRequest
 
     public function rules(): array
     {
-        $asset = $this->route('asset');
-        $companyId = (int) $asset->company_id;
+        $asset     = $this->route('asset');
+        $user      = $this->user();
+
+        // Use the submitted company_id if present (admin changing company), otherwise keep current
+        $companyId = $this->filled('company_id')
+            ? (int) $this->input('company_id')
+            : (int) $asset->company_id;
+
+        $companyRule = Rule::exists('companies', 'id');
+        if ($user->hasGroupScope()) {
+            $companyRule = $companyRule->where('group_id', $user->group_id);
+        } elseif (! $user->isGlobalScope()) {
+            $companyRule = $companyRule->where('id', $user->company_id);
+        }
 
         return [
+            'company_id' => ['nullable', 'integer', $companyRule],
+
             'asset_type_id' => [
                 'required',
                 'integer',
@@ -65,8 +79,21 @@ class UpdateAssetRequest extends FormRequest
             'responsible_user_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->where(function ($query) use ($companyId) {
-                    $query->where('company_id', $companyId);
+                Rule::exists('users', 'id')->where(function ($query) use ($companyId, $user) {
+                    if ($user->isGlobalScope()) {
+                        // Global: cualquier usuario activo
+                        return;
+                    }
+                    if ($user->hasGroupScope()) {
+                        // Admin de grupo: usuarios de cualquier empresa del grupo o admins del grupo
+                        $groupId = \App\Models\Company::find($companyId)?->group_id ?? $user->group_id;
+                        $query->where(function ($q) use ($groupId) {
+                            $q->where('group_id', $groupId);
+                        });
+                    } else {
+                        // Operativo: solo usuarios de su empresa
+                        $query->where('company_id', $user->company_id);
+                    }
                 }),
             ],
 

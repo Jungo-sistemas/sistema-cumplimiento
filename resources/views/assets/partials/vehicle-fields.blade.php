@@ -24,6 +24,7 @@
                 <label class="block text-xs font-medium text-gray-600 mb-1">No. Económico</label>
                 <input type="text" name="no_economico"
                        value="{{ old('no_economico', $asset->no_economico ?? '') }}"
+                       :disabled="!isVehicle"
                        placeholder="Ej. ATQ-001"
                        class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
                 @error('no_economico')
@@ -36,6 +37,7 @@
                 <label class="block text-xs font-medium text-gray-600 mb-1">Número de serie / NIV</label>
                 <input type="text" name="numero_serie"
                        value="{{ old('numero_serie', $asset->numero_serie ?? '') }}"
+                       :disabled="!isVehicle"
                        placeholder="Ej. 3AKJHHDR0FSFK1234"
                        class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
                 @error('numero_serie')
@@ -49,6 +51,7 @@
                 <input type="text" name="marca"
                        x-model="marca"
                        @input="syncName()"
+                       :disabled="!isVehicle"
                        placeholder="Ej. FREIGHTLINER"
                        class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
                 @error('marca')
@@ -62,6 +65,7 @@
                 <input type="text" name="modelo"
                        x-model="modelo"
                        @input="syncName()"
+                       :disabled="!isVehicle"
                        placeholder="Ej. CASCADIA 2022"
                        class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
                 @error('modelo')
@@ -75,6 +79,7 @@
                 <input type="text" name="placas"
                        x-model="placas"
                        @input="syncName()"
+                       :disabled="!isVehicle"
                        placeholder="Ej. ABC1234"
                        class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] uppercase">
                 @error('placas')
@@ -87,6 +92,7 @@
                 <label class="block text-xs font-medium text-gray-600 mb-1">Marca del recipiente</label>
                 <input type="text" name="marca_recipiente"
                        value="{{ old('marca_recipiente', $asset->marca_recipiente ?? '') }}"
+                       :disabled="!isVehicle"
                        placeholder="Ej. MEXITANK"
                        class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
                 @error('marca_recipiente')
@@ -99,6 +105,7 @@
                 <label class="block text-xs font-medium text-gray-600 mb-1">Capacidad del recipiente (litros)</label>
                 <input type="number" name="capacidad_litros" min="1"
                        value="{{ old('capacidad_litros', $asset->capacidad_litros ?? '') }}"
+                       :disabled="!isVehicle"
                        placeholder="Ej. 10000"
                        class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
                 @error('capacidad_litros')
@@ -111,6 +118,7 @@
                 <label class="block text-xs font-medium text-gray-600 mb-1">Núm. serie del recipiente</label>
                 <input type="text" name="serie_recipiente"
                        value="{{ old('serie_recipiente', $asset->serie_recipiente ?? '') }}"
+                       :disabled="!isVehicle"
                        placeholder="Ej. REC-2022-00456"
                        class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
                 @error('serie_recipiente')

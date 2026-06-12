@@ -148,10 +148,18 @@
                                     Documentos
                                 </a>
 
+                                @php
+                                    $pendingApprovalsCount = \App\Models\RegulationApproval::where('user_id', auth()->id())->where('status', 'pending')->count();
+                                @endphp
                                 <a href="{{ route('processes.index') }}"
                                    @click="mobileMenuOpen = false"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                    Procesos
+                                   class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('processes.*') || request()->routeIs('job-positions.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                    <span>Procesos</span>
+                                    @if($pendingApprovalsCount > 0)
+                                        <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">
+                                            {{ $pendingApprovalsCount }}
+                                        </span>
+                                    @endif
                                 </a>
                             @endif
 
@@ -275,8 +283,13 @@
                                 </a>
 
                                 <a href="{{ route('processes.index') }}"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                    Procesos
+                                   class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('processes.*') || request()->routeIs('job-positions.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                    <span>Procesos</span>
+                                    @if(isset($pendingApprovalsCount) && $pendingApprovalsCount > 0)
+                                        <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">
+                                            {{ $pendingApprovalsCount }}
+                                        </span>
+                                    @endif
                                 </a>
                             @endif
 

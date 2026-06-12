@@ -512,10 +512,24 @@ class AssetController extends Controller
             ->orderBy('name')
             ->get();
 
+        $groupId = $asset->company?->group_id;
         $responsibles = User::query()
-            ->where('company_id', $asset->company_id)
+            ->when($user->isGlobalScope(), fn ($q) => $q, function ($q) use ($user, $asset, $groupId) {
+                if ($user->hasGroupScope()) {
+                    $q->where('group_id', $groupId ?? $user->group_id);
+                } else {
+                    $q->where('company_id', $user->company_id);
+                }
+            })
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
+
+        $user = $request->user();
+        $companies = Company::query()
+            ->when($user->hasGroupScope(), fn ($q) => $q->where('group_id', $user->group_id))
+            ->when(! $user->hasGroupScope() && ! $user->isGlobalScope(), fn ($q) => $q->where('id', $user->company_id))
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         $mexicoStates = [
             'Aguascalientes',
@@ -556,7 +570,7 @@ class AssetController extends Controller
             ->pluck('id')
             ->toArray();
 
-        return view('assets.edit', compact('asset', 'responsibles', 'assetTypes', 'mexicoStates', 'parentAssets', 'vehicleTypeIds'));
+        return view('assets.edit', compact('asset', 'responsibles', 'assetTypes', 'mexicoStates', 'parentAssets', 'vehicleTypeIds', 'companies'));
     }
 
     public function update(UpdateAssetRequest $request, Asset $asset)
@@ -566,7 +580,15 @@ class AssetController extends Controller
         $oldAssetTypeId = (int) $asset->asset_type_id;
 
         DB::transaction(function () use ($request, $asset, $oldAssetTypeId) {
-            $asset->update($request->validated());
+            $data = $request->validated();
+
+            // Verify access to the new company if it changed
+            if (! empty($data['company_id']) && (int) $data['company_id'] !== (int) $asset->company_id) {
+                $newCompany = \App\Models\Company::findOrFail($data['company_id']);
+                abort_unless($request->user()->canAccessCompany($newCompany), 403);
+            }
+
+            $asset->update($data);
 
             if ($oldAssetTypeId !== (int) $asset->asset_type_id) {
                 $this->syncAssetRequirementsService->handle($asset, removeObsolete: true);
