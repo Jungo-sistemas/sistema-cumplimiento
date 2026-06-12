@@ -20,6 +20,7 @@ use App\Http\Controllers\RegulationController;
 use App\Http\Controllers\RegulationVersionController;
 use App\Http\Controllers\RegulationApprovalController;
 use App\Http\Controllers\JobPositionController;
+use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\SuperAdminController;
 
 Route::get('/', function () {
@@ -151,6 +152,14 @@ Route::middleware('auth')->group(function () {
         ->name('job-positions.assign');
     Route::delete('/settings/positions/remove', [JobPositionController::class, 'removeUser'])
         ->name('job-positions.remove');
+
+    // API Tokens
+    Route::get('/settings/api-tokens', [ApiTokenController::class, 'index'])
+        ->name('settings.api-tokens.index');
+    Route::post('/settings/api-tokens', [ApiTokenController::class, 'store'])
+        ->name('settings.api-tokens.store');
+    Route::delete('/settings/api-tokens/{apiToken}', [ApiTokenController::class, 'destroy'])
+        ->name('settings.api-tokens.destroy');
 
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
