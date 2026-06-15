@@ -12,9 +12,10 @@ class AssetType extends Model
 
     protected $fillable = [
         'name',
+        'slug',
         'priority_level',
         'warning_days',
-        'danger_days'
+        'danger_days',
     ];
 
     public function company()

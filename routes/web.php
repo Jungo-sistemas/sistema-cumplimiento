@@ -59,6 +59,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/api-tokens', [ApiTokenController::class, 'index'])->name('api-tokens.index');
         Route::post('/api-tokens', [ApiTokenController::class, 'store'])->name('api-tokens.store');
         Route::delete('/api-tokens/{apiToken}', [ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
+
+        // Asset type slugs
+        Route::get('/asset-type-slugs', [SuperAdminController::class, 'assetTypeSlugs'])->name('asset-type-slugs.index');
+        Route::patch('/asset-type-slugs/{assetType}', [SuperAdminController::class, 'updateAssetTypeSlug'])->name('asset-type-slugs.update');
     });
 
     /*

@@ -6,39 +6,42 @@ use App\Http\Controllers\Controller;
 use App\Models\AssetType;
 use App\Models\RequirementTemplate;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class AssetTypeController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(): JsonResponse
     {
-        $groupId = $request->attributes->get('api_group_id');
-
-        $types = AssetType::whereHas('company', fn ($q) => $q->where('group_id', $groupId))
+        $types = AssetType::select('name', 'slug')
+            ->whereNotNull('slug')
+            ->distinct()
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get()
+            ->unique('slug')
+            ->map(fn ($t) => ['slug' => $t->slug, 'name' => $t->name])
+            ->values();
 
         return response()->json($types);
     }
 
-    public function requirements(Request $request, AssetType $assetType): JsonResponse
+    public function requirements(string $slug): JsonResponse
     {
-        $groupId = $request->attributes->get('api_group_id');
+        $typeIds = AssetType::where('slug', $slug)->pluck('id');
 
-        $belongsToGroup = $assetType->company()
-            ->where('group_id', $groupId)
-            ->exists();
-
-        if (! $belongsToGroup) {
-            return response()->json(['error' => 'No encontrado.'], 404);
+        if ($typeIds->isEmpty()) {
+            return response()->json(['error' => 'Tipo de activo no encontrado.'], 404);
         }
 
-        $requirements = RequirementTemplate::where('asset_type_id', $assetType->id)
+        $name = AssetType::where('slug', $slug)->value('name');
+
+        $requirements = RequirementTemplate::whereIn('asset_type_id', $typeIds)
             ->orderBy('name')
-            ->pluck('name');
+            ->pluck('name')
+            ->unique()
+            ->values();
 
         return response()->json([
-            'asset_type'   => $assetType->name,
+            'slug'         => $slug,
+            'asset_type'   => $name,
             'requirements' => $requirements,
         ]);
     }
