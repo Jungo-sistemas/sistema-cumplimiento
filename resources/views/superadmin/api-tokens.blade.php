@@ -37,15 +37,14 @@
         </div>
     @endif
 
-    <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-4">
+    {{-- Fila superior: Nuevo token + Endpoints --}}
+    <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
 
-        {{-- Panel izquierdo --}}
-        <div class="lg:col-span-1 space-y-4">
-
-            <div class="bg-white border rounded-lg shadow-sm p-5">
-                <h2 class="text-sm font-semibold text-gray-700 mb-4">Nuevo token</h2>
-                <form method="POST" action="{{ route('superadmin.api-tokens.store') }}" class="space-y-4">
-                    @csrf
+        <div class="bg-white border rounded-lg shadow-sm p-5">
+            <h2 class="text-sm font-semibold text-gray-700 mb-4">Nuevo token</h2>
+            <form method="POST" action="{{ route('superadmin.api-tokens.store') }}" class="space-y-4">
+                @csrf
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">Nombre / descripción</label>
                         <input type="text" name="name" value="{{ old('name') }}"
@@ -66,34 +65,36 @@
                         </select>
                         @error('group_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                     </div>
-                    <button type="submit"
-                            class="w-full px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
-                        Generar token
-                    </button>
-                </form>
-            </div>
-
-            <div class="bg-white border rounded-lg shadow-sm p-5">
-                <h2 class="text-sm font-semibold text-gray-700 mb-3">Endpoints</h2>
-                <div class="space-y-2 text-xs font-mono">
-                    <div class="flex items-start gap-2">
-                        <span class="shrink-0 inline-block bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">GET</span>
-                        <span class="text-gray-600 break-all">/api/v1/asset-types</span>
-                    </div>
-                    <div class="flex items-start gap-2">
-                        <span class="shrink-0 inline-block bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">GET</span>
-                        <span class="text-gray-600 break-all">/api/v1/asset-types/{nombre}/requirements</span>
-                    </div>
                 </div>
-                <div class="mt-3 rounded bg-gray-50 border px-3 py-2 text-xs font-mono text-gray-500 break-all">
-                    Authorization: Bearer &lt;token&gt;
-                </div>
-                <p class="mt-2 text-xs text-gray-400">La API devuelve todos los tipos y requerimientos sin filtrar por empresa ni grupo.</p>
-            </div>
+                <button type="submit"
+                        class="px-5 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                    Generar token
+                </button>
+            </form>
         </div>
 
-        {{-- Tabla de tokens --}}
-        <div class="lg:col-span-3" x-data="{ search: '' }">
+        <div class="bg-white border rounded-lg shadow-sm p-5">
+            <h2 class="text-sm font-semibold text-gray-700 mb-3">Endpoints</h2>
+            <div class="space-y-2 text-xs font-mono">
+                <div class="flex items-start gap-2">
+                    <span class="shrink-0 inline-block bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">GET</span>
+                    <span class="text-gray-600 break-all">/api/v1/asset-types</span>
+                </div>
+                <div class="flex items-start gap-2">
+                    <span class="shrink-0 inline-block bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">GET</span>
+                    <span class="text-gray-600 break-all">/api/v1/asset-types/{slug}/requirements</span>
+                </div>
+            </div>
+            <div class="mt-3 rounded bg-gray-50 border px-3 py-2 text-xs font-mono text-gray-500 break-all">
+                Authorization: Bearer &lt;token&gt;
+            </div>
+            <p class="mt-3 text-xs text-gray-400">La API devuelve todos los tipos y requerimientos sin filtrar por empresa ni grupo.</p>
+        </div>
+
+    </div>
+
+    {{-- Tabla de tokens activos (ancho completo) --}}
+    <div class="mt-6" x-data="{ search: '' }">
             <div class="bg-white border rounded-lg shadow-sm overflow-hidden">
                 <div class="px-5 py-4 border-b bg-gray-50 flex items-center justify-between gap-4">
                     <h2 class="text-sm font-semibold text-gray-700 shrink-0">
@@ -170,8 +171,6 @@
                     </table>
                 @endif
             </div>
-        </div>
-
     </div>
 
 </x-layouts.vigia>
