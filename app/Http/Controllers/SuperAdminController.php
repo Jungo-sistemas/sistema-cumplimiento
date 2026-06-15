@@ -300,4 +300,29 @@ class SuperAdminController extends Controller
             ->route('superadmin.users')
             ->with('success', 'Usuario eliminado correctamente.');
     }
+
+    public function assetTypeSlugs()
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        $types = \App\Models\AssetType::select('id', 'name', 'slug', 'company_id')
+            ->with('company:id,name')
+            ->orderBy('name')
+            ->get();
+
+        return view('superadmin.asset-type-slugs', compact('types'));
+    }
+
+    public function updateAssetTypeSlug(\Illuminate\Http\Request $request, \App\Models\AssetType $assetType)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        $request->validate([
+            'slug' => ['required', 'string', 'max:100', 'regex:/^[a-z0-9\-]+$/'],
+        ]);
+
+        $assetType->update(['slug' => $request->slug]);
+
+        return back()->with('success', 'Slug actualizado correctamente.');
+    }
 }
