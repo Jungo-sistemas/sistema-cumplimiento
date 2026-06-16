@@ -24,16 +24,22 @@ final class ComplianceDashboardService
 
         // 🔹 BREAKDOWN POR ASSET TYPE — agregado en SQL, sin cargar filas
         $rows = AssetRequirement::query()
-            ->forCompany($companyId)
+            ->where('asset_requirements.company_id', $companyId)
             ->join('assets', 'asset_requirements.asset_id', '=', 'assets.id')
             ->join('asset_types', 'assets.asset_type_id', '=', 'asset_types.id')
-            ->selectRaw('
+            ->selectRaw("
                 asset_types.name as asset_type,
                 COUNT(*) as total,
-                SUM(CASE WHEN asset_requirements.risk_level = ? THEN 1 ELSE 0 END) as expired,
-                SUM(CASE WHEN asset_requirements.risk_level = ? THEN 1 ELSE 0 END) as danger,
-                SUM(CASE WHEN asset_requirements.risk_level = ? THEN 1 ELSE 0 END) as warning
-            ', ['expired', 'danger', 'warning'])
+                SUM(CASE WHEN asset_requirements.due_date < NOW()
+                         AND asset_requirements.status NOT IN ('completed', 'cancelled')
+                    THEN 1 ELSE 0 END) as expired,
+                SUM(CASE WHEN asset_requirements.due_date BETWEEN NOW() AND NOW() + INTERVAL '30 days'
+                         AND asset_requirements.status NOT IN ('completed', 'cancelled')
+                    THEN 1 ELSE 0 END) as danger,
+                SUM(CASE WHEN asset_requirements.due_date BETWEEN NOW() + INTERVAL '30 days' AND NOW() + INTERVAL '60 days'
+                         AND asset_requirements.status NOT IN ('completed', 'cancelled')
+                    THEN 1 ELSE 0 END) as warning
+            ")
             ->groupBy('asset_types.id', 'asset_types.name')
             ->orderBy('asset_types.name')
             ->get();
