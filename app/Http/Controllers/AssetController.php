@@ -330,8 +330,6 @@ class AssetController extends Controller
             'children.assetType',
         ]);
 
-        $scope = request()->get('scope', 'project');
-
         $search = trim((string) request('search'));
         $authority = trim((string) request('authority'));
         $risk = trim((string) request('risk'));
@@ -344,18 +342,35 @@ class AssetController extends Controller
         $assetInactive = ($asset->status ?? null) === \App\Models\Asset::STATUS_INACTIVE
             || (method_exists($asset, 'isInactive') && $asset->isInactive());
 
-        $scopeTitle = $scope === 'operation'
-            ? 'Normativa de operación'
-            : 'Normativa de proyecto';
+        // Detectar si este tipo de activo usa categorías (Alta/Baja/Expediente)
+        $usesCategoryView = RequirementTemplate::where('asset_type_id', $asset->asset_type_id)
+            ->whereNotNull('category')
+            ->where('category', '!=', '')
+            ->exists();
 
-        $scopeDescription = $scope === 'operation'
-            ? 'Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento en operación.'
-            : 'Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento del proyecto.';
+        $categoryTabs = RequirementTemplate::CATEGORIES; // ['expediente'=>'Expediente','alta'=>'Alta / Modificación','baja'=>'Baja']
+
+        $scope = request()->get('scope', $usesCategoryView ? 'expediente' : 'project');
+
+        if ($usesCategoryView) {
+            $scopeTitle       = $categoryTabs[$scope] ?? ucfirst($scope);
+            $scopeDescription = 'Visualiza el avance y estado de los requerimientos de ' . strtolower($scopeTitle) . '.';
+        } else {
+            $scopeTitle = $scope === 'operation'
+                ? 'Normativa de operación'
+                : 'Normativa de proyecto';
+            $scopeDescription = $scope === 'operation'
+                ? 'Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento en operación.'
+                : 'Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento del proyecto.';
+        }
 
         $requirementsQuery = AssetRequirement::query()
             ->with(['template'])
             ->where('asset_id', $asset->id)
-            ->where('compliance_scope', $scope)
+            ->when($usesCategoryView,
+                fn ($q) => $q->whereHas('template', fn ($tq) => $tq->where('category', $scope)),
+                fn ($q) => $q->where('compliance_scope', $scope)
+            )
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($subQuery) use ($search) {
                     $subQuery->whereHas('template', function ($templateQuery) use ($search) {
@@ -488,7 +503,9 @@ class AssetController extends Controller
             'risk',
             'status',
             'authorities',
-            'showFilters'
+            'showFilters',
+            'usesCategoryView',
+            'categoryTabs'
         ));
     }
 

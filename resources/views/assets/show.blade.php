@@ -255,21 +255,32 @@
                         </div>
 
                         <div class="flex items-center gap-2 flex-wrap">
-                            <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => 'project']) }}"
-                            class="px-4 py-2 rounded-md border font-semibold whitespace-nowrap
-                            {{ $scope === 'project'
-                                    ? 'bg-[#1A428A] text-white border-[#1A428A]'
-                                    : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
-                                Normativa de proyecto
-                            </a>
-
-                            <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => 'operation']) }}"
-                            class="px-4 py-2 rounded-md border font-semibold whitespace-nowrap
-                            {{ $scope === 'operation'
-                                    ? 'bg-[#1A428A] text-white border-[#1A428A]'
-                                    : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
-                                Normativa de operación
-                            </a>
+                            @if($usesCategoryView)
+                                @foreach($categoryTabs as $key => $label)
+                                    <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => $key]) }}"
+                                       class="px-4 py-2 rounded-md border font-semibold whitespace-nowrap
+                                       {{ $scope === $key
+                                           ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                           : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                        {{ $label }}
+                                    </a>
+                                @endforeach
+                            @else
+                                <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => 'project']) }}"
+                                   class="px-4 py-2 rounded-md border font-semibold whitespace-nowrap
+                                   {{ $scope === 'project'
+                                       ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                       : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                    Normativa de proyecto
+                                </a>
+                                <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => 'operation']) }}"
+                                   class="px-4 py-2 rounded-md border font-semibold whitespace-nowrap
+                                   {{ $scope === 'operation'
+                                       ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                       : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                    Normativa de operación
+                                </a>
+                            @endif
                         </div>
                     </div>
 
@@ -617,7 +628,7 @@
                                     @if($hasActiveFilters)
                                         No se encontraron requerimientos con los filtros aplicados.
                                     @else
-                                        No hay requerimientos de {{ $scope === 'operation' ? 'operación' : 'proyecto' }} todavía.
+                                        No hay requerimientos de {{ $usesCategoryView ? strtolower($scopeTitle) : ($scope === 'operation' ? 'operación' : 'proyecto') }} todavía.
                                     @endif
                                 </td>
                             </tr>
