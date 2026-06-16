@@ -13,3 +13,6 @@ Schedule::command('requirements:expire')
 
 Schedule::command('requirements:notify-due-soon')
     ->dailyAt('08:00');
+
+Schedule::command('documents:purge-trash')
+    ->dailyAt('01:00');

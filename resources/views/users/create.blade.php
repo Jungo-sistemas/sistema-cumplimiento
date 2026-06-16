@@ -139,7 +139,19 @@
                     <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    <p class="text-sm text-blue-700">El administrador tendrá acceso a todas las empresas del grupo seleccionado.</p>
+                    <p class="text-sm text-blue-700">El administrador tendrá acceso a todas las empresas del grupo seleccionado y a todos los módulos.</p>
+                </div>
+
+                {{-- Módulos (solo para operativo y solo lectura) --}}
+                <div x-show="!isAdmin && selectedRole !== ''" x-transition>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Módulos visibles <span class="text-red-500">*</span></label>
+                    <select name="module_access"
+                            class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
+                        <option value="all"         {{ old('module_access', 'all') === 'all'         ? 'selected' : '' }}>Ambos módulos</option>
+                        <option value="cumplimiento" {{ old('module_access') === 'cumplimiento'       ? 'selected' : '' }}>Solo Cumplimiento</option>
+                        <option value="procesos"     {{ old('module_access') === 'procesos'           ? 'selected' : '' }}>Solo Procesos</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-400">Define a qué sección del sistema tendrá acceso este usuario.</p>
                 </div>
 
             @endif

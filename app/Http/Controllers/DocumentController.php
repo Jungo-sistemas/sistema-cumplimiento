@@ -214,6 +214,27 @@ class DocumentController extends Controller
             ->with('success', 'Documento creado correctamente.');
     }
 
+    public function destroy(DocumentFolder $folder, Document $document)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin(), 403);
+
+        if ((int) $document->document_folder_id !== (int) $folder->id) {
+            abort(404);
+        }
+
+        $this->authorizeFolder($user, $folder);
+
+        $document->update([
+            'deleted_by'             => $user->id,
+            'permanently_delete_at'  => now()->addMonths(2),
+        ]);
+
+        $document->delete();
+
+        return back()->with('success', 'Documento movido a la papelera. Se eliminará permanentemente en 2 meses.');
+    }
+
     // General folders (company_id=null) are accessible to any user in the same group.
     // Company-specific folders (legacy) require canAccessCompany.
     private function authorizeFolder($user, DocumentFolder $folder): void

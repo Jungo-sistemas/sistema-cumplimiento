@@ -12,7 +12,6 @@ class GeneralDocumentFoldersSeeder extends Seeder
         'Corporativos / societarios',
         'Inmobiliarios',
         'Comerciales / contractuales',
-        'Financieros / fiscales',
         'Operativos críticos',
     ];
 
