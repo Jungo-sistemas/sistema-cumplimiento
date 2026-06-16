@@ -24,6 +24,7 @@ use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\SuperAdminController;
 use App\Http\Controllers\ProcessesDashboardController;
 use App\Http\Controllers\DocumentTrashController;
+use App\Http\Controllers\DocumentReportController;
 
 Route::get('/', function () {
     return auth()->check()
@@ -116,6 +117,10 @@ Route::middleware('auth')->group(function () {
     // Delete document → move to trash
     Route::delete('/documents/folders/{folder}/documents/{document}', [DocumentController::class, 'destroy'])
         ->name('documents.folders.documents.destroy');
+
+    // Weekly report (admin + operative)
+    Route::get('/documents/report/weekly', [DocumentReportController::class, 'weeklyReport'])
+        ->name('documents.report.weekly');
 
     // Trash (admin only)
     Route::get('/documents/trash', [DocumentTrashController::class, 'index'])
