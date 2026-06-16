@@ -33,16 +33,42 @@ class AssetTypeController extends Controller
 
         $name = AssetType::where('slug', $slug)->value('name');
 
-        $requirements = RequirementTemplate::whereIn('asset_type_id', $typeIds)
+        $templates = RequirementTemplate::whereIn('asset_type_id', $typeIds)
             ->orderBy('name')
-            ->pluck('name')
-            ->unique()
-            ->values();
+            ->get(['name', 'category', 'compliance_scope'])
+            ->unique('name');
+
+        $hasCategories = $templates->whereNotNull('category')->where('category', '!=', '')->isNotEmpty();
+
+        if ($hasCategories) {
+            $grouped = collect(RequirementTemplate::CATEGORIES)
+                ->mapWithKeys(fn ($label, $key) => [
+                    $label => $templates->where('category', $key)->pluck('name')->values(),
+                ])
+                ->filter(fn ($items) => $items->isNotEmpty());
+
+            return response()->json([
+                'slug'         => $slug,
+                'asset_type'   => $name,
+                'requirements' => $grouped,
+            ]);
+        }
+
+        $scopeLabels = [
+            'project'   => 'Normativa de proyecto',
+            'operation' => 'Normativa de operación',
+        ];
+
+        $grouped = collect($scopeLabels)
+            ->mapWithKeys(fn ($label, $key) => [
+                $label => $templates->where('compliance_scope', $key)->pluck('name')->values(),
+            ])
+            ->filter(fn ($items) => $items->isNotEmpty());
 
         return response()->json([
             'slug'         => $slug,
             'asset_type'   => $name,
-            'requirements' => $requirements,
+            'requirements' => $grouped->isNotEmpty() ? $grouped : $templates->pluck('name')->values(),
         ]);
     }
 }
