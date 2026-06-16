@@ -22,6 +22,12 @@ class Document extends Model
         'is_required',
         'is_active',
         'uploaded_by',
+        'deleted_by',
+        'permanently_delete_at',
+    ];
+
+    protected $casts = [
+        'permanently_delete_at' => 'datetime',
     ];
 
     /*
@@ -51,6 +57,11 @@ class Document extends Model
     public function uploader()
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function deletedBy()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 
     public function company()

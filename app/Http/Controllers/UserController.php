@@ -91,11 +91,16 @@ class UserController extends Controller
         abort_if($role->slug === 'admin' && ! $authUser->hasGroupScope() && ! $authUser->isGlobalScope(), 403);
 
         if ($role->slug === 'admin') {
-            $groupId    = $request->group_id ?? $authUser->group_id;
-            $companyId  = null;
-            $scopeLevel = 'group';
+            $groupId      = $request->group_id ?? $authUser->group_id;
+            $companyId    = null;
+            $scopeLevel   = 'group';
+            $moduleAccess = 'all';
         } else {
-            $request->validate(['company_id' => ['required', 'exists:companies,id']]);
+            $request->validate([
+                'company_id'    => ['required', 'exists:companies,id'],
+                'module_access' => ['required', 'in:all,cumplimiento,procesos'],
+            ]);
+            $moduleAccess = $request->module_access;
 
             $company = Company::findOrFail($request->company_id);
 
@@ -115,6 +120,7 @@ class UserController extends Controller
             'company_id'        => $companyId,
             'group_id'          => $groupId,
             'scope_level'       => $scopeLevel,
+            'module_access'     => $moduleAccess,
             'password'          => null,
             'status'            => 'invited',
             'invite_token'      => Str::random(64),

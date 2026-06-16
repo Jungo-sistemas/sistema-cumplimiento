@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use App\Application\Compliance\ComplianceDashboardService;
 use App\Models\Asset;
 use App\Models\Task;
@@ -42,98 +43,90 @@ class ComplianceDashboardController extends Controller
 
         abort_unless($user->canAccessCompany($company), 403);
 
-        $today = Carbon::today();
-        $soonLimit = Carbon::today()->addDays(30);
-
+        $today        = Carbon::today();
+        $soonLimit    = Carbon::today()->addDays(30);
         $showAllTasks = $request->boolean('all_tasks', false);
 
-        $metrics = $service->metricsForCompany($companyId);
+        // ── Caché 1: datos de empresa (iguales para todos los usuarios) ──────
+        [$metrics, $upcoming, $critical] = Cache::remember(
+            "dash:c:{$companyId}",
+            now()->addMinutes(15),
+            function () use ($service, $companyId, $today) {
+                $metrics = $service->metricsForCompany($companyId);
 
-        $tasksBaseQuery = Task::query()
-            ->whereHas('requirement', fn ($q) => $q->where('company_id', $companyId));
+                $upcoming = AssetRequirement::query()
+                    ->whereHas('asset', fn ($q) => $q->where('company_id', $companyId))
+                    ->whereNotNull('due_date')
+                    ->whereNotIn('status', [RequirementStatus::COMPLETED, RequirementStatus::CANCELLED])
+                    ->whereDate('due_date', '>=', $today->toDateString())
+                    ->whereDate('due_date', '<=', $today->copy()->addDays(30)->toDateString())
+                    ->with(['asset.assetType', 'template'])
+                    ->orderBy('due_date')
+                    ->limit(10)
+                    ->get();
 
-        if (! $showAllTasks) {
-            $tasksBaseQuery->whereHas('users', fn ($q) => $q->where('users.id', $user->id));
-        }
+                $critical = AssetRequirement::query()
+                    ->whereHas('asset', fn ($q) => $q->where('company_id', $companyId))
+                    ->whereNotNull('due_date')
+                    ->whereNotIn('status', [RequirementStatus::COMPLETED, RequirementStatus::CANCELLED])
+                    ->whereDate('due_date', '<=', $today->copy()->addDays(7)->toDateString())
+                    ->with(['asset.assetType', 'template'])
+                    ->orderBy('due_date')
+                    ->limit(10)
+                    ->get()
+                    ->map(fn ($r) => tap($r, fn ($r) =>
+                        $r->risk_level = $r->due_date->lt($today) ? 'expired' : 'warning'
+                    ));
 
-        $stats = [
-            'assets' => Asset::query()
-                ->where('company_id', $companyId)
-                ->count(),
+                return [$metrics, $upcoming, $critical];
+            }
+        );
 
-            'tasks' => (clone $tasksBaseQuery)
-                ->whereNull('completed_at')
-                ->count(),
+        // ── Caché 2: tareas (dependen del usuario y del filtro all_tasks) ────
+        $taskCacheKey = "dash:c:{$companyId}:u:{$user->id}:t:" . ($showAllTasks ? '1' : '0');
 
-            'due_soon' => $metrics['kpis']['warning'] + $metrics['kpis']['danger'],
-            'overdue' => $metrics['kpis']['expired'],
-        ];
+        [$stats, $tasksPending, $tasksDueSoon, $tasksOverdue] = Cache::remember(
+            $taskCacheKey,
+            now()->addMinutes(15),
+            function () use ($companyId, $user, $today, $showAllTasks, $metrics) {
+                $tasksQuery = Task::query()
+                    ->with([
+                        'requirement:id,asset_id,requirement_template_id,type',
+                        'requirement.asset:id,name,code',
+                        'requirement.template:id,name',
+                    ])
+                    ->whereHas('requirement', fn ($q) => $q->where('company_id', $companyId));
 
-        $upcoming = AssetRequirement::query()
-            ->whereHas('asset', fn ($q) => $q->where('company_id', $companyId))
-            ->whereNotNull('due_date')
-            ->whereNotIn('status', [
-                RequirementStatus::COMPLETED,
-                RequirementStatus::CANCELLED,
-            ])
-            ->whereDate('due_date', '>=', $today->toDateString())
-            ->whereDate('due_date', '<=', $soonLimit->toDateString())
-            ->with(['asset.assetType', 'template'])
-            ->orderBy('due_date')
-            ->limit(10)
-            ->get();
+                if (! $showAllTasks) {
+                    $tasksQuery->whereHas('users', fn ($q) => $q->where('users.id', $user->id));
+                }
 
-        $critical = AssetRequirement::query()
-            ->whereHas('asset', fn ($q) => $q->where('company_id', $companyId))
-            ->whereNotNull('due_date')
-            ->whereNotIn('status', [
-                RequirementStatus::COMPLETED,
-                RequirementStatus::CANCELLED,
-            ])
-            ->whereDate('due_date', '<=', now()->addDays(7)->toDateString())
-            ->with(['asset.assetType', 'template'])
-            ->orderBy('due_date')
-            ->limit(10)
-            ->get()
-            ->map(function ($r) use ($today) {
-                $r->risk_level = $r->due_date && $r->due_date->lt($today) ? 'expired' : 'warning';
-                return $r;
-            });
+                $soonLimit = $today->copy()->addDays(30);
 
-        $tasksQuery = Task::query()
-            ->with([
-                'requirement:id,asset_id,requirement_template_id,type',
-                'requirement.asset:id,name,code',
-                'requirement.template:id,name',
-            ])
-            ->whereHas('requirement', fn ($q) => $q->where('company_id', $companyId));
+                $stats = [
+                    'assets'   => Asset::where('company_id', $companyId)->count(),
+                    'tasks'    => (clone $tasksQuery)->whereNull('completed_at')->count(),
+                    'due_soon' => $metrics['kpis']['warning'] + $metrics['kpis']['danger'],
+                    'overdue'  => $metrics['kpis']['expired'],
+                ];
 
-        if (! $showAllTasks) {
-            $tasksQuery->whereHas('users', fn ($q) => $q->where('users.id', $user->id));
-        }
+                $tasksPending = (clone $tasksQuery)
+                    ->whereNull('completed_at')->orderBy('due_date')->limit(10)->get();
 
-        $tasksPending = (clone $tasksQuery)
-            ->whereNull('completed_at')
-            ->orderBy('due_date')
-            ->limit(10)
-            ->get();
+                $tasksDueSoon = (clone $tasksQuery)
+                    ->whereNull('completed_at')->whereNotNull('due_date')
+                    ->whereDate('due_date', '>=', $today->toDateString())
+                    ->whereDate('due_date', '<=', $soonLimit->toDateString())
+                    ->orderBy('due_date')->limit(10)->get();
 
-        $tasksDueSoon = (clone $tasksQuery)
-            ->whereNull('completed_at')
-            ->whereNotNull('due_date')
-            ->whereDate('due_date', '>=', $today->toDateString())
-            ->whereDate('due_date', '<=', $soonLimit->toDateString())
-            ->orderBy('due_date')
-            ->limit(10)
-            ->get();
+                $tasksOverdue = (clone $tasksQuery)
+                    ->whereNull('completed_at')->whereNotNull('due_date')
+                    ->whereDate('due_date', '<', $today->toDateString())
+                    ->orderBy('due_date')->limit(10)->get();
 
-        $tasksOverdue = (clone $tasksQuery)
-            ->whereNull('completed_at')
-            ->whereNotNull('due_date')
-            ->whereDate('due_date', '<', $today->toDateString())
-            ->orderBy('due_date')
-            ->limit(10)
-            ->get();
+                return [$stats, $tasksPending, $tasksDueSoon, $tasksOverdue];
+            }
+        );
 
         return view('dashboard', compact(
             'metrics',

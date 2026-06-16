@@ -12,6 +12,17 @@
 
 @php
     $user = auth()->user();
+    $currentModule = request()->routeIs('processes.*', 'job-positions.*') ? 'procesos' : 'cumplimiento';
+    $allModules = [
+        'cumplimiento' => ['label' => 'Cumplimiento', 'route' => 'dashboard'],
+        'procesos'     => ['label' => 'Procesos',     'route' => 'processes.dashboard'],
+    ];
+    $modules = collect($allModules)
+        ->filter(fn ($_, $key) => $user?->canAccessModule($key) ?? true)
+        ->all();
+    $pendingApprovalsCount = $user && !$user->isSuperAdmin()
+        ? \App\Models\RegulationApproval::where('user_id', $user->id)->where('status', 'pending')->count()
+        : 0;
 @endphp
 
 <!DOCTYPE html>
@@ -45,6 +56,57 @@
                     <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
                         <img src="{{ asset('images/vigia.svg') }}" alt="VIGIA" class="h-8 w-auto">
                     </a>
+
+                    @if(!$user?->isSuperAdmin())
+                        <span class="hidden h-5 w-px bg-white/30 sm:block"></span>
+
+                        <div x-data="{ open: false }" class="relative hidden sm:block">
+                            <button
+                                type="button"
+                                @click="open = !open"
+                                @keydown.escape="open = false"
+                                class="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-white/90 hover:bg-white/10 focus:outline-none"
+                            >
+                                {{ $modules[$currentModule]['label'] }}
+                                <svg :class="{ 'rotate-180': open }" class="h-3.5 w-3.5 text-white/60 transition-transform duration-150"
+                                     xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                     stroke="currentColor" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+
+                            <div
+                                x-show="open"
+                                x-transition:enter="transition ease-out duration-100"
+                                x-transition:enter-start="opacity-0 scale-95"
+                                x-transition:enter-end="opacity-100 scale-100"
+                                x-transition:leave="transition ease-in duration-75"
+                                x-transition:leave-start="opacity-100 scale-100"
+                                x-transition:leave-end="opacity-0 scale-95"
+                                @click.outside="open = false"
+                                class="absolute left-0 top-full z-50 mt-2 w-44 origin-top-left rounded-lg border border-gray-100 bg-white py-1 shadow-lg"
+                                style="display:none;"
+                            >
+                                @foreach($modules as $key => $mod)
+                                    <a
+                                        href="{{ route($mod['route']) }}"
+                                        @click="open = false"
+                                        class="flex items-center gap-2 px-3 py-2 text-sm {{ $currentModule === $key ? 'font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}"
+                                    >
+                                        @if($currentModule === $key)
+                                            <svg class="h-3.5 w-3.5 text-[#1A428A]" xmlns="http://www.w3.org/2000/svg"
+                                                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                        @else
+                                            <span class="h-3.5 w-3.5"></span>
+                                        @endif
+                                        {{ $mod['label'] }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 </div>
 
                 <div class="flex items-center gap-3">
@@ -106,126 +168,88 @@
                     <nav class="space-y-1 text-sm">
                         @if($user?->isSuperAdmin())
                             <p class="mb-1 px-3 text-xs font-bold uppercase tracking-wider text-gray-400">Sistema</p>
-                            <a href="{{ route('superadmin.dashboard') }}"
-                               @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Panel general
-                            </a>
-                            <a href="{{ route('superadmin.groups') }}"
-                               @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.groups') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Grupos
-                            </a>
-                            <a href="{{ route('superadmin.companies') }}"
-                               @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.companies') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Empresas
-                            </a>
-                            <a href="{{ route('superadmin.users') }}"
-                               @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.users') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Usuarios
-                            </a>
-                        @else
-                            <a href="{{ route('dashboard') }}"
-                               @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Tablero
-                            </a>
+                            <a href="{{ route('superadmin.dashboard') }}" @click="mobileMenuOpen = false"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Panel general</a>
+                            <a href="{{ route('superadmin.groups') }}" @click="mobileMenuOpen = false"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.groups') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Grupos</a>
+                            <a href="{{ route('superadmin.companies') }}" @click="mobileMenuOpen = false"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.companies') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Empresas</a>
+                            <a href="{{ route('superadmin.users') }}" @click="mobileMenuOpen = false"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.users') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
+                        @elseif($currentModule === 'procesos')
+                            {{-- ── MÓDULO: PROCESOS ── --}}
+                            <a href="{{ route('processes.dashboard') }}" @click="mobileMenuOpen = false"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
 
                             @if($user?->isAdmin())
-                                <a href="{{ route('users.index') }}"
-                                   @click="mobileMenuOpen = false"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                    Usuarios
-                                </a>
+                                <a href="{{ route('users.index') }}" @click="mobileMenuOpen = false"
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
                             @endif
 
-                            @if($user?->isAdmin() || $user?->isOperative() || $user?->isReadonly())
-                                <a href="{{ route('documents.index') }}"
-                                   @click="mobileMenuOpen = false"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                    Documentos
-                                </a>
+                            <a href="{{ route('processes.index') }}" @click="mobileMenuOpen = false"
+                               class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create', 'job-positions.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                <span>Procesos</span>
+                                @if($pendingApprovalsCount > 0)
+                                    <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">{{ $pendingApprovalsCount }}</span>
+                                @endif
+                            </a>
+                        @else
+                            {{-- ── MÓDULO: CUMPLIMIENTO ── --}}
+                            <a href="{{ route('dashboard') }}" @click="mobileMenuOpen = false"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
 
-                                @php
-                                    $pendingApprovalsCount = \App\Models\RegulationApproval::where('user_id', auth()->id())->where('status', 'pending')->count();
-                                @endphp
-                                <a href="{{ route('processes.index') }}"
-                                   @click="mobileMenuOpen = false"
-                                   class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('processes.*') || request()->routeIs('job-positions.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                    <span>Procesos</span>
-                                    @if($pendingApprovalsCount > 0)
-                                        <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">
-                                            {{ $pendingApprovalsCount }}
-                                        </span>
-                                    @endif
-                                </a>
+                            @if($user?->isAdmin())
+                                <a href="{{ route('users.index') }}" @click="mobileMenuOpen = false"
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
+                            @endif
+
+                            @if($user?->isAdmin() || $user?->isOperative() || $user?->isReadOnly())
+                                <a href="{{ route('documents.index') }}" @click="mobileMenuOpen = false"
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos</a>
                             @endif
 
                             @php $inCumplimiento = request()->routeIs('assets.*') || !empty($navContext['asset']); @endphp
                             <div x-data="{ open: {{ $inCumplimiento ? 'true' : 'false' }} }">
-                                <button
-                                    type="button"
-                                    @click="open = !open"
-                                    class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm {{ $inCumplimiento ? 'font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}"
-                                >
+                                <button type="button" @click="open = !open"
+                                    class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm {{ $inCumplimiento ? 'font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
                                     <span>Cumplimiento</span>
                                     <svg :class="{ 'rotate-180': open }" class="h-4 w-4 transition-transform duration-200"
                                          xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
                                     </svg>
                                 </button>
-
                                 <div x-show="open" class="mt-1 space-y-1 pl-2">
-                                    <a href="{{ route('assets.index') }}"
-                                       @click="mobileMenuOpen = false"
-                                       class="block rounded-md px-3 py-2 {{ $inCumplimiento ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                        Energético
-                                    </a>
+                                    <a href="{{ route('assets.index') }}" @click="mobileMenuOpen = false"
+                                       class="block rounded-md px-3 py-2 {{ $inCumplimiento ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Energético</a>
 
                                     @if(!empty($navContext['asset']))
-                                        <a href="{{ route('assets.show', $navContext['asset']) }}"
-                                           @click="mobileMenuOpen = false"
+                                        <a href="{{ route('assets.show', $navContext['asset']) }}" @click="mobileMenuOpen = false"
                                            class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                            <span class="mr-2 text-gray-400">└</span>
-                                            {{ $navContext['asset']->name }}
+                                            <span class="mr-2 text-gray-400">└</span>{{ $navContext['asset']->name }}
                                         </a>
                                     @endif
-
                                     @if(!empty($navContext['requirement']))
-                                        <a href="{{ route('assets.requirements.show', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
-                                           @click="mobileMenuOpen = false"
+                                        <a href="{{ route('assets.requirements.show', [$navContext['asset']->id, $navContext['requirement']->id]) }}" @click="mobileMenuOpen = false"
                                            class="ml-8 block rounded-md px-3 py-2 {{ empty($navContext['task']) && empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                            <span class="mr-2 text-gray-400">└</span>
-                                            {{ $navContext['requirement']->name ?? $navContext['requirement']->title ?? $navContext['requirement']->template?->name ?? 'Requerimiento' }}
+                                            <span class="mr-2 text-gray-400">└</span>{{ $navContext['requirement']->name ?? $navContext['requirement']->title ?? $navContext['requirement']->template?->name ?? 'Requerimiento' }}
                                         </a>
                                     @endif
-
                                     @if(!empty($navContext['task']))
-                                        <a href="{{ route('requirements.tasks.show', [$navContext['requirement']->id, $navContext['task']->id]) }}"
-                                           @click="mobileMenuOpen = false"
+                                        <a href="{{ route('requirements.tasks.show', [$navContext['requirement']->id, $navContext['task']->id]) }}" @click="mobileMenuOpen = false"
                                            class="ml-12 block rounded-md px-3 py-2 {{ empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                            <span class="mr-2 text-gray-400">└</span>
-                                            {{ $navContext['task']->title ?? $navContext['task']->name ?? 'Tarea' }}
+                                            <span class="mr-2 text-gray-400">└</span>{{ $navContext['task']->title ?? $navContext['task']->name ?? 'Tarea' }}
                                         </a>
                                     @endif
-
                                     @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'requirement')
-                                        <a href="{{ route('assets.requirements.documents.index', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
-                                           @click="mobileMenuOpen = false"
+                                        <a href="{{ route('assets.requirements.documents.index', [$navContext['asset']->id, $navContext['requirement']->id]) }}" @click="mobileMenuOpen = false"
                                            class="ml-12 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
-                                            <span class="mr-2 text-gray-400">└</span>
-                                            Documentos
+                                            <span class="mr-2 text-gray-400">└</span>Documentos
                                         </a>
                                     @endif
-
                                     @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'task')
-                                        <a href="{{ route('tasks.documents.index', $navContext['task']->id) }}"
-                                           @click="mobileMenuOpen = false"
+                                        <a href="{{ route('tasks.documents.index', $navContext['task']->id) }}" @click="mobileMenuOpen = false"
                                            class="ml-16 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
-                                            <span class="mr-2 text-gray-400">└</span>
-                                            Documentos
+                                            <span class="mr-2 text-gray-400">└</span>Documentos
                                         </a>
                                     @endif
                                 </div>
@@ -248,108 +272,87 @@
                         @if($user?->isSuperAdmin())
                             <p class="mb-1 px-3 text-xs font-bold uppercase tracking-wider text-gray-400">Sistema</p>
                             <a href="{{ route('superadmin.dashboard') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Panel general
-                            </a>
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Panel general</a>
                             <a href="{{ route('superadmin.groups') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.groups') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Grupos
-                            </a>
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.groups') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Grupos</a>
                             <a href="{{ route('superadmin.companies') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.companies') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Empresas
-                            </a>
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.companies') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Empresas</a>
                             <a href="{{ route('superadmin.users') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.users') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Usuarios
-                            </a>
-                        @else
-                            <a href="{{ route('dashboard') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Tablero
-                            </a>
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.users') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
+                        @elseif($currentModule === 'procesos')
+                            {{-- ── MÓDULO: PROCESOS ── --}}
+                            <a href="{{ route('processes.dashboard') }}"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
 
                             @if($user?->isAdmin())
                                 <a href="{{ route('users.index') }}"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                    Usuarios
-                                </a>
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
                             @endif
 
-                            @if(auth()->user()->isAdmin() || auth()->user()->isOperative() || auth()->user()->isReadonly())
-                                <a href="{{ route('documents.index') }}"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                    Documentos
-                                </a>
+                            <a href="{{ route('processes.index') }}"
+                               class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create', 'job-positions.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                <span>Procesos</span>
+                                @if($pendingApprovalsCount > 0)
+                                    <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">{{ $pendingApprovalsCount }}</span>
+                                @endif
+                            </a>
+                        @else
+                            {{-- ── MÓDULO: CUMPLIMIENTO ── --}}
+                            <a href="{{ route('dashboard') }}"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
 
-                                <a href="{{ route('processes.index') }}"
-                                   class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('processes.*') || request()->routeIs('job-positions.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                    <span>Procesos</span>
-                                    @if(isset($pendingApprovalsCount) && $pendingApprovalsCount > 0)
-                                        <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">
-                                            {{ $pendingApprovalsCount }}
-                                        </span>
-                                    @endif
-                                </a>
+                            @if($user?->isAdmin())
+                                <a href="{{ route('users.index') }}"
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
+                            @endif
+
+                            @if($user?->isAdmin() || $user?->isOperative() || $user?->isReadOnly())
+                                <a href="{{ route('documents.index') }}"
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos</a>
                             @endif
 
                             @php $inCumplimiento = request()->routeIs('assets.*') || !empty($navContext['asset']); @endphp
                             <div x-data="{ open: {{ $inCumplimiento ? 'true' : 'false' }} }">
-                                <button
-                                    type="button"
-                                    @click="open = !open"
-                                    class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm {{ $inCumplimiento ? 'font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}"
-                                >
+                                <button type="button" @click="open = !open"
+                                    class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm {{ $inCumplimiento ? 'font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
                                     <span>Cumplimiento</span>
                                     <svg :class="{ 'rotate-180': open }" class="h-4 w-4 transition-transform duration-200"
                                          xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
                                     </svg>
                                 </button>
-
                                 <div x-show="open" class="mt-1 space-y-1 pl-2">
                                     <a href="{{ route('assets.index') }}"
-                                       class="block rounded-md px-3 py-2 {{ $inCumplimiento ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                        Energético
-                                    </a>
+                                       class="block rounded-md px-3 py-2 {{ $inCumplimiento ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Energético</a>
 
                                     @if(!empty($navContext['asset']))
                                         <a href="{{ route('assets.show', $navContext['asset']) }}"
                                            class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                            <span class="mr-2 text-gray-400">└</span>
-                                            {{ $navContext['asset']->name }}
+                                            <span class="mr-2 text-gray-400">└</span>{{ $navContext['asset']->name }}
                                         </a>
                                     @endif
-
                                     @if(!empty($navContext['requirement']))
                                         <a href="{{ route('assets.requirements.show', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
                                            class="ml-8 block rounded-md px-3 py-2 {{ empty($navContext['task']) && empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                            <span class="mr-2 text-gray-400">└</span>
-                                            {{ $navContext['requirement']->name ?? $navContext['requirement']->title ?? $navContext['requirement']->template?->name ?? 'Requerimiento' }}
+                                            <span class="mr-2 text-gray-400">└</span>{{ $navContext['requirement']->name ?? $navContext['requirement']->title ?? $navContext['requirement']->template?->name ?? 'Requerimiento' }}
                                         </a>
                                     @endif
-
                                     @if(!empty($navContext['task']))
                                         <a href="{{ route('requirements.tasks.show', [$navContext['requirement']->id, $navContext['task']->id]) }}"
                                            class="ml-12 block rounded-md px-3 py-2 {{ empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                            <span class="mr-2 text-gray-400">└</span>
-                                            {{ $navContext['task']->title ?? $navContext['task']->name ?? 'Tarea' }}
+                                            <span class="mr-2 text-gray-400">└</span>{{ $navContext['task']->title ?? $navContext['task']->name ?? 'Tarea' }}
                                         </a>
                                     @endif
-
                                     @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'requirement')
                                         <a href="{{ route('assets.requirements.documents.index', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
                                            class="ml-12 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
-                                            <span class="mr-2 text-gray-400">└</span>
-                                            Documentos
+                                            <span class="mr-2 text-gray-400">└</span>Documentos
                                         </a>
                                     @endif
-
                                     @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'task')
                                         <a href="{{ route('tasks.documents.index', $navContext['task']->id) }}"
                                            class="ml-16 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
-                                            <span class="mr-2 text-gray-400">└</span>
-                                            Documentos
+                                            <span class="mr-2 text-gray-400">└</span>Documentos
                                         </a>
                                     @endif
                                 </div>

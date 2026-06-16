@@ -22,6 +22,8 @@ use App\Http\Controllers\RegulationApprovalController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\SuperAdminController;
+use App\Http\Controllers\ProcessesDashboardController;
+use App\Http\Controllers\DocumentTrashController;
 
 Route::get('/', function () {
     return auth()->check()
@@ -111,11 +113,26 @@ Route::middleware('auth')->group(function () {
     Route::get('/document-versions/{version}/download', [DocumentVersionController::class, 'download'])
         ->name('document-versions.download');
 
+    // Delete document → move to trash
+    Route::delete('/documents/folders/{folder}/documents/{document}', [DocumentController::class, 'destroy'])
+        ->name('documents.folders.documents.destroy');
+
+    // Trash (admin only)
+    Route::get('/documents/trash', [DocumentTrashController::class, 'index'])
+        ->name('documents.trash.index');
+    Route::post('/documents/trash/{id}/restore', [DocumentTrashController::class, 'restore'])
+        ->name('documents.trash.restore');
+    Route::delete('/documents/trash/{id}', [DocumentTrashController::class, 'forceDestroy'])
+        ->name('documents.trash.force-destroy');
+
     /*
     |--------------------------------------------------------------------------
     | Processes / Regulations
     |--------------------------------------------------------------------------
     */
+    Route::get('/procesos', [ProcessesDashboardController::class, 'index'])
+        ->name('processes.dashboard');
+
     Route::get('/processes', [RegulationController::class, 'index'])
         ->name('processes.index');
 

@@ -166,10 +166,24 @@
                             </td>
 
                             <td class="px-4 py-3 text-right">
-                                <a href="{{ route('documents.folder.document.show', [$folder, $document]) }}"
-                                   class="text-blue-600 font-semibold text-sm hover:underline">
-                                    Gestionar →
-                                </a>
+                                <div class="flex items-center justify-end gap-3">
+                                    <a href="{{ route('documents.folder.document.show', [$folder, $document]) }}"
+                                       class="text-blue-600 font-semibold text-sm hover:underline whitespace-nowrap">
+                                        Gestionar →
+                                    </a>
+                                    @if(auth()->user()->isAdmin())
+                                        <form method="POST"
+                                              action="{{ route('documents.folders.documents.destroy', [$folder, $document]) }}">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit"
+                                                    class="text-red-500 hover:text-red-700 text-xs font-medium"
+                                                    onclick="return confirm('¿Mover «{{ addslashes($document->name) }}» a la papelera? Podrás restaurarlo en los próximos 2 meses.')">
+                                                Eliminar
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
                             </td>
 
                         </tr>

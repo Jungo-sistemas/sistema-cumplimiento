@@ -22,23 +22,29 @@ final class ComplianceDashboardService
         $dueSoon = (clone $base)->dueSoon()->count();
         $warning = max(0, $dueSoon - $danger);
 
-        // 🔹 BREAKDOWN POR ASSET TYPE (ANTES DEL RETURN)
-        $byAssetType = AssetRequirement::query()
+        // 🔹 BREAKDOWN POR ASSET TYPE — agregado en SQL, sin cargar filas
+        $rows = AssetRequirement::query()
             ->forCompany($companyId)
-            ->with(['asset.assetType'])
-            ->get()
-            ->groupBy(fn($r) => $r->asset?->assetType?->name ?? 'Sin tipo')
-            ->map(function ($items, $typeName) {
-                return [
-                    'asset_type' => $typeName,
-                    'total' => $items->count(),
-                    'expired' => $items->where('risk_level', 'expired')->count(),
-                    'danger' => $items->where('risk_level', 'danger')->count(),
-                    'warning' => $items->where('risk_level', 'warning')->count(),
-                ];
-            })
-            ->values()
-            ->all();
+            ->join('assets', 'asset_requirements.asset_id', '=', 'assets.id')
+            ->join('asset_types', 'assets.asset_type_id', '=', 'asset_types.id')
+            ->selectRaw('
+                asset_types.name as asset_type,
+                COUNT(*) as total,
+                SUM(CASE WHEN asset_requirements.risk_level = ? THEN 1 ELSE 0 END) as expired,
+                SUM(CASE WHEN asset_requirements.risk_level = ? THEN 1 ELSE 0 END) as danger,
+                SUM(CASE WHEN asset_requirements.risk_level = ? THEN 1 ELSE 0 END) as warning
+            ', ['expired', 'danger', 'warning'])
+            ->groupBy('asset_types.id', 'asset_types.name')
+            ->orderBy('asset_types.name')
+            ->get();
+
+        $byAssetType = $rows->map(fn ($r) => [
+            'asset_type' => $r->asset_type,
+            'total'      => (int) $r->total,
+            'expired'    => (int) $r->expired,
+            'danger'     => (int) $r->danger,
+            'warning'    => (int) $r->warning,
+        ])->all();
 
         // 🔹 RETURN AL FINAL
         return [

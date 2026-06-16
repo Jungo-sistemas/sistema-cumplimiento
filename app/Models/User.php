@@ -20,6 +20,7 @@ class User extends Authenticatable
         'group_id',
         'scope_level',
         'role_id',
+        'module_access',
         'status',
         'invite_token',
         'invite_expires_at',
@@ -149,6 +150,18 @@ class User extends Authenticatable
         }
 
         return $this->group_id === $group->id;
+    }
+
+    public function canAccessModule(string $module): bool
+    {
+        $access = $this->module_access ?? 'all';
+        return $access === 'all' || $access === $module;
+    }
+
+    public function accessibleModules(): array
+    {
+        $access = $this->module_access ?? 'all';
+        return $access === 'all' ? ['cumplimiento', 'procesos'] : [$access];
     }
 
     public function sendPasswordResetNotification($token): void
