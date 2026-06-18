@@ -13,7 +13,6 @@ class RegulationApprovalController extends Controller
     public function approve(Regulation $regulation)
     {
         $user = auth()->user();
-        abort_unless($user->isAdmin(), 403);
         abort_unless($user->canAccessCompany($regulation->company), 403);
 
         $approval = $this->flowService->getPendingApprovalForUser($regulation, $user->id);
@@ -27,7 +26,6 @@ class RegulationApprovalController extends Controller
     public function reject(Request $request, Regulation $regulation)
     {
         $user = auth()->user();
-        abort_unless($user->isAdmin(), 403);
         abort_unless($user->canAccessCompany($regulation->company), 403);
 
         $request->validate([

@@ -36,6 +36,11 @@ class ApprovalFlowService
         ],
     ];
 
+    public static function getFlowSteps(string $level): array
+    {
+        return self::FLOWS[$level] ?? [];
+    }
+
     /**
      * Inicializa el flujo de aprobación al crear un reglamento.
      */

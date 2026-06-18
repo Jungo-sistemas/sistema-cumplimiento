@@ -394,18 +394,18 @@
                 </span>
             </div>
 
-            {{-- Botones de acción para el usuario actual (solo admins) --}}
-            @if($pendingApprovalForUser && auth()->user()->isAdmin())
+            {{-- Botones de acción para el usuario actual con aprobación pendiente --}}
+            @if($pendingApprovalForUser)
                 <div x-data="{ showReject: false }" class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
                     <p class="text-sm font-medium text-yellow-800 mb-3">
-                        Tienes una aprobación pendiente en este reglamento (paso {{ $pendingApprovalForUser->step_number }}).
+                        Tienes una aprobación pendiente en este documento (paso {{ $pendingApprovalForUser->step_number }}).
                     </p>
                     <div class="flex items-center gap-3 flex-wrap">
                         <form method="POST" action="{{ route('processes.approve', $regulation) }}">
                             @csrf
                             <button type="submit"
                                     onclick="return confirm('¿Confirmas la aprobación?')"
-                                    class="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700">
+                                    class="px-4 py-2 bg-[#1A428A] text-white text-sm font-semibold rounded-lg hover:bg-[#15356d]">
                                 Aprobar
                             </button>
                         </form>
@@ -439,13 +439,13 @@
             @if($regulation->isRejected() && auth()->user()->isAdmin())
                 <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between gap-4">
                     <div>
-                        <p class="text-sm font-semibold text-red-700">Reglamento rechazado</p>
+                        <p class="text-sm font-semibold text-red-700">Documento rechazado</p>
                         <p class="text-xs text-red-500 mt-0.5">Corrige los puntos indicados y re-envía a aprobación para reiniciar el flujo.</p>
                     </div>
                     <form method="POST" action="{{ route('processes.resubmit', $regulation) }}">
                         @csrf
                         <button type="submit"
-                                onclick="return confirm('¿Re-enviar este reglamento a aprobación?')"
+                                onclick="return confirm('¿Re-enviar este documento a aprobación?')"
                                 class="px-4 py-2 bg-[#1A428A] text-white text-sm font-semibold rounded-lg hover:bg-blue-800 whitespace-nowrap">
                             Re-enviar
                         </button>
@@ -664,7 +664,7 @@
                         </div>
                     @else
                         <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-700 text-sm">
-                            Aún no hay archivo subido para este reglamento.
+                            Aún no hay archivo subido para este documento.
                         </div>
                     @endif
                 </div>
@@ -676,7 +676,7 @@
             <div class="p-5 border-b">
                 <div class="font-semibold text-[#1A428A]">Histórico de versiones</div>
                 <div class="text-sm text-gray-500">
-                    Se conservan todas las versiones registradas del reglamento.
+                    Se conservan todas las versiones registradas del documento.
                 </div>
             </div>
 
@@ -759,7 +759,7 @@
                 @csrf
                 @method('PUT')
 
-                <h2 class="text-lg font-semibold text-[#1A428A] mb-4">Editar reglamento</h2>
+                <h2 class="text-lg font-semibold text-[#1A428A] mb-4">Editar documento</h2>
 
                 <div class="space-y-4">
 

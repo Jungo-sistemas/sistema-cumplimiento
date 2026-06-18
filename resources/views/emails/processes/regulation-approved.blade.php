@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Reglamento aprobado</title>
+    <title>Documento aprobado</title>
     <style>
         body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 24px; }
         .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
@@ -22,11 +22,11 @@
     <div class="container">
         <div class="header">
             <h1>VIGIA Cumplimiento</h1>
-            <p>✓ Reglamento aprobado</p>
+            <p>✓ Documento aprobado</p>
         </div>
         <div class="body">
             <p>Hola <strong>{{ $notifiable->name }}</strong>,</p>
-            <p>Tu reglamento ha sido <strong>aprobado</strong> exitosamente y ya se encuentra vigente en el sistema.</p>
+            <p>Tu documento ha sido <strong>aprobado</strong> exitosamente y ya se encuentra vigente en el sistema.</p>
 
             <table class="info-table">
                 <tr><td>Nombre</td><td><strong>{{ $regulation->name }}</strong></td></tr>
@@ -34,7 +34,7 @@
                 <tr><td>Empresa</td><td>{{ $regulation->company->name ?? '—' }}</td></tr>
             </table>
 
-            <a href="{{ route('processes.show', $regulation) }}" class="btn">Ver reglamento</a>
+            <a href="{{ route('processes.show', $regulation) }}" class="btn">Ver documento</a>
         </div>
         <div class="footer">
             Este correo fue generado automáticamente por VIGIA Cumplimiento.

@@ -21,7 +21,7 @@ class RegulationApprovedNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Reglamento aprobado: ' . $this->regulation->name)
+            ->subject('Documento aprobado: ' . $this->regulation->name)
             ->view('emails.processes.regulation-approved', [
                 'notifiable' => $notifiable,
                 'regulation' => $this->regulation,

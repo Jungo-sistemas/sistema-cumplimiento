@@ -32,7 +32,7 @@
         </div>
         <div class="body">
             <p>Hola <strong>{{ $notifiable->name }}</strong>,</p>
-            <p>Se ha creado un nuevo reglamento que requiere tu aprobación. A continuación los detalles:</p>
+            <p>Se ha creado un nuevo documento que requiere tu aprobación. A continuación los detalles:</p>
 
             <table class="info-table">
                 <tr><td>Nombre</td><td><strong>{{ $regulation->name }}</strong></td></tr>
@@ -58,7 +58,7 @@
 
             <p>Ingresa al sistema para revisar el documento completo y emitir tu decisión.</p>
 
-            <a href="{{ route('processes.show', $regulation) }}" class="btn">Ver reglamento</a>
+            <a href="{{ route('processes.show', $regulation) }}" class="btn">Ver documento</a>
         </div>
         <div class="footer">
             Este correo fue generado automáticamente por VIGIA Cumplimiento. Por favor no respondas a este mensaje.

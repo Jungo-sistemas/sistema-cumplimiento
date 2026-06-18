@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('asset_types', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
             $table->string('name');
             $table->integer('priority_level');
             $table->integer('warning_days');

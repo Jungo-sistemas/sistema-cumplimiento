@@ -12,7 +12,7 @@
 
 @php
     $user = auth()->user();
-    $currentModule = request()->routeIs('processes.*', 'job-positions.*') ? 'procesos' : 'cumplimiento';
+    $currentModule = request()->routeIs('processes.*', 'job-positions.*', 'my-approvals.*') ? 'procesos' : 'cumplimiento';
     $allModules = [
         'cumplimiento' => ['label' => 'Cumplimiento', 'route' => 'dashboard'],
         'procesos'     => ['label' => 'Procesos',     'route' => 'processes.dashboard'],
@@ -110,6 +110,17 @@
                 </div>
 
                 <div class="flex items-center gap-3">
+                    @if(!$user?->isSuperAdmin() && $user?->isAdmin())
+                        <a href="{{ route('users.index') }}"
+                           title="Usuarios"
+                           class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-white/80 hover:bg-white/10 {{ request()->routeIs('users.*') ? 'bg-white/15 font-semibold text-white' : '' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            <span class="hidden sm:inline">Usuarios</span>
+                        </a>
+                    @endif
+
                     <div class="hidden text-sm opacity-90 sm:block">
                         {{ $user?->name }}
                     </div>
@@ -181,31 +192,28 @@
                             <a href="{{ route('processes.dashboard') }}" @click="mobileMenuOpen = false"
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
 
-                            @if($user?->isAdmin())
-                                <a href="{{ route('users.index') }}" @click="mobileMenuOpen = false"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
-                            @endif
-
                             <a href="{{ route('processes.index') }}" @click="mobileMenuOpen = false"
-                               class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create', 'job-positions.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                <span>Procesos</span>
-                                @if($pendingApprovalsCount > 0)
-                                    <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">{{ $pendingApprovalsCount }}</span>
-                                @endif
-                            </a>
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos</a>
+
+                            @if($pendingApprovalsCount > 0 || request()->routeIs('my-approvals.*'))
+                                <a href="{{ route('my-approvals.index') }}" @click="mobileMenuOpen = false"
+                                   class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('my-approvals.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                    <span>Mis aprobaciones</span>
+                                    @if($pendingApprovalsCount > 0)
+                                        <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">{{ $pendingApprovalsCount }}</span>
+                                    @endif
+                                </a>
+                            @endif
                         @else
                             {{-- ── MÓDULO: CUMPLIMIENTO ── --}}
                             <a href="{{ route('dashboard') }}" @click="mobileMenuOpen = false"
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
 
-                            @if($user?->isAdmin())
-                                <a href="{{ route('users.index') }}" @click="mobileMenuOpen = false"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
-                            @endif
-
                             @if($user?->isAdmin() || $user?->isOperative() || $user?->isReadOnly())
                                 <a href="{{ route('documents.index') }}" @click="mobileMenuOpen = false"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos</a>
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos generales</a>
+                                <a href="{{ route('processes.index') }}" @click="mobileMenuOpen = false"
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Procesos</a>
                             @endif
 
                             @php $inCumplimiento = request()->routeIs('assets.*') || !empty($navContext['asset']); @endphp
@@ -255,6 +263,17 @@
                                 </div>
                             </div>
                         @endif
+
+                        @if(!$user?->isSuperAdmin() && $user?->isAdmin())
+                            <hr class="my-2 border-gray-100">
+                            <a href="{{ route('users.index') }}" @click="mobileMenuOpen = false"
+                               class="flex items-center gap-2 rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                                Usuarios
+                            </a>
+                        @endif
                     </nav>
                 </div>
             </div>
@@ -284,31 +303,26 @@
                             <a href="{{ route('processes.dashboard') }}"
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
 
-                            @if($user?->isAdmin())
-                                <a href="{{ route('users.index') }}"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
-                            @endif
-
                             <a href="{{ route('processes.index') }}"
-                               class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create', 'job-positions.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                <span>Procesos</span>
-                                @if($pendingApprovalsCount > 0)
-                                    <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">{{ $pendingApprovalsCount }}</span>
-                                @endif
-                            </a>
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos</a>
+
+                            @if($pendingApprovalsCount > 0 || request()->routeIs('my-approvals.*'))
+                                <a href="{{ route('my-approvals.index') }}"
+                                   class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('my-approvals.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                    <span>Mis aprobaciones</span>
+                                    @if($pendingApprovalsCount > 0)
+                                        <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">{{ $pendingApprovalsCount }}</span>
+                                    @endif
+                                </a>
+                            @endif
                         @else
                             {{-- ── MÓDULO: CUMPLIMIENTO ── --}}
                             <a href="{{ route('dashboard') }}"
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
 
-                            @if($user?->isAdmin())
-                                <a href="{{ route('users.index') }}"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
-                            @endif
-
                             @if($user?->isAdmin() || $user?->isOperative() || $user?->isReadOnly())
                                 <a href="{{ route('documents.index') }}"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos</a>
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos generales</a>
                             @endif
 
                             @php $inCumplimiento = request()->routeIs('assets.*') || !empty($navContext['asset']); @endphp
