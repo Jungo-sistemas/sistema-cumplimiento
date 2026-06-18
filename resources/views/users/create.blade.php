@@ -8,7 +8,7 @@
     </x-slot>
 
     @php
-        $adminRoleId     = $roles->where('slug', 'admin')->first()?->id;
+        $adminRoleId      = $roles->where('slug', 'admin')->first()?->id;
         $companiesByGroup = $companies->groupBy('group_id')->map->values();
     @endphp
 
@@ -17,13 +17,19 @@
              selectedRole: '{{ old('role_id', '') }}',
              selectedGroup: '{{ old('group_id', '') }}',
              selectedCompany: '{{ old('company_id', '') }}',
+             selectedPosition: '{{ old('job_position_id', '') }}',
              adminRoleId: '{{ $adminRoleId }}',
              companiesByGroup: @json($companiesByGroup),
+             positionsByGroup: @json($positionsByGroup),
              get isAdmin() { return this.selectedRole === this.adminRoleId },
              get needsCompany() { return this.selectedRole !== '' && !this.isAdmin },
              get availableCompanies() {
                  if (!this.selectedGroup) return [];
                  return this.companiesByGroup[this.selectedGroup] ?? [];
+             },
+             get availablePositions() {
+                 if (!this.selectedGroup) return [];
+                 return this.positionsByGroup[this.selectedGroup] ?? [];
              }
          }">
 
@@ -111,6 +117,19 @@
                             @endforeach
                         </select>
                     @endif
+                </div>
+
+                {{-- Puesto de trabajo (flujo de aprobación) --}}
+                <div x-show="selectedGroup !== ''" x-transition>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Puesto de trabajo</label>
+                    <select name="job_position_id" x-model="selectedPosition"
+                        class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
+                        <option value="">— Sin asignar —</option>
+                        <template x-for="pos in availablePositions" :key="pos.id">
+                            <option :value="pos.id" x-text="pos.name" :selected="selectedPosition == pos.id"></option>
+                        </template>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-400">Define el rol de este usuario en los flujos de aprobación de documentos. Independiente del rol de plataforma.</p>
                 </div>
 
                 {{-- Empresa (solo para operativo y solo lectura) --}}

@@ -10,21 +10,35 @@ class CompanySeeder extends Seeder
     public function run(): void
     {
         $companies = [
+            // VIGIA group
             'ALCOM',
             'BIOMEX',
             'CAPITAL HUMANO',
             'FISCAL',
             'TI',
-            'DAVAL',
             'SOM',
             'INMUEBLES',
-            'MDI',
-            'PROPANE',
+            'MERCANTIL DISTRIBUIDORA',
+            'PROPANE SERVICES',
             'SOLTRACK',
-            'TRONCALNET' ,
+            'TRONCALNET',
             'Terrenos Vigia',
             'MIGAR',
             'KIWI GAS',
+            'COMBUSTIBLES TG',
+            'VILLA DE REYES',
+            'TOTAL PROPANE',
+            'VIDENCI',
+            'MINIMA REAL ESTATE',
+            'GRUPO AVIDAM',
+            // DAVAL group
+            'DAVAL',
+            // INTERA group
+            'INTERA CAPITAL',
+            'JUNGO',
+            'PACTO',
+            'TRANSPORTES MIGAR',
+            'SOLUCIONES TECNOLOGICAS PARA EL TRANSPORTE',
         ];
 
         foreach ($companies as $name) {

@@ -25,6 +25,7 @@ use App\Http\Controllers\SuperAdminController;
 use App\Http\Controllers\ProcessesDashboardController;
 use App\Http\Controllers\DocumentTrashController;
 use App\Http\Controllers\DocumentReportController;
+use App\Http\Controllers\MyApprovalsController;
 
 Route::get('/', function () {
     return auth()->check()
@@ -138,6 +139,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/procesos', [ProcessesDashboardController::class, 'index'])
         ->name('processes.dashboard');
 
+    Route::get('/my-approvals', [MyApprovalsController::class, 'index'])
+        ->name('my-approvals.index');
+
     Route::get('/processes', [RegulationController::class, 'index'])
         ->name('processes.index');
 
@@ -152,6 +156,9 @@ Route::middleware('auth')->group(function () {
 
     Route::put('/processes/{regulation}', [RegulationController::class, 'update'])
         ->name('processes.update');
+
+    Route::patch('/processes/{regulation}/set-flow', [RegulationController::class, 'setFlow'])
+        ->name('processes.setFlow');
 
     Route::get('/processes/{regulation}/print', [RegulationController::class, 'printView'])
         ->name('processes.print');

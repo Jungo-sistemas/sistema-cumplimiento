@@ -1,11 +1,13 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void
     {
-        // NO-OP: ya se aplicó previamente (o se manejará con migrate:fresh si hiciera falta)
+        // NO-OP: columna nunca estuvo en la migración inicial de creación.
     }
 
     public function down(): void

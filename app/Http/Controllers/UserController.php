@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\UserInvitationMail;
 use App\Models\Company;
 use App\Models\Group;
+use App\Models\JobPosition;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -69,7 +70,15 @@ class UserController extends Controller
             ? $companies->first()
             : null;
 
-        return view('users.create', compact('roles', 'groups', 'companies', 'singleCompany'));
+        $positionsByGroup = JobPosition::query()
+            ->when($authUser->hasGroupScope(), fn ($q) => $q->where('group_id', $authUser->group_id))
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get()
+            ->groupBy('group_id')
+            ->map->values();
+
+        return view('users.create', compact('roles', 'groups', 'companies', 'singleCompany', 'positionsByGroup'));
     }
 
     public function store(Request $request)
@@ -127,6 +136,10 @@ class UserController extends Controller
             'invite_expires_at' => now()->addDays(3),
             'invited_by'        => $authUser->id,
         ]);
+
+        if ($request->filled('job_position_id')) {
+            $user->jobPositions()->attach($request->job_position_id);
+        }
 
         Mail::to($user->email)->send(new UserInvitationMail($user));
 

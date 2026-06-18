@@ -26,7 +26,7 @@ class RegulationRejectedNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Reglamento rechazado: ' . $this->regulation->name)
+            ->subject('Documento rechazado: ' . $this->regulation->name)
             ->view('emails.processes.regulation-rejected', [
                 'notifiable' => $notifiable,
                 'regulation' => $this->regulation,

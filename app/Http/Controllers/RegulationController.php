@@ -79,15 +79,12 @@ class RegulationController extends Controller
 
         $regulations = $query->orderBy('code')->orderBy('name')->get();
 
-        // Para admins: IDs de reglamentos donde el usuario tiene aprobación pendiente
-        $pendingApprovalIds = collect();
-        if ($user->isAdmin()) {
-            $pendingApprovalIds = \App\Models\RegulationApproval::where('user_id', $user->id)
-                ->where('status', 'pending')
-                ->whereIn('regulation_id', $regulations->pluck('id'))
-                ->pluck('regulation_id')
-                ->flip(); // flip para lookup O(1)
-        }
+        // IDs de reglamentos donde el usuario autenticado tiene aprobación pendiente
+        $pendingApprovalIds = \App\Models\RegulationApproval::where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->whereIn('regulation_id', $regulations->pluck('id'))
+            ->pluck('regulation_id')
+            ->flip(); // flip para lookup O(1)
 
         // Búsqueda global: sin empresa seleccionada, con texto, usuario de grupo
         $globalSearch = $user->hasGroupScope() && ! $selectedCompanyId && $request->filled('q');
@@ -177,7 +174,7 @@ class RegulationController extends Controller
             'company_id'                  => ['required', 'exists:companies,id'],
             'process_type_id'             => ['required', 'exists:process_types,id'],
             'document_type'               => ['required', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
-            'impact_level'                => ['required', 'string', 'in:' . implode(',', array_keys(Regulation::IMPACT_LEVELS))],
+            'impact_level'                => ['nullable', 'string', 'in:' . implode(',', array_keys(Regulation::IMPACT_LEVELS))],
             'nombre'                      => ['required', 'string', 'max:255'],
             'codigo'                      => ['nullable', 'string', 'max:50'],
             'quien_elabora'               => ['required', 'string', 'max:255'],
@@ -222,15 +219,13 @@ class RegulationController extends Controller
             'details'         => $details,
             'is_active'       => true,
             'created_by'      => $user->id,
-            'impact_level'    => $data['impact_level'],
-            'approval_status' => 'pending_review',
+            'impact_level'    => null,
+            'approval_status' => null,
         ]);
-
-        $this->flowService->initFlow($regulation);
 
         return redirect()
             ->route('processes.show', $regulation)
-            ->with('success', 'Proceso creado. El flujo de aprobación ha sido iniciado.');
+            ->with('success', 'Documento creado. Asigna el flujo de aprobación desde la tabla de documentos.');
     }
 
     public function update(Request $request, Regulation $regulation)
@@ -257,6 +252,35 @@ class RegulationController extends Controller
         return redirect()
             ->route('processes.show', $regulation)
             ->with('success', 'Reglamento actualizado correctamente.');
+    }
+
+    public function setFlow(Request $request, Regulation $regulation)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin(), 403);
+        abort_unless($user->canAccessCompany($regulation->company), 403);
+        abort_if($regulation->flow_locked, 403, 'El flujo ya está confirmado y no puede modificarse.');
+
+        $data = $request->validate([
+            'impact_level' => ['nullable', 'string', 'in:' . implode(',', array_keys(Regulation::IMPACT_LEVELS))],
+        ]);
+
+        $newLevel = $data['impact_level'] ?: null;
+
+        $regulation->approvals()->delete();
+        $regulation->update([
+            'impact_level'    => $newLevel,
+            'approval_status' => $newLevel ? 'pending_review' : null,
+            'flow_locked'     => (bool) $newLevel,
+        ]);
+
+        if ($newLevel) {
+            $this->flowService->initFlow($regulation);
+        }
+
+        return back()->with('success', $newLevel
+            ? 'Flujo de aprobación confirmado e iniciado.'
+            : 'Flujo eliminado.');
     }
 
     public function printView(Regulation $regulation)

@@ -18,5 +18,10 @@ class GroupSeeder extends Seeder
             ['slug' => 'daval'],
             ['name' => 'DAVAL', 'is_active' => true]
         );
+
+        Group::updateOrCreate(
+            ['slug' => 'intera'],
+            ['name' => 'INTERA', 'is_active' => true]
+        );
     }
 }

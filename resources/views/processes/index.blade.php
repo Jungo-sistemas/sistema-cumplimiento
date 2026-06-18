@@ -21,21 +21,10 @@
     {{-- HEADER --}}
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-semibold text-[#1A428A]">
-            {{ $cardView ? 'Procesos' : 'Reglamentos' }}
+            {{ $cardView ? 'Procesos' : 'Documentos' }}
         </h1>
 
         <div class="flex items-center gap-2">
-            @if($user->isAdmin() && $user->hasGroupScope())
-                <a href="{{ route('job-positions.index') }}"
-                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-600 text-sm hover:bg-gray-50"
-                   title="Configurar puestos de aprobación">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
-                    Puestos
-                </a>
-            @endif
-
             @if(! $cardView)
                 @if($user->hasGroupScope())
                     <a href="{{ route('processes.index') }}"
@@ -47,7 +36,7 @@
                 @if($user->isAdmin() || $user->isOperative())
                     <a href="{{ route('processes.create', $selectedCompanyId ? ['company_id' => $selectedCompanyId] : []) }}"
                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
-                        Nuevo reglamento
+                        Nuevo documento
                     </a>
                 @endif
             @endif
@@ -75,7 +64,7 @@
 
             {{-- Búsqueda global: nombre o código de reglamento --}}
             <div class="flex-1 min-w-[220px]">
-                <label class="block text-xs text-gray-500 mb-1">Buscar reglamento</label>
+                <label class="block text-xs text-gray-500 mb-1">Buscar documento</label>
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none"
@@ -207,7 +196,7 @@
                                           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
                                 {{ $company->regulations_count }}
-                                {{ \Illuminate\Support\Str::plural('reglamento', $company->regulations_count) }}
+                                {{ \Illuminate\Support\Str::plural('documento', $company->regulations_count) }}
                             </span>
 
                             <svg xmlns="http://www.w3.org/2000/svg"
@@ -257,8 +246,8 @@
                             <th class="text-left px-4 py-3 font-semibold">Tipo</th>
                             <th class="text-left px-4 py-3 font-semibold">Versión</th>
                             <th class="text-left px-4 py-3 font-semibold">Vigencia</th>
-                            <th class="text-left px-4 py-3 font-semibold">Flujo</th>
                             <th class="text-left px-4 py-3 font-semibold">Estatus</th>
+                            <th class="text-left px-4 py-3 font-semibold">Flujo</th>
                             <th class="text-right px-4 py-3 font-semibold">Acciones</th>
                         </tr>
                     </thead>
@@ -269,7 +258,7 @@
                                 $version    = $regulation->currentVersion;
                                 $color      = $regulation->statusColor();
                                 $daysLeft   = $regulation->daysUntilExpiry();
-                                $hasPending = $user->isAdmin() && isset($pendingApprovalIds[$regulation->id]);
+                                $hasPending = isset($pendingApprovalIds[$regulation->id]);
                             @endphp
 
                             <tr class="border-t hover:bg-gray-50">
@@ -314,39 +303,6 @@
                                         </span>
                                     @else
                                         <span class="text-gray-400">Sin vigencia</span>
-                                    @endif
-                                </td>
-
-                                {{-- Columna Aprobación --}}
-                                <td class="px-4 py-3 whitespace-nowrap">
-                                    @if($regulation->impact_level)
-                                        @php
-                                            $apColor = $regulation->approvalStatusColor();
-                                            $apLabel = $regulation->approvalStatusLabel();
-                                        @endphp
-                                        <div class="flex flex-col gap-1">
-                                            <span class="inline-flex items-center gap-1 text-xs
-                                                {{ $apColor === 'green'  ? 'text-green-700' : '' }}
-                                                {{ $apColor === 'yellow' ? 'text-yellow-700' : '' }}
-                                                {{ $apColor === 'red'    ? 'text-red-600' : '' }}
-                                                {{ $apColor === 'blue'   ? 'text-blue-600' : '' }}">
-                                                <span class="h-2 w-2 rounded-full shrink-0
-                                                    {{ $apColor === 'green'  ? 'bg-green-500' : '' }}
-                                                    {{ $apColor === 'yellow' ? 'bg-yellow-400' : '' }}
-                                                    {{ $apColor === 'red'    ? 'bg-red-500' : '' }}
-                                                    {{ $apColor === 'blue'   ? 'bg-blue-500' : '' }}">
-                                                </span>
-                                                {{ $apLabel }}
-                                            </span>
-                                            @if($hasPending)
-                                                <span class="inline-flex items-center gap-1 text-xs font-semibold text-yellow-700 bg-yellow-50 border border-yellow-200 rounded px-1.5 py-0.5">
-                                                    <span class="h-1.5 w-1.5 rounded-full bg-yellow-400 animate-pulse"></span>
-                                                    Tu aprobación
-                                                </span>
-                                            @endif
-                                        </div>
-                                    @else
-                                        <span class="text-xs text-gray-400">—</span>
                                     @endif
                                 </td>
 
@@ -401,36 +357,102 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3 text-right">
-                                    <div class="flex items-center justify-end gap-2 flex-wrap">
-                                        @if($hasPending)
-                                            {{-- Acciones rápidas de aprobación desde el índice --}}
-                                            <form method="POST"
-                                                  action="{{ route('processes.approve', $regulation) }}">
+                                {{-- Columna Flujo --}}
+                                <td class="px-4 py-3 min-w-[170px]">
+                                    @if($user->isAdmin())
+                                        @if(!$regulation->flow_locked)
+                                            {{-- Selector con confirm() al cambiar --}}
+                                            <form method="POST" action="{{ route('processes.setFlow', $regulation) }}" class="mb-1.5">
                                                 @csrf
-                                                <button type="submit"
-                                                        onclick="return confirm('¿Aprobar «{{ addslashes($regulation->name) }}»?')"
-                                                        class="px-3 py-1.5 rounded-md bg-green-600 text-white text-xs font-semibold hover:bg-green-700">
-                                                    Aprobar
-                                                </button>
+                                                @method('PATCH')
+                                                <select name="impact_level"
+                                                        onchange="
+                                                            var label = this.options[this.selectedIndex].text;
+                                                            var msg = this.value
+                                                                ? '¿Confirmar flujo «' + label + '»?\n\nUna vez confirmado no podrá modificarse.'
+                                                                : '¿Eliminar el flujo de aprobación?';
+                                                            if (confirm(msg)) {
+                                                                this.form.submit();
+                                                            } else {
+                                                                this.value = '{{ $regulation->impact_level ?? '' }}';
+                                                            }
+                                                        "
+                                                        class="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:border-blue-400 w-full">
+                                                    <option value="">— Sin flujo —</option>
+                                                    @foreach(\App\Models\Regulation::IMPACT_LEVELS as $val => $lbl)
+                                                        <option value="{{ $val }}" {{ $regulation->impact_level === $val ? 'selected' : '' }}>
+                                                            {{ $lbl }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
                                             </form>
-                                            <a href="{{ route('processes.show', $regulation) }}#aprobacion"
-                                               class="px-3 py-1.5 rounded-md border border-red-300 text-red-600 text-xs font-semibold hover:bg-red-50">
-                                                Rechazar
-                                            </a>
                                         @else
-                                            <a href="{{ route('processes.print', $regulation) }}"
-                                               target="_blank"
-                                               class="px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 text-xs font-semibold hover:bg-gray-50 flex items-center gap-1">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                                            {{-- Flujo confirmado: solo etiqueta con candado --}}
+                                            <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-700 mb-1.5">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                                                    <path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clip-rule="evenodd"/>
                                                 </svg>
-                                                Imprimir
-                                            </a>
+                                                {{ $regulation->impactLevelLabel() }}
+                                            </span>
                                         @endif
+                                    @endif
+
+                                    {{-- Estado del flujo (todos los usuarios, si hay flujo) --}}
+                                    @if($regulation->impact_level && $regulation->approval_status)
+                                        @php
+                                            $apColor = $regulation->approvalStatusColor();
+                                            $apLabel = $regulation->approvalStatusLabel();
+                                        @endphp
+                                        <div class="flex flex-col gap-1.5">
+                                            <span class="inline-flex items-center gap-1 text-xs
+                                                {{ $apColor === 'green'  ? 'text-green-700' : '' }}
+                                                {{ $apColor === 'yellow' ? 'text-yellow-700' : '' }}
+                                                {{ $apColor === 'red'    ? 'text-red-600'   : '' }}
+                                                {{ $apColor === 'blue'   ? 'text-blue-600'  : '' }}">
+                                                <span class="h-2 w-2 rounded-full shrink-0
+                                                    {{ $apColor === 'green'  ? 'bg-green-500'  : '' }}
+                                                    {{ $apColor === 'yellow' ? 'bg-yellow-400' : '' }}
+                                                    {{ $apColor === 'red'    ? 'bg-red-500'    : '' }}
+                                                    {{ $apColor === 'blue'   ? 'bg-blue-500'   : '' }}">
+                                                </span>
+                                                {{ $apLabel }}
+                                            </span>
+
+                                            @if($hasPending)
+                                                <div class="flex items-center gap-1">
+                                                    <form method="POST" action="{{ route('processes.approve', $regulation) }}">
+                                                        @csrf
+                                                        <button type="submit"
+                                                                onclick="return confirm('¿Aprobar «{{ addslashes($regulation->name) }}»?')"
+                                                                class="px-2 py-1 rounded bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d]">
+                                                            Aprobar
+                                                        </button>
+                                                    </form>
+                                                    <a href="{{ route('processes.show', $regulation) }}#aprobacion"
+                                                       class="px-2 py-1 rounded border border-red-300 text-red-600 text-xs font-semibold hover:bg-red-50">
+                                                        Rechazar
+                                                    </a>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @elseif(!$user->isAdmin())
+                                        <span class="text-xs text-gray-400">Sin flujo</span>
+                                    @endif
+                                </td>
+
+                                <td class="px-4 py-3 text-right">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <a href="{{ route('processes.print', $regulation) }}"
+                                           target="_blank"
+                                           class="px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 text-xs font-semibold hover:bg-gray-50 flex items-center gap-1">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                                            </svg>
+                                            Imprimir
+                                        </a>
                                         <a href="{{ route('processes.show', $regulation) }}"
                                            class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d]">
-                                            {{ $hasPending ? 'Ver detalle' : 'Gestionar' }}
+                                            Gestionar
                                         </a>
                                     </div>
                                 </td>
@@ -440,7 +462,7 @@
                             <tr class="border-t">
                                 <td colspan="{{ $globalSearch ? 10 : 9 }}"
                                     class="px-6 py-8 text-center text-gray-500">
-                                    No hay reglamentos para los filtros seleccionados.
+                                    No hay documentos para los filtros seleccionados.
                                 </td>
                             </tr>
                         @endforelse
@@ -451,11 +473,11 @@
 
         <p class="mt-3 text-xs text-gray-400">
             @if($globalSearch)
-                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural('reglamento', $regulations->count()) }}
+                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural('documento', $regulations->count()) }}
                 encontrados en {{ $regulations->pluck('company_id')->unique()->count() }}
                 {{ \Illuminate\Support\Str::plural('empresa', $regulations->pluck('company_id')->unique()->count()) }}
             @else
-                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural('reglamento', $regulations->count()) }} encontrados
+                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural('documento', $regulations->count()) }} encontrados
             @endif
         </p>
 

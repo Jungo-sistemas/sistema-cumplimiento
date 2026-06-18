@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -27,26 +26,13 @@ return new class extends Migration
             });
         }
 
-        // MySQL: use prefix index to stay within 3072-byte limit
-        // PostgreSQL: standard unique index
-        $indexExists = DB::getDriverName() === 'mysql'
-            ? ! empty(DB::select("SHOW INDEX FROM requirement_templates WHERE Key_name = 'requirement_templates_unique'"))
-            : Schema::hasIndex('requirement_templates', 'requirement_templates_unique');
-
-        if (! $indexExists) {
-            if (DB::getDriverName() === 'mysql') {
-                DB::statement(
-                    'CREATE UNIQUE INDEX requirement_templates_unique
-                     ON requirement_templates (name(80), asset_type_id, compliance_scope, category)'
+        if (! Schema::hasIndex('requirement_templates', 'requirement_templates_unique')) {
+            Schema::table('requirement_templates', function (Blueprint $table) {
+                $table->unique(
+                    ['name', 'asset_type_id', 'compliance_scope', 'category'],
+                    'requirement_templates_unique'
                 );
-            } else {
-                Schema::table('requirement_templates', function (Blueprint $table) {
-                    $table->unique(
-                        ['name', 'asset_type_id', 'compliance_scope', 'category'],
-                        'requirement_templates_unique'
-                    );
-                });
-            }
+            });
         }
     }
 

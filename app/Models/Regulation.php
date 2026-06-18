@@ -44,6 +44,7 @@ class Regulation extends Model
         'created_by',
         'impact_level',
         'approval_status',
+        'flow_locked',
     ];
 
     protected $casts = [
