@@ -109,7 +109,10 @@ class TwoFactorController extends Controller
 
     public static function generateAndSendCode(User $user): void
     {
-        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        // En local siempre 111111 para poder probar sin acceso al correo del usuario.
+        $code = app()->isLocal()
+            ? '111111'
+            : str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
         $user->update([
             'two_factor_code'       => Hash::make($code),

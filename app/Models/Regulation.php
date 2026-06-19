@@ -45,10 +45,12 @@ class Regulation extends Model
         'impact_level',
         'approval_status',
         'flow_locked',
+        'flow_user_map',
     ];
 
     protected $casts = [
-        'details' => 'array',
+        'details'       => 'array',
+        'flow_user_map' => 'array',
     ];
 
     /*
@@ -106,7 +108,7 @@ class Regulation extends Model
         $version = $this->currentVersion;
 
         if (! $version) {
-            return 'yellow';
+            return $this->approval_status === 'approved' ? 'blue' : 'yellow';
         }
 
         if ($version->valid_until && $version->valid_until->isPast()) {
@@ -125,6 +127,7 @@ class Regulation extends Model
         return match ($this->statusColor()) {
             'red'    => 'Vencido',
             'yellow' => $this->currentVersion ? 'Por vencer' : 'Pendiente',
+            'blue'   => 'Aprobado',
             default  => 'Vigente',
         };
     }

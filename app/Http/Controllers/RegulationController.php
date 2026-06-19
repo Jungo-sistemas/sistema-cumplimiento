@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Models\JobPosition;
 use App\Models\ProcessType;
 use App\Models\Regulation;
 use App\Models\User;
@@ -41,6 +42,10 @@ class RegulationController extends Controller
                 'regulations'         => collect(),
                 'pendingApprovalIds'  => collect(),
                 'globalSearch'        => false,
+                'usersByPosition'     => collect(),
+                'positionLabels'      => collect(),
+                'positionSortOrders'  => collect(),
+                'flowDefinitions'     => ApprovalFlowService::getAllFlows(),
             ]);
         }
 
@@ -89,6 +94,25 @@ class RegulationController extends Controller
         // Búsqueda global: sin empresa seleccionada, con texto, usuario de grupo
         $globalSearch = $user->hasGroupScope() && ! $selectedCompanyId && $request->filled('q');
 
+        // Users grouped by position slug for flow assignment modal (admin only)
+        $positions = JobPosition::where('group_id', $user->group_id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
+
+        $positionLabels     = $positions->pluck('name', 'slug');
+        $positionSortOrders = $positions->pluck('sort_order', 'slug');
+
+        $usersByPosition = $user->isAdmin()
+            ? JobPosition::where('group_id', $user->group_id)
+                ->where('is_active', true)
+                ->with(['users' => fn ($q) => $q->select('users.id', 'users.name', 'users.email')->orderBy('users.name')])
+                ->get()
+                ->mapWithKeys(fn ($pos) => [
+                    $pos->slug => $pos->users->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'email' => $u->email])->values(),
+                ])
+            : collect();
+
         return view('processes.index', [
             'cardView'            => false,
             'companiesWithCounts' => collect(),
@@ -99,6 +123,10 @@ class RegulationController extends Controller
             'documentTypes'       => Regulation::DOCUMENT_TYPES,
             'pendingApprovalIds'  => $pendingApprovalIds,
             'globalSearch'        => $globalSearch,
+            'usersByPosition'     => $usersByPosition,
+            'positionLabels'      => $positionLabels,
+            'positionSortOrders'  => $positionSortOrders,
+            'flowDefinitions'     => ApprovalFlowService::getAllFlows(),
         ]);
     }
 
@@ -262,20 +290,33 @@ class RegulationController extends Controller
         abort_if($regulation->flow_locked, 403, 'El flujo ya está confirmado y no puede modificarse.');
 
         $data = $request->validate([
-            'impact_level' => ['nullable', 'string', 'in:' . implode(',', array_keys(Regulation::IMPACT_LEVELS))],
+            'impact_level'    => ['nullable', 'string', 'in:' . implode(',', array_keys(Regulation::IMPACT_LEVELS))],
+            'users'           => ['nullable', 'array'],
+            'users.*'         => ['nullable', 'array'],
+            'users.*.*'       => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
         $newLevel = $data['impact_level'] ?: null;
+
+        // Build userMap: slug → [id, id, ...], skip empty slots
+        $userMap = [];
+        foreach ($data['users'] ?? [] as $slug => $ids) {
+            $clean = array_values(array_filter((array) $ids, fn ($id) => $id !== null && $id !== ''));
+            if (count($clean)) {
+                $userMap[$slug] = $clean;
+            }
+        }
 
         $regulation->approvals()->delete();
         $regulation->update([
             'impact_level'    => $newLevel,
             'approval_status' => $newLevel ? 'pending_review' : null,
             'flow_locked'     => (bool) $newLevel,
+            'flow_user_map'   => $newLevel && count($userMap) ? $userMap : null,
         ]);
 
         if ($newLevel) {
-            $this->flowService->initFlow($regulation);
+            $this->flowService->initFlow($regulation, $userMap);
         }
 
         return back()->with('success', $newLevel
