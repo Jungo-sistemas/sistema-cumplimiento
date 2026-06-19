@@ -18,6 +18,14 @@
         @endif
     </x-slot>
 
+    <div x-data="flowModal(
+            {{ Js::from($usersByPosition) }},
+            {{ Js::from($flowDefinitions) }},
+            {{ Js::from($positionLabels) }},
+            {{ Js::from($positionSortOrders) }}
+         )"
+         @open-flow-modal.window="openModal($event.detail)">
+
     {{-- HEADER --}}
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-semibold text-[#1A428A]">
@@ -48,7 +56,6 @@
           class="mt-4 flex flex-wrap items-end gap-3">
 
         @if($cardView || ($user->hasGroupScope() && !$selectedCompanyId))
-            {{-- Selector de empresa (aplica en card view y en búsqueda global) --}}
             <div class="min-w-[200px]">
                 <label class="block text-xs text-gray-500 mb-1">Empresa</label>
                 <select name="company_id"
@@ -62,7 +69,6 @@
                 </select>
             </div>
 
-            {{-- Búsqueda global: nombre o código de reglamento --}}
             <div class="flex-1 min-w-[220px]">
                 <label class="block text-xs text-gray-500 mb-1">Buscar documento</label>
                 <div class="relative">
@@ -81,7 +87,6 @@
                 </div>
             </div>
         @else
-            {{-- Vista de tabla dentro de una empresa --}}
             @if($selectedCompanyId)
                 <input type="hidden" name="company_id" value="{{ $selectedCompanyId }}">
             @endif
@@ -149,7 +154,7 @@
 
     @if($cardView)
 
-        {{-- VISTA DE TARJETAS: empresas como carpetas --}}
+        {{-- VISTA DE TARJETAS --}}
         @if($companiesWithCounts->isEmpty())
             <div class="mt-8 rounded-xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
                 <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
@@ -168,7 +173,6 @@
                        class="group flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm
                               transition hover:border-[#1A428A] hover:shadow-md">
 
-                        {{-- Icono + nombre --}}
                         <div class="flex items-start gap-3">
                             <div class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center
                                         rounded-lg bg-blue-50 group-hover:bg-blue-100 transition">
@@ -186,7 +190,6 @@
                             </div>
                         </div>
 
-                        {{-- Pie: conteo de reglamentos + flecha --}}
                         <div class="mt-4 flex items-center justify-between">
                             <span class="inline-flex items-center gap-1 rounded-full bg-gray-100
                                          px-2.5 py-0.5 text-xs font-medium text-gray-600">
@@ -218,7 +221,6 @@
 
     @else
 
-        {{-- Encabezado de resultado de búsqueda global --}}
         @if($globalSearch)
             <div class="mt-4 flex items-center gap-2 text-sm text-gray-500">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#1A428A]" fill="none"
@@ -306,7 +308,7 @@
                                     @endif
                                 </td>
 
-                                {{-- Columna Estatus de vigencia --}}
+                                {{-- Estatus de vigencia --}}
                                 <td class="px-4 py-3 whitespace-nowrap">
                                     <div x-data="{ open: false }" class="relative inline-block">
                                         <button type="button"
@@ -316,7 +318,8 @@
                                             <span class="inline-block h-3 w-3 rounded-full
                                                 {{ $color === 'green'  ? 'bg-green-500' : '' }}
                                                 {{ $color === 'yellow' ? 'bg-yellow-400' : '' }}
-                                                {{ $color === 'red'    ? 'bg-red-500' : '' }}">
+                                                {{ $color === 'red'    ? 'bg-red-500' : '' }}
+                                                {{ $color === 'blue'   ? 'bg-[#1A428A]' : '' }}">
                                             </span>
                                             <span class="text-xs text-gray-500">
                                                 {{ $regulation->statusLabel() }}
@@ -326,7 +329,10 @@
                                         <div x-show="open"
                                              x-transition
                                              class="absolute left-0 top-6 z-20 w-56 rounded-xl border border-gray-200 bg-white shadow-lg p-3 text-xs text-gray-700">
-                                            @if(! $version)
+                                            @if(! $version && $color === 'blue')
+                                                <p class="font-semibold text-[#1A428A]">Aprobado</p>
+                                                <p class="mt-1 text-gray-500">El documento fue aprobado. Pendiente de subir la versión final.</p>
+                                            @elseif(! $version)
                                                 <p class="font-semibold text-yellow-600">Sin versión cargada</p>
                                                 <p class="mt-1 text-gray-500">No se ha subido ningún archivo todavía.</p>
                                             @elseif($color === 'red')
@@ -357,37 +363,30 @@
                                         </div>
                                     </div>
                                 </td>
+
                                 {{-- Columna Flujo --}}
                                 <td class="px-4 py-3 min-w-[170px]">
                                     @if($user->isAdmin())
                                         @if(!$regulation->flow_locked)
-                                            {{-- Selector con confirm() al cambiar --}}
-                                            <form method="POST" action="{{ route('processes.setFlow', $regulation) }}" class="mb-1.5">
-                                                @csrf
-                                                @method('PATCH')
-                                                <select name="impact_level"
-                                                        onchange="
-                                                            var label = this.options[this.selectedIndex].text;
-                                                            var msg = this.value
-                                                                ? '¿Confirmar flujo «' + label + '»?\n\nUna vez confirmado no podrá modificarse.'
-                                                                : '¿Eliminar el flujo de aprobación?';
-                                                            if (confirm(msg)) {
-                                                                this.form.submit();
-                                                            } else {
-                                                                this.value = '{{ $regulation->impact_level ?? '' }}';
-                                                            }
-                                                        "
-                                                        class="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:border-blue-400 w-full">
-                                                    <option value="">— Sin flujo —</option>
-                                                    @foreach(\App\Models\Regulation::IMPACT_LEVELS as $val => $lbl)
-                                                        <option value="{{ $val }}" {{ $regulation->impact_level === $val ? 'selected' : '' }}>
-                                                            {{ $lbl }}
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                            </form>
+                                            {{-- Selector que abre modal de asignación --}}
+                                            <select
+                                                @change="$dispatch('open-flow-modal', {
+                                                    regulationId: {{ $regulation->id }},
+                                                    regulationName: @js($regulation->name),
+                                                    impactLevel: $event.target.value,
+                                                    levelLabel: $event.target.options[$event.target.selectedIndex].text,
+                                                    formAction: '{{ route('processes.setFlow', $regulation) }}'
+                                                }); $event.target.value = '{{ $regulation->impact_level ?? '' }}'"
+                                                class="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:border-blue-400 w-full mb-1.5">
+                                                <option value="">— Sin flujo —</option>
+                                                @foreach(\App\Models\Regulation::IMPACT_LEVELS as $val => $lbl)
+                                                    <option value="{{ $val }}" {{ $regulation->impact_level === $val ? 'selected' : '' }}>
+                                                        {{ $lbl }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
                                         @else
-                                            {{-- Flujo confirmado: solo etiqueta con candado --}}
+                                            {{-- Flujo confirmado: etiqueta con candado --}}
                                             <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-700 mb-1.5">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
                                                     <path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clip-rule="evenodd"/>
@@ -397,7 +396,7 @@
                                         @endif
                                     @endif
 
-                                    {{-- Estado del flujo (todos los usuarios, si hay flujo) --}}
+                                    {{-- Estado del flujo --}}
                                     @if($regulation->impact_level && $regulation->approval_status)
                                         @php
                                             $apColor = $regulation->approvalStatusColor();
@@ -483,4 +482,263 @@
 
     @endif
 
+    {{-- =====================================================================
+         MODAL: Asignación de flujo de aprobación
+         ===================================================================== --}}
+    <div x-show="show"
+         x-transition.opacity
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+         style="display:none;">
+
+        {{-- Hidden form submitted on confirm --}}
+        <form x-ref="flowForm" method="POST" :action="formAction">
+            @csrf
+            @method('PATCH')
+            <input type="hidden" name="impact_level" :value="impactLevel">
+            <template x-for="pos in positions" :key="pos.slug">
+                <template x-for="u in (selected[pos.slug] || [])" :key="u.id">
+                    <input type="hidden"
+                           :name="`users[${pos.slug}][]`"
+                           :value="u.id">
+                </template>
+            </template>
+        </form>
+
+        {{-- Modal card --}}
+        <div @click.outside="show = false"
+             class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden">
+
+            {{-- Header --}}
+            <div class="bg-[#1A428A] px-6 py-4 flex items-center justify-between">
+                <div>
+                    <h3 class="text-white font-semibold text-base">Confirmar flujo de aprobación</h3>
+                    <p class="text-blue-200 text-xs mt-0.5" x-text="regulationName"></p>
+                </div>
+                <button type="button" @click="show = false"
+                        class="text-blue-200 hover:text-white transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            {{-- Body --}}
+            <div class="px-6 py-5">
+
+                {{-- Removing flow --}}
+                <template x-if="removing">
+                    <div class="text-sm text-gray-700">
+                        <p>¿Confirmas que deseas <strong>eliminar el flujo de aprobación</strong> de este documento?</p>
+                        <p class="mt-2 text-gray-500 text-xs">El flujo no se ha confirmado aún, por lo que puede eliminarse.</p>
+                    </div>
+                </template>
+
+                {{-- Assigning flow --}}
+                <template x-if="!removing">
+                    <div>
+                        <p class="text-sm text-gray-700 mb-1">
+                            Nivel seleccionado:
+                            <span class="font-semibold text-[#1A428A]" x-text="levelLabel"></span>
+                        </p>
+                        <p class="text-xs text-gray-500 mb-4">
+                            Asigna un responsable por cada puesto. Una vez confirmado, el flujo no podrá modificarse.
+                        </p>
+
+                        <div class="space-y-5">
+                            <template x-for="pos in positions" :key="pos.slug">
+                                <div>
+                                    <div class="flex items-center gap-1.5 mb-1.5">
+                                        <label class="text-xs font-semibold text-gray-700" x-text="pos.label"></label>
+                                        <span x-show="!pos.requiresAll"
+                                              class="text-xs text-gray-400 font-normal">(cualquiera basta)</span>
+                                        <span class="ml-auto text-xs"
+                                              :class="(selected[pos.slug]||[]).length > 0 ? 'text-green-600' : 'text-gray-400'"
+                                              x-text="(selected[pos.slug]||[]).length + ' asignado(s)'"></span>
+                                    </div>
+
+                                    {{-- Chips de usuarios seleccionados --}}
+                                    <div x-show="(selected[pos.slug]||[]).length > 0"
+                                         class="flex flex-wrap gap-1.5 mb-2">
+                                        <template x-for="u in (selected[pos.slug]||[])" :key="u.id">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-medium">
+                                                <span x-text="u.name"></span>
+                                                <button type="button"
+                                                        @click="removeUser(pos.slug, u.id)"
+                                                        class="ml-0.5 text-blue-500 hover:text-blue-800">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none"
+                                                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                                    </svg>
+                                                </button>
+                                            </span>
+                                        </template>
+                                    </div>
+
+                                    {{-- Autocomplete input --}}
+                                    <div class="relative">
+                                        <input
+                                            type="text"
+                                            :placeholder="`Agregar persona a ${pos.label}…`"
+                                            x-model="search[pos.slug]"
+                                            @focus="open[pos.slug] = true"
+                                            @input="open[pos.slug] = true"
+                                            @keydown.escape="open[pos.slug] = false; search[pos.slug] = ''"
+                                            class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 pr-8 focus:outline-none focus:border-[#1A428A] focus:ring-1 focus:ring-[#1A428A]"
+                                        >
+                                        <button type="button"
+                                                x-show="search[pos.slug]"
+                                                @click="search[pos.slug] = ''; open[pos.slug] = false"
+                                                class="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                                                 viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                            </svg>
+                                        </button>
+
+                                        {{-- Dropdown --}}
+                                        <div x-show="open[pos.slug] && filtered(pos.slug).length > 0"
+                                             @click.outside="open[pos.slug] = false"
+                                             class="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-44 overflow-y-auto">
+                                            <template x-for="u in filtered(pos.slug)" :key="u.id">
+                                                <button type="button"
+                                                        @click="selectUser(pos.slug, u)"
+                                                        class="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center gap-2">
+                                                    <span class="h-6 w-6 rounded-full bg-[#1A428A] text-white text-xs flex items-center justify-center shrink-0"
+                                                          x-text="u.name.charAt(0).toUpperCase()"></span>
+                                                    <div>
+                                                        <div class="font-medium text-gray-800" x-text="u.name"></div>
+                                                        <div class="text-xs text-gray-400" x-text="u.email"></div>
+                                                    </div>
+                                                </button>
+                                            </template>
+                                            <div x-show="filtered(pos.slug).length === 0"
+                                                 class="px-3 py-2 text-sm text-gray-400 italic">
+                                                Sin coincidencias
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            {{-- Footer --}}
+            <div class="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3">
+                <button type="button"
+                        @click="show = false"
+                        class="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 font-medium hover:bg-gray-100 transition">
+                    Cancelar
+                </button>
+                <button type="button"
+                        @click="confirmFlow()"
+                        :disabled="!canConfirm"
+                        :class="canConfirm
+                            ? 'bg-[#1A428A] hover:bg-[#15356d] text-white cursor-pointer'
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+                        class="px-4 py-2 rounded-lg text-sm font-semibold transition">
+                    <span x-text="removing ? 'Sí, eliminar flujo' : 'Confirmar flujo'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    </div>{{-- end x-data wrapper --}}
+
 </x-layouts.vigia>
+
+<script>
+function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders) {
+    return {
+        show: false,
+        removing: false,
+        formAction: '',
+        regulationName: '',
+        impactLevel: '',
+        levelLabel: '',
+        positions: [],
+        selected: {},
+        search: {},
+        open: {},
+
+        get canConfirm() {
+            if (this.removing) return true;
+            return this.positions.length > 0 &&
+                   this.positions.every(p => (this.selected[p.slug] || []).length > 0);
+        },
+
+        filtered(slug) {
+            const users = usersByPosition[slug] || [];
+            const selectedIds = (this.selected[slug] || []).map(u => u.id);
+            const available = users.filter(u => !selectedIds.includes(u.id));
+            const q = (this.search[slug] || '').toLowerCase().trim();
+            if (!q) return available;
+            return available.filter(u =>
+                u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+            );
+        },
+
+        openModal(detail) {
+            this.formAction   = detail.formAction;
+            this.regulationName = detail.regulationName;
+            this.impactLevel  = detail.impactLevel;
+            this.levelLabel   = detail.levelLabel;
+            this.removing     = !detail.impactLevel;
+
+            this.positions = [];
+            this.selected  = {};
+            this.search    = {};
+            this.open      = {};
+
+            if (detail.impactLevel && flowDefs[detail.impactLevel]) {
+                const steps = flowDefs[detail.impactLevel];
+                const seen  = new Set();
+
+                Object.entries(steps).forEach(([step, stepDef]) => {
+                    stepDef.positions.forEach(slug => {
+                        if (!seen.has(slug)) {
+                            seen.add(slug);
+                            this.positions.push({
+                                slug,
+                                label: positionLabels[slug] || slug,
+                                step: parseInt(step),
+                                requiresAll: stepDef.requires_all,
+                            });
+                            this.selected[slug] = [];
+                            this.search[slug]   = '';
+                            this.open[slug]     = false;
+                        }
+                    });
+                });
+            }
+
+            // Sort highest hierarchy first (mayor sort_order = más importante = arriba)
+            this.positions.sort((a, b) =>
+                (positionSortOrders[b.slug] || 0) - (positionSortOrders[a.slug] || 0)
+            );
+
+            this.show = true;
+        },
+
+        selectUser(slug, user) {
+            if (!this.selected[slug]) this.selected[slug] = [];
+            if (!this.selected[slug].find(u => u.id === user.id)) {
+                this.selected[slug] = [...this.selected[slug], user];
+            }
+            this.search[slug] = '';
+            this.open[slug]   = false;
+        },
+
+        removeUser(slug, userId) {
+            this.selected[slug] = (this.selected[slug] || []).filter(u => u.id !== userId);
+        },
+
+        confirmFlow() {
+            if (!this.canConfirm) return;
+            this.$refs.flowForm.submit();
+        },
+    };
+}
+</script>

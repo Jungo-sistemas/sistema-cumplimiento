@@ -342,10 +342,11 @@ class AssetController extends Controller
         $assetInactive = ($asset->status ?? null) === \App\Models\Asset::STATUS_INACTIVE
             || (method_exists($asset, 'isInactive') && $asset->isInactive());
 
-        // Detectar si este tipo de activo usa categorías (Alta/Baja/Expediente)
+        // Detectar si este tipo de activo usa categorías (Alta/Baja/Expediente).
+        // Se considera categorizado solo si tiene templates de 'alta' o 'baja'; el valor
+        // por defecto 'expediente' se coló en todos los templates al crear la columna.
         $usesCategoryView = RequirementTemplate::where('asset_type_id', $asset->asset_type_id)
-            ->whereNotNull('category')
-            ->where('category', '!=', '')
+            ->whereIn('category', ['alta', 'baja'])
             ->exists();
 
         $categoryTabs = RequirementTemplate::CATEGORIES; // ['expediente'=>'Expediente','alta'=>'Alta / Modificación','baja'=>'Baja']
