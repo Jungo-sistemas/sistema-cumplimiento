@@ -26,6 +26,7 @@ use App\Http\Controllers\ProcessesDashboardController;
 use App\Http\Controllers\DocumentTrashController;
 use App\Http\Controllers\DocumentReportController;
 use App\Http\Controllers\MyApprovalsController;
+use App\Http\Controllers\ProcessReportController;
 
 Route::get('/', function () {
     return auth()->check()
@@ -148,17 +149,26 @@ Route::middleware('auth')->group(function () {
     Route::get('/processes/create', [RegulationController::class, 'create'])
         ->name('processes.create');
 
+    Route::post('/processes/report', [ProcessReportController::class, 'export'])
+        ->name('processes.report');
+
     Route::post('/processes', [RegulationController::class, 'store'])
         ->name('processes.store');
 
     Route::get('/processes/{regulation}', [RegulationController::class, 'show'])
         ->name('processes.show');
 
+    Route::get('/processes/{regulation}/edit', [RegulationController::class, 'edit'])
+        ->name('processes.edit');
+
     Route::put('/processes/{regulation}', [RegulationController::class, 'update'])
         ->name('processes.update');
 
     Route::patch('/processes/{regulation}/set-flow', [RegulationController::class, 'setFlow'])
         ->name('processes.setFlow');
+
+    Route::get('/processes/{regulation}/flow', [RegulationController::class, 'flowView'])
+        ->name('processes.flow');
 
     Route::get('/processes/{regulation}/print', [RegulationController::class, 'printView'])
         ->name('processes.print');

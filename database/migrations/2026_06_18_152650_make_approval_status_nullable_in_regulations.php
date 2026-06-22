@@ -2,24 +2,30 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::table('regulations', function (Blueprint $table) {
-            $table->string('approval_status')->nullable()->change();
-        });
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE regulations ALTER COLUMN approval_status DROP NOT NULL');
+        } else {
+            Schema::table('regulations', function (Blueprint $table) {
+                $table->string('approval_status')->nullable()->change();
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('regulations', function (Blueprint $table) {
-            $table->string('approval_status')->nullable(false)->change();
-        });
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE regulations ALTER COLUMN approval_status SET NOT NULL');
+        } else {
+            Schema::table('regulations', function (Blueprint $table) {
+                $table->string('approval_status')->nullable(false)->change();
+            });
+        }
     }
 };

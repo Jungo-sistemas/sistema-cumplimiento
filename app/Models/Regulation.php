@@ -40,6 +40,7 @@ class Regulation extends Model
         'code',
         'name',
         'details',
+        'previous_details',
         'is_active',
         'created_by',
         'impact_level',
@@ -49,8 +50,9 @@ class Regulation extends Model
     ];
 
     protected $casts = [
-        'details'       => 'array',
-        'flow_user_map' => 'array',
+        'details'          => 'array',
+        'previous_details' => 'array',
+        'flow_user_map'    => 'array',
     ];
 
     /*

@@ -31,8 +31,20 @@
     </div>
 
     @php
-        $d = $regulation->details ?? [];
+        $d    = $regulation->details ?? [];
+        $prev = $regulation->previous_details ?? [];
         $vNum = $currentVersion?->version_number ?? '01';
+
+        // Returns true when the field value changed since the previous edit
+        $chg = fn(string $field) => !empty($prev)
+            && array_key_exists($field, $prev)
+            && trim($prev[$field] ?? '') !== trim($d[$field] ?? '');
+
+        // CSS classes applied to content blocks that have changed
+        $chgBlock = fn(string ...$fields) =>
+            collect($fields)->some(fn($f) => $chg($f))
+                ? 'ring-2 ring-yellow-400 bg-yellow-50'
+                : 'bg-gray-50';
 
         $parseLines = fn(?string $text) => array_filter(
             array_map('trim', explode("\n", $text ?? '')),
@@ -54,6 +66,17 @@
         $fechaVig = $d['fecha_vigencia'] ?? null;
         $fechaFmt = $fechaVig ? \Carbon\Carbon::parse($fechaVig)->format('d/m/Y') : 'DD/MM/AAAA';
     @endphp
+
+    @if(!empty($prev))
+    <div class="no-print max-w-4xl mx-auto mt-4 mb-0 px-2">
+        <div class="rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            </svg>
+            <span><strong>Vista de cambios:</strong> Los campos resaltados en amarillo fueron modificados en la última edición.</span>
+        </div>
+    </div>
+    @endif
 
     <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl print:shadow-none print:my-0 print:max-w-none">
 
@@ -79,15 +102,15 @@
                 </td>
             </tr>
             <tr class="bg-gray-100">
-                <td class="border border-gray-400 p-2">
+                <td class="border border-gray-400 p-2 {{ $chg('quien_elabora') ? 'bg-yellow-50 ring-1 ring-yellow-400' : '' }}">
                     <div class="text-xs font-bold text-gray-600 uppercase">ELABORADO POR:</div>
                     <div class="text-xs text-gray-700 mt-0.5">{{ $d['quien_elabora'] ?? '—' }}</div>
                 </td>
-                <td class="border border-gray-400 p-2">
+                <td class="border border-gray-400 p-2 {{ $chg('quien_aprueba') ? 'bg-yellow-50 ring-1 ring-yellow-400' : '' }}">
                     <div class="text-xs font-bold text-gray-600 uppercase">APROBADO POR:</div>
                     <div class="text-xs text-gray-700 mt-0.5">{{ $d['quien_aprueba'] ?? '—' }}</div>
                 </td>
-                <td class="border border-gray-400 p-2">
+                <td class="border border-gray-400 p-2 {{ $chg('fecha_vigencia') ? 'bg-yellow-50 ring-1 ring-yellow-400' : '' }}">
                     <div class="text-xs font-bold text-gray-600 uppercase">Fecha efectividad:</div>
                     <div class="text-xs text-gray-700 mt-0.5">{{ $fechaFmt }}</div>
                 </td>
@@ -103,18 +126,18 @@
             {{-- OBJETIVO --}}
             <div>
                 <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">OBJETIVO</h3>
-                <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">{{ $d['resultado_esperado'] ?? '' }}</div>
+                <div class="{{ $chgBlock('resultado_esperado') }} border border-gray-200 rounded p-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">{{ $d['resultado_esperado'] ?? '' }}</div>
             </div>
 
             {{-- ALCANCE --}}
             <div>
                 <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">ALCANCE</h3>
                 @if(!empty($d['problema_resuelve']))
-                    <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-700 mb-3 leading-relaxed whitespace-pre-line">{{ $d['problema_resuelve'] }}</div>
+                    <div class="{{ $chgBlock('problema_resuelve') }} border border-gray-200 rounded p-3 text-sm text-gray-700 mb-3 leading-relaxed whitespace-pre-line">{{ $d['problema_resuelve'] }}</div>
                 @endif
                 @if(!empty($d['areas_aplica']))
                     <p class="font-semibold text-gray-800 text-sm mb-1">Este procedimiento aplica a:</p>
-                    <ul class="list-disc list-inside space-y-0.5 text-sm text-gray-700 mb-3 ml-2">
+                    <ul class="list-disc list-inside space-y-0.5 text-sm text-gray-700 mb-3 ml-2 {{ $chg('areas_aplica') ? 'rounded ring-2 ring-yellow-400 bg-yellow-50 px-2 py-1' : '' }}">
                         @foreach($parseLines($d['areas_aplica']) as $line)
                             <li>{{ $line }}</li>
                         @endforeach
@@ -122,7 +145,7 @@
                 @endif
                 @if(!empty($d['fuera_alcance']))
                     <p class="font-semibold text-gray-800 text-sm mb-1">Queda fuera del alcance:</p>
-                    <ul class="list-disc list-inside space-y-0.5 text-sm text-gray-700 ml-2">
+                    <ul class="list-disc list-inside space-y-0.5 text-sm text-gray-700 ml-2 {{ $chg('fuera_alcance') ? 'rounded ring-2 ring-yellow-400 bg-yellow-50 px-2 py-1' : '' }}">
                         @foreach($parseLines($d['fuera_alcance']) as $line)
                             <li>{{ $line }}</li>
                         @endforeach
@@ -134,7 +157,7 @@
             @if(!empty($d['requerimientos_normativos']))
             <div>
                 <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">TÓPICOS</h3>
-                <ul class="list-disc list-inside space-y-0.5 text-sm text-gray-700 ml-2">
+                <ul class="list-disc list-inside space-y-0.5 text-sm text-gray-700 ml-2 {{ $chg('requerimientos_normativos') ? 'rounded ring-2 ring-yellow-400 bg-yellow-50 px-2 py-1' : '' }}">
                     @foreach($parseLines($d['requerimientos_normativos']) as $line)
                         <li>{{ $line }}</li>
                     @endforeach
@@ -148,16 +171,16 @@
                 <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">INDICADORES</h3>
                 <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 ml-2">
                     @if(!empty($d['indicador_proceso']))
-                        <li><span class="font-medium">Proceso:</span> {{ $d['indicador_proceso'] }}</li>
+                        <li class="{{ $chg('indicador_proceso') ? 'rounded bg-yellow-100 px-1' : '' }}"><span class="font-medium">Proceso:</span> {{ $d['indicador_proceso'] }}</li>
                     @endif
                     @if(!empty($d['indicador_resultado']))
-                        <li><span class="font-medium">Resultado:</span> {{ $d['indicador_resultado'] }}</li>
+                        <li class="{{ $chg('indicador_resultado') ? 'rounded bg-yellow-100 px-1' : '' }}"><span class="font-medium">Resultado:</span> {{ $d['indicador_resultado'] }}</li>
                     @endif
                     @if(!empty($d['meta_valor']))
-                        <li><span class="font-medium">Meta:</span> {{ $d['meta_valor'] }}</li>
+                        <li class="{{ $chg('meta_valor') ? 'rounded bg-yellow-100 px-1' : '' }}"><span class="font-medium">Meta:</span> {{ $d['meta_valor'] }}</li>
                     @endif
                     @if(!empty($d['frecuencia_medicion']))
-                        <li><span class="font-medium">Frecuencia:</span> {{ $d['frecuencia_medicion'] }}</li>
+                        <li class="{{ $chg('frecuencia_medicion') ? 'rounded bg-yellow-100 px-1' : '' }}"><span class="font-medium">Frecuencia:</span> {{ $d['frecuencia_medicion'] }}</li>
                     @endif
                 </ul>
             </div>
@@ -168,6 +191,7 @@
             <div>
                 <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">DEFINICIONES Y ABREVIATURAS</h3>
                 @php $terms = $parseTerms($d['terminos_abreviaturas']); @endphp
+                <div class="{{ $chg('terminos_abreviaturas') ? 'ring-2 ring-yellow-400 rounded' : '' }}">
                 <table class="w-full border-collapse text-sm">
                     <thead>
                         <tr class="bg-[#e8eef8]">
@@ -184,6 +208,7 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
             </div>
             @endif
 
@@ -215,15 +240,15 @@
                     </td>
                 </tr>
                 <tr class="bg-gray-100">
-                    <td class="border border-gray-400 p-2">
+                    <td class="border border-gray-400 p-2 {{ $chg('quien_elabora') ? 'bg-yellow-50 ring-1 ring-yellow-400' : '' }}">
                         <div class="text-xs font-bold text-gray-600 uppercase">ELABORADO POR:</div>
                         <div class="text-xs text-gray-700 mt-0.5">{{ $d['quien_elabora'] ?? '—' }}</div>
                     </td>
-                    <td class="border border-gray-400 p-2">
+                    <td class="border border-gray-400 p-2 {{ $chg('quien_aprueba') ? 'bg-yellow-50 ring-1 ring-yellow-400' : '' }}">
                         <div class="text-xs font-bold text-gray-600 uppercase">APROBADO POR:</div>
                         <div class="text-xs text-gray-700 mt-0.5">{{ $d['quien_aprueba'] ?? '—' }}</div>
                     </td>
-                    <td class="border border-gray-400 p-2">
+                    <td class="border border-gray-400 p-2 {{ $chg('fecha_vigencia') ? 'bg-yellow-50 ring-1 ring-yellow-400' : '' }}">
                         <div class="text-xs font-bold text-gray-600 uppercase">Fecha efectividad:</div>
                         <div class="text-xs text-gray-700 mt-0.5">{{ $fechaFmt }}</div>
                     </td>
@@ -242,18 +267,18 @@
                     <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">DESCRIPCIÓN DEL PROCESO / ACTIVIDADES</h3>
                     @if(!empty($d['que_detona']))
                         <p class="font-medium text-gray-700 text-sm mb-1">Detonante:</p>
-                        <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-700 mb-3 whitespace-pre-line">{{ $d['que_detona'] }}</div>
+                        <div class="{{ $chgBlock('que_detona') }} border border-gray-200 rounded p-3 text-sm text-gray-700 mb-3 whitespace-pre-line">{{ $d['que_detona'] }}</div>
                     @endif
                     @if(!empty($d['lista_actividades']))
-                        <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">{{ $d['lista_actividades'] }}</div>
+                        <div class="{{ $chgBlock('lista_actividades') }} border border-gray-200 rounded p-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">{{ $d['lista_actividades'] }}</div>
                     @endif
                     @if(!empty($d['decisiones_control']))
                         <p class="font-medium text-gray-700 text-sm mt-3 mb-1">Decisiones y puntos de control:</p>
-                        <div class="text-sm text-gray-700 whitespace-pre-line ml-2">{{ $d['decisiones_control'] }}</div>
+                        <div class="text-sm text-gray-700 whitespace-pre-line ml-2 {{ $chg('decisiones_control') ? 'rounded bg-yellow-50 ring-2 ring-yellow-400 px-2 py-1' : '' }}">{{ $d['decisiones_control'] }}</div>
                     @endif
                     @if(!empty($d['resultado_entregable']))
                         <p class="font-medium text-gray-700 text-sm mt-3 mb-1">Resultado / Entregable:</p>
-                        <div class="text-sm text-gray-700 whitespace-pre-line ml-2">{{ $d['resultado_entregable'] }}</div>
+                        <div class="text-sm text-gray-700 whitespace-pre-line ml-2 {{ $chg('resultado_entregable') ? 'rounded bg-yellow-50 ring-2 ring-yellow-400 px-2 py-1' : '' }}">{{ $d['resultado_entregable'] }}</div>
                     @endif
                 </div>
                 @endif
@@ -293,7 +318,7 @@
                 @if(!empty($d['procedimientos_relacionados']) || !empty($d['documentos_usados']))
                 <div>
                     <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">ANEXOS</h3>
-                    <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700 ml-2">
+                    <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700 ml-2 {{ $chg('procedimientos_relacionados') || $chg('documentos_usados') ? 'rounded ring-2 ring-yellow-400 bg-yellow-50 px-2 py-1' : '' }}">
                         @foreach($parseLines($d['procedimientos_relacionados'] ?? '') as $line)
                             <li>{{ $line }}</li>
                         @endforeach
@@ -306,7 +331,7 @@
 
                 {{-- AVISO DE CONTROL --}}
                 @if(!empty($d['riesgos_errores']))
-                <div class="border border-[#1A428A] rounded p-3 bg-blue-50">
+                <div class="border {{ $chg('riesgos_errores') ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-400' : 'border-[#1A428A] bg-blue-50' }} rounded p-3">
                     <p class="text-sm text-gray-800"><span class="font-bold text-[#1A428A]">AVISO DE CONTROL:</span> {{ $d['riesgos_errores'] }}</p>
                 </div>
                 @endif

@@ -33,7 +33,18 @@
         </h1>
 
         <div class="flex items-center gap-2">
-            @if(! $cardView)
+            @if($cardView)
+                {{-- Botón de reporte cross-empresa desde la vista de tarjetas --}}
+                <a href="{{ route('processes.index', ['report' => 1]) }}"
+                   class="flex items-center gap-2 px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Generar reporte
+                </a>
+            @else
                 @if($user->hasGroupScope())
                     <a href="{{ route('processes.index') }}"
                        class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50">
@@ -221,15 +232,61 @@
 
     @else
 
-        @if($globalSearch)
-            <div class="mt-4 flex items-center gap-2 text-sm text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#1A428A]" fill="none"
+    <div x-data="reportTable({{ Js::from($regulations->pluck('id')->values()) }})">
+
+        {{-- Barra de exportación — visible al seleccionar --}}
+        <div x-show="selected.length > 0"
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0 -translate-y-1"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="mt-3 flex items-center gap-3 rounded-lg border border-[#1A428A] bg-blue-50 px-4 py-2.5"
+             style="display:none;">
+            <span class="text-sm font-semibold text-[#1A428A]">
+                <span x-text="selected.length"></span> seleccionado<span x-show="selected.length !== 1">s</span>
+            </span>
+            <button type="button"
+                    @click="submitReport()"
+                    class="ml-auto flex items-center gap-1.5 rounded-md bg-[#1A428A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#15356d]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
                      viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round"
-                          d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                 </svg>
-                Resultados para <strong class="text-gray-700 mx-1">"{{ request('q') }}"</strong>
-                en todas las empresas
+                Descargar Excel
+            </button>
+            <button type="button"
+                    @click="selected = []"
+                    class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">
+                Limpiar selección
+            </button>
+        </div>
+
+        {{-- Formulario oculto para POST de exportación --}}
+        <form x-ref="reportForm" method="POST" action="{{ route('processes.report') }}" class="hidden">
+            @csrf
+            <template x-for="id in selected" :key="id">
+                <input type="hidden" name="regulation_ids[]" :value="id">
+            </template>
+        </form>
+
+        @if($globalSearch)
+            <div class="mt-4 flex items-center gap-2 text-sm text-gray-500">
+                @if(request()->boolean('report'))
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#1A428A] shrink-0" fill="none"
+                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    <span>Modo reporte — mostrando documentos de <strong class="text-gray-700">todas las empresas</strong>. Selecciona los que quieres incluir y descarga el Excel.</span>
+                @else
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#1A428A] shrink-0" fill="none"
+                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
+                    </svg>
+                    Resultados para <strong class="text-gray-700 mx-1">"{{ request('q') }}"</strong>
+                    en todas las empresas
+                @endif
             </div>
         @endif
 
@@ -239,6 +296,14 @@
                 <table class="w-full text-sm">
                     <thead class="bg-gray-50 text-gray-600">
                         <tr>
+                            <th class="px-3 py-3 w-10">
+                                <input type="checkbox"
+                                       class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A] cursor-pointer"
+                                       :checked="allSelected"
+                                       :indeterminate.prop="selected.length > 0 && !allSelected"
+                                       @change="toggleAll()"
+                                       title="Seleccionar todo">
+                            </th>
                             @if($globalSearch)
                                 <th class="text-left px-4 py-3 font-semibold">Empresa</th>
                             @endif
@@ -263,7 +328,14 @@
                                 $hasPending = isset($pendingApprovalIds[$regulation->id]);
                             @endphp
 
-                            <tr class="border-t hover:bg-gray-50">
+                            <tr class="border-t hover:bg-gray-50"
+                                :class="selected.includes({{ $regulation->id }}) ? 'bg-blue-50' : ''">
+                                <td class="px-3 py-3">
+                                    <input type="checkbox"
+                                           class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A] cursor-pointer"
+                                           :checked="selected.includes({{ $regulation->id }})"
+                                           @change="toggle({{ $regulation->id }})">
+                                </td>
 
                                 @if($globalSearch)
                                     <td class="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">
@@ -459,7 +531,7 @@
                             </tr>
                         @empty
                             <tr class="border-t">
-                                <td colspan="{{ $globalSearch ? 10 : 9 }}"
+                                <td colspan="{{ $globalSearch ? 11 : 10 }}"
                                     class="px-6 py-8 text-center text-gray-500">
                                     No hay documentos para los filtros seleccionados.
                                 </td>
@@ -478,7 +550,12 @@
             @else
                 {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural('documento', $regulations->count()) }} encontrados
             @endif
+            <span x-show="selected.length > 0" class="ml-2 font-medium text-[#1A428A]">
+                · <span x-text="selected.length"></span> seleccionado<span x-show="selected.length !== 1">s</span>
+            </span>
         </p>
+
+    </div>{{-- fin reportTable --}}
 
     @endif
 
@@ -650,6 +727,32 @@
 </x-layouts.vigia>
 
 <script>
+function reportTable(allIds) {
+    return {
+        selected: [],
+        allIds: allIds,
+
+        get allSelected() {
+            return this.allIds.length > 0 &&
+                   this.allIds.every(id => this.selected.includes(id));
+        },
+
+        toggle(id) {
+            const idx = this.selected.indexOf(id);
+            if (idx === -1) this.selected.push(id);
+            else this.selected.splice(idx, 1);
+        },
+
+        toggleAll() {
+            this.allSelected ? (this.selected = []) : (this.selected = [...this.allIds]);
+        },
+
+        submitReport() {
+            this.$refs.reportForm.submit();
+        },
+    };
+}
+
 function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders) {
     return {
         show: false,
