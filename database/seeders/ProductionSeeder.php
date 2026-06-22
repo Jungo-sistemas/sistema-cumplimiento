@@ -8,28 +8,44 @@ class ProductionSeeder extends Seeder
 {
     public function run(): void
     {
-        // Core structure — must run first and in this order
-        $this->call(RoleSeeder::class);
-        $this->call(AssetTypeSeeder::class);
-        $this->call(CompanySeeder::class);
-        $this->call(GroupSeeder::class);
-        $this->call(AssignCompaniesToGroupsSeeder::class);
-        $this->call(ProcessTypeSeeder::class);
+        /*
+         * ── 1. Catálogos base ────────────────────────────────────────────────
+         * Sin dependencias entre sí; deben correr primero.
+         */
+        $this->call(RoleSeeder::class);          // superadmin, admin, operative, readonly
+        $this->call(AssetTypeSeeder::class);     // Almacenamiento, EC, ES, Transporte, ATQ…
+        $this->call(CompanySeeder::class);       // ALCOM, MIGAR, KIWI GAS…
+        $this->call(GroupSeeder::class);         // VIGIA, DAVAL, INTERA
 
-        // Requirement templates loaded from CSV files in database/seeders/data/
+        /*
+         * ── 2. Relaciones entre catálogos ────────────────────────────────────
+         * Requieren que existan companies + groups.
+         */
+        $this->call(AssignCompaniesToGroupsSeeder::class);
+
+        /*
+         * ── 3. Estructura por grupo ──────────────────────────────────────────
+         * Requieren que existan groups.
+         */
+        $this->call(ProcessTypeSeeder::class);           // Tipos de proceso (Comercial, Operaciones…)
+        $this->call(JobPositionSeeder::class);            // Puestos jerárquicos (Líder, Jefe, Gerente, Dirección)
+        $this->call(GeneralDocumentFoldersSeeder::class); // Carpetas de documentos generales
+
+        /*
+         * ── 4. Templates de requerimientos ──────────────────────────────────
+         * Requieren que existan los asset types.
+         * Los seeders de CSV omiten silenciosamente si no encuentra el archivo.
+         */
         $this->call(ComercializacionRequirementTemplateSeeder::class);
         $this->call(ECRequirementTemplateSeeder::class);
         $this->call(EsRequirementTemplateSeeder::class);
         $this->call(VehiculosRequirementTemplateSeeder::class);
 
-        // General document folders (5 categories, group-scoped, no company-specific)
-        $this->call(GeneralDocumentFoldersSeeder::class);
-
-        // Admin users — edit AdminUserSeeder.php to set passwords before running
+        /*
+         * ── 5. Usuarios administradores ─────────────────────────────────────
+         * Requieren roles y grupos.
+         * Editar AdminUserSeeder.php para ajustar contraseñas antes de correr.
+         */
         $this->call(AdminUserSeeder::class);
-
-        // Asset examples from CSV files (requires admin user and asset types to exist)
-        $this->call(EsSeeder::class);
-        $this->call(PlantasSeeder::class);
     }
 }
