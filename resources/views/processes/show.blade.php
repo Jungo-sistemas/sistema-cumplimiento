@@ -57,12 +57,10 @@
 
             <div class="flex items-center gap-2 shrink-0">
                 @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
-                    <button type="button"
-                            x-data
-                            @click="$dispatch('open-modal', 'edit-regulation')"
-                            class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50">
+                    <a href="{{ route('processes.edit', $regulation) }}"
+                       class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50">
                         Editar
-                    </button>
+                    </a>
                 @endif
                 <a href="{{ route('processes.index') }}"
                    class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50">
@@ -369,165 +367,52 @@
         </div>
         @endif
 
-        {{-- ===== FLUJO DE APROBACIÓN ===== --}}
+        {{-- ===== FLUJO DE APROBACIÓN — acceso rápido ===== --}}
         @if($regulation->impact_level)
-        <div id="aprobacion" class="mt-8">
-            <div class="flex items-center justify-between mb-3">
-                <h2 class="text-base font-semibold text-gray-700">Flujo de aprobación</h2>
-                @php
-                    $apColor = $regulation->approvalStatusColor();
-                    $apLabel = $regulation->approvalStatusLabel();
-                @endphp
-                <span class="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border
-                    {{ $apColor === 'green'  ? 'bg-green-50 text-green-700 border-green-200' : '' }}
-                    {{ $apColor === 'yellow' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : '' }}
-                    {{ $apColor === 'red'    ? 'bg-red-50 text-red-700 border-red-200' : '' }}
-                    {{ $apColor === 'blue'   ? 'bg-blue-50 text-blue-700 border-blue-200' : '' }}">
-                    <span class="h-2 w-2 rounded-full
-                        {{ $apColor === 'green'  ? 'bg-green-500' : '' }}
-                        {{ $apColor === 'yellow' ? 'bg-yellow-400' : '' }}
-                        {{ $apColor === 'red'    ? 'bg-red-500' : '' }}
-                        {{ $apColor === 'blue'   ? 'bg-blue-500' : '' }}">
-                    </span>
-                    {{ $apLabel }}
-                    &nbsp;·&nbsp; Impacto: {{ $regulation->impactLevelLabel() }}
-                </span>
-            </div>
+            @php $apColor = $regulation->approvalStatusColor(); @endphp
 
-            {{-- Botones de acción para el usuario actual con aprobación pendiente --}}
+            {{-- Alerta si el usuario tiene una aprobación pendiente --}}
             @if($pendingApprovalForUser)
-                <div x-data="{ showReject: false }" class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-                    <p class="text-sm font-medium text-yellow-800 mb-3">
+                <div class="mt-6 flex items-center gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-5 py-4">
+                    <span class="h-2.5 w-2.5 rounded-full bg-yellow-400 shrink-0"></span>
+                    <p class="text-sm font-medium text-yellow-800 flex-1">
                         Tienes una aprobación pendiente en este documento (paso {{ $pendingApprovalForUser->step_number }}).
                     </p>
-                    <div class="flex items-center gap-3 flex-wrap">
-                        <form method="POST" action="{{ route('processes.approve', $regulation) }}">
-                            @csrf
-                            <button type="submit"
-                                    onclick="return confirm('¿Confirmas la aprobación?')"
-                                    class="px-4 py-2 bg-[#1A428A] text-white text-sm font-semibold rounded-lg hover:bg-[#15356d]">
-                                Aprobar
-                            </button>
-                        </form>
-                        <button @click="showReject = !showReject"
-                                class="px-4 py-2 border border-red-400 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-50">
-                            Rechazar
-                        </button>
-                    </div>
-                    <div x-show="showReject" x-transition class="mt-4">
-                        <form method="POST" action="{{ route('processes.reject', $regulation) }}" class="space-y-3">
-                            @csrf
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Motivo del rechazo <span class="text-red-500">*</span></label>
-                                <textarea name="comments" rows="3" required
-                                          placeholder="Describe el motivo del rechazo..."
-                                          class="w-full rounded-md border-gray-300 text-sm focus:border-red-400 focus:ring-red-400"></textarea>
-                                @error('comments')
-                                    <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                @enderror
-                            </div>
-                            <button type="submit"
-                                    class="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700">
-                                Confirmar rechazo
-                            </button>
-                        </form>
-                    </div>
+                    <a href="{{ route('processes.flow', $regulation) }}"
+                       class="shrink-0 px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                        Ir al flujo
+                    </a>
                 </div>
             @endif
 
-            {{-- Botón re-enviar (tras rechazo, solo admins) --}}
-            @if($regulation->isRejected() && auth()->user()->isAdmin())
-                <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between gap-4">
-                    <div>
-                        <p class="text-sm font-semibold text-red-700">Documento rechazado</p>
-                        <p class="text-xs text-red-500 mt-0.5">Corrige los puntos indicados y re-envía a aprobación para reiniciar el flujo.</p>
-                    </div>
-                    <form method="POST" action="{{ route('processes.resubmit', $regulation) }}">
-                        @csrf
-                        <button type="submit"
-                                onclick="return confirm('¿Re-enviar este documento a aprobación?')"
-                                class="px-4 py-2 bg-[#1A428A] text-white text-sm font-semibold rounded-lg hover:bg-blue-800 whitespace-nowrap">
-                            Re-enviar
-                        </button>
-                    </form>
+            {{-- Tarjeta de estado del flujo + botón "Ver flujo" --}}
+            <div class="mt-{{ $pendingApprovalForUser ? '3' : '8' }} flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-5 py-4">
+                <div class="flex items-center gap-3 flex-wrap">
+                    <span class="text-sm font-semibold text-gray-700">Flujo de aprobación</span>
+                    <span class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border
+                        {{ $apColor === 'green'  ? 'bg-green-50 text-green-700 border-green-200' : '' }}
+                        {{ $apColor === 'yellow' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : '' }}
+                        {{ $apColor === 'red'    ? 'bg-red-50 text-red-700 border-red-200' : '' }}
+                        {{ $apColor === 'blue'   ? 'bg-blue-50 text-blue-700 border-blue-200' : '' }}">
+                        <span class="h-2 w-2 rounded-full
+                            {{ $apColor === 'green'  ? 'bg-green-500' : '' }}
+                            {{ $apColor === 'yellow' ? 'bg-yellow-400' : '' }}
+                            {{ $apColor === 'red'    ? 'bg-red-500' : '' }}
+                            {{ $apColor === 'blue'   ? 'bg-blue-500' : '' }}">
+                        </span>
+                        {{ $regulation->approvalStatusLabel() }}
+                    </span>
+                    <span class="text-xs text-gray-400">Impacto: {{ $regulation->impactLevelLabel() }}</span>
                 </div>
-            @endif
-
-            {{-- Timeline por paso --}}
-            @if($approvals->isNotEmpty())
-                <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    @foreach($approvals as $step => $stepApprovals)
-                        @php
-                            $stepApproved  = $stepApprovals->every(fn($a) => in_array($a->status, ['approved', 'cancelled'])) && $stepApprovals->contains('status', 'approved');
-                            $stepRejected  = $stepApprovals->contains('status', 'rejected');
-                            $stepPending   = $stepApprovals->contains('status', 'pending');
-                        @endphp
-                        <div class="border-b border-gray-100 last:border-b-0">
-                            <div class="px-5 py-3 flex items-center gap-3 bg-gray-50">
-                                @if($stepRejected)
-                                    <span class="h-6 w-6 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                                        <svg class="h-3.5 w-3.5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                                    </span>
-                                    <span class="text-sm font-semibold text-red-700">Paso {{ $step }} — Rechazado</span>
-                                @elseif($stepApproved)
-                                    <span class="h-6 w-6 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                                        <svg class="h-3.5 w-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                                    </span>
-                                    <span class="text-sm font-semibold text-green-700">Paso {{ $step }} — Completado</span>
-                                @elseif($stepPending)
-                                    <span class="h-6 w-6 rounded-full bg-yellow-100 flex items-center justify-center shrink-0">
-                                        <span class="h-2.5 w-2.5 rounded-full bg-yellow-400"></span>
-                                    </span>
-                                    <span class="text-sm font-semibold text-yellow-700">Paso {{ $step }} — En espera</span>
-                                @else
-                                    <span class="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
-                                        <span class="h-2.5 w-2.5 rounded-full bg-gray-400"></span>
-                                    </span>
-                                    <span class="text-sm font-semibold text-gray-500">Paso {{ $step }}</span>
-                                @endif
-                            </div>
-                            <ul class="divide-y divide-gray-50 px-5">
-                                @foreach($stepApprovals as $ap)
-                                    <li class="py-2.5 flex items-center justify-between gap-4">
-                                        <div class="flex items-center gap-2 min-w-0">
-                                            <span class="inline-block w-1.5 h-1.5 rounded-full shrink-0
-                                                {{ $ap->status === 'approved'  ? 'bg-green-500' : '' }}
-                                                {{ $ap->status === 'rejected'  ? 'bg-red-500' : '' }}
-                                                {{ $ap->status === 'pending'   ? 'bg-yellow-400' : '' }}
-                                                {{ $ap->status === 'cancelled' ? 'bg-gray-300' : '' }}">
-                                            </span>
-                                            <div class="min-w-0">
-                                                <p class="text-sm text-gray-700 truncate">{{ $ap->user->name }}</p>
-                                                <p class="text-xs text-gray-400">{{ $ap->jobPosition->name }}</p>
-                                            </div>
-                                        </div>
-                                        <div class="text-right shrink-0">
-                                            @if($ap->status === 'approved')
-                                                <span class="text-xs text-green-600 font-medium">Aprobado</span>
-                                                @if($ap->decided_at)
-                                                    <p class="text-xs text-gray-400">{{ $ap->decided_at->format('d/m/Y H:i') }}</p>
-                                                @endif
-                                            @elseif($ap->status === 'rejected')
-                                                <span class="text-xs text-red-600 font-medium">Rechazado</span>
-                                                @if($ap->comments)
-                                                    <p class="text-xs text-red-400 max-w-[200px] text-left mt-0.5">{{ $ap->comments }}</p>
-                                                @endif
-                                            @elseif($ap->status === 'cancelled')
-                                                <span class="text-xs text-gray-400">Cancelado</span>
-                                            @else
-                                                <span class="text-xs text-yellow-600 font-medium">Pendiente</span>
-                                            @endif
-                                        </div>
-                                    </li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endforeach
-                </div>
-            @else
-                <p class="text-sm text-gray-400 italic mt-2">No hay registros de aprobación. Verifica que existan usuarios asignados a los puestos requeridos.</p>
-            @endif
-        </div>
+                <a href="{{ route('processes.flow', $regulation) }}"
+                   class="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                    Ver flujo
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
         @endif
         {{-- ===== FIN FLUJO DE APROBACIÓN ===== --}}
 
@@ -749,85 +634,6 @@
         </div>
 
     </div>
-
-    {{-- Modal: Editar reglamento --}}
-    @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
-        <x-modal name="edit-regulation" focusable maxWidth="lg">
-            <form method="POST"
-                  action="{{ route('processes.update', $regulation) }}"
-                  class="p-6">
-                @csrf
-                @method('PUT')
-
-                <h2 class="text-lg font-semibold text-[#1A428A] mb-4">Editar documento</h2>
-
-                <div class="space-y-4">
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Tipo de proceso <span class="text-red-500">*</span>
-                        </label>
-                        <select name="process_type_id"
-                                required
-                                class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
-                            <option value="">— Seleccionar —</option>
-                            @foreach(\App\Models\ProcessType::where('group_id', $regulation->group_id)->orderBy('sort_order')->get() as $pt)
-                                <option value="{{ $pt->id }}"
-                                        @selected($regulation->process_type_id == $pt->id)>
-                                    {{ $pt->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de documento</label>
-                        <select name="document_type"
-                                class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
-                            <option value="">— Seleccionar —</option>
-                            @foreach($documentTypes as $dt)
-                                <option value="{{ $dt }}" @selected($regulation->document_type === $dt)>
-                                    {{ $dt }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Código</label>
-                        <input type="text"
-                               name="code"
-                               value="{{ old('code', $regulation->code) }}"
-                               class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Descripción <span class="text-red-500">*</span>
-                        </label>
-                        <input type="text"
-                               name="name"
-                               value="{{ old('name', $regulation->name) }}"
-                               required
-                               class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
-                    </div>
-
-                </div>
-
-                <div class="mt-6 flex justify-end gap-3">
-                    <button type="button"
-                            x-on:click="$dispatch('close')"
-                            class="px-4 py-2 rounded-md border border-gray-300 bg-white text-sm text-gray-700 font-semibold hover:bg-gray-50">
-                        Cancelar
-                    </button>
-                    <button type="submit"
-                            class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
-                        Guardar cambios
-                    </button>
-                </div>
-            </form>
-        </x-modal>
-    @endif
 
     {{-- Modal: Confirmar eliminación de versión --}}
     <div id="deleteModal"

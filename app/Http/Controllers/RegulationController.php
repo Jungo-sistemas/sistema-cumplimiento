@@ -25,8 +25,8 @@ class RegulationController extends Controller
             ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
             : collect();
 
-        // Group user with no company selected AND no search → company card grid
-        if ($user->hasGroupScope() && ! $selectedCompanyId && ! $request->filled('q')) {
+        // Group user with no company selected AND no search AND not in report mode → company card grid
+        if ($user->hasGroupScope() && ! $selectedCompanyId && ! $request->filled('q') && ! $request->boolean('report')) {
             $companiesQuery = Company::where('group_id', $user->group_id)
                 ->where('show_in_processes', true)
                 ->where('otras', false)
@@ -91,8 +91,9 @@ class RegulationController extends Controller
             ->pluck('regulation_id')
             ->flip(); // flip para lookup O(1)
 
-        // Búsqueda global: sin empresa seleccionada, con texto, usuario de grupo
-        $globalSearch = $user->hasGroupScope() && ! $selectedCompanyId && $request->filled('q');
+        // Búsqueda global: sin empresa seleccionada + búsqueda, o modo reporte (todas las empresas)
+        $globalSearch = $user->hasGroupScope() && ! $selectedCompanyId
+            && ($request->filled('q') || $request->boolean('report'));
 
         // Users grouped by position slug for flow assignment modal (admin only)
         $positions = JobPosition::where('group_id', $user->group_id)
@@ -173,13 +174,7 @@ class RegulationController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $approvals = $regulation->approvals()
-            ->with(['user', 'jobPosition'])
-            ->get()
-            ->groupBy('step_number');
-
-        $authUser = auth()->user();
-        $pendingApprovalForUser = $this->flowService->getPendingApprovalForUser($regulation, $authUser->id);
+        $pendingApprovalForUser = $this->flowService->getPendingApprovalForUser($regulation, $user->id);
 
         return view('processes.show', [
             'regulation'             => $regulation,
@@ -187,9 +182,29 @@ class RegulationController extends Controller
             'currentVersion'         => $currentVersion,
             'users'                  => $users,
             'documentTypes'          => Regulation::DOCUMENT_TYPES,
-            'approvals'              => $approvals,
             'pendingApprovalForUser' => $pendingApprovalForUser,
         ]);
+    }
+
+    public function flowView(Regulation $regulation)
+    {
+        $user = auth()->user();
+
+        abort_unless($user->canAccessCompany($regulation->company), 403);
+        abort_unless($regulation->impact_level, 404);
+
+        $regulation->load(['processType', 'company']);
+
+        $approvals = $regulation->approvals()
+            ->with(['user', 'jobPosition'])
+            ->orderBy('step_number')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('step_number');
+
+        $pendingApprovalForUser = $this->flowService->getPendingApprovalForUser($regulation, $user->id);
+
+        return view('processes.flow', compact('regulation', 'approvals', 'pendingApprovalForUser'));
     }
 
     public function store(Request $request)
@@ -256,6 +271,25 @@ class RegulationController extends Controller
             ->with('success', 'Documento creado. Asigna el flujo de aprobación desde la tabla de documentos.');
     }
 
+    public function edit(Regulation $regulation)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+        abort_unless($user->canAccessCompany($regulation->company), 403);
+
+        $regulation->load(['processType', 'company']);
+
+        $processTypes = ProcessType::where('group_id', $user->group_id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')->orderBy('name')->get();
+
+        return view('processes.edit', [
+            'regulation'    => $regulation,
+            'processTypes'  => $processTypes,
+            'documentTypes' => Regulation::DOCUMENT_TYPES,
+        ]);
+    }
+
     public function update(Request $request, Regulation $regulation)
     {
         $user = auth()->user();
@@ -264,22 +298,51 @@ class RegulationController extends Controller
         abort_unless($user->canAccessCompany($regulation->company), 403);
 
         $data = $request->validate([
-            'process_type_id' => ['required', 'exists:process_types,id'],
-            'document_type'   => ['nullable', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
-            'code'            => ['nullable', 'string', 'max:50'],
-            'name'            => ['required', 'string', 'max:255'],
+            'process_type_id'             => ['required', 'exists:process_types,id'],
+            'document_type'               => ['nullable', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
+            'code'                        => ['nullable', 'string', 'max:50'],
+            'name'                        => ['required', 'string', 'max:255'],
+            'quien_elabora'               => ['required', 'string', 'max:255'],
+            'quien_aprueba'               => ['required', 'string', 'max:255'],
+            'fecha_vigencia'              => ['required', 'date'],
+            'problema_resuelve'           => ['required', 'string'],
+            'resultado_esperado'          => ['required', 'string'],
+            'areas_aplica'                => ['required', 'string'],
+            'fuera_alcance'               => ['required', 'string'],
+            'indicador_proceso'           => ['required', 'string'],
+            'indicador_resultado'         => ['required', 'string'],
+            'meta_valor'                  => ['required', 'string', 'max:255'],
+            'frecuencia_medicion'         => ['required', 'string', 'max:255'],
+            'que_detona'                  => ['required', 'string'],
+            'lista_actividades'           => ['required', 'string'],
+            'areas_ejecutan'              => ['required', 'string'],
+            'decisiones_control'          => ['required', 'string'],
+            'documentos_usados'           => ['required', 'string'],
+            'resultado_entregable'        => ['required', 'string'],
+            'areas_roles_mapa'            => ['required', 'string', 'max:255'],
+            'procedimientos_relacionados' => ['required', 'string'],
+            'proveedores_clientes'        => ['required', 'string'],
+            'terminos_abreviaturas'       => ['required', 'string'],
+            'riesgos_errores'             => ['required', 'string'],
+            'requerimientos_normativos'   => ['required', 'string'],
         ]);
 
+        $newDetails = collect($data)
+            ->except(['process_type_id', 'document_type', 'code', 'name'])
+            ->toArray();
+
         $regulation->update([
-            'process_type_id' => $data['process_type_id'],
-            'document_type'   => $data['document_type'] ?? null,
-            'code'            => $data['code'] ? strtoupper($data['code']) : null,
-            'name'            => strtoupper($data['name']),
+            'process_type_id'  => $data['process_type_id'],
+            'document_type'    => $data['document_type'] ?? null,
+            'code'             => $data['code'] ? strtoupper($data['code']) : null,
+            'name'             => strtoupper($data['name']),
+            'previous_details' => $regulation->details,
+            'details'          => $newDetails,
         ]);
 
         return redirect()
             ->route('processes.show', $regulation)
-            ->with('success', 'Reglamento actualizado correctamente.');
+            ->with('success', 'Documento actualizado. Los cambios están resaltados en la vista de impresión.');
     }
 
     public function setFlow(Request $request, Regulation $regulation)
