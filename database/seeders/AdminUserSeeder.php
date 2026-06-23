@@ -32,10 +32,10 @@ class AdminUserSeeder extends Seeder
 
         // Administrador del grupo VIGIA
         User::updateOrCreate(
-            ['email' => 'admin@vigia.com.mx'],
+            ['email' => 'dev1.int@vigia.com.mx'],
             [
-                'name'        => 'Administrador',
-                'password'    => Hash::make('ASgalP*4007*'),
+                'name'        => 'Eliud Sanchez',
+                'password'    => Hash::make('123456789'),
                 'company_id'  => null,
                 'group_id'    => $vigiaGroup?->id,
                 'scope_level' => $vigiaGroup ? 'group' : 'global',
