@@ -34,7 +34,7 @@ class AdminUserSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'dev1.int@vigia.com.mx'],
             [
-                'name'        => 'Eliud Sanchez Garcia',
+                'name'        => 'Eliud Sanchez',
                 'password'    => Hash::make('123456789'),
                 'company_id'  => null,
                 'group_id'    => $vigiaGroup?->id,
