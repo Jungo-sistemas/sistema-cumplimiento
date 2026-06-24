@@ -125,7 +125,8 @@ class SemirremolquePropaneSeeder extends Seeder
 
         fclose($handle);
 
-        $this->command?->info("✓ Semirremolques PROPANE: {$count} activos enlazados a [{$permisoAsset->name}].");
+        $padre = $permisoAsset ? $permisoAsset->name : 'sin activo padre';
+        $this->command?->info("✓ Semirremolques PROPANE: {$count} activos cargados [{$padre}].");
     }
 
     private function col(array $data, string ...$keys): string
