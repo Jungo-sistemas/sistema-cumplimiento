@@ -22,7 +22,7 @@ class EsSeeder extends Seeder
     public function run(): void
     {
         DB::transaction(function () {
-            $mdiCompany      = Company::where('name', 'MDI')->firstOrFail();
+            $mdiCompany      = Company::where('name', 'MERCANTIL DISTRIBUIDORA')->firstOrFail();
             $vigiaGroup      = Group::where('slug', 'vigia')->firstOrFail();
             $responsibleUser = User::whereIn('email', ['admin@vigia.com.mx', 'dev2.int@vigia.com.mx'])
                 ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
