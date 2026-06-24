@@ -29,12 +29,16 @@ class SemirremolquePropaneSeeder extends Seeder
         $defaultStartDate = Carbon::now()->startOfDay();
         $defaultDueDate   = Carbon::now()->addYear()->startOfDay();
 
-        // Buscar el permiso de transporte existente por su código
+        // Buscar el permiso de transporte existente por su código (opcional)
         $permisoAsset = Asset::where('code', self::PERMISO)
             ->whereHas('assetType', fn ($q) => $q->where('name', 'Transporte'))
-            ->firstOrFail();
+            ->first();
 
-        $this->command?->info("Permiso de transporte encontrado: [{$permisoAsset->name}] id={$permisoAsset->id}");
+        if ($permisoAsset) {
+            $this->command?->info("Permiso de transporte encontrado: [{$permisoAsset->name}] id={$permisoAsset->id}");
+        } else {
+            $this->command?->warn("Permiso de transporte " . self::PERMISO . " no encontrado — semirremolques se cargarán sin activo padre.");
+        }
 
         $csvPath = database_path('seeders/examples/Semirremolque_Propane_Service.csv');
 
@@ -99,7 +103,7 @@ class SemirremolquePropaneSeeder extends Seeder
                         'asset_type_id'         => $semirremolqueType->id,
                         'name'                  => $name,
                         'location'              => null,
-                        'parent_asset_id'       => $permisoAsset->id,
+                        'parent_asset_id'       => $permisoAsset?->id,
                         'vault_location'        => self::PERMISO,
                         'responsible_user_id'   => $responsibleUser->id,
                         'status'                => 'active',
