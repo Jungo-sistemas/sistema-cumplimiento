@@ -98,6 +98,7 @@ class SemirremolquePropaneSeeder extends Seeder
                     [
                         'asset_type_id'         => $semirremolqueType->id,
                         'name'                  => $name,
+                        'location'              => null,
                         'parent_asset_id'       => $permisoAsset->id,
                         'vault_location'        => self::PERMISO,
                         'responsible_user_id'   => $responsibleUser->id,
