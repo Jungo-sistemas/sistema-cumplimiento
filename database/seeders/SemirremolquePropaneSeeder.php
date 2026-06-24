@@ -17,7 +17,7 @@ class SemirremolquePropaneSeeder extends Seeder
 
     public function run(): void
     {
-        $company = Company::where('name', 'PROPANE')->firstOrFail();
+        $company = Company::where('name', 'PROPANE SERVICES')->firstOrFail();
 
         $semirremolqueType = AssetType::where('name', 'Semirremolque')->firstOrFail();
 
