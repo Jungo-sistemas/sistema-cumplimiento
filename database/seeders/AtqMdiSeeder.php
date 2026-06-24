@@ -86,8 +86,9 @@ class AtqMdiSeeder extends Seeder
                 }
 
                 // Intentar enlazar con planta existente (case-insensitive)
-                $parentAsset  = $plantasMap->get($planta);
-                $parentId     = $parentAsset?->id;
+                $parentAsset   = $plantasMap->get($planta);
+                $parentId      = $parentAsset?->id;
+                $location      = $parentAsset?->location ?? null;
                 $vaultLocation = $this->col($data, 'PERMISO') ?: null;
 
                 // Si no se enlazó, guardar el nombre de la planta en bóveda como referencia
@@ -106,7 +107,7 @@ class AtqMdiSeeder extends Seeder
                 DB::transaction(function () use (
                     $company, $assetType, $responsibleUser, $syncService,
                     $defaultStartDate, $defaultDueDate, $code, $name,
-                    $parentId, $vaultLocation, $marca, $modelo, $placas,
+                    $parentId, $location, $vaultLocation, $marca, $modelo, $placas,
                     $capacidadInt, $data
                 ) {
                     $asset = Asset::updateOrCreate(
@@ -117,6 +118,7 @@ class AtqMdiSeeder extends Seeder
                         [
                             'asset_type_id'         => $assetType->id,
                             'name'                  => $name,
+                            'location'              => $location,
                             'parent_asset_id'       => $parentId,
                             'vault_location'        => $vaultLocation,
                             'responsible_user_id'   => $responsibleUser->id,

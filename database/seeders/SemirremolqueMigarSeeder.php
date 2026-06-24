@@ -78,6 +78,7 @@ class SemirremolqueMigarSeeder extends Seeder
                     [
                         'asset_type_id'         => $assetType->id,
                         'name'                  => $name,
+                        'location'              => null,
                         'parent_asset_id'       => null,
                         'vault_location'        => $this->col($data, 'PERMISO') ?: null,
                         'responsible_user_id'   => $responsibleUser->id,

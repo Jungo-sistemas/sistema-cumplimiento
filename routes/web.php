@@ -65,9 +65,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/api-tokens', [ApiTokenController::class, 'store'])->name('api-tokens.store');
         Route::delete('/api-tokens/{apiToken}', [ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
 
-        // Asset type slugs
-        Route::get('/asset-type-slugs', [SuperAdminController::class, 'assetTypeSlugs'])->name('asset-type-slugs.index');
-        Route::patch('/asset-type-slugs/{assetType}', [SuperAdminController::class, 'updateAssetTypeSlug'])->name('asset-type-slugs.update');
     });
 
     /*
@@ -123,6 +120,7 @@ Route::middleware('auth')->group(function () {
     // Weekly report (admin + operative)
     Route::get('/documents/report/weekly', [DocumentReportController::class, 'weeklyReport'])
         ->name('documents.report.weekly');
+
 
     // Trash (admin only)
     Route::get('/documents/trash', [DocumentTrashController::class, 'index'])
