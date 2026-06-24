@@ -29,7 +29,7 @@ class PlantasSeeder extends Seeder
     public function run(): void
     {
         DB::transaction(function () {
-            $company = Company::where('name', 'MDI')->firstOrFail();
+            $company = Company::where('name', 'MERCANTIL DISTRIBUIDORA')->firstOrFail();
             $responsibleUser = User::whereIn('email', ['admin@vigia.com.mx', 'dev2.int@vigia.com.mx'])
                 ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
                 ->firstOrFail();

@@ -15,7 +15,7 @@ class AtqMdiSeeder extends Seeder
 {
     public function run(): void
     {
-        $company = Company::where('name', 'MDI')->firstOrFail();
+        $company = Company::where('name', 'MERCANTIL DISTRIBUIDORA')->firstOrFail();
 
             $assetType = AssetType::where('name', 'ATQ')->firstOrFail();
 
