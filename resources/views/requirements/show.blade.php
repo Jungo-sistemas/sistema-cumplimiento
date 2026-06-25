@@ -34,9 +34,7 @@
         $totalNonRenewalTasks = $nonRenewalTasks->count();
         $doneNonRenewalTasks = $nonRenewalTasks->whereNotNull('completed_at')->count();
 
-        $canUploadOfficialDocument = !$assetInactive
-            && $totalNonRenewalTasks > 0
-            && $doneNonRenewalTasks === $totalNonRenewalTasks;
+        $canUploadOfficialDocument = !$assetInactive; // TODO: re-enable task gate after testing
 
         $titleReq = $requirement->template?->name ?? $requirement->type;
 

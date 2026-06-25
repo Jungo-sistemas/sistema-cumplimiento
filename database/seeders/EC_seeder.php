@@ -9,10 +9,12 @@ use App\Models\User;
 use App\Services\SyncAssetRequirementsService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Database\Seeders\Concerns\NormalizesLocation;
 use Illuminate\Support\Facades\DB;
 
 class EC_Seeder extends Seeder
 {
+    use NormalizesLocation;
     const MDI_RAZON_SOCIAL = 'Mercantil Distribuidora, S.A. de C.V.';
 
     public function run(): void
@@ -78,6 +80,10 @@ class EC_Seeder extends Seeder
                     continue;
                 }
 
+                // Normalize: strip leading "EC " if already present, then add it once
+                $station = preg_replace('/^EC\s+/i', '', $station);
+                $stationName = 'EC ' . strtoupper($station);
+
                 $startDate = $this->parseInicioVigencia($data['inicio_vigencia'] ?? null, $defaultStartDate);
 
                 $asset = Asset::updateOrCreate(
@@ -87,8 +93,8 @@ class EC_Seeder extends Seeder
                     ],
                     [
                         'asset_type_id' => $assetType->id,
-                        'name' => 'EC ' . $station,
-                        'location' => $location !== '' ? $location : null,
+                        'name' => $stationName,
+                        'location' => $this->normalizeLocation($location),
                         'vault_location' => $vaultLocation !== '' ? $vaultLocation : null,
                         'responsible_user_id' => $responsibleUser->id,
                         'status' => 'active',

@@ -9,10 +9,12 @@ use App\Models\User;
 use App\Services\SyncAssetRequirementsService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Database\Seeders\Concerns\NormalizesLocation;
 use Illuminate\Support\Facades\DB;
 
 class ES_Seeder extends Seeder
 {
+    use NormalizesLocation;
     const MDI_RAZON_SOCIAL = 'Mercantil Distribuidora, S.A. de C.V.';
 
     public function run(): void
@@ -73,6 +75,9 @@ class ES_Seeder extends Seeder
                 }
 
                 $name = strtoupper($name);
+                // Normalize: strip leading "ES " if already present, then add it once
+                $name = preg_replace('/^ES\s+/i', '', $name);
+                $name = 'ES ' . $name;
 
                 $startDate = $this->parseInicioVigencia($data['inicio_vigencia'] ?? null, $defaultStartDate);
 
@@ -84,7 +89,7 @@ class ES_Seeder extends Seeder
                     [
                         'asset_type_id' => $assetType->id,
                         'name' => $name,
-                        'location' => $location ?: null,
+                        'location' => $this->normalizeLocation($location),
                         'vault_location' => $vaultLocation ?: null,
                         'responsible_user_id' => $responsibleUser->id,
                         'status' => 'active',

@@ -55,7 +55,7 @@
                 @if($user->isAdmin() || $user->isOperative())
                     <a href="{{ route('processes.create', $selectedCompanyId ? ['company_id' => $selectedCompanyId] : []) }}"
                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
-                        Nuevo documento
+                        Nuevo procedimiento
                     </a>
                 @endif
             @endif
