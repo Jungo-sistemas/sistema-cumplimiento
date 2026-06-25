@@ -83,6 +83,96 @@
             @endif
         </div>
 
+        {{-- Panel de cambios recientes --}}
+        @php
+            $detailsCurrent  = $regulation->details          ?? [];
+            $detailsPrevious = $regulation->previous_details ?? [];
+
+            $fieldLabels = [
+                'resultado_esperado'          => 'Objetivo',
+                'problema_resuelve'           => 'Alcance / Problema que resuelve',
+                'areas_aplica'                => 'Áreas donde aplica',
+                'fuera_alcance'               => 'Fuera del alcance',
+                'quien_elabora'               => 'Elaborado por',
+                'quien_aprueba'               => 'Aprobado por',
+                'fecha_vigencia'              => 'Fecha de vigencia',
+                'indicador_proceso'           => 'Indicador de proceso',
+                'indicador_resultado'         => 'Indicador de resultado',
+                'meta_valor'                  => 'Meta',
+                'frecuencia_medicion'         => 'Frecuencia de medición',
+                'que_detona'                  => 'Detonante',
+                'lista_actividades'           => 'Actividades',
+                'decisiones_control'          => 'Decisiones y puntos de control',
+                'resultado_entregable'        => 'Resultado / Entregable',
+                'procedimientos_relacionados' => 'Procedimientos relacionados',
+                'documentos_usados'           => 'Documentos utilizados',
+                'terminos_abreviaturas'       => 'Términos y abreviaturas',
+                'riesgos_errores'             => 'Aviso de control',
+                'requerimientos_normativos'   => 'Requerimientos normativos',
+                'areas_roles_mapa'            => 'Áreas / Roles',
+                'areas_ejecutan'              => 'Áreas que ejecutan',
+                'proveedores_clientes'        => 'Proveedores / Clientes',
+            ];
+
+            $changedFields = [];
+            if (!empty($detailsPrevious)) {
+                foreach ($fieldLabels as $key => $label) {
+                    $oldVal = trim($detailsPrevious[$key] ?? '');
+                    $newVal = trim($detailsCurrent[$key]  ?? '');
+                    if (array_key_exists($key, $detailsPrevious) && $oldVal !== $newVal) {
+                        $changedFields[$key] = ['label' => $label, 'old' => $oldVal, 'new' => $newVal];
+                    }
+                }
+            }
+        @endphp
+
+        @if(!empty($changedFields))
+        <div class="mt-6" x-data="{ open: false }">
+            <button @click="open = !open"
+                    class="w-full flex items-center justify-between px-5 py-3.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 transition text-left">
+                <div class="flex items-center gap-2.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                    <span class="text-sm font-semibold text-amber-800">
+                        Última edición modificó {{ count($changedFields) }} {{ count($changedFields) === 1 ? 'campo' : 'campos' }}
+                    </span>
+                    <span class="text-xs text-amber-600 font-normal">— haz clic para ver qué cambió</span>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-500 shrink-0 transition-transform duration-200"
+                     :class="open ? 'rotate-180' : ''"
+                     fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </button>
+
+            <div x-show="open"
+                 x-transition:enter="transition ease-out duration-150"
+                 x-transition:enter-start="opacity-0 -translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-100"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 -translate-y-1"
+                 class="mt-1 rounded-xl border border-amber-200 overflow-hidden divide-y divide-amber-100">
+                @foreach($changedFields as $info)
+                <div class="px-5 py-4 bg-white">
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">{{ $info['label'] }}</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <p class="text-xs text-red-400 font-medium mb-1">Antes</p>
+                            <p class="text-sm text-gray-600 bg-red-50 border border-red-100 rounded px-2.5 py-2 whitespace-pre-line leading-snug min-h-[2rem]">{{ $info['old'] ?: '(vacío)' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-green-600 font-medium mb-1">Ahora</p>
+                            <p class="text-sm text-gray-800 bg-green-50 border border-green-100 rounded px-2.5 py-2 whitespace-pre-line leading-snug min-h-[2rem] font-medium">{{ $info['new'] ?: '(vacío)' }}</p>
+                        </div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
         @if(false) {{-- Vista del documento movida a processes.print --}}
         <div class="mt-8">
             {{-- Encabezado de sección con botón imprimir --}}
