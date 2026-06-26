@@ -39,9 +39,11 @@
             ?? $requirement->documents?->firstWhere('is_current', true)
             ?? $requirement->documents?->sortByDesc('version_number')->first();
 
-        $documentHistory = $requirement->documents
+        $documentHistory    = $requirement->documents
             ? $requirement->documents->sortByDesc('version_number')
             : collect();
+        $historyToShow      = $documentHistory->take(5);
+        $hasMoreHistory     = $documentHistory->count() > 5;
     @endphp
 
     <div class="bg-white rounded-xl shadow p-6">
@@ -164,63 +166,132 @@
                         <form method="POST"
                               action="{{ route('assets.requirements.documents.store', [$asset, $requirement]) }}"
                               enctype="multipart/form-data"
-                              class="space-y-4">
+                              x-data="{
+                                  mode: '{{ old('date_mode', 'renewal') }}',
+                                  slots: [1],
+                                  nextId: 2,
+                                  addSlot() { if (this.slots.length < 5) this.slots.push(this.nextId++); },
+                                  removeSlot(id) { if (this.slots.length > 1) this.slots = this.slots.filter(s => s !== id); }
+                              }"
+                              class="space-y-5">
                             @csrf
+                            <input type="hidden" name="date_mode" :value="mode">
 
+                            {{-- Tipo de documento --}}
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    Archivo
-                                </label>
-
-                                <input type="file"
-                                       name="file"
-                                       class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
-                                       required>
-
-                                @error('file')
-                                    <div class="text-sm text-red-600 mt-1">{{ $message }}</div>
-                                @enderror
-
-                                <div class="text-xs text-gray-500 mt-1">
-                                    Recomendado: PDF, JPG o PNG. Tamaño máximo: 10MB.
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de documento</label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button type="button" @click="mode = 'no_dates'"
+                                            :class="mode === 'no_dates'
+                                                ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                                            class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
+                                        Sin fechas<br>
+                                        <span class="font-normal opacity-75">sin revisión</span>
+                                    </button>
+                                    <button type="button" @click="mode = 'no_renewal'"
+                                            :class="mode === 'no_renewal'
+                                                ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                                            class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
+                                        Sin renovación<br>
+                                        <span class="font-normal opacity-75">solo emisión</span>
+                                    </button>
+                                    <button type="button" @click="mode = 'renewal'"
+                                            :class="mode === 'renewal'
+                                                ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                                            class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
+                                        Con renovación<br>
+                                        <span class="font-normal opacity-75">emisión y vencimiento</span>
+                                    </button>
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {{-- Fechas (condicional según modo) --}}
+                            <div x-show="mode !== 'no_dates'"
+                                 x-transition:enter="transition ease-out duration-150"
+                                 x-transition:enter-start="opacity-0"
+                                 x-transition:enter-end="opacity-100"
+                                 class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Fecha de emisión
-                                    </label>
-
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de emisión</label>
                                     <input type="date"
                                            name="issued_at"
                                            value="{{ old('issued_at', optional($currentDoc?->issued_at)->format('Y-m-d')) }}"
                                            class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
-
                                     @error('issued_at')
                                         <div class="text-sm text-red-600 mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
 
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Fecha de vencimiento
-                                    </label>
-
+                                <div x-show="mode === 'renewal'"
+                                     x-transition:enter="transition ease-out duration-150"
+                                     x-transition:enter-start="opacity-0"
+                                     x-transition:enter-end="opacity-100">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de vencimiento</label>
                                     <input type="date"
                                            name="expires_at"
                                            value="{{ old('expires_at', optional($currentDoc?->expires_at)->format('Y-m-d')) }}"
-                                           class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
-                                           required>
-
+                                           :required="mode === 'renewal'"
+                                           class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
                                     @error('expires_at')
                                         <div class="text-sm text-red-600 mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
                             </div>
 
+                            {{-- Archivos (hasta 5) --}}
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Archivos
+                                    <span class="font-normal text-gray-400">(máx. 5)</span>
+                                </label>
+
+                                <div class="space-y-2">
+                                    <template x-for="(slotId, index) in slots" :key="slotId">
+                                        <div class="flex items-center gap-2">
+                                            <input type="file"
+                                                   name="files[]"
+                                                   accept=".pdf,.jpg,.jpeg,.png"
+                                                   required
+                                                   class="block flex-1 rounded-md border border-gray-300 text-sm text-gray-700
+                                                          file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0
+                                                          file:text-sm file:font-medium file:bg-[#1A428A] file:text-white
+                                                          hover:file:bg-[#15356d] focus:outline-none">
+                                            <button type="button"
+                                                    @click="removeSlot(slotId)"
+                                                    x-show="slots.length > 1"
+                                                    class="shrink-0 w-8 h-8 flex items-center justify-center rounded-md border border-gray-300 text-gray-400 hover:text-red-600 hover:border-red-300 transition">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <button type="button"
+                                        @click="addSlot()"
+                                        x-show="slots.length < 5"
+                                        class="mt-2 flex items-center gap-1.5 text-sm text-[#1A428A] hover:underline font-medium">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                                    </svg>
+                                    Agregar otro archivo
+                                </button>
+
+                                @error('files')
+                                    <div class="text-sm text-red-600 mt-1">{{ $message }}</div>
+                                @enderror
+                                @error('files.*')
+                                    <div class="text-sm text-red-600 mt-1">{{ $message }}</div>
+                                @enderror
+                                <p class="text-xs text-gray-500 mt-1.5">PDF, JPG o PNG · Máximo 10 MB por archivo.</p>
+                            </div>
+
                             <button type="submit"
-                                class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                                    class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
                                 {{ $currentDoc ? 'Subir nueva versión' : 'Subir documento' }}
                             </button>
                         </form>
@@ -308,17 +379,25 @@
         </div>
 
         <div class="mt-8 bg-white border rounded-xl overflow-hidden">
-            <div class="p-5 border-b">
-                <div class="font-semibold text-[#1A428A]">Histórico documental</div>
-                <div class="text-sm text-gray-500">
-                    Se conservan todas las versiones del documento oficial registradas para este requerimiento.
+            <div class="p-5 border-b flex items-center justify-between">
+                <div>
+                    <div class="font-semibold text-[#1A428A]">Histórico documental</div>
+                    <div class="text-sm text-gray-500">
+                        Versiones del documento oficial registradas para este requerimiento.
+                    </div>
                 </div>
+                @if($hasMoreHistory)
+                    <a href="{{ route('assets.requirements.documents.history', [$asset, $requirement]) }}"
+                       class="shrink-0 text-sm font-semibold text-[#1A428A] hover:underline">
+                        Ver historial completo ({{ $documentHistory->count() }})
+                    </a>
+                @endif
             </div>
 
             <div class="p-5">
-                @if($documentHistory->isNotEmpty())
+                @if($historyToShow->isNotEmpty())
                     <div class="space-y-3">
-                        @foreach($documentHistory as $historyDoc)
+                        @foreach($historyToShow as $historyDoc)
                             <div class="border rounded-xl p-4 flex items-start justify-between gap-4">
                                 <div class="min-w-0">
                                     <div class="font-semibold text-gray-900 truncate">
@@ -388,6 +467,14 @@
                             </div>
                         @endforeach
                     </div>
+                @if($hasMoreHistory)
+                    <div class="mt-3 text-center">
+                        <a href="{{ route('assets.requirements.documents.history', [$asset, $requirement]) }}"
+                           class="text-sm font-semibold text-[#1A428A] hover:underline">
+                            Ver {{ $documentHistory->count() - 5 }} versión(es) más →
+                        </a>
+                    </div>
+                @endif
                 @else
                     <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-700 text-sm">
                         Aún no hay versiones registradas en el historial.

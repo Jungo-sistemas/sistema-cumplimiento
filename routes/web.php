@@ -236,6 +236,9 @@ Route::middleware('auth')->group(function () {
     Route::post('assets/{asset}/requirements/{requirement}/documents', [AssetRequirementDocumentController::class, 'store'])
         ->name('assets.requirements.documents.store');
 
+    Route::get('assets/{asset}/requirements/{requirement}/documents/history', [AssetRequirementDocumentController::class, 'documentHistory'])
+        ->name('assets.requirements.documents.history');
+
     Route::get('assets/{asset}/requirements/{requirement}/documents/{document}/preview', [AssetRequirementDocumentController::class, 'preview'])
         ->name('assets.requirements.documents.preview');
 
