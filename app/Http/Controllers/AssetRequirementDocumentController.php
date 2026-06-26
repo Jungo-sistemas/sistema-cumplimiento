@@ -54,7 +54,7 @@ class AssetRequirementDocumentController extends Controller
         ]);
     }
 
-    public function store(Request $request, Asset $asset, AssetRequirement $requirement, UploadOfficialDocumentService $uploadOfficialDocumentService) 
+    public function store(Request $request, Asset $asset, AssetRequirement $requirement, UploadOfficialDocumentService $uploadOfficialDocumentService)
     {
         $this->assertRequirementBelongsToAsset($asset, $requirement);
         $this->assertSameCompany($asset);
@@ -64,27 +64,44 @@ class AssetRequirementDocumentController extends Controller
             return back()->with('error', 'El activo está desactivado. No puedes subir documentación oficial.');
         }
 
+        $dateMode = $request->input('date_mode', 'renewal');
+
         $data = $request->validate([
-            'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
+            'date_mode' => ['required', 'in:no_dates,no_renewal,renewal'],
+            'files'     => ['required', 'array', 'min:1', 'max:5'],
+            'files.*'   => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
             'issued_at' => ['nullable', 'date'],
-            'expires_at' => ['required', 'date', 'after:today'],
+            'expires_at' => $dateMode === 'renewal'
+                ? ['required', 'date', 'after:today']
+                : ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
         ], [
-            'expires_at.required' => 'La fecha de vencimiento es obligatoria.',
-            'expires_at.after' => 'La fecha de vencimiento debe ser posterior a hoy.',
+            'files.required'    => 'Debes adjuntar al menos un archivo.',
+            'files.max'         => 'Puedes subir un máximo de 5 archivos a la vez.',
+            'files.*.required'  => 'Cada archivo es obligatorio.',
+            'files.*.mimes'     => 'Solo se permiten archivos PDF, JPG o PNG.',
+            'files.*.max'       => 'Cada archivo no puede superar los 10 MB.',
+            'expires_at.required' => 'La fecha de vencimiento es obligatoria cuando el documento tiene renovación.',
+            'expires_at.after'    => 'La fecha de vencimiento debe ser posterior a hoy.',
         ]);
 
-        $document = $uploadOfficialDocumentService->handle(
-            requirement: $requirement,
-            file: $request->file('file'),
-            issuedAt: $data['issued_at'] ?? null,
-            expiresAt: $data['expires_at'],
-            notes: $data['notes'] ?? null,
-        );
+        $issuedAt  = in_array($dateMode, ['no_renewal', 'renewal']) ? ($data['issued_at'] ?? null) : null;
+        $expiresAt = $dateMode === 'renewal' ? ($data['expires_at'] ?? null) : null;
 
-        if ($document->expires_at) {
+        $lastDocument = null;
+        foreach ($request->file('files', []) as $file) {
+            $lastDocument = $uploadOfficialDocumentService->handle(
+                requirement: $requirement,
+                file: $file,
+                issuedAt: $issuedAt,
+                expiresAt: $expiresAt,
+                notes: $data['notes'] ?? null,
+            );
+        }
+
+        if ($lastDocument && $lastDocument->expires_at) {
             $requirement->loadMissing(['asset', 'template']);
-            $dueDate = Carbon::parse($document->expires_at)->subDays(60);
+            $dueDate = Carbon::parse($lastDocument->expires_at)->subDays(60);
             if ($dueDate->isPast()) {
                 $dueDate = Carbon::today()->addDay();
             }
@@ -96,7 +113,36 @@ class AssetRequirementDocumentController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Documento oficial guardado correctamente.');
+        $count = count($request->file('files', []));
+        $msg   = $count > 1 ? "{$count} documentos guardados correctamente." : 'Documento oficial guardado correctamente.';
+
+        return back()->with('success', $msg);
+    }
+
+    public function documentHistory(Asset $asset, AssetRequirement $requirement)
+    {
+        $this->assertRequirementBelongsToAsset($asset, $requirement);
+        $this->assertSameCompany($asset);
+
+        $requirement->load(['template', 'documents.uploader']);
+
+        $documentHistory = $requirement->documents
+            ->sortByDesc('version_number');
+
+        $navContext = [
+            'asset'         => $asset,
+            'requirement'   => $requirement,
+            'task'          => null,
+            'documentSection' => true,
+            'documentOwner' => 'requirement',
+        ];
+
+        return view('requirements.documents-history', [
+            'asset'           => $asset,
+            'requirement'     => $requirement,
+            'documentHistory' => $documentHistory,
+            'navContext'      => $navContext,
+        ]);
     }
 
     public function download(Asset $asset, AssetRequirement $requirement, AssetRequirementDocument $document)
