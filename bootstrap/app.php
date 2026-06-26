@@ -13,7 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'api.token' => \App\Http\Middleware\ValidateApiToken::class,
+            'api.token'     => \App\Http\Middleware\ValidateApiToken::class,
+            'module.access' => \App\Http\Middleware\EnsureModuleAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

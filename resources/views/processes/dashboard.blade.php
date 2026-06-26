@@ -46,11 +46,12 @@
                 </div>
             </div>
 
-            {{-- Gráfica: Posición en el flujo (barra horizontal) --}}
+            {{-- Gráfica: Días promedio por paso del flujo (barra agrupada) --}}
             <div class="border rounded-xl p-5">
-                <div class="text-sm font-semibold text-gray-700 mb-4">Documentos por paso del flujo</div>
+                <div class="text-sm font-semibold text-gray-700 mb-1">Tiempo promedio por paso del flujo</div>
+                <div class="text-xs text-gray-400 mb-4">Días que tarda cada paso · detecta dónde se detiene el flujo</div>
                 <div style="height:220px;">
-                    <canvas id="chartStep"></canvas>
+                    <canvas id="chartDays"></canvas>
                 </div>
             </div>
         </div>
@@ -173,45 +174,63 @@
             },
         });
 
-        // ── Gráfica 2: Posición en el flujo (barra horizontal) ──────────────────
-        new Chart(document.getElementById('chartStep'), {
-            type: 'bar',
-            data: {
-                labels: ['Paso 1 · Líder', 'Paso 2', 'Paso 3', 'Paso 4 · Dirección'],
-                datasets: [{
-                    label: 'Documentos',
-                    data: cd.stepData ?? [0,0,0,0],
-                    backgroundColor: [
-                        'rgba(26,66,138,0.75)',
-                        'rgba(26,66,138,0.60)',
-                        'rgba(26,66,138,0.45)',
-                        'rgba(26,66,138,0.30)',
+        // ── Gráfica 2: Días promedio por paso del flujo (barra agrupada) ─────────
+        (function () {
+            const dd = cd.daysData ?? {};
+            new Chart(document.getElementById('chartDays'), {
+                type: 'bar',
+                data: {
+                    labels: dd.stepLabels ?? ['Paso 1', 'Paso 2', 'Paso 3', 'Paso 4'],
+                    datasets: [
+                        {
+                            label: 'Aprobado',
+                            data: dd.approved ?? [null, null, null, null],
+                            backgroundColor: 'rgba(34,197,94,0.80)',
+                            borderRadius: 4,
+                        },
+                        {
+                            label: 'Rechazado',
+                            data: dd.rejected ?? [null, null, null, null],
+                            backgroundColor: 'rgba(219,0,0,0.75)',
+                            borderRadius: 4,
+                        },
+                        {
+                            label: 'En espera',
+                            data: dd.pending ?? [null, null, null, null],
+                            backgroundColor: 'rgba(255,181,41,0.85)',
+                            borderRadius: 4,
+                        },
                     ],
-                    borderRadius: 4,
-                }],
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: ctx => ` ${ctx.parsed.x} documento${ctx.parsed.x !== 1 ? 's' : ''}`,
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => {
+                                    const days = ctx.parsed.y;
+                                    if (days === null || days === undefined) return '';
+                                    const counts = [dd.countApproved, dd.countRejected, dd.countPending];
+                                    const cnt = (counts[ctx.datasetIndex] ?? [])[ctx.dataIndex] ?? 0;
+                                    return ` ${ctx.dataset.label}: ${days} día${days !== 1 ? 's' : ''} · ${cnt} reg.`;
+                                },
+                            },
                         },
                     },
-                },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        ticks: { precision: 0, font: { size: 11 } },
-                        grid: { color: '#F3F4F6' },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Días promedio', font: { size: 10 }, color: '#6B7280' },
+                            ticks: { font: { size: 10 } },
+                            grid: { color: '#F3F4F6' },
+                        },
+                        x: { ticks: { font: { size: 10 } }, grid: { display: false } },
                     },
-                    y: { ticks: { font: { size: 11 } }, grid: { display: false } },
                 },
-            },
-        });
+            });
+        })();
 
         // ── Gráfica 3: Actividad semanal (línea) ────────────────────────────────
         new Chart(document.getElementById('chartWeekly'), {

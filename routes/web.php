@@ -38,7 +38,7 @@ Route::get('/dashboard', [ComplianceDashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'module.access'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------

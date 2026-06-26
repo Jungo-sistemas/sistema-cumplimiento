@@ -17,9 +17,9 @@ class ProcessesDashboardController extends Controller
 
         $scopeKey = $user->hasCompanyScope() ? "c{$user->company_id}" : "g{$user->group_id}";
 
-        // v2 — incluye chartData
+        // v3 — incluye daysData por paso
         [$stats, $recent, $chartData] = Cache::remember(
-            "dashboard:processes:v2:{$scopeKey}",
+            "dashboard:processes:v4:{$scopeKey}",
             now()->addMinutes(15),
             function () use ($user) {
                 $query = Regulation::query()
@@ -59,20 +59,55 @@ class ProcessesDashboardController extends Controller
                     (int) ((clone $query)->whereNull('approval_status')->count()),
                 ];
 
-                // Gráfica 2: posición actual en el flujo (paso con aprobación pendiente)
-                $rawByStep = RegulationApproval::whereIn('regulation_id', $allRegIds)
-                    ->where('status', 'pending')
-                    ->select('step_number', DB::raw('count(distinct regulation_id) as total'))
+                // Gráfica 2: días promedio por paso del flujo, agrupado por estado
+                // Etiquetas dinámicas: nombres de puestos que aparecen en cada paso
+                $stepPositionNames = RegulationApproval::whereIn('regulation_id', $allRegIds)
+                    ->join('job_positions', 'regulation_approvals.job_position_id', '=', 'job_positions.id')
+                    ->select('regulation_approvals.step_number', 'job_positions.name')
+                    ->distinct()
+                    ->orderBy('regulation_approvals.step_number')
+                    ->orderBy('job_positions.sort_order')
+                    ->get()
                     ->groupBy('step_number')
-                    ->orderBy('step_number')
-                    ->pluck('total', 'step_number');
+                    ->map(fn ($rows) => $rows->pluck('name')->implode('/'));
 
-                $stepData = [
-                    (int) ($rawByStep[1] ?? 0),
-                    (int) ($rawByStep[2] ?? 0),
-                    (int) ($rawByStep[3] ?? 0),
-                    (int) ($rawByStep[4] ?? 0),
-                ];
+                $stepLabels = [];
+                for ($s = 1; $s <= 4; $s++) {
+                    $pos = $stepPositionNames[$s] ?? null;
+                    $stepLabels[] = $pos ? "Paso {$s} · {$pos}" : "Paso {$s}";
+                }
+
+                $rawApprovals = RegulationApproval::whereIn('regulation_id', $allRegIds)
+                    ->whereIn('status', ['approved', 'rejected', 'pending'])
+                    ->select(['step_number', 'status', 'created_at', 'decided_at', 'regulation_id'])
+                    ->get();
+
+                $groups = ['approved' => [], 'rejected' => [], 'pending' => []];
+                foreach ($rawApprovals as $row) {
+                    $idx = $row->step_number - 1;
+                    if ($idx < 0 || $idx > 3) continue;
+                    $end  = $row->decided_at ? Carbon::parse($row->decided_at) : now();
+                    $days = (int) Carbon::parse($row->created_at)->diffInDays($end);
+                    $groups[$row->status][$idx][] = ['days' => $days, 'reg_id' => $row->regulation_id];
+                }
+
+                $daysData = ['stepLabels' => $stepLabels];
+                foreach (['approved', 'rejected', 'pending'] as $status) {
+                    $countKey            = 'count' . ucfirst($status);
+                    $daysData[$status]   = [];
+                    $daysData[$countKey] = [];
+                    for ($idx = 0; $idx < 4; $idx++) {
+                        $entries = $groups[$status][$idx] ?? [];
+                        if (empty($entries)) {
+                            $daysData[$status][]   = null;
+                            $daysData[$countKey][] = 0;
+                        } else {
+                            $totalDays             = array_sum(array_column($entries, 'days'));
+                            $daysData[$status][]   = round($totalDays / count($entries), 1);
+                            $daysData[$countKey][] = count(array_unique(array_column($entries, 'reg_id')));
+                        }
+                    }
+                }
 
                 // Gráfica 3: actividad semanal — últimas 8 semanas
                 $since = now()->startOfWeek()->subWeeks(7);
@@ -121,7 +156,7 @@ class ProcessesDashboardController extends Controller
 
                 $chartData = [
                     'statusData'     => $statusData,
-                    'stepData'       => $stepData,
+                    'daysData'       => $daysData,
                     'weeklyLabels'   => $weeklyLabels,
                     'weeklyApproved' => $weeklyApproved,
                     'weeklyRejected' => $weeklyRejected,
