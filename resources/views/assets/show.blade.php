@@ -454,6 +454,7 @@
                                     <option value="missing_document" {{ $activeStatus === 'missing_document' ? 'selected' : '' }}>Falta documento oficial</option>
                                     <option value="pending" {{ $activeStatus === 'pending' ? 'selected' : '' }}>Pendiente</option>
                                     <option value="in_progress" {{ $activeStatus === 'in_progress' ? 'selected' : '' }}>En progreso</option>
+                                    <option value="in_transit" {{ $activeStatus === 'in_transit' ? 'selected' : '' }}>En trámite</option>
                                     <option value="completed" {{ $activeStatus === 'completed' ? 'selected' : '' }}>Completado</option>
                                     <option value="expired" {{ $activeStatus === 'expired' ? 'selected' : '' }}>Vencido</option>
                                 </select>
@@ -492,6 +493,7 @@
                                     'missing_document' => 'Falta documento oficial',
                                     'pending' => 'Pendiente',
                                     'in_progress' => 'En progreso',
+                                    'in_transit' => 'En trámite',
                                     'completed' => 'Completado',
                                     'expired' => 'Vencido',
                                     default => $activeStatus,
@@ -548,6 +550,7 @@
                                         'missing_document' => 'Falta documento oficial',
                                         'pending'          => 'Pendiente',
                                         'in_progress'      => 'En progreso',
+                                        'in_transit'       => 'En trámite',
                                         'completed'        => 'Completado',
                                         'expired'          => 'Vencido',
                                         default            => \App\Enums\RequirementStatus::tryFrom($statusVal)?->label()
@@ -583,6 +586,7 @@
                                             'expired'          => 'bg-red-50 text-red-700 border-red-200',
                                             'completed'        => 'bg-green-50 text-green-700 border-green-200',
                                             'in_progress'      => 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                                            'in_transit'       => 'bg-indigo-50 text-indigo-700 border-indigo-200',
                                             'special_renewal'  => 'bg-blue-50 text-blue-700 border-blue-200',
                                             'special_checkin'  => 'bg-blue-50 text-blue-700 border-blue-200',
                                             'special_both'     => 'bg-orange-50 text-orange-700 border-orange-200',

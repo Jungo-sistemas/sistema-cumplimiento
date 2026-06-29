@@ -6,6 +6,7 @@ enum RequirementStatus: string
 {
     case PENDING = 'pending';
     case IN_PROGRESS = 'in_progress';
+    case IN_TRANSIT = 'in_transit';
     case COMPLETED = 'completed';
     case EXPIRED = 'expired';
     case CANCELLED = 'cancelled';
@@ -15,7 +16,8 @@ enum RequirementStatus: string
         return match ($this) {
             self::PENDING => 'Pendiente',
             self::IN_PROGRESS => 'En proceso',
-            self::COMPLETED => 'Completado ',
+            self::IN_TRANSIT => 'En trámite',
+            self::COMPLETED => 'Completado',
             self::EXPIRED => 'Expirado',
             self::CANCELLED => 'Cancelado',
         };

@@ -193,15 +193,16 @@ class SuperAdminController extends Controller
             ->orderBy('name')
             ->paginate(25);
 
-        $roles        = Role::orderBy('name')->get();
-        $companies    = Company::orderBy('name')->get();
-        $groups       = Group::orderBy('name')->get();
-        $jobPositions = JobPosition::where('is_active', true)
+        $roles            = Role::orderBy('name')->get();
+        $companies        = Company::orderBy('name')->get(['id', 'name', 'group_id']);
+        $companiesByGroup = $companies->groupBy('group_id')->map->values();
+        $groups           = Group::orderBy('name')->get();
+        $jobPositions     = JobPosition::where('is_active', true)
             ->orderBy('group_id')
             ->orderBy('sort_order')
             ->get(['id', 'group_id', 'name']);
 
-        return view('superadmin.users', compact('users', 'roles', 'companies', 'groups', 'jobPositions'));
+        return view('superadmin.users', compact('users', 'roles', 'companies', 'companiesByGroup', 'groups', 'jobPositions'));
     }
 
     public function storeUser(Request $request)

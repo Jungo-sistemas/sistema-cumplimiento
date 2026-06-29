@@ -46,7 +46,13 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm text-gray-700 mb-1">Contraseña</label>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-sm text-gray-700">Contraseña</label>
+                        <a href="{{ route('password.request') }}"
+                           class="text-xs text-[#1F3F82] hover:underline">
+                            ¿Olvidaste tu contraseña?
+                        </a>
+                    </div>
                     <input
                         type="password"
                         name="password"

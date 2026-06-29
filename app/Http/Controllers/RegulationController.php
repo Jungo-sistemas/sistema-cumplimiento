@@ -176,6 +176,24 @@ class RegulationController extends Controller
 
         $pendingApprovalForUser = $this->flowService->getPendingApprovalForUser($regulation, $user->id);
 
+        $positions = JobPosition::where('group_id', $regulation->group_id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
+
+        $positionLabels     = $positions->pluck('name', 'slug');
+        $positionSortOrders = $positions->pluck('sort_order', 'slug');
+
+        $usersByPosition = $user->isAdmin()
+            ? JobPosition::where('group_id', $regulation->group_id)
+                ->where('is_active', true)
+                ->with(['users' => fn ($q) => $q->select('users.id', 'users.name', 'users.email')->orderBy('users.name')])
+                ->get()
+                ->mapWithKeys(fn ($pos) => [
+                    $pos->slug => $pos->users->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'email' => $u->email])->values(),
+                ])
+            : collect();
+
         return view('processes.show', [
             'regulation'             => $regulation,
             'versionHistory'         => $versionHistory,
@@ -183,6 +201,10 @@ class RegulationController extends Controller
             'users'                  => $users,
             'documentTypes'          => Regulation::DOCUMENT_TYPES,
             'pendingApprovalForUser' => $pendingApprovalForUser,
+            'usersByPosition'        => $usersByPosition,
+            'positionLabels'         => $positionLabels,
+            'positionSortOrders'     => $positionSortOrders,
+            'flowDefinitions'        => ApprovalFlowService::getAllFlows(),
         ]);
     }
 
@@ -300,8 +322,8 @@ class RegulationController extends Controller
         $data = $request->validate([
             'process_type_id'             => ['required', 'exists:process_types,id'],
             'document_type'               => ['nullable', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
-            'code'                        => ['nullable', 'string', 'max:50'],
-            'name'                        => ['required', 'string', 'max:255'],
+            'codigo'                      => ['nullable', 'string', 'max:50'],
+            'nombre'                      => ['required', 'string', 'max:255'],
             'quien_elabora'               => ['required', 'string', 'max:255'],
             'quien_aprueba'               => ['required', 'string', 'max:255'],
             'fecha_vigencia'              => ['required', 'date'],
@@ -327,18 +349,42 @@ class RegulationController extends Controller
             'requerimientos_normativos'   => ['required', 'string'],
         ]);
 
+        $oldDetails       = $regulation->details ?? [];
+        $flowLocked       = $regulation->flow_locked;
+        $oldProcessTypeId = (int) $regulation->process_type_id;
+        $oldDocumentType  = $regulation->document_type ?? '';
+        $oldName          = $regulation->name ?? '';
+        $oldCode          = $regulation->code ?? '';
+
         $newDetails = collect($data)
-            ->except(['process_type_id', 'document_type', 'code', 'name'])
+            ->except(['process_type_id', 'document_type', 'codigo', 'nombre'])
             ->toArray();
 
         $regulation->update([
             'process_type_id'  => $data['process_type_id'],
             'document_type'    => $data['document_type'] ?? null,
-            'code'             => $data['code'] ? strtoupper($data['code']) : null,
-            'name'             => strtoupper($data['name']),
-            'previous_details' => $regulation->details,
+            'code'             => $data['codigo'] ? strtoupper($data['codigo']) : null,
+            'name'             => strtoupper($data['nombre']),
+            'previous_details' => $oldDetails ?: null,
             'details'          => $newDetails,
         ]);
+
+        // Detectar cambios en cualquier campo (details O columnas directas)
+        ksort($oldDetails);
+        $sortedNew = $newDetails;
+        ksort($sortedNew);
+
+        $detailsChanged = $oldDetails !== $sortedNew
+            || $oldProcessTypeId !== (int) $data['process_type_id']
+            || $oldDocumentType  !== ($data['document_type'] ?? '')
+            || $oldName          !== strtoupper($data['nombre'])
+            || $oldCode          !== ($data['codigo'] ? strtoupper($data['codigo']) : '');
+
+        if ($detailsChanged && $flowLocked && $user->isAdmin()) {
+            return redirect()
+                ->route('processes.show', ['regulation' => $regulation->id, 'review_flow' => 1])
+                ->with('success', 'Documento actualizado. Los cambios están resaltados en la vista de impresión.');
+        }
 
         return redirect()
             ->route('processes.show', $regulation)
@@ -350,7 +396,6 @@ class RegulationController extends Controller
         $user = auth()->user();
         abort_unless($user->isAdmin(), 403);
         abort_unless($user->canAccessCompany($regulation->company), 403);
-        abort_if($regulation->flow_locked, 403, 'El flujo ya está confirmado y no puede modificarse.');
 
         $data = $request->validate([
             'impact_level'    => ['nullable', 'string', 'in:' . implode(',', array_keys(Regulation::IMPACT_LEVELS))],
@@ -382,9 +427,70 @@ class RegulationController extends Controller
             $this->flowService->initFlow($regulation, $userMap);
         }
 
-        return back()->with('success', $newLevel
-            ? 'Flujo de aprobación confirmado e iniciado.'
-            : 'Flujo eliminado.');
+        $message = $newLevel ? 'Flujo de aprobación confirmado e iniciado.' : 'Flujo eliminado.';
+
+        // Si viene de la pantalla de revisión (show?review_flow=1), redirigir al show limpio
+        $referer = $request->headers->get('referer', '');
+        if (str_contains($referer, 'review_flow')) {
+            return redirect()->route('processes.show', $regulation)->with('success', $message);
+        }
+
+        return back()->with('success', $message);
+    }
+
+    public function obsoleto(Request $request)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin(), 403);
+
+        $selectedCompanyId = $user->hasGroupScope()
+            ? ($request->filled('company_id') ? (int) $request->company_id : null)
+            : (int) $user->company_id;
+
+        $companies = $user->hasGroupScope()
+            ? Company::where('group_id', $user->group_id)
+                ->where('otras', false)
+                ->orderBy('name')
+                ->get()
+            : collect();
+
+        // Regulaciones vencidas: versión actual con valid_until en el pasado
+        $expiredQuery = Regulation::with(['currentVersion', 'company:id,name', 'processType:id,name'])
+            ->where('group_id', $user->group_id)
+            ->where('is_active', true)
+            ->whereHas('currentVersion', fn ($q) => $q->where('valid_until', '<', now()));
+
+        if ($selectedCompanyId) {
+            $expiredQuery->where('company_id', $selectedCompanyId);
+        } elseif (! $user->hasGroupScope() && $user->company_id) {
+            $expiredQuery->where('company_id', $user->company_id);
+        }
+
+        $expiredRegulations = $expiredQuery->orderBy('name')->get();
+
+        // Versiones anteriores reemplazadas (is_current = false)
+        $oldVersionsQuery = \App\Models\RegulationVersion::with([
+                'regulation.company:id,name',
+                'regulation.processType:id,name',
+                'uploader:id,name',
+            ])
+            ->where('is_current', false)
+            ->whereHas('regulation', fn ($q) => $q->where('group_id', $user->group_id)->where('is_active', true));
+
+        if ($selectedCompanyId) {
+            $oldVersionsQuery->whereHas('regulation', fn ($q) => $q->where('company_id', $selectedCompanyId));
+        } elseif (! $user->hasGroupScope() && $user->company_id) {
+            $oldVersionsQuery->whereHas('regulation', fn ($q) => $q->where('company_id', $user->company_id));
+        }
+
+        $oldVersions = $oldVersionsQuery->orderBy('created_at', 'desc')->get();
+
+        return view('processes.obsoleto', [
+            'companies'          => $companies,
+            'selectedCompanyId'  => $selectedCompanyId,
+            'expiredRegulations' => $expiredRegulations,
+            'oldVersions'        => $oldVersions,
+        ]);
     }
 
     public function printView(Regulation $regulation)

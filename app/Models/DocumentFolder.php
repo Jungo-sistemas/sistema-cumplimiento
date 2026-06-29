@@ -17,6 +17,7 @@ class DocumentFolder extends Model
         'level',
         'sort_order',
         'is_active',
+        'admin_only',
     ];
 
     /*

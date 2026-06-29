@@ -147,6 +147,9 @@ Route::middleware(['auth', 'module.access'])->group(function () {
     Route::get('/processes/create', [RegulationController::class, 'create'])
         ->name('processes.create');
 
+    Route::get('/processes/obsoleto', [RegulationController::class, 'obsoleto'])
+        ->name('processes.obsoleto');
+
     Route::post('/processes/report', [ProcessReportController::class, 'export'])
         ->name('processes.report');
 
@@ -225,6 +228,9 @@ Route::middleware(['auth', 'module.access'])->group(function () {
 
     Route::patch('assets/{asset}/requirements/{requirement}/complete', [AssetRequirementController::class, 'complete'])
         ->name('assets.requirements.complete');
+
+    Route::patch('assets/{asset}/requirements/{requirement}/transit', [AssetRequirementController::class, 'markInTransit'])
+        ->name('assets.requirements.transit');
 
     Route::patch('assets/{asset}/requirements/{requirement}/reopen', [AssetRequirementController::class, 'reopen'])
         ->name('assets.requirements.reopen');

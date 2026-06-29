@@ -441,7 +441,9 @@ class AssetController extends Controller
 
             $computedStatus = $requirement->status?->value ?? $requirement->status ?? 'pending';
 
-            if (! $hasOfficialDocument) {
+            if ($computedStatus === 'in_transit') {
+                // Preserve: tasks done, waiting for official document from authority — no override
+            } elseif (! $hasOfficialDocument) {
                 $computedStatus = 'missing_document';
             } elseif ($riskLevel === 'danger') {
                 $computedStatus = 'expired';

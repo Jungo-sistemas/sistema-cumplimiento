@@ -20,6 +20,7 @@ class ExpireAssetRequirements extends Command
                 RequirementStatus::COMPLETED,
                 RequirementStatus::CANCELLED,
                 RequirementStatus::EXPIRED,
+                RequirementStatus::IN_TRANSIT,
             ]);
 
         $count = (clone $query)->count();

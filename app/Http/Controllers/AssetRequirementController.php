@@ -169,6 +169,24 @@ class AssetRequirementController extends Controller
         return back()->with('success', 'Requerimiento completado.');
     }
 
+    public function markInTransit(Asset $asset, AssetRequirement $requirement)
+    {
+        abort_unless((int) $requirement->asset_id === (int) $asset->id, 404);
+
+        $asset->loadMissing('company');
+
+        abort_unless(auth()->user()->canAccessCompany($asset->company), 403);
+        abort_unless(auth()->user()->isAdmin() || auth()->user()->isOperative(), 403);
+
+        if (! $requirement->canBeMarkedInTransit()) {
+            return back()->with('error', 'No se puede marcar como En trámite: deben completarse todas las tareas primero.');
+        }
+
+        $requirement->update(['status' => RequirementStatus::IN_TRANSIT]);
+
+        return back()->with('success', 'Requerimiento marcado como En trámite.');
+    }
+
     public function reopen(Asset $asset, AssetRequirement $requirement)
     {
         abort_unless((int) $requirement->asset_id === (int) $asset->id, 404);
