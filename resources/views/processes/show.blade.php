@@ -83,6 +83,64 @@
             @endif
         </div>
 
+        {{-- Panel: revisar flujo tras edición --}}
+        @if(request('review_flow') && auth()->user()->isAdmin() && $regulation->flow_locked)
+        <div class="mt-4"
+             x-data="{
+                selectedLevel: '{{ $regulation->impact_level }}',
+                impactLevels: @json(\App\Models\Regulation::IMPACT_LEVELS),
+                get levelLabel() {
+                    return this.impactLevels[this.selectedLevel] ?? '';
+                },
+                openFlowModal() {
+                    $dispatch('open-flow-modal', {
+                        formAction: '{{ route('processes.setFlow', $regulation) }}',
+                        regulationName: @js($regulation->name),
+                        impactLevel: this.selectedLevel,
+                        levelLabel: this.levelLabel,
+                    });
+                }
+             }">
+            <div class="rounded-xl border border-blue-200 bg-blue-50 px-5 py-4">
+                <div class="flex items-start gap-3">
+                    <svg class="h-5 w-5 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold text-blue-800">Se detectaron cambios en el documento</p>
+                        <p class="text-sm text-blue-700 mt-1">
+                            El flujo de aprobación fue configurado antes de esta edición. Puedes mantenerlo igual o reconfigurarlo para reflejar los cambios en el alcance.
+                        </p>
+
+                        <div class="mt-4 flex flex-wrap items-center gap-3">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-medium text-blue-700">Nivel de impacto:</span>
+                                <select x-model="selectedLevel"
+                                        class="rounded-lg border border-blue-300 bg-white text-sm px-3 py-1.5 text-gray-700 focus:outline-none focus:border-[#1A428A] focus:ring-1 focus:ring-[#1A428A]">
+                                    @foreach(\App\Models\Regulation::IMPACT_LEVELS as $lvlKey => $lvlLabel)
+                                        <option value="{{ $lvlKey }}" @selected($regulation->impact_level === $lvlKey)>{{ $lvlLabel }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <a href="{{ route('processes.show', $regulation) }}"
+                               class="px-4 py-2 rounded-lg border border-blue-300 bg-white text-blue-700 text-sm font-semibold hover:bg-blue-50 transition">
+                                Mantener flujo actual
+                            </a>
+
+                            <button type="button"
+                                    @click="openFlowModal()"
+                                    :disabled="!selectedLevel"
+                                    class="px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d] transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                Cambiar flujo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
         {{-- Panel de cambios recientes --}}
         @php
             $detailsCurrent  = $regulation->details          ?? [];
@@ -774,6 +832,14 @@
         </div>
     </div>
 
+    @if(auth()->user()->isAdmin())
+    {{-- Flujo de aprobación — modal reutilizado desde index --}}
+    <div x-data="flowModal(@json($usersByPosition), @json($flowDefinitions), @json($positionLabels), @json($positionSortOrders))"
+         @open-flow-modal.window="openModal($event.detail)">
+        @include('processes._flow-modal')
+    </div>
+    @endif
+
     <script>
         function openDeleteModal(actionUrl, fileName, versionNumber) {
             const modal = document.getElementById('deleteModal');
@@ -805,5 +871,100 @@
 
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDeleteModal(); });
     </script>
+
+    @if(auth()->user()->isAdmin())
+    <script>
+    function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders) {
+        return {
+            show: false,
+            removing: false,
+            formAction: '',
+            regulationName: '',
+            impactLevel: '',
+            levelLabel: '',
+            positions: [],
+            selected: {},
+            search: {},
+            open: {},
+
+            get canConfirm() {
+                if (this.removing) return true;
+                return this.positions.length > 0 &&
+                       this.positions.every(p => (this.selected[p.slug] || []).length > 0);
+            },
+
+            filtered(slug) {
+                const users = usersByPosition[slug] || [];
+                const selectedIds = (this.selected[slug] || []).map(u => u.id);
+                const available = users.filter(u => !selectedIds.includes(u.id));
+                const q = (this.search[slug] || '').toLowerCase().trim();
+                if (!q) return available;
+                return available.filter(u =>
+                    u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+                );
+            },
+
+            openModal(detail) {
+                this.formAction     = detail.formAction;
+                this.regulationName = detail.regulationName;
+                this.impactLevel    = detail.impactLevel;
+                this.levelLabel     = detail.levelLabel;
+                this.removing       = !detail.impactLevel;
+
+                this.positions = [];
+                this.selected  = {};
+                this.search    = {};
+                this.open      = {};
+
+                if (detail.impactLevel && flowDefs[detail.impactLevel]) {
+                    const steps = flowDefs[detail.impactLevel];
+                    const seen  = new Set();
+
+                    Object.entries(steps).forEach(([step, stepDef]) => {
+                        stepDef.positions.forEach(slug => {
+                            if (!seen.has(slug)) {
+                                seen.add(slug);
+                                this.positions.push({
+                                    slug,
+                                    label: positionLabels[slug] || slug,
+                                    step: parseInt(step),
+                                    requiresAll: stepDef.requires_all,
+                                });
+                                this.selected[slug] = [];
+                                this.search[slug]   = '';
+                                this.open[slug]     = false;
+                            }
+                        });
+                    });
+                }
+
+                this.positions.sort((a, b) =>
+                    (positionSortOrders[b.slug] || 0) - (positionSortOrders[a.slug] || 0)
+                );
+
+                this.show = true;
+            },
+
+            selectUser(slug, user) {
+                if (!this.selected[slug]) this.selected[slug] = [];
+                if (!this.selected[slug].find(u => u.id === user.id)) {
+                    this.selected[slug] = [...this.selected[slug], user];
+                }
+                this.search[slug] = '';
+                this.open[slug]   = false;
+            },
+
+            removeUser(slug, userId) {
+                this.selected[slug] = (this.selected[slug] || []).filter(u => u.id !== userId);
+            },
+
+            confirmFlow() {
+                if (!this.canConfirm) return;
+                this.$refs.flowForm.submit();
+            },
+        };
+    }
+    </script>
+    @endif
 
 </x-layouts.vigia>

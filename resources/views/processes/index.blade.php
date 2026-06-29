@@ -33,6 +33,16 @@
         </h1>
 
         <div class="flex items-center gap-2">
+            @if($user->isAdmin())
+                <a href="{{ route('processes.obsoleto') }}"
+                   class="flex items-center gap-1.5 px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-600 font-semibold text-sm hover:bg-gray-50">
+                    <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2L19 8M10 12v4M14 12v4"/>
+                    </svg>
+                    Obsoleto
+                </a>
+            @endif
+
             @if($cardView)
                 {{-- Botón de reporte cross-empresa desde la vista de tarjetas --}}
                 <a href="{{ route('processes.index', ['report' => 1]) }}"
@@ -439,8 +449,16 @@
                                 {{-- Columna Flujo --}}
                                 <td class="px-4 py-3 min-w-[170px]">
                                     @if($user->isAdmin())
-                                        @if(!$regulation->flow_locked)
-                                            {{-- Selector que abre modal de asignación --}}
+                                        @if($regulation->flow_locked)
+                                            {{-- Flujo ya configurado: solo lectura, se cambia editando el documento --}}
+                                            <div class="text-xs border border-amber-300 rounded px-2 py-1 bg-amber-50 text-amber-800 w-full mb-1.5 flex items-center gap-1.5">
+                                                <svg class="h-3.5 w-3.5 shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                                </svg>
+                                                <span>{{ \App\Models\Regulation::IMPACT_LEVELS[$regulation->impact_level] ?? $regulation->impact_level }} (activo)</span>
+                                            </div>
+                                        @else
+                                            {{-- Sin flujo aún: selector para configurarlo --}}
                                             <select
                                                 @change="$dispatch('open-flow-modal', {
                                                     regulationId: {{ $regulation->id }},
@@ -448,23 +466,13 @@
                                                     impactLevel: $event.target.value,
                                                     levelLabel: $event.target.options[$event.target.selectedIndex].text,
                                                     formAction: '{{ route('processes.setFlow', $regulation) }}'
-                                                }); $event.target.value = '{{ $regulation->impact_level ?? '' }}'"
+                                                }); $event.target.value = ''"
                                                 class="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:border-blue-400 w-full mb-1.5">
-                                                <option value="">— Sin flujo —</option>
+                                                <option value="">— Asignar flujo —</option>
                                                 @foreach(\App\Models\Regulation::IMPACT_LEVELS as $val => $lbl)
-                                                    <option value="{{ $val }}" {{ $regulation->impact_level === $val ? 'selected' : '' }}>
-                                                        {{ $lbl }}
-                                                    </option>
+                                                    <option value="{{ $val }}">{{ $lbl }}</option>
                                                 @endforeach
                                             </select>
-                                        @else
-                                            {{-- Flujo confirmado: etiqueta con candado --}}
-                                            <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-700 mb-1.5">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                                                    <path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clip-rule="evenodd"/>
-                                                </svg>
-                                                {{ $regulation->impactLevelLabel() }}
-                                            </span>
                                         @endif
                                     @endif
 

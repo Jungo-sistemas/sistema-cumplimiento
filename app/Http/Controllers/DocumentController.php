@@ -34,7 +34,8 @@ class DocumentController extends Controller
             ->where('level', 'folder')
             ->where('group_id', $user->group_id)
             ->whereNull('company_id')
-            ->where('is_active', true);
+            ->where('is_active', true)
+            ->when(! $user->isAdmin(), fn ($q) => $q->where('admin_only', false));
 
         $matchingCategories = collect();
         $matchingDocuments  = collect();
@@ -237,8 +238,14 @@ class DocumentController extends Controller
 
     // General folders (company_id=null) are accessible to any user in the same group.
     // Company-specific folders (legacy) require canAccessCompany.
+    // admin_only folders are restricted to admins.
     private function authorizeFolder($user, DocumentFolder $folder): void
     {
+        if ($folder->admin_only) {
+            abort_unless($user->isAdmin(), 403);
+            return;
+        }
+
         if ($folder->company_id !== null) {
             $folder->loadMissing('company');
             abort_unless($user->canAccessCompany($folder->company), 403);

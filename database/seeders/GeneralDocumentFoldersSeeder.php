@@ -13,6 +13,7 @@ class GeneralDocumentFoldersSeeder extends Seeder
         'Inmobiliarios',
         'Comerciales / contractuales',
         'Operativos críticos',
+        'En trámite y regularización',
     ];
 
     public function run(): void

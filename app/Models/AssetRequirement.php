@@ -76,7 +76,8 @@ class AssetRequirement extends Model
             !in_array($this->status, [
                 RequirementStatus::COMPLETED,
                 RequirementStatus::CANCELLED,
-                RequirementStatus::EXPIRED
+                RequirementStatus::EXPIRED,
+                RequirementStatus::IN_TRANSIT,
             ])
         ) {
             $this->updateQuietly([
@@ -118,7 +119,8 @@ class AssetRequirement extends Model
         return $query->where('due_date', '<', now())
             ->whereNotIn('status', [
                 RequirementStatus::COMPLETED,
-                RequirementStatus::CANCELLED
+                RequirementStatus::CANCELLED,
+                RequirementStatus::IN_TRANSIT,
             ]);
     }
 
@@ -134,7 +136,8 @@ class AssetRequirement extends Model
             now()->addDays($days)
         ])->whereNotIn('status', [
             RequirementStatus::COMPLETED,
-            RequirementStatus::CANCELLED
+            RequirementStatus::CANCELLED,
+            RequirementStatus::IN_TRANSIT,
         ]);
     }
 
@@ -145,7 +148,8 @@ class AssetRequirement extends Model
             now()->addDays(self::DANGER_DAYS)
         ])->whereNotIn('status', [
             RequirementStatus::COMPLETED,
-            RequirementStatus::CANCELLED
+            RequirementStatus::CANCELLED,
+            RequirementStatus::IN_TRANSIT,
         ]);
     }
 
@@ -174,14 +178,32 @@ class AssetRequirement extends Model
         if ($this->status === RequirementStatus::COMPLETED) return 'completed';
         if ($this->status === RequirementStatus::CANCELLED) return 'cancelled';
         if ($this->status === RequirementStatus::EXPIRED) return 'expired';
+        if ($this->status === RequirementStatus::IN_TRANSIT) return 'in_transit';
 
-        // Estado visual expirado aunque no se haya persistido
+        // Estado visual expirado aunque no se haya persistido (in_transit ya fue excluido)
         if ($this->due_date && $this->due_date->lt(now())) return 'expired';
 
         // Inferencia ligera por tareas
         if (($this->tasks_done ?? 0) > 0) return 'in_progress';
 
         return 'pending';
+    }
+
+    public function canBeMarkedInTransit(): bool
+    {
+        if (in_array($this->status, [
+            RequirementStatus::COMPLETED,
+            RequirementStatus::CANCELLED,
+            RequirementStatus::IN_TRANSIT,
+        ])) {
+            return false;
+        }
+
+        if (!$this->tasks()->exists()) {
+            return false;
+        }
+
+        return !$this->tasks()->whereNull('completed_at')->exists();
     }
 
     public function isRecurrent(): bool

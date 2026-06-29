@@ -32,6 +32,7 @@ class NotifyDueSoonRequirements extends Command
                     RequirementStatus::COMPLETED,
                     RequirementStatus::CANCELLED,
                     RequirementStatus::EXPIRED,
+                    RequirementStatus::IN_TRANSIT,
                 ])
                 ->with(['asset.responsible', 'template'])
                 ->get();

@@ -6,11 +6,13 @@
             showForm: {{ old('role_id') ? 'true' : 'false' }},
             selectedRole: '{{ old('role_id', '') }}',
             selectedGroup: '{{ old('group_id', '') }}',
+            selectedCompany: '{{ old('company_id', '') }}',
             selectedModuleAccess: '{{ old('module_access', 'all') }}',
             selectedPosition: '{{ old('job_position_id', '') }}',
             superadminId: '{{ $roles->where('slug', 'superadmin')->first()?->id }}',
             adminId: '{{ $roles->where('slug', 'admin')->first()?->id }}',
             allPositions: @json($jobPositions),
+            allCompanies: @json($companiesByGroup),
             editOpen: false,
             editUserId: null,
             editUserName: '',
@@ -25,11 +27,19 @@
                 if (!this.selectedGroup) return [];
                 return this.allPositions.filter(p => String(p.group_id) === String(this.selectedGroup));
             },
+            get createCompanies() {
+                if (!this.selectedGroup) return [];
+                return this.allCompanies[this.selectedGroup] ?? [];
+            },
             get isSuperadminEdit() { return this.editRole === this.superadminId; },
             get isAdminEdit() { return this.editRole === this.adminId; },
             get editPositions() {
                 if (!this.editGroup) return [];
                 return this.allPositions.filter(p => String(p.group_id) === String(this.editGroup));
+            },
+            get editCompanies() {
+                if (!this.editGroup) return [];
+                return this.allCompanies[this.editGroup] ?? [];
             },
             openEdit(id, name, roleId, groupId, companyId, moduleAccess, positionId) {
                 this.editUserId = id;
@@ -146,6 +156,7 @@
                             id="user_group_id"
                             name="group_id"
                             x-model="selectedGroup"
+                            @change="selectedCompany = ''; selectedPosition = ''"
                             class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]"
                         >
                             <option value="">Seleccionar grupo…</option>
@@ -168,15 +179,17 @@
                         <select
                             id="user_company_id"
                             name="company_id"
+                            x-model="selectedCompany"
                             class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]"
                         >
                             <option value="">Seleccionar empresa…</option>
-                            @foreach($companies as $company)
-                                <option value="{{ $company->id }}" {{ old('company_id') == $company->id ? 'selected' : '' }}>
-                                    {{ $company->name }} ({{ $company->group?->name ?? '—' }})
-                                </option>
-                            @endforeach
+                            <template x-for="c in createCompanies" :key="c.id">
+                                <option :value="c.id" x-text="c.name" :selected="selectedCompany == c.id"></option>
+                            </template>
                         </select>
+                        <p x-show="!selectedGroup && !isSuperadminCreate" class="mt-1 text-xs text-yellow-600">
+                            Selecciona un grupo para ver las empresas.
+                        </p>
                         @error('company_id')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                         @enderror
@@ -304,6 +317,7 @@
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Grupo</label>
                                     <select name="group_id" x-model="editGroup"
+                                        @change="editCompany = ''; editPosition = ''"
                                         class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
                                         <option value="">Sin grupo</option>
                                         @foreach($groups as $group)
@@ -317,10 +331,11 @@
                                     <select name="company_id" x-model="editCompany"
                                         class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
                                         <option value="">Sin empresa</option>
-                                        @foreach($companies as $company)
-                                            <option value="{{ $company->id }}">{{ $company->name }}</option>
-                                        @endforeach
+                                        <template x-for="c in editCompanies" :key="c.id">
+                                            <option :value="c.id" x-text="c.name" :selected="editCompany == c.id"></option>
+                                        </template>
                                     </select>
+                                    <p x-show="!editGroup" class="mt-1 text-xs text-yellow-600">Selecciona un grupo para ver las empresas.</p>
                                 </div>
                             </div>
 

@@ -99,6 +99,28 @@
                     </button>
                 @endif
 
+                @if(!$assetInactive && (auth()->user()->isAdmin() || auth()->user()->isOperative()))
+                    @if($requirement->status === \App\Enums\RequirementStatus::IN_TRANSIT)
+                        <form method="POST" action="{{ route('assets.requirements.reopen', [$asset, $requirement]) }}">
+                            @csrf
+                            @method('PATCH')
+                            <button type="submit"
+                                class="px-4 py-2 rounded-md border bg-white text-amber-700 border-amber-400 font-semibold hover:bg-amber-50">
+                                Reabrir
+                            </button>
+                        </form>
+                    @elseif($requirement->canBeMarkedInTransit())
+                        <form method="POST" action="{{ route('assets.requirements.transit', [$asset, $requirement]) }}">
+                            @csrf
+                            @method('PATCH')
+                            <button type="submit"
+                                class="px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold hover:bg-indigo-700">
+                                Marcar en trámite
+                            </button>
+                        </form>
+                    @endif
+                @endif
+
                 <a href="{{ route('assets.show', $asset) }}"
                    class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
                     Volver
@@ -127,9 +149,22 @@
                     </div>
                     <div>
                         <strong>Estado:</strong>
-                        {{ \App\Enums\RequirementStatus::tryFrom($requirement->computed_status ?? '')?->label()
-                            ?? $requirement->status?->label()
-                            ?? 'Pendiente' }}
+                        @php
+                            $reqStatus = $requirement->status?->value ?? '';
+                            $reqStatusLabel = match($reqStatus) {
+                                'in_transit' => 'En trámite',
+                                default      => \App\Enums\RequirementStatus::tryFrom($reqStatus)?->label()
+                                                ?? $requirement->status?->label()
+                                                ?? 'Pendiente',
+                            };
+                        @endphp
+                        <span class="inline-flex px-2 py-0.5 rounded border text-xs
+                            {{ $reqStatus === 'in_transit'  ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : '' }}
+                            {{ $reqStatus === 'completed'   ? 'bg-green-50 text-green-700 border-green-200' : '' }}
+                            {{ $reqStatus === 'expired'     ? 'bg-red-50 text-red-700 border-red-200' : '' }}
+                            {{ $reqStatus === 'in_progress' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : '' }}
+                            {{ !in_array($reqStatus, ['in_transit','completed','expired','in_progress']) ? 'bg-gray-100 text-gray-700 border-gray-300' : '' }}
+                        ">{{ $reqStatusLabel }}</span>
                     </div>
                 </div>
 
