@@ -78,7 +78,11 @@ class TwoFactorController extends Controller
             return redirect()->route('superadmin.dashboard');
         }
 
-        return redirect()->intended(route('dashboard'));
+        $defaultRoute = ($user->module_access === 'procesos')
+            ? route('processes.dashboard')
+            : route('dashboard');
+
+        return redirect()->intended($defaultRoute);
     }
 
     public function resend(Request $request): RedirectResponse

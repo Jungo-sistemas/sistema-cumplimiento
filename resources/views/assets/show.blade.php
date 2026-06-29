@@ -318,7 +318,7 @@
 
                             @if($hasActiveFilters)
                                 <a
-                                    href="{{ route('assets.show', ['asset' => $asset, 'scope' => $scope]) }}"
+                                    href="{{ route('assets.show', ['asset' => $asset, 'scope' => $scope, 'clear_filters' => 1]) }}"
                                     class="px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 whitespace-nowrap"
                                 >
                                     Limpiar

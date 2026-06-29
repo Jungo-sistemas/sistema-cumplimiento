@@ -20,7 +20,7 @@ class UserController extends Controller
 
         $authUser = auth()->user();
 
-        $users = User::with(['role', 'company', 'group'])
+        $users = User::with(['role', 'company', 'group', 'jobPositions'])
             ->when($authUser->isGlobalScope(), function ($query) {
                 // global-scope admins see all users except superadmins
                 $query->whereHas('role', fn ($q) => $q->where('slug', '!=', 'superadmin'));
@@ -40,7 +40,15 @@ class UserController extends Controller
 
         $roles = Role::whereIn('slug', $allowedRoleSlugs)->orderBy('name')->get();
 
-        return view('users.index', compact('users', 'roles'));
+        $adminRoleId = $roles->where('slug', 'admin')->first()?->id;
+
+        $positionsByGroup = JobPosition::where('is_active', true)
+            ->orderBy('sort_order')
+            ->get(['id', 'group_id', 'name'])
+            ->groupBy('group_id')
+            ->map->values();
+
+        return view('users.index', compact('users', 'roles', 'adminRoleId', 'positionsByGroup'));
     }
 
     public function create()
@@ -103,7 +111,9 @@ class UserController extends Controller
             $groupId      = $request->group_id ?? $authUser->group_id;
             $companyId    = null;
             $scopeLevel   = 'group';
-            $moduleAccess = 'all';
+            $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
+                ? $request->module_access
+                : 'all';
         } else {
             $request->validate([
                 'company_id'    => ['required', 'exists:companies,id'],
@@ -163,7 +173,8 @@ class UserController extends Controller
         }
 
         $request->validate([
-            'role_id' => ['required', 'exists:roles,id'],
+            'role_id'       => ['required', 'exists:roles,id'],
+            'module_access' => ['nullable', 'in:all,cumplimiento,procesos'],
         ]);
 
         $role = Role::findOrFail($request->role_id);
@@ -171,16 +182,26 @@ class UserController extends Controller
         abort_if($role->slug === 'superadmin', 403);
         abort_if($role->slug === 'admin' && ! $authUser->hasGroupScope() && ! $authUser->isGlobalScope(), 403);
 
-        $scopeLevel = ($role->slug === 'admin') ? 'group' : 'company';
+        $scopeLevel   = ($role->slug === 'admin') ? 'group' : 'company';
+        $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
+            ? $request->module_access
+            : 'all';
 
         $user->update([
-            'role_id'     => $role->id,
-            'scope_level' => $scopeLevel,
+            'role_id'       => $role->id,
+            'scope_level'   => $scopeLevel,
+            'module_access' => $moduleAccess,
         ]);
+
+        if ($request->filled('job_position_id')) {
+            $user->jobPositions()->sync([$request->job_position_id]);
+        } else {
+            $user->jobPositions()->detach();
+        }
 
         return redirect()
             ->route('users.index')
-            ->with('success', "Rol de «{$user->name}» actualizado correctamente.");
+            ->with('success', "Usuario «{$user->name}» actualizado correctamente.");
     }
 
     public function destroy(User $user)

@@ -1,24 +1,51 @@
 <x-layouts.vigia title="Usuarios del Sistema">
 
-    <div x-data="{
-        showForm: false,
-        selectedRole: '{{ old('role_id', '') }}',
-        superadminId: '{{ $roles->where('slug', 'superadmin')->first()?->id }}',
-        editOpen: false,
-        editUserId: null,
-        editUserName: '',
-        editRole: '',
-        editGroup: '',
-        editCompany: '',
-        openEdit(id, name, roleId, groupId, companyId) {
-            this.editUserId = id;
-            this.editUserName = name;
-            this.editRole = String(roleId ?? '');
-            this.editGroup = String(groupId ?? '');
-            this.editCompany = String(companyId ?? '');
-            this.editOpen = true;
-        }
-    }">
+    <script>
+    function usersPageData() {
+        return {
+            showForm: {{ old('role_id') ? 'true' : 'false' }},
+            selectedRole: '{{ old('role_id', '') }}',
+            selectedGroup: '{{ old('group_id', '') }}',
+            selectedModuleAccess: '{{ old('module_access', 'all') }}',
+            selectedPosition: '{{ old('job_position_id', '') }}',
+            superadminId: '{{ $roles->where('slug', 'superadmin')->first()?->id }}',
+            adminId: '{{ $roles->where('slug', 'admin')->first()?->id }}',
+            allPositions: @json($jobPositions),
+            editOpen: false,
+            editUserId: null,
+            editUserName: '',
+            editRole: '',
+            editGroup: '',
+            editCompany: '',
+            editModuleAccess: 'all',
+            editPosition: '',
+            get isSuperadminCreate() { return this.selectedRole === this.superadminId; },
+            get isAdminCreate() { return this.selectedRole === this.adminId; },
+            get createPositions() {
+                if (!this.selectedGroup) return [];
+                return this.allPositions.filter(p => String(p.group_id) === String(this.selectedGroup));
+            },
+            get isSuperadminEdit() { return this.editRole === this.superadminId; },
+            get isAdminEdit() { return this.editRole === this.adminId; },
+            get editPositions() {
+                if (!this.editGroup) return [];
+                return this.allPositions.filter(p => String(p.group_id) === String(this.editGroup));
+            },
+            openEdit(id, name, roleId, groupId, companyId, moduleAccess, positionId) {
+                this.editUserId = id;
+                this.editUserName = name;
+                this.editRole = String(roleId ?? '');
+                this.editGroup = String(groupId ?? '');
+                this.editCompany = String(companyId ?? '');
+                this.editModuleAccess = moduleAccess || 'all';
+                this.editPosition = String(positionId ?? '');
+                this.editOpen = true;
+            }
+        };
+    }
+    </script>
+
+    <div x-data="usersPageData()">
 
         {{-- Header --}}
         <div class="mb-6 flex items-center justify-between">
@@ -111,13 +138,14 @@
                     </div>
 
                     {{-- Grupo (hidden when superadmin) --}}
-                    <div x-show="selectedRole !== '{{ $roles->where('slug', 'superadmin')->first()?->id }}'">
+                    <div x-show="!isSuperadminCreate">
                         <label class="mb-1 block text-sm font-medium text-gray-700" for="user_group_id">
                             Grupo
                         </label>
                         <select
                             id="user_group_id"
                             name="group_id"
+                            x-model="selectedGroup"
                             class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]"
                         >
                             <option value="">Seleccionar grupo…</option>
@@ -133,7 +161,7 @@
                     </div>
 
                     {{-- Empresa (hidden when superadmin) --}}
-                    <div x-show="selectedRole !== '{{ $roles->where('slug', 'superadmin')->first()?->id }}'">
+                    <div x-show="!isSuperadminCreate">
                         <label class="mb-1 block text-sm font-medium text-gray-700" for="user_company_id">
                             Empresa
                         </label>
@@ -154,10 +182,42 @@
                         @enderror
                     </div>
 
+                    {{-- Puesto (hidden when superadmin) --}}
+                    <div x-show="!isSuperadminCreate">
+                        <label class="mb-1 block text-sm font-medium text-gray-700">Puesto</label>
+                        <select name="job_position_id" x-model="selectedPosition"
+                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                            <option value="">— Sin asignar —</option>
+                            <template x-for="pos in createPositions" :key="pos.id">
+                                <option :value="pos.id" x-text="pos.name"></option>
+                            </template>
+                        </select>
+                        <p x-show="selectedGroup === '' && selectedRole !== '' && !isSuperadminCreate"
+                           class="mt-1 text-xs text-yellow-600">Selecciona un grupo para ver los puestos.</p>
+                    </div>
+
+                    {{-- Vista predeterminada / Módulos (hidden when superadmin) --}}
+                    <div x-show="!isSuperadminCreate">
+                        <label class="mb-1 block text-sm font-medium text-gray-700">
+                            <span x-text="isAdminCreate ? 'Vista predeterminada' : 'Módulos visibles'"></span>
+                        </label>
+                        <select name="module_access" x-model="selectedModuleAccess"
+                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                            <option value="all">Ambos módulos</option>
+                            <option value="cumplimiento">Solo Cumplimiento</option>
+                            <option value="procesos">Solo Procesos</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-400"
+                           x-text="isAdminCreate
+                               ? 'Define el módulo de inicio (el admin accede a todo).'
+                               : 'Define a qué módulo tendrá acceso este usuario.'">
+                        </p>
+                    </div>
+
                     {{-- Superadmin note --}}
-                    <div x-show="selectedRole === '{{ $roles->where('slug', 'superadmin')->first()?->id }}'" class="sm:col-span-2">
+                    <div x-show="isSuperadminCreate" class="sm:col-span-2">
                         <p class="rounded-md bg-purple-50 border border-purple-200 px-3 py-2 text-sm text-purple-700">
-                            El Superadministrador tiene acceso global — no requiere empresa ni grupo.
+                            El Superadministrador tiene acceso global — no requiere empresa, grupo ni puesto.
                         </p>
                     </div>
 
@@ -235,7 +295,7 @@
                             </div>
 
                             {{-- Grupo + Empresa (ocultos para superadmin) --}}
-                            <div x-show="editRole !== superadminId"
+                            <div x-show="!isSuperadminEdit"
                                  x-transition:enter="transition ease-out duration-150"
                                  x-transition:enter-start="opacity-0 -translate-y-1"
                                  x-transition:enter-end="opacity-100 translate-y-0"
@@ -264,8 +324,45 @@
                                 </div>
                             </div>
 
+                            {{-- Puesto (oculto para superadmin) --}}
+                            <div x-show="!isSuperadminEdit"
+                                 x-transition:enter="transition ease-out duration-150"
+                                 x-transition:enter-start="opacity-0 -translate-y-1"
+                                 x-transition:enter-end="opacity-100 translate-y-0">
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Puesto</label>
+                                <select name="job_position_id" x-model="editPosition"
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                    <option value="">— Sin asignar —</option>
+                                    <template x-for="pos in editPositions" :key="pos.id">
+                                        <option :value="pos.id" x-text="pos.name" :selected="editPosition == pos.id"></option>
+                                    </template>
+                                </select>
+                                <p x-show="editGroup === ''" class="mt-1 text-xs text-yellow-600">Selecciona un grupo para ver los puestos.</p>
+                            </div>
+
+                            {{-- Vista / Módulos (oculto para superadmin) --}}
+                            <div x-show="!isSuperadminEdit"
+                                 x-transition:enter="transition ease-out duration-150"
+                                 x-transition:enter-start="opacity-0 -translate-y-1"
+                                 x-transition:enter-end="opacity-100 translate-y-0">
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                                    <span x-text="isAdminEdit ? 'Vista predeterminada' : 'Módulos visibles'"></span>
+                                </label>
+                                <select name="module_access" x-model="editModuleAccess"
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                    <option value="all">Ambos módulos</option>
+                                    <option value="cumplimiento">Solo Cumplimiento</option>
+                                    <option value="procesos">Solo Procesos</option>
+                                </select>
+                                <p class="mt-1 text-xs text-gray-400"
+                                   x-text="isAdminEdit
+                                       ? 'Define el módulo de inicio (el admin accede a todo).'
+                                       : 'Define a qué módulo tendrá acceso este usuario.'">
+                                </p>
+                            </div>
+
                             {{-- Nota superadmin --}}
-                            <div x-show="editRole === superadminId"
+                            <div x-show="isSuperadminEdit"
                                  x-transition:enter="transition ease-out duration-150"
                                  x-transition:enter-start="opacity-0"
                                  x-transition:enter-end="opacity-100"
@@ -273,7 +370,7 @@
                                 <svg class="w-4 h-4 text-purple-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
-                                <p class="text-sm text-purple-700">Acceso global — empresa y grupo se limpian automáticamente.</p>
+                                <p class="text-sm text-purple-700">Acceso global — empresa, grupo y puesto se limpian automáticamente.</p>
                             </div>
 
                         </div>
@@ -343,7 +440,7 @@
                                     @if($user->id !== auth()->id())
                                         <div class="inline-flex gap-2">
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', '{{ $user->company_id ?? '' }}')"
+                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', '{{ $user->company_id ?? '' }}', '{{ $user->module_access ?? 'all' }}', '{{ $user->jobPositions->first()?->id ?? '' }}')"
                                                 class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
                                                 Editar
                                             </button>

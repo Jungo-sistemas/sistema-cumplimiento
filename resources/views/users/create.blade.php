@@ -12,26 +12,31 @@
         $companiesByGroup = $companies->groupBy('group_id')->map->values();
     @endphp
 
-    <div class="bg-white rounded-xl shadow p-6 max-w-3xl"
-         x-data="{
-             selectedRole: '{{ old('role_id', '') }}',
-             selectedGroup: '{{ old('group_id', $singleCompany?->group_id ?? '') }}',
-             selectedCompany: '{{ old('company_id', $singleCompany?->id ?? '') }}',
-             selectedPosition: '{{ old('job_position_id', '') }}',
-             adminRoleId: '{{ $adminRoleId }}',
-             companiesByGroup: @json($companiesByGroup),
-             positionsByGroup: @json($positionsByGroup),
-             get isAdmin() { return this.selectedRole === this.adminRoleId },
-             get needsCompany() { return this.selectedRole !== '' && !this.isAdmin },
-             get availableCompanies() {
-                 if (!this.selectedGroup) return [];
-                 return this.companiesByGroup[this.selectedGroup] ?? [];
-             },
-             get availablePositions() {
-                 if (!this.selectedGroup) return [];
-                 return this.positionsByGroup[this.selectedGroup] ?? [];
-             }
-         }">
+    <script>
+    function createUserData() {
+        return {
+            selectedRole: '{{ old('role_id', '') }}',
+            selectedGroup: '{{ old('group_id', $singleCompany?->group_id ?? '') }}',
+            selectedCompany: '{{ old('company_id', $singleCompany?->id ?? '') }}',
+            selectedPosition: '{{ old('job_position_id', '') }}',
+            adminRoleId: '{{ $adminRoleId }}',
+            companiesByGroup: @json($companiesByGroup),
+            positionsByGroup: @json($positionsByGroup),
+            get isAdmin() { return this.selectedRole === this.adminRoleId; },
+            get needsCompany() { return this.selectedRole !== '' && !this.isAdmin; },
+            get availableCompanies() {
+                if (!this.selectedGroup) return [];
+                return this.companiesByGroup[this.selectedGroup] ?? [];
+            },
+            get availablePositions() {
+                if (!this.selectedGroup) return [];
+                return this.positionsByGroup[this.selectedGroup] ?? [];
+            }
+        };
+    }
+    </script>
+
+    <div class="bg-white rounded-xl shadow p-6 max-w-3xl" x-data="createUserData()">
 
         <h1 class="text-2xl font-semibold text-[#1A428A]">Agregar usuario</h1>
 
@@ -222,22 +227,29 @@
                         <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
-                        <p class="text-sm text-blue-700">El administrador tendrá acceso a todas las empresas del grupo seleccionado y a todos los módulos.</p>
+                        <p class="text-sm text-blue-700">El administrador tendrá acceso a todas las empresas del grupo seleccionado.</p>
                     </div>
                 </div>
 
             @endif
 
-            {{-- Módulos --}}
-            <div x-show="!isAdmin && selectedRole !== ''" x-transition class="space-y-2">
-                <label class="block text-sm font-medium text-gray-700">Módulos visibles <span class="text-red-500">*</span></label>
+            {{-- Módulos / Vista predeterminada --}}
+            <div x-show="selectedRole !== ''" x-transition class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700">
+                    <span x-text="isAdmin ? 'Vista predeterminada' : 'Módulos visibles'"></span>
+                    <span x-show="!isAdmin" class="text-red-500">*</span>
+                </label>
                 <select name="module_access"
                         class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
-                    <option value="all"          {{ old('module_access', 'all') === 'all'          ? 'selected' : '' }}>Ambos módulos</option>
-                    <option value="cumplimiento"  {{ old('module_access') === 'cumplimiento'        ? 'selected' : '' }}>Solo Cumplimiento</option>
-                    <option value="procesos"      {{ old('module_access') === 'procesos'            ? 'selected' : '' }}>Solo Procesos</option>
+                    <option value="all"         {{ old('module_access', 'all') === 'all'         ? 'selected' : '' }}>Ambos módulos</option>
+                    <option value="cumplimiento" {{ old('module_access') === 'cumplimiento'       ? 'selected' : '' }}>Solo Cumplimiento</option>
+                    <option value="procesos"     {{ old('module_access') === 'procesos'           ? 'selected' : '' }}>Solo Procesos</option>
                 </select>
-                <p class="text-xs text-gray-400">Define a qué sección del sistema tendrá acceso este usuario.</p>
+                <p class="text-xs text-gray-400"
+                   x-text="isAdmin
+                       ? 'El administrador accede a todo; esto solo define el módulo de inicio al entrar al sistema.'
+                       : 'Define a qué sección del sistema tendrá acceso este usuario.'">
+                </p>
             </div>
 
             <div class="flex justify-end gap-3 pt-2">
