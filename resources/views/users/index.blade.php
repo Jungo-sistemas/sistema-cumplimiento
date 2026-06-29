@@ -3,18 +3,37 @@
         <span class="text-gray-700 font-medium">Usuarios</span>
     </x-slot>
 
-    <div x-data="{
-        editOpen: false,
-        editUserId: null,
-        editUserName: '',
-        editRole: '',
-        openEdit(id, name, roleId) {
-            this.editUserId = id;
-            this.editUserName = name;
-            this.editRole = String(roleId ?? '');
-            this.editOpen = true;
-        }
-    }">
+    <script>
+    function editUserData() {
+        return {
+            editOpen: false,
+            editUserId: null,
+            editUserName: '',
+            editRole: '',
+            editGroup: '',
+            editModuleAccess: 'all',
+            editPosition: '',
+            adminRoleId: '{{ $adminRoleId ?? '' }}',
+            positionsByGroup: @json($positionsByGroup),
+            get isAdminEdit() { return this.editRole === this.adminRoleId; },
+            get editPositions() {
+                if (!this.editGroup) return [];
+                return this.positionsByGroup[this.editGroup] ?? [];
+            },
+            openEdit(id, name, roleId, groupId, moduleAccess, positionId) {
+                this.editUserId = id;
+                this.editUserName = name;
+                this.editRole = String(roleId ?? '');
+                this.editGroup = String(groupId ?? '');
+                this.editModuleAccess = moduleAccess || 'all';
+                this.editPosition = String(positionId ?? '');
+                this.editOpen = true;
+            }
+        };
+    }
+    </script>
+
+    <div x-data="editUserData()">
 
     {{-- Edit user modal --}}
     <div x-show="editOpen"
@@ -32,12 +51,12 @@
         <div x-transition:enter="transition ease-out duration-200"
              x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
              x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-             class="w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden">
+             class="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
 
             {{-- Header --}}
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
                 <div>
-                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-0.5">Cambiar rol</p>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-0.5">Editar usuario</p>
                     <h2 class="text-base font-semibold text-gray-900" x-text="editUserName"></h2>
                 </div>
                 <button type="button" @click="editOpen = false"
@@ -53,17 +72,54 @@
                     @csrf
                     @method('PATCH')
 
-                    <div class="px-6 py-5">
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">
-                            Rol <span class="text-red-500">*</span>
-                        </label>
-                        <select name="role_id" x-model="editRole" required
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
-                            <option value="">Seleccionar rol…</option>
-                            @foreach($roles as $role)
-                                <option value="{{ $role->id }}">{{ $role->name }}</option>
-                            @endforeach
-                        </select>
+                    <div class="px-6 py-5 space-y-4">
+
+                        {{-- Rol --}}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                                Rol <span class="text-red-500">*</span>
+                            </label>
+                            <select name="role_id" x-model="editRole" required
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                <option value="">Seleccionar rol…</option>
+                                @foreach($roles as $role)
+                                    <option value="{{ $role->id }}">{{ $role->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        {{-- Puesto --}}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Puesto</label>
+                            <select name="job_position_id" x-model="editPosition"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                <option value="">— Sin asignar —</option>
+                                <template x-for="pos in editPositions" :key="pos.id">
+                                    <option :value="pos.id" x-text="pos.name" :selected="editPosition == pos.id"></option>
+                                </template>
+                            </select>
+                            <p x-show="editGroup === '' && editPositions.length === 0"
+                               class="mt-1 text-xs text-gray-400">Sin puestos disponibles para este usuario.</p>
+                        </div>
+
+                        {{-- Vista predeterminada / Módulos --}}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                                <span x-text="isAdminEdit ? 'Vista predeterminada' : 'Módulos visibles'"></span>
+                            </label>
+                            <select name="module_access" x-model="editModuleAccess"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                <option value="all">Ambos módulos</option>
+                                <option value="cumplimiento">Solo Cumplimiento</option>
+                                <option value="procesos">Solo Procesos</option>
+                            </select>
+                            <p class="mt-1 text-xs text-gray-400"
+                               x-text="isAdminEdit
+                                   ? 'Define el módulo de inicio (el admin accede a todo).'
+                                   : 'Define a qué módulo tendrá acceso este usuario.'">
+                            </p>
+                        </div>
+
                     </div>
 
                     {{-- Footer --}}
@@ -74,7 +130,7 @@
                         </button>
                         <button type="submit"
                             class="px-5 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d] transition-colors shadow-sm">
-                            Guardar
+                            Guardar cambios
                         </button>
                     </div>
                 </form>
@@ -161,7 +217,7 @@
                                     @if($user->id !== auth()->id())
                                         <div class="inline-flex gap-2">
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}')"
+                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', '{{ $user->module_access ?? 'all' }}', '{{ $user->jobPositions->first()?->id ?? '' }}')"
                                                 class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
                                                 Editar
                                             </button>

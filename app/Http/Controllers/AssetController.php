@@ -143,6 +143,12 @@ class AssetController extends Controller
 
         $licenseInfo = $licenseCompany ? $this->licenseService->info($licenseCompany) : null;
 
+        // Al volver a la lista de activos se borran los filtros persistidos por activo
+        collect($request->session()->all())
+            ->keys()
+            ->filter(fn ($k) => str_starts_with($k, 'asset_req_filters.'))
+            ->each(fn ($k) => $request->session()->forget($k));
+
         return view('assets.index', compact(
             'assets', 'assetTypes', 'locations', 'companies', 'otrasCompanies',
             'selectedCompanyId', 'filterGrupo', 'filterOtraId', 'licenseInfo'
@@ -321,20 +327,41 @@ class AssetController extends Controller
         return str_pad((string) $n, 3, '0', STR_PAD_LEFT);
     }
 
-    public function show(Asset $asset)
+    public function show(Request $request, Asset $asset)
     {
         $this->authorize('view', $asset);
+
+        // ── Filtros persistentes por sesión ─────────────────────────────────────
+        $sessionKey  = "asset_req_filters.{$asset->id}";
+        $filterKeys  = ['search', 'authority', 'risk', 'status', 'show_filters'];
+        $hasFiltersInUrl = $request->hasAny($filterKeys);
+
+        if ($request->has('clear_filters')) {
+            $request->session()->forget($sessionKey);
+            return redirect()->route('assets.show', $asset);
+        }
+
+        if ($hasFiltersInUrl) {
+            $request->session()->put($sessionKey, array_filter(
+                $request->only(array_merge($filterKeys, ['scope'])),
+                fn ($v) => $v !== '' && $v !== null && $v !== false
+            ));
+        } elseif (count($request->query()) === 0 && $request->session()->has($sessionKey)) {
+            $saved = $request->session()->get($sessionKey);
+            return redirect()->route('assets.show', array_merge(['asset' => $asset->id], $saved));
+        }
+        // ────────────────────────────────────────────────────────────────────────
 
         $asset->load([
             'parent.assetType',
             'children.assetType',
         ]);
 
-        $search = trim((string) request('search'));
-        $authority = trim((string) request('authority'));
-        $risk = trim((string) request('risk'));
-        $status = trim((string) request('status'));
-        $showFilters = request()->boolean('show_filters')
+        $search = trim((string) $request->get('search', ''));
+        $authority = trim((string) $request->get('authority', ''));
+        $risk = trim((string) $request->get('risk', ''));
+        $status = trim((string) $request->get('status', ''));
+        $showFilters = $request->boolean('show_filters')
             || $authority !== ''
             || $risk !== ''
             || $status !== '';
@@ -351,7 +378,7 @@ class AssetController extends Controller
 
         $categoryTabs = RequirementTemplate::CATEGORIES; // ['expediente'=>'Expediente','alta'=>'Alta / Modificación','baja'=>'Baja']
 
-        $scope = request()->get('scope', $usesCategoryView ? 'expediente' : 'project');
+        $scope = $request->get('scope', $usesCategoryView ? 'expediente' : 'project');
 
         if ($usesCategoryView) {
             $scopeTitle       = $categoryTabs[$scope] ?? ucfirst($scope);

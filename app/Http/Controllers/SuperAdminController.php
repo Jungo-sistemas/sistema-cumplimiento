@@ -6,6 +6,7 @@ use App\Mail\UserInvitationMail;
 use App\Models\Asset;
 use App\Models\Company;
 use App\Models\Group;
+use App\Models\JobPosition;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\LicenseService;
@@ -188,15 +189,19 @@ class SuperAdminController extends Controller
     {
         abort_unless(auth()->user()->isSuperAdmin(), 403);
 
-        $users = User::with(['role', 'company', 'group'])
+        $users = User::with(['role', 'company', 'group', 'jobPositions'])
             ->orderBy('name')
             ->paginate(25);
 
-        $roles     = Role::orderBy('name')->get();
-        $companies = Company::orderBy('name')->get();
-        $groups    = Group::orderBy('name')->get();
+        $roles        = Role::orderBy('name')->get();
+        $companies    = Company::orderBy('name')->get();
+        $groups       = Group::orderBy('name')->get();
+        $jobPositions = JobPosition::where('is_active', true)
+            ->orderBy('group_id')
+            ->orderBy('sort_order')
+            ->get(['id', 'group_id', 'name']);
 
-        return view('superadmin.users', compact('users', 'roles', 'companies', 'groups'));
+        return view('superadmin.users', compact('users', 'roles', 'companies', 'groups', 'jobPositions'));
     }
 
     public function storeUser(Request $request)
@@ -204,42 +209,53 @@ class SuperAdminController extends Controller
         abort_unless(auth()->user()->isSuperAdmin(), 403);
 
         $request->validate([
-            'name'       => ['required', 'string', 'max:255'],
-            'email'      => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role_id'    => ['required', 'exists:roles,id'],
-            'company_id' => ['nullable', 'exists:companies,id'],
-            'group_id'   => ['nullable', 'exists:groups,id'],
+            'name'          => ['required', 'string', 'max:255'],
+            'email'         => ['required', 'email', 'max:255', 'unique:users,email'],
+            'role_id'       => ['required', 'exists:roles,id'],
+            'company_id'    => ['nullable', 'exists:companies,id'],
+            'group_id'      => ['nullable', 'exists:groups,id'],
+            'module_access' => ['nullable', 'in:all,cumplimiento,procesos'],
         ]);
 
         $role = Role::findOrFail($request->role_id);
 
         if ($role->slug === 'superadmin') {
-            $scopeLevel = 'global';
-            $companyId  = null;
-            $groupId    = null;
+            $scopeLevel   = 'global';
+            $companyId    = null;
+            $groupId      = null;
+            $moduleAccess = 'all';
         } elseif ($role->slug === 'admin') {
-            $scopeLevel = 'group';
-            $companyId  = $request->company_id;
-            $groupId    = $request->group_id;
+            $scopeLevel   = 'group';
+            $companyId    = $request->company_id;
+            $groupId      = $request->group_id;
+            $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
+                ? $request->module_access : 'all';
         } else {
-            $scopeLevel = 'company';
-            $companyId  = $request->company_id;
-            $groupId    = $request->group_id;
+            $scopeLevel   = 'company';
+            $companyId    = $request->company_id;
+            $groupId      = $request->group_id;
+            $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
+                ? $request->module_access : 'all';
         }
 
         $user = User::create([
-            'name'         => $request->name,
-            'email'        => $request->email,
-            'role_id'      => $role->id,
-            'company_id'   => $companyId,
-            'group_id'     => $groupId,
-            'scope_level'  => $scopeLevel,
-            'password'     => null,
-            'status'       => 'invited',
-            'invite_token' => Str::random(64),
+            'name'              => $request->name,
+            'email'             => $request->email,
+            'role_id'           => $role->id,
+            'company_id'        => $companyId,
+            'group_id'          => $groupId,
+            'scope_level'       => $scopeLevel,
+            'module_access'     => $moduleAccess,
+            'password'          => null,
+            'status'            => 'invited',
+            'invite_token'      => Str::random(64),
             'invite_expires_at' => now()->addDays(3),
-            'invited_by'   => auth()->id(),
+            'invited_by'        => auth()->id(),
         ]);
+
+        if ($request->filled('job_position_id')) {
+            $user->jobPositions()->attach($request->job_position_id);
+        }
 
         Mail::to($user->email)->send(new UserInvitationMail($user));
 
@@ -253,33 +269,46 @@ class SuperAdminController extends Controller
         abort_unless(auth()->user()->isSuperAdmin(), 403);
 
         $request->validate([
-            'role_id'    => ['required', 'exists:roles,id'],
-            'company_id' => ['nullable', 'exists:companies,id'],
-            'group_id'   => ['nullable', 'exists:groups,id'],
+            'role_id'       => ['required', 'exists:roles,id'],
+            'company_id'    => ['nullable', 'exists:companies,id'],
+            'group_id'      => ['nullable', 'exists:groups,id'],
+            'module_access' => ['nullable', 'in:all,cumplimiento,procesos'],
         ]);
 
         $role = Role::findOrFail($request->role_id);
 
         if ($role->slug === 'superadmin') {
-            $scopeLevel = 'global';
-            $companyId  = null;
-            $groupId    = null;
+            $scopeLevel   = 'global';
+            $companyId    = null;
+            $groupId      = null;
+            $moduleAccess = 'all';
         } elseif ($role->slug === 'admin') {
-            $scopeLevel = 'group';
-            $companyId  = $request->company_id;
-            $groupId    = $request->group_id;
+            $scopeLevel   = 'group';
+            $companyId    = $request->company_id;
+            $groupId      = $request->group_id;
+            $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
+                ? $request->module_access : 'all';
         } else {
-            $scopeLevel = 'company';
-            $companyId  = $request->company_id;
-            $groupId    = $request->group_id;
+            $scopeLevel   = 'company';
+            $companyId    = $request->company_id;
+            $groupId      = $request->group_id;
+            $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
+                ? $request->module_access : 'all';
         }
 
         $user->update([
-            'role_id'     => $role->id,
-            'company_id'  => $companyId,
-            'group_id'    => $groupId,
-            'scope_level' => $scopeLevel,
+            'role_id'       => $role->id,
+            'company_id'    => $companyId,
+            'group_id'      => $groupId,
+            'scope_level'   => $scopeLevel,
+            'module_access' => $moduleAccess,
         ]);
+
+        if ($request->filled('job_position_id')) {
+            $user->jobPositions()->sync([$request->job_position_id]);
+        } else {
+            $user->jobPositions()->detach();
+        }
 
         return redirect()
             ->route('superadmin.users')

@@ -63,7 +63,7 @@ class ProcessesDashboardController extends Controller
                 // Etiquetas dinámicas: nombres de puestos que aparecen en cada paso
                 $stepPositionNames = RegulationApproval::whereIn('regulation_id', $allRegIds)
                     ->join('job_positions', 'regulation_approvals.job_position_id', '=', 'job_positions.id')
-                    ->select('regulation_approvals.step_number', 'job_positions.name')
+                    ->select('regulation_approvals.step_number', 'job_positions.name', 'job_positions.sort_order')
                     ->distinct()
                     ->orderBy('regulation_approvals.step_number')
                     ->orderBy('job_positions.sort_order')
