@@ -116,20 +116,24 @@ class UserController extends Controller
                 : 'all';
         } else {
             $request->validate([
-                'company_id'    => ['required', 'exists:companies,id'],
+                'company_id'    => ['nullable', 'exists:companies,id'],
                 'module_access' => ['required', 'in:all,cumplimiento,procesos'],
             ]);
             $moduleAccess = $request->module_access;
 
-            $company = Company::findOrFail($request->company_id);
-
-            if (! $authUser->isGlobalScope() && ! $authUser->canAccessCompany($company)) {
-                abort(403);
+            if ($request->filled('company_id')) {
+                $company = Company::findOrFail($request->company_id);
+                if (! $authUser->isGlobalScope() && ! $authUser->canAccessCompany($company)) {
+                    abort(403);
+                }
+                $companyId  = $company->id;
+                $groupId    = $request->group_id ?? $company->group_id;
+                $scopeLevel = 'company';
+            } else {
+                $companyId  = null;
+                $groupId    = $request->group_id ?? $authUser->group_id;
+                $scopeLevel = 'group';
             }
-
-            $companyId  = $company->id;
-            $groupId    = $request->group_id ?? $company->group_id;
-            $scopeLevel = 'company';
         }
 
         $user = User::create([
@@ -182,7 +186,7 @@ class UserController extends Controller
         abort_if($role->slug === 'superadmin', 403);
         abort_if($role->slug === 'admin' && ! $authUser->hasGroupScope() && ! $authUser->isGlobalScope(), 403);
 
-        $scopeLevel   = ($role->slug === 'admin') ? 'group' : 'company';
+        $scopeLevel   = ($role->slug === 'admin') ? 'group' : ($user->company_id ? 'company' : 'group');
         $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
             ? $request->module_access
             : 'all';
