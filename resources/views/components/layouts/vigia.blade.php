@@ -20,6 +20,9 @@
     $modules = collect($allModules)
         ->filter(fn ($_, $key) => $user?->canAccessModule($key) ?? true)
         ->all();
+    if (!isset($modules[$currentModule])) {
+        $currentModule = array_key_first($modules) ?? 'cumplimiento';
+    }
     $pendingApprovalsCount = $user && !$user->isSuperAdmin()
         ? \App\Models\RegulationApproval::where('user_id', $user->id)->where('status', 'pending')->count()
         : 0;
