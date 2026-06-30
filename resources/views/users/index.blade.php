@@ -89,7 +89,7 @@
                         </div>
 
                         {{-- Puesto --}}
-                        <div>
+                        <div x-show="!isAdminEdit">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Puesto</label>
                             <select name="job_position_id" x-model="editPosition"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
@@ -98,7 +98,7 @@
                                     <option :value="pos.id" x-text="pos.name" :selected="editPosition == pos.id"></option>
                                 </template>
                             </select>
-                            <p x-show="editGroup === '' && editPositions.length === 0"
+                            <p x-show="editPositions.length === 0"
                                class="mt-1 text-xs text-gray-400">Sin puestos disponibles para este usuario.</p>
                         </div>
 

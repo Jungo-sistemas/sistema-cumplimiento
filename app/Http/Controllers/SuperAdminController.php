@@ -254,8 +254,9 @@ class SuperAdminController extends Controller
             'invited_by'        => auth()->id(),
         ]);
 
-        if ($request->filled('job_position_id')) {
-            $user->jobPositions()->attach($request->job_position_id);
+        $positionIds = array_filter((array) $request->input('job_position_ids', []));
+        if (!empty($positionIds)) {
+            $user->jobPositions()->attach($positionIds);
         }
 
         Mail::to($user->email)->send(new UserInvitationMail($user));
@@ -305,11 +306,8 @@ class SuperAdminController extends Controller
             'module_access' => $moduleAccess,
         ]);
 
-        if ($request->filled('job_position_id')) {
-            $user->jobPositions()->sync([$request->job_position_id]);
-        } else {
-            $user->jobPositions()->detach();
-        }
+        $positionIds = array_filter((array) $request->input('job_position_ids', []));
+        $user->jobPositions()->sync($positionIds);
 
         return redirect()
             ->route('superadmin.users')

@@ -83,63 +83,6 @@
             @endif
         </div>
 
-        {{-- Panel: revisar flujo tras edición --}}
-        @if(request('review_flow') && auth()->user()->isAdmin() && $regulation->flow_locked)
-        <div class="mt-4"
-             x-data="{
-                selectedLevel: '{{ $regulation->impact_level }}',
-                impactLevels: @json(\App\Models\Regulation::IMPACT_LEVELS),
-                get levelLabel() {
-                    return this.impactLevels[this.selectedLevel] ?? '';
-                },
-                openFlowModal() {
-                    $dispatch('open-flow-modal', {
-                        formAction: '{{ route('processes.setFlow', $regulation) }}',
-                        regulationName: @js($regulation->name),
-                        impactLevel: this.selectedLevel,
-                        levelLabel: this.levelLabel,
-                    });
-                }
-             }">
-            <div class="rounded-xl border border-blue-200 bg-blue-50 px-5 py-4">
-                <div class="flex items-start gap-3">
-                    <svg class="h-5 w-5 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <div class="flex-1">
-                        <p class="text-sm font-semibold text-blue-800">Se detectaron cambios en el documento</p>
-                        <p class="text-sm text-blue-700 mt-1">
-                            El flujo de aprobación fue configurado antes de esta edición. Puedes mantenerlo igual o reconfigurarlo para reflejar los cambios en el alcance.
-                        </p>
-
-                        <div class="mt-4 flex flex-wrap items-center gap-3">
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs font-medium text-blue-700">Nivel de impacto:</span>
-                                <select x-model="selectedLevel"
-                                        class="rounded-lg border border-blue-300 bg-white text-sm px-3 py-1.5 text-gray-700 focus:outline-none focus:border-[#1A428A] focus:ring-1 focus:ring-[#1A428A]">
-                                    @foreach(\App\Models\Regulation::IMPACT_LEVELS as $lvlKey => $lvlLabel)
-                                        <option value="{{ $lvlKey }}" @selected($regulation->impact_level === $lvlKey)>{{ $lvlLabel }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <a href="{{ route('processes.show', $regulation) }}"
-                               class="px-4 py-2 rounded-lg border border-blue-300 bg-white text-blue-700 text-sm font-semibold hover:bg-blue-50 transition">
-                                Mantener flujo actual
-                            </a>
-
-                            <button type="button"
-                                    @click="openFlowModal()"
-                                    :disabled="!selectedLevel"
-                                    class="px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d] transition disabled:opacity-50 disabled:cursor-not-allowed">
-                                Cambiar flujo
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        @endif
 
         {{-- Panel de cambios recientes --}}
         @php
@@ -868,11 +811,172 @@
         </div>
     </div>
 
-    @if(auth()->user()->isAdmin())
-    {{-- Flujo de aprobación — modal reutilizado desde index --}}
-    <div x-data="flowModal(@json($usersByPosition), @json($flowDefinitions), @json($positionLabels), @json($positionSortOrders))"
-         @open-flow-modal.window="openModal($event.detail)">
-        @include('processes._flow-modal')
+    @if(auth()->user()->isAdmin() && request('review_flow') && $regulation->flow_locked)
+    {{-- Datos PHP → JS sin tocar atributos HTML (evita que @json rompa x-data="") --}}
+    <script>
+    window.__rfData = {
+        usersByPosition: @json($usersByPosition),
+        flowDefs:        @json($flowDefinitions),
+        positionLabels:  @json($positionLabels),
+        positionSortOrders: @json($positionSortOrders),
+        impactLevels:    @json(\App\Models\Regulation::IMPACT_LEVELS),
+    };
+    </script>
+
+    {{-- Modal unificado: detectar cambios → ¿mantener o cambiar flujo? → nivel + personas --}}
+    <div x-data="reviewFlowModal('{{ $regulation->impact_level }}')">
+
+        {{-- Formulario oculto para enviar a setFlow --}}
+        <form x-ref="flowForm" method="POST" action="{{ route('processes.setFlow', $regulation) }}">
+            @csrf
+            @method('PATCH')
+            <input type="hidden" name="impact_level" :value="selectedLevel">
+            <template x-for="pos in positions" :key="pos.slug">
+                <template x-for="u in (selected[pos.slug] || [])" :key="u.id">
+                    <input type="hidden" :name="`users[${pos.slug}][]`" :value="u.id">
+                </template>
+            </template>
+        </form>
+
+        {{-- Backdrop --}}
+        <div x-show="show"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+             style="display:none;">
+
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden">
+
+                {{-- Header --}}
+                <div class="bg-[#1A428A] px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-white font-semibold text-base">Flujo de aprobación</h3>
+                        <p class="text-blue-200 text-xs mt-0.5">Se detectaron cambios en el documento</p>
+                    </div>
+                    <a href="{{ route('processes.show', $regulation) }}"
+                       class="text-blue-200 hover:text-white transition"
+                       title="Cerrar y mantener flujo">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </a>
+                </div>
+
+                {{-- Etapa 1: ¿Mantener o cambiar? --}}
+                <div x-show="stage === 1" class="px-6 py-6">
+                    <p class="text-sm text-gray-700 leading-relaxed">
+                        El flujo de aprobación fue configurado antes de esta edición.
+                        ¿Deseas mantenerlo igual o reconfigurarlo para reflejar los cambios?
+                    </p>
+                    <div class="mt-6 flex justify-end gap-3">
+                        <a href="{{ route('processes.show', $regulation) }}"
+                           class="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 font-medium hover:bg-gray-100 transition">
+                            Mantener flujo actual
+                        </a>
+                        <button type="button" @click="goStage2()"
+                                class="px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d] transition">
+                            Cambiar flujo
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Etapa 2: Nivel + personas --}}
+                <div x-show="stage === 2">
+                    <div class="px-6 py-5 space-y-5 max-h-[60vh] overflow-y-auto">
+
+                        {{-- Selector de nivel --}}
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Nivel de impacto</label>
+                            <select x-model="selectedLevel" @change="buildPositions()"
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-[#1A428A] focus:ring-1 focus:ring-[#1A428A]">
+                                @foreach(\App\Models\Regulation::IMPACT_LEVELS as $lvlKey => $lvlLabel)
+                                    <option value="{{ $lvlKey }}">{{ $lvlLabel }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        {{-- Personas por puesto --}}
+                        <template x-for="pos in positions" :key="pos.slug">
+                            <div>
+                                <div class="flex items-center gap-1.5 mb-1.5">
+                                    <label class="text-xs font-semibold text-gray-700" x-text="pos.label"></label>
+                                    <span x-show="!pos.requiresAll" class="text-xs text-gray-400 font-normal">(cualquiera basta)</span>
+                                    <span class="ml-auto text-xs"
+                                          :class="(selected[pos.slug]||[]).length > 0 ? 'text-green-600' : 'text-red-400'"
+                                          x-text="(selected[pos.slug]||[]).length > 0 ? (selected[pos.slug]||[]).length + ' asignado(s)' : 'Requerido'"></span>
+                                </div>
+                                <div x-show="(selected[pos.slug]||[]).length > 0" class="flex flex-wrap gap-1.5 mb-2">
+                                    <template x-for="u in (selected[pos.slug]||[])" :key="u.id">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-medium">
+                                            <span x-text="u.name"></span>
+                                            <button type="button" @click="removeUser(pos.slug, u.id)" class="ml-0.5 text-blue-500 hover:text-blue-800">
+                                                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                            </button>
+                                        </span>
+                                    </template>
+                                </div>
+                                <div class="relative">
+                                    <input type="text"
+                                           :placeholder="`Buscar persona para ${pos.label}…`"
+                                           x-model="search[pos.slug]"
+                                           @focus="open[pos.slug] = true"
+                                           @input="open[pos.slug] = true"
+                                           @keydown.escape="open[pos.slug] = false; search[pos.slug] = ''"
+                                           class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 focus:outline-none focus:border-[#1A428A] focus:ring-1 focus:ring-[#1A428A]">
+                                    <div x-show="open[pos.slug] && filtered(pos.slug).length > 0"
+                                         @click.outside="open[pos.slug] = false"
+                                         class="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                                        <template x-for="u in filtered(pos.slug)" :key="u.id">
+                                            <button type="button" @click="selectUser(pos.slug, u)"
+                                                    class="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center gap-2">
+                                                <span class="h-6 w-6 rounded-full bg-[#1A428A] text-white text-xs flex items-center justify-center shrink-0"
+                                                      x-text="u.name.charAt(0).toUpperCase()"></span>
+                                                <div>
+                                                    <div class="font-medium text-gray-800" x-text="u.name"></div>
+                                                    <div class="text-xs text-gray-400" x-text="u.email"></div>
+                                                </div>
+                                            </button>
+                                        </template>
+                                        <div x-show="filtered(pos.slug).length === 0"
+                                             class="px-3 py-2 text-sm text-gray-400 italic">Sin coincidencias</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    {{-- Footer etapa 2 --}}
+                    <div class="px-6 py-4 bg-gray-50 border-t flex items-center justify-between">
+                        <button type="button" @click="stage = 1"
+                                class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 transition">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                            Atrás
+                        </button>
+                        <div class="flex gap-3">
+                            <a href="{{ route('processes.show', $regulation) }}"
+                               class="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 font-medium hover:bg-gray-100 transition">
+                                Cancelar
+                            </a>
+                            <button type="button" @click="confirmFlow()"
+                                    :disabled="!canConfirm"
+                                    :class="canConfirm ? 'bg-[#1A428A] hover:bg-[#15356d] text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+                                    class="px-4 py-2 rounded-lg text-sm font-semibold transition">
+                                Confirmar flujo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
     </div>
     @endif
 
@@ -908,99 +1012,83 @@
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDeleteModal(); });
     </script>
 
-    @if(auth()->user()->isAdmin())
     <script>
-    function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders) {
+    function reviewFlowModal(currentLevel) {
+        const d = window.__rfData || {};
         return {
-            show: false,
-            removing: false,
-            formAction: '',
-            regulationName: '',
-            impactLevel: '',
-            levelLabel: '',
+            show: true,
+            stage: 1,
+            selectedLevel: currentLevel,
+            impactLevels:      d.impactLevels      || {},
+            usersByPosition:   d.usersByPosition   || {},
+            flowDefs:          d.flowDefs          || {},
+            positionLabels:    d.positionLabels    || {},
+            positionSortOrders: d.positionSortOrders || {},
             positions: [],
-            selected: {},
-            search: {},
-            open: {},
+            selected:  {},
+            search:    {},
+            open:      {},
 
             get canConfirm() {
-                if (this.removing) return true;
                 return this.positions.length > 0 &&
                        this.positions.every(p => (this.selected[p.slug] || []).length > 0);
             },
 
-            filtered(slug) {
-                const users = usersByPosition[slug] || [];
-                const selectedIds = (this.selected[slug] || []).map(u => u.id);
-                const available = users.filter(u => !selectedIds.includes(u.id));
-                const q = (this.search[slug] || '').toLowerCase().trim();
-                if (!q) return available;
-                return available.filter(u =>
-                    u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+            buildPositions() {
+                this.positions = []; this.selected = {}; this.search = {}; this.open = {};
+                if (!this.selectedLevel || !this.flowDefs[this.selectedLevel]) return;
+                const steps = this.flowDefs[this.selectedLevel];
+                const seen  = new Set();
+                Object.entries(steps).forEach(([step, stepDef]) => {
+                    stepDef.positions.forEach(slug => {
+                        if (!seen.has(slug)) {
+                            seen.add(slug);
+                            this.positions.push({
+                                slug,
+                                label: this.positionLabels[slug] || slug,
+                                step: parseInt(step),
+                                requiresAll: stepDef.requires_all,
+                            });
+                            this.selected[slug] = [];
+                            this.search[slug]   = '';
+                            this.open[slug]     = false;
+                        }
+                    });
+                });
+                this.positions.sort((a, b) =>
+                    (this.positionSortOrders[a.slug] || 99) - (this.positionSortOrders[b.slug] || 99)
                 );
             },
 
-            openModal(detail) {
-                this.formAction     = detail.formAction;
-                this.regulationName = detail.regulationName;
-                this.impactLevel    = detail.impactLevel;
-                this.levelLabel     = detail.levelLabel;
-                this.removing       = !detail.impactLevel;
+            goStage2() { this.buildPositions(); this.stage = 2; },
 
-                this.positions = [];
-                this.selected  = {};
-                this.search    = {};
-                this.open      = {};
-
-                if (detail.impactLevel && flowDefs[detail.impactLevel]) {
-                    const steps = flowDefs[detail.impactLevel];
-                    const seen  = new Set();
-
-                    Object.entries(steps).forEach(([step, stepDef]) => {
-                        stepDef.positions.forEach(slug => {
-                            if (!seen.has(slug)) {
-                                seen.add(slug);
-                                this.positions.push({
-                                    slug,
-                                    label: positionLabels[slug] || slug,
-                                    step: parseInt(step),
-                                    requiresAll: stepDef.requires_all,
-                                });
-                                this.selected[slug] = [];
-                                this.search[slug]   = '';
-                                this.open[slug]     = false;
-                            }
-                        });
-                    });
-                }
-
-                this.positions.sort((a, b) =>
-                    (positionSortOrders[b.slug] || 0) - (positionSortOrders[a.slug] || 0)
-                );
-
-                this.show = true;
+            filtered(slug) {
+                const users = this.usersByPosition[slug] || [];
+                const ids   = (this.selected[slug] || []).map(u => u.id);
+                const avail = users.filter(u => !ids.includes(u.id));
+                const q     = (this.search[slug] || '').toLowerCase();
+                return q ? avail.filter(u =>
+                    u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+                ) : avail;
             },
 
             selectUser(slug, user) {
                 if (!this.selected[slug]) this.selected[slug] = [];
-                if (!this.selected[slug].find(u => u.id === user.id)) {
+                if (!this.selected[slug].find(u => u.id === user.id))
                     this.selected[slug] = [...this.selected[slug], user];
-                }
                 this.search[slug] = '';
                 this.open[slug]   = false;
             },
 
-            removeUser(slug, userId) {
-                this.selected[slug] = (this.selected[slug] || []).filter(u => u.id !== userId);
+            removeUser(slug, uid) {
+                this.selected[slug] = (this.selected[slug] || []).filter(u => u.id !== uid);
             },
 
             confirmFlow() {
-                if (!this.canConfirm) return;
-                this.$refs.flowForm.submit();
+                if (this.canConfirm) this.$refs.flowForm.submit();
             },
         };
     }
     </script>
-    @endif
 
 </x-layouts.vigia>
