@@ -147,6 +147,12 @@ Route::middleware(['auth', 'module.access'])->group(function () {
     Route::get('/processes/create', [RegulationController::class, 'create'])
         ->name('processes.create');
 
+    Route::get('/processes/cargar', [RegulationController::class, 'cargar'])
+        ->name('processes.cargar');
+
+    Route::post('/processes/cargar', [RegulationController::class, 'storeCargar'])
+        ->name('processes.storeCargar');
+
     Route::get('/processes/obsoleto', [RegulationController::class, 'obsoleto'])
         ->name('processes.obsoleto');
 

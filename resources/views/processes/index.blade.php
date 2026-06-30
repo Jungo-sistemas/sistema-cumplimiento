@@ -63,6 +63,15 @@
                 @endif
 
                 @if($user->isAdmin() || $user->isOperative())
+                    <a href="{{ route('processes.cargar', $selectedCompanyId ? ['company_id' => $selectedCompanyId] : []) }}"
+                       class="flex items-center gap-1.5 px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold text-sm hover:bg-blue-50">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                             viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                        </svg>
+                        Cargar proceso
+                    </a>
                     <a href="{{ route('processes.create', $selectedCompanyId ? ['company_id' => $selectedCompanyId] : []) }}"
                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
                         Nuevo procedimiento

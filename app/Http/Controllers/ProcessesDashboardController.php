@@ -154,6 +154,25 @@ class ProcessesDashboardController extends Controller
                     (int) ($rawByImpact['bajo']        ?? 0),
                 ];
 
+                // Ranking de personas con más aprobaciones pendientes
+                $pendingByUser = RegulationApproval::whereIn('regulation_id', $allRegIds)
+                    ->where('status', 'pending')
+                    ->join('users', 'regulation_approvals.user_id', '=', 'users.id')
+                    ->select(
+                        'users.name',
+                        DB::raw('count(*) as pending_count'),
+                        DB::raw('min(regulation_approvals.created_at) as oldest_at')
+                    )
+                    ->groupBy('users.name')
+                    ->orderByDesc('pending_count')
+                    ->get()
+                    ->map(fn ($row) => [
+                        'name'        => $row->name,
+                        'count'       => (int) $row->pending_count,
+                        'oldest_days' => (int) Carbon::parse($row->oldest_at)->diffInDays(now()),
+                    ])
+                    ->all();
+
                 $chartData = [
                     'statusData'     => $statusData,
                     'daysData'       => $daysData,
@@ -161,6 +180,7 @@ class ProcessesDashboardController extends Controller
                     'weeklyApproved' => $weeklyApproved,
                     'weeklyRejected' => $weeklyRejected,
                     'impactData'     => $impactData,
+                    'pendingByUser'  => $pendingByUser,
                 ];
 
                 return [$stats, $recent, $chartData];
