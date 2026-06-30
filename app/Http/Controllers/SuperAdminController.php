@@ -232,8 +232,8 @@ class SuperAdminController extends Controller
             $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
                 ? $request->module_access : 'all';
         } else {
-            $scopeLevel   = 'company';
-            $companyId    = $request->company_id;
+            $scopeLevel   = $request->filled('company_id') ? 'company' : 'group';
+            $companyId    = $request->filled('company_id') ? $request->company_id : null;
             $groupId      = $request->group_id;
             $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
                 ? $request->module_access : 'all';
@@ -291,8 +291,8 @@ class SuperAdminController extends Controller
             $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
                 ? $request->module_access : 'all';
         } else {
-            $scopeLevel   = 'company';
-            $companyId    = $request->company_id;
+            $scopeLevel   = $request->filled('company_id') ? 'company' : 'group';
+            $companyId    = $request->filled('company_id') ? $request->company_id : null;
             $groupId      = $request->group_id;
             $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
                 ? $request->module_access : 'all';

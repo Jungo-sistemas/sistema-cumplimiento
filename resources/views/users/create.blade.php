@@ -202,18 +202,18 @@
 
                     {{-- Empresa (solo para operativo y solo lectura) --}}
                     <div x-show="needsCompany && selectedGroup !== ''" x-transition>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Empresa <span class="text-red-500">*</span>
-                        </label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
                         <select name="company_id" x-model="selectedCompany"
-                            :required="needsCompany"
                             class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
-                            <option value="">Selecciona una empresa</option>
+                            <option value="">— Sin empresa (acceso a todo el grupo) —</option>
                             <template x-for="company in availableCompanies" :key="company.id">
                                 <option :value="company.id" x-text="company.name"
                                     :selected="selectedCompany == company.id"></option>
                             </template>
                         </select>
+                        <p class="mt-1 text-xs text-gray-400">
+                            Sin empresa: el usuario verá todas las empresas del grupo.
+                        </p>
                         <p x-show="selectedGroup !== '' && availableCompanies.length === 0"
                            class="mt-1 text-xs text-yellow-600">
                             Este grupo no tiene empresas registradas.
