@@ -130,8 +130,7 @@
                         class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
                         <option value="">— Sin asignar —</option>
                         <template x-for="pos in availablePositions" :key="pos.id">
-                            <option :value="pos.id" x-text="pos.name"
-                                    :selected="selectedPosition == pos.id"></option>
+                            <option :value="pos.id" x-text="pos.name" :selected="selectedPosition == pos.id"></option>
                         </template>
                     </select>
                     <div x-show="availablePositions.length === 0 && selectedGroup !== ''"

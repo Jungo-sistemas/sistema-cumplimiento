@@ -156,7 +156,7 @@ class ProcessesDashboardController extends Controller
 
                 // Ranking de personas con más aprobaciones pendientes
                 $pendingByUser = RegulationApproval::whereIn('regulation_id', $allRegIds)
-                    ->where('status', 'pending')
+                    ->where('regulation_approvals.status', 'pending')
                     ->join('users', 'regulation_approvals.user_id', '=', 'users.id')
                     ->select(
                         'users.name',

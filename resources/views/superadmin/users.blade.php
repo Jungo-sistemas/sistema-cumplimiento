@@ -8,7 +8,7 @@
             selectedGroup: '{{ old('group_id', '') }}',
             selectedCompany: '{{ old('company_id', '') }}',
             selectedModuleAccess: '{{ old('module_access', 'all') }}',
-            selectedPosition: '{{ old('job_position_id', '') }}',
+            selectedPositions: @json(array_map('strval', (array) old('job_position_ids', []))),
             superadminId: '{{ $roles->where('slug', 'superadmin')->first()?->id }}',
             adminId: '{{ $roles->where('slug', 'admin')->first()?->id }}',
             allPositions: @json($jobPositions),
@@ -20,7 +20,7 @@
             editGroup: '',
             editCompany: '',
             editModuleAccess: 'all',
-            editPosition: '',
+            editPositionIds: [],
             get isSuperadminCreate() { return this.selectedRole === this.superadminId; },
             get isAdminCreate() { return this.selectedRole === this.adminId; },
             get createPositions() {
@@ -41,14 +41,25 @@
                 if (!this.editGroup) return [];
                 return this.allCompanies[this.editGroup] ?? [];
             },
-            openEdit(id, name, roleId, groupId, companyId, moduleAccess, positionId) {
+            toggleCreatePos(id) {
+                const idx = this.selectedPositions.indexOf(id);
+                if (idx === -1) this.selectedPositions.push(id);
+                else this.selectedPositions.splice(idx, 1);
+            },
+            toggleEditPos(id) {
+                const idx = this.editPositionIds.indexOf(id);
+                if (idx === -1) this.editPositionIds.push(id);
+                else this.editPositionIds.splice(idx, 1);
+            },
+            hasEditPos(id) { return this.editPositionIds.includes(id); },
+            openEdit(id, name, roleId, groupId, companyId, moduleAccess, positionIds) {
                 this.editUserId = id;
                 this.editUserName = name;
                 this.editRole = String(roleId ?? '');
                 this.editGroup = String(groupId ?? '');
                 this.editCompany = String(companyId ?? '');
                 this.editModuleAccess = moduleAccess || 'all';
-                this.editPosition = String(positionId ?? '');
+                this.editPositionIds = (positionIds || []).map(String);
                 this.editOpen = true;
             }
         };
@@ -156,7 +167,7 @@
                             id="user_group_id"
                             name="group_id"
                             x-model="selectedGroup"
-                            @change="selectedCompany = ''; selectedPosition = ''"
+                            @change="selectedCompany = ''; selectedPositions = []"
                             class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]"
                         >
                             <option value="">Seleccionar grupo…</option>
@@ -197,14 +208,24 @@
 
                     {{-- Puesto (hidden when superadmin) --}}
                     <div x-show="!isSuperadminCreate">
-                        <label class="mb-1 block text-sm font-medium text-gray-700">Puesto</label>
-                        <select name="job_position_id" x-model="selectedPosition"
-                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
-                            <option value="">— Sin asignar —</option>
+                        <label class="mb-1 block text-sm font-medium text-gray-700">Puesto(s)</label>
+                        <div class="flex flex-wrap gap-2 mt-1">
                             <template x-for="pos in createPositions" :key="pos.id">
-                                <option :value="pos.id" x-text="pos.name"></option>
+                                <label class="inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded-lg border text-sm transition"
+                                       :class="selectedPositions.includes(String(pos.id))
+                                           ? 'border-[#1A428A] bg-blue-50 text-[#1A428A] font-medium'
+                                           : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'">
+                                    <input type="checkbox" class="sr-only"
+                                           :value="pos.id"
+                                           :checked="selectedPositions.includes(String(pos.id))"
+                                           @change="toggleCreatePos(String(pos.id))">
+                                    <span x-text="pos.name"></span>
+                                </label>
                             </template>
-                        </select>
+                        </div>
+                        <template x-for="pid in selectedPositions" :key="pid">
+                            <input type="hidden" name="job_position_ids[]" :value="pid">
+                        </template>
                         <p x-show="selectedGroup === '' && selectedRole !== '' && !isSuperadminCreate"
                            class="mt-1 text-xs text-yellow-600">Selecciona un grupo para ver los puestos.</p>
                     </div>
@@ -317,7 +338,7 @@
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Grupo</label>
                                     <select name="group_id" x-model="editGroup"
-                                        @change="editCompany = ''; editPosition = ''"
+                                        @change="editCompany = ''; editPositionIds = []"
                                         class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
                                         <option value="">Sin grupo</option>
                                         @foreach($groups as $group)
@@ -344,14 +365,24 @@
                                  x-transition:enter="transition ease-out duration-150"
                                  x-transition:enter-start="opacity-0 -translate-y-1"
                                  x-transition:enter-end="opacity-100 translate-y-0">
-                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Puesto</label>
-                                <select name="job_position_id" x-model="editPosition"
-                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
-                                    <option value="">— Sin asignar —</option>
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Puesto(s)</label>
+                                <div class="flex flex-wrap gap-2">
                                     <template x-for="pos in editPositions" :key="pos.id">
-                                        <option :value="pos.id" x-text="pos.name" :selected="editPosition == pos.id"></option>
+                                        <label class="inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded-lg border text-sm transition"
+                                               :class="hasEditPos(String(pos.id))
+                                                   ? 'border-[#1A428A] bg-blue-50 text-[#1A428A] font-medium'
+                                                   : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'">
+                                            <input type="checkbox" class="sr-only"
+                                                   :value="pos.id"
+                                                   :checked="hasEditPos(String(pos.id))"
+                                                   @change="toggleEditPos(String(pos.id))">
+                                            <span x-text="pos.name"></span>
+                                        </label>
                                     </template>
-                                </select>
+                                </div>
+                                <template x-for="pid in editPositionIds" :key="pid">
+                                    <input type="hidden" name="job_position_ids[]" :value="pid">
+                                </template>
                                 <p x-show="editGroup === ''" class="mt-1 text-xs text-yellow-600">Selecciona un grupo para ver los puestos.</p>
                             </div>
 
@@ -455,7 +486,7 @@
                                     @if($user->id !== auth()->id())
                                         <div class="inline-flex gap-2">
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', '{{ $user->company_id ?? '' }}', '{{ $user->module_access ?? 'all' }}', '{{ $user->jobPositions->first()?->id ?? '' }}')"
+                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', '{{ $user->company_id ?? '' }}', '{{ $user->module_access ?? 'all' }}', {{ Js::from($user->jobPositions->pluck('id')) }})"
                                                 class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
                                                 Editar
                                             </button>
