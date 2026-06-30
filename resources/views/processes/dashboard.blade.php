@@ -76,6 +76,59 @@
             </div>
         </div>
 
+        {{-- Ranking de personas con aprobaciones pendientes --}}
+        @php $pendingByUser = $chartData['pendingByUser'] ?? []; @endphp
+        @if(count($pendingByUser) > 0)
+            <div>
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="text-sm font-semibold text-gray-700">Personas con aprobaciones pendientes</div>
+                    <span class="text-xs text-gray-400">· ordenadas por cantidad acumulada</span>
+                </div>
+                <div class="border rounded-lg overflow-hidden">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 text-gray-500 text-xs">
+                            <tr>
+                                <th class="text-left px-4 py-2.5 font-semibold">#</th>
+                                <th class="text-left px-4 py-2.5 font-semibold">Persona</th>
+                                <th class="text-center px-4 py-2.5 font-semibold">Pendientes</th>
+                                <th class="text-right px-4 py-2.5 font-semibold">Más antigua</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($pendingByUser as $i => $person)
+                                <tr class="border-t hover:bg-gray-50">
+                                    <td class="px-4 py-2.5 text-gray-400 text-xs">{{ $i + 1 }}</td>
+                                    <td class="px-4 py-2.5 font-medium text-gray-800">
+                                        <div class="flex items-center gap-2">
+                                            <span class="h-6 w-6 rounded-full bg-[#1A428A] text-white text-xs flex items-center justify-center shrink-0">
+                                                {{ mb_substr($person['name'], 0, 1) }}
+                                            </span>
+                                            {{ $person['name'] }}
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-2.5 text-center">
+                                        <span class="inline-flex items-center justify-center h-6 min-w-[1.5rem] px-2 rounded-full text-xs font-bold
+                                            {{ $person['count'] >= 3 ? 'bg-red-100 text-red-700' : ($person['count'] == 2 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600') }}">
+                                            {{ $person['count'] }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-2.5 text-right text-gray-500 text-xs">
+                                        @if($person['oldest_days'] === 0)
+                                            Hoy
+                                        @elseif($person['oldest_days'] === 1)
+                                            1 día
+                                        @else
+                                            {{ $person['oldest_days'] }} días
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+
         {{-- Pendientes de mi aprobación --}}
         @if($pendingApprovals->isNotEmpty())
             <div>

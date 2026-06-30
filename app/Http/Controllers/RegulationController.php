@@ -293,6 +293,105 @@ class RegulationController extends Controller
             ->with('success', 'Documento creado. Asigna el flujo de aprobación desde la tabla de documentos.');
     }
 
+    public function cargar(Request $request)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+
+        $selectedCompanyId = $user->hasGroupScope()
+            ? ($request->filled('company_id') ? (int) $request->company_id : null)
+            : (int) $user->company_id;
+
+        $companies = $user->hasGroupScope()
+            ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
+            : collect();
+
+        $processTypes = ProcessType::where('group_id', $user->group_id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')->orderBy('name')->get();
+
+        return view('processes.cargar', [
+            'companies'         => $companies,
+            'selectedCompanyId' => $selectedCompanyId,
+            'processTypes'      => $processTypes,
+            'documentTypes'     => Regulation::DOCUMENT_TYPES,
+        ]);
+    }
+
+    public function storeCargar(Request $request)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+
+        $data = $request->validate([
+            'company_id'       => ['required', 'exists:companies,id'],
+            'process_type_id'  => ['required', 'exists:process_types,id'],
+            'document_type'    => ['required', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
+            'nombre'           => ['required', 'string', 'max:255'],
+            'codigo'           => ['nullable', 'string', 'max:50'],
+            'quien_elabora'    => ['required', 'string', 'max:255'],
+            'quien_aprueba'    => ['required', 'string', 'max:255'],
+            'file'             => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
+            'issued_at'        => ['nullable', 'date'],
+            'valid_until'      => ['required', 'date', 'after_or_equal:issued_at'],
+        ]);
+
+        $company = Company::findOrFail($data['company_id']);
+        abort_unless($user->canAccessCompany($company), 403);
+
+        $regulation = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $request, $company, $user) {
+            $details = [
+                'quien_elabora' => $data['quien_elabora'],
+                'quien_aprueba' => $data['quien_aprueba'],
+                'fecha_vigencia' => $data['valid_until'] ?? null,
+            ];
+
+            $regulation = Regulation::create([
+                'group_id'        => $user->group_id,
+                'company_id'      => $company->id,
+                'process_type_id' => $data['process_type_id'],
+                'document_type'   => $data['document_type'],
+                'code'            => $data['codigo'] ? strtoupper($data['codigo']) : null,
+                'name'            => strtoupper($data['nombre']),
+                'details'         => $details,
+                'is_active'       => true,
+                'created_by'      => $user->id,
+                'impact_level'    => null,
+                'approval_status' => 'approved',
+                'flow_locked'     => false,
+            ]);
+
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                $path = $file->store(
+                    "regulations/{$regulation->company_id}/{$regulation->id}/versions",
+                    'private'
+                );
+
+                \App\Models\RegulationVersion::create([
+                    'regulation_id'      => $regulation->id,
+                    'version_number'     => 1,
+                    'change_description' => 'Versión inicial cargada',
+                    'responsible_name'   => $data['quien_aprueba'],
+                    'file_path'          => $path,
+                    'original_name'      => $file->getClientOriginalName(),
+                    'disk'               => 'private',
+                    'mime_type'          => $file->getMimeType(),
+                    'issued_at'          => $data['issued_at'] ?? now()->toDateString(),
+                    'valid_until'        => $data['valid_until'] ?? null,
+                    'is_current'         => true,
+                    'uploaded_by'        => $user->id,
+                ]);
+            }
+
+            return $regulation;
+        });
+
+        return redirect()
+            ->route('processes.show', $regulation)
+            ->with('success', 'Reglamento cargado correctamente y marcado como aprobado.');
+    }
+
     public function edit(Regulation $regulation)
     {
         $user = auth()->user();
