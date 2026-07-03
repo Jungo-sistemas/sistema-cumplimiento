@@ -151,6 +151,16 @@ class Regulation extends Model
     |--------------------------------------------------------------------------
     */
 
+    public function annexes(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(
+            Regulation::class,
+            'regulation_annexes',
+            'regulation_id',
+            'annexed_regulation_id'
+        )->withoutTrashed()->select(['regulations.id', 'regulations.code', 'regulations.name']);
+    }
+
     public function approvals()
     {
         return $this->hasMany(RegulationApproval::class)->orderBy('step_number')->orderBy('id');

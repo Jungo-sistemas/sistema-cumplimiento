@@ -8,6 +8,7 @@ use App\Models\ProcessType;
 use App\Models\Regulation;
 use App\Models\User;
 use App\Services\ApprovalFlowService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class RegulationController extends Controller
@@ -56,7 +57,7 @@ class RegulationController extends Controller
             ->orderBy('name')
             ->get();
 
-        $query = Regulation::with(['processType', 'company', 'currentVersion'])
+        $query = Regulation::with(['processType', 'company', 'currentVersion', 'annexes'])
             ->where('group_id', $user->group_id)
             ->where('is_active', true);
 
@@ -658,6 +659,64 @@ class RegulationController extends Controller
         return redirect()
             ->route('processes.show', $regulation)
             ->with('success', 'Información básica actualizada.');
+    }
+
+    public function searchAnnexes(Request $request): JsonResponse
+    {
+        $user      = auth()->user();
+        $companyId = (int) $request->company_id;
+        $excludeId = (int) $request->exclude;
+
+        abort_if(! $companyId, 400);
+
+        $company = Company::findOrFail($companyId);
+        abort_unless($user->canAccessCompany($company), 403);
+
+        $search = '%' . strtoupper(trim($request->q ?? '')) . '%';
+
+        $results = Regulation::where('company_id', $companyId)
+            ->where('group_id', $user->group_id)
+            ->where('is_active', true)
+            ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
+            ->where(function ($q) use ($search) {
+                $q->where('code', 'like', $search)
+                  ->orWhere('name', 'like', $search);
+            })
+            ->orderBy('code')
+            ->limit(12)
+            ->get(['id', 'code', 'name']);
+
+        return response()->json($results);
+    }
+
+    public function setAnnexes(Request $request, Regulation $regulation): JsonResponse
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+        abort_unless($user->canAccessCompany($regulation->company), 403);
+
+        $data = $request->validate([
+            'annex_ids'   => ['nullable', 'array'],
+            'annex_ids.*' => ['integer', 'exists:regulations,id'],
+        ]);
+
+        $annexIds = collect($data['annex_ids'] ?? [])
+            ->filter(fn ($id) => (int) $id !== $regulation->id);
+
+        if ($annexIds->isNotEmpty()) {
+            $valid = Regulation::whereIn('id', $annexIds)
+                ->where('company_id', $regulation->company_id)
+                ->where('is_active', true)
+                ->pluck('id');
+
+            $regulation->annexes()->sync($valid);
+        } else {
+            $regulation->annexes()->detach();
+        }
+
+        return response()->json([
+            'annexes' => $regulation->annexes()->get(['regulations.id', 'regulations.code', 'regulations.name']),
+        ]);
     }
 
     public function printView(Regulation $regulation)

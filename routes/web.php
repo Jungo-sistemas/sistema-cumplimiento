@@ -164,6 +164,9 @@ Route::middleware(['auth', 'module.access'])->group(function () {
     Route::post('/processes/report', [ProcessReportController::class, 'export'])
         ->name('processes.report');
 
+    Route::get('/processes/search-annexes', [RegulationController::class, 'searchAnnexes'])
+        ->name('processes.searchAnnexes');
+
     Route::post('/processes', [RegulationController::class, 'store'])
         ->name('processes.store');
 
@@ -210,6 +213,9 @@ Route::middleware(['auth', 'module.access'])->group(function () {
         ->name('processes.reject');
     Route::post('/processes/{regulation}/resubmit', [RegulationApprovalController::class, 'resubmit'])
         ->name('processes.resubmit');
+
+    Route::patch('/processes/{regulation}/annexes', [RegulationController::class, 'setAnnexes'])
+        ->name('processes.setAnnexes');
 
     Route::post('/processes/{regulation}/share', [RegulationShareController::class, 'store'])
         ->name('processes.share');

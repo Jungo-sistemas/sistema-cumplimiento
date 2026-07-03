@@ -330,9 +330,10 @@
                             <th class="text-left px-4 py-3 font-semibold">Nombre</th>
                             <th class="text-left px-4 py-3 font-semibold">Proceso</th>
                             <th class="text-left px-4 py-3 font-semibold">Tipo</th>
-                            <th class="text-left px-4 py-3 font-semibold">Versión</th>
+                            @if(! $globalSearch)
+                            <th class="text-left px-4 py-3 font-semibold">Anexos</th>
+                            @endif
                             <th class="text-left px-4 py-3 font-semibold">Vigencia</th>
-                            <th class="text-left px-4 py-3 font-semibold">Estatus</th>
                             <th class="text-left px-4 py-3 font-semibold">Flujo</th>
                             <th class="text-right px-4 py-3 font-semibold">Acciones</th>
                         </tr>
@@ -384,76 +385,150 @@
                                     {{ $regulation->document_type ?? '—' }}
                                 </td>
 
-                                <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
-                                    {{ $version ? 'v' . $version->version_number : '—' }}
-                                </td>
+                                @if(! $globalSearch)
+                                <td class="px-4 py-3 min-w-[160px] max-w-[200px]"
+                                    ondblclick="event.stopPropagation()"
+                                    x-data="annexEditor(
+                                        {{ $regulation->id }},
+                                        {{ $regulation->company_id }},
+                                        {{ Js::from($regulation->annexes->map(fn($a) => ['id' => $a->id, 'code' => $a->code, 'name' => $a->name])->values()) }}
+                                    )">
 
-                                <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
-                                    @if($version?->valid_until)
-                                        {{ $version->issued_at?->format('d/m/Y') ?? '—' }}
-                                        →
-                                        <span class="{{ $color === 'red' ? 'text-red-600 font-medium' : ($color === 'yellow' ? 'text-yellow-600 font-medium' : '') }}">
-                                            {{ $version->valid_until->format('d/m/Y') }}
-                                        </span>
-                                    @else
-                                        <span class="text-gray-400">Sin vigencia</span>
-                                    @endif
-                                </td>
-
-                                {{-- Estatus de vigencia --}}
-                                <td class="px-4 py-3 whitespace-nowrap">
-                                    <div x-data="{ open: false }" class="relative inline-block">
+                                    {{-- Vista: chips + botón editar --}}
+                                    <div x-show="! editing" class="flex items-center flex-wrap gap-1">
+                                        <template x-if="annexes.length === 0">
+                                            <span class="text-gray-400 text-xs">—</span>
+                                        </template>
+                                        <template x-for="annex in annexes" :key="annex.id">
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-mono"
+                                                  :title="annex.name"
+                                                  x-text="annex.code || '?'">
+                                            </span>
+                                        </template>
+                                        @if($user->isAdmin() || $user->isOperative())
                                         <button type="button"
-                                                @click="open = !open"
-                                                @click.outside="open = false"
-                                                class="flex items-center gap-2 focus:outline-none">
-                                            <span class="inline-block h-3 w-3 rounded-full
-                                                {{ $color === 'green'  ? 'bg-green-500' : '' }}
-                                                {{ $color === 'yellow' ? 'bg-yellow-400' : '' }}
-                                                {{ $color === 'red'    ? 'bg-red-500' : '' }}
-                                                {{ $color === 'blue'   ? 'bg-[#1A428A]' : '' }}">
-                                            </span>
-                                            <span class="text-xs text-gray-500">
-                                                {{ $regulation->statusLabel() }}
-                                            </span>
+                                                @click="openEdit()"
+                                                class="text-gray-400 hover:text-[#1A428A] transition shrink-0"
+                                                title="Editar anexos">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                            </svg>
                                         </button>
+                                        @endif
+                                    </div>
 
-                                        <div x-show="open"
-                                             x-transition
-                                             class="absolute left-0 top-6 z-20 w-56 rounded-xl border border-gray-200 bg-white shadow-lg p-3 text-xs text-gray-700">
-                                            @if(! $version && $color === 'blue')
-                                                <p class="font-semibold text-[#1A428A]">Aprobado</p>
-                                                <p class="mt-1 text-gray-500">El documento fue aprobado. Pendiente de subir la versión final.</p>
-                                            @elseif(! $version)
-                                                <p class="font-semibold text-yellow-600">Sin versión cargada</p>
-                                                <p class="mt-1 text-gray-500">No se ha subido ningún archivo todavía.</p>
-                                            @elseif($color === 'red')
-                                                <p class="font-semibold text-red-600">Vencido</p>
-                                                @if($daysLeft !== null)
-                                                    <p class="mt-1">Venció hace {{ abs($daysLeft) }} día(s).</p>
-                                                @endif
-                                                @if($version->responsible_name)
-                                                    <p class="mt-1">Responsable: <span class="font-medium">{{ $version->responsible_name }}</span></p>
-                                                @endif
-                                            @elseif($color === 'yellow')
-                                                <p class="font-semibold text-yellow-600">Por vencer</p>
-                                                @if($daysLeft !== null)
-                                                    <p class="mt-1">Vence en {{ $daysLeft }} día(s).</p>
-                                                @endif
-                                                @if($version->responsible_name)
-                                                    <p class="mt-1">Responsable: <span class="font-medium">{{ $version->responsible_name }}</span></p>
-                                                @endif
-                                            @else
-                                                <p class="font-semibold text-green-600">Vigente</p>
-                                                @if($daysLeft !== null)
-                                                    <p class="mt-1">Vence en {{ $daysLeft }} día(s).</p>
-                                                @endif
-                                                @if($version->responsible_name)
-                                                    <p class="mt-1">Responsable: <span class="font-medium">{{ $version->responsible_name }}</span></p>
-                                                @endif
-                                            @endif
+                                    {{-- Edición inline --}}
+                                    <div x-show="editing" class="space-y-1.5" style="display:none;">
+
+                                        {{-- Chips seleccionados --}}
+                                        <div class="flex flex-wrap gap-1 min-h-[1.25rem]">
+                                            <template x-for="annex in pending" :key="annex.id">
+                                                <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 text-xs font-mono">
+                                                    <span x-text="annex.code || '?'"></span>
+                                                    <button type="button"
+                                                            @click="removeAnnex(annex.id)"
+                                                            class="text-blue-500 hover:text-blue-800 ml-0.5">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                                        </svg>
+                                                    </button>
+                                                </span>
+                                            </template>
+                                        </div>
+
+                                        {{-- Autocomplete --}}
+                                        <div class="relative">
+                                            <input
+                                                x-ref="searchInput"
+                                                type="text"
+                                                x-model="search"
+                                                @input="onSearchInput()"
+                                                @focus="search.trim() && fetchResults()"
+                                                @keydown.escape="cancelEdit()"
+                                                placeholder="Buscar código…"
+                                                class="w-full rounded border border-gray-300 text-xs px-2 py-1 focus:outline-none focus:border-[#1A428A] focus:ring-1 focus:ring-[#1A428A]"
+                                            >
+                                            <div x-show="showDropdown"
+                                                 @click.outside="showDropdown = false"
+                                                 class="absolute left-0 top-full mt-0.5 z-30 w-60 bg-white border border-gray-200 rounded shadow-lg max-h-40 overflow-y-auto">
+                                                <template x-for="r in results" :key="r.id">
+                                                    <button type="button"
+                                                            @click="selectAnnex(r)"
+                                                            class="w-full text-left px-2 py-1.5 text-xs hover:bg-blue-50 flex items-baseline gap-1.5">
+                                                        <span class="font-mono font-semibold text-gray-800 shrink-0" x-text="r.code || '—'"></span>
+                                                        <span class="text-gray-500 truncate" x-text="r.name"></span>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </div>
+
+                                        {{-- Acciones --}}
+                                        <div class="flex items-center gap-1.5">
+                                            <button type="button"
+                                                    @click="save()"
+                                                    :disabled="saving"
+                                                    class="px-2 py-1 rounded bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d] disabled:opacity-50">
+                                                <span x-text="saving ? 'Guardando…' : 'Guardar'"></span>
+                                            </button>
+                                            <button type="button"
+                                                    @click="cancelEdit()"
+                                                    :disabled="saving"
+                                                    class="px-2 py-1 rounded border border-gray-300 text-gray-600 text-xs font-semibold hover:bg-gray-50">
+                                                Cancelar
+                                            </button>
+                                            <span x-show="error" class="text-red-500 text-xs">Error al guardar</span>
                                         </div>
                                     </div>
+                                </td>
+                                @endif
+
+                                {{-- Vigencia (dot + fecha vencimiento + tooltip) --}}
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    @if($version?->valid_until)
+                                        <div x-data="{ open: false }" class="relative inline-flex">
+                                            <button type="button"
+                                                    @click="open = !open"
+                                                    @click.outside="open = false"
+                                                    class="flex items-center gap-1.5 focus:outline-none">
+                                                <span class="inline-block h-2 w-2 rounded-full shrink-0
+                                                    {{ $color === 'green'  ? 'bg-green-500' : '' }}
+                                                    {{ $color === 'yellow' ? 'bg-yellow-400' : '' }}
+                                                    {{ $color === 'red'    ? 'bg-red-500'   : '' }}
+                                                    {{ $color === 'blue'   ? 'bg-[#1A428A]' : '' }}">
+                                                </span>
+                                                <span class="text-xs {{ $color === 'red' ? 'text-red-600 font-medium' : ($color === 'yellow' ? 'text-yellow-600 font-medium' : 'text-gray-600') }}">
+                                                    {{ $version->valid_until->format('d/m/Y') }}
+                                                </span>
+                                            </button>
+                                            <div x-show="open"
+                                                 x-transition
+                                                 class="absolute left-0 top-6 z-20 w-52 rounded-xl border border-gray-200 bg-white shadow-lg p-3 text-xs text-gray-700">
+                                                @if($color === 'red')
+                                                    <p class="font-semibold text-red-600">Vencido</p>
+                                                    @if($daysLeft !== null)<p class="mt-1">Venció hace {{ abs($daysLeft) }} día(s).</p>@endif
+                                                @elseif($color === 'yellow')
+                                                    <p class="font-semibold text-yellow-600">Por vencer</p>
+                                                    @if($daysLeft !== null)<p class="mt-1">Vence en {{ $daysLeft }} día(s).</p>@endif
+                                                @else
+                                                    <p class="font-semibold text-green-600">Vigente</p>
+                                                    @if($daysLeft !== null)<p class="mt-1">Vence en {{ $daysLeft }} día(s).</p>@endif
+                                                @endif
+                                                @if($version->issued_at)
+                                                    <p class="mt-1 text-gray-400">Desde: {{ $version->issued_at->format('d/m/Y') }}</p>
+                                                @endif
+                                                @if($version->responsible_name)
+                                                    <p class="mt-1">Responsable: <span class="font-medium">{{ $version->responsible_name }}</span></p>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @else
+                                        <span class="inline-flex items-center gap-1.5 text-xs text-gray-400">
+                                            <span class="inline-block h-2 w-2 rounded-full shrink-0
+                                                {{ $color === 'blue' ? 'bg-[#1A428A]' : 'bg-yellow-400' }}">
+                                            </span>
+                                            {{ $color === 'blue' ? 'Sin archivo' : 'Sin vigencia' }}
+                                        </span>
+                                    @endif
                                 </td>
 
                                 {{-- Columna Flujo --}}
@@ -564,7 +639,7 @@
                             </tr>
                         @empty
                             <tr class="border-t">
-                                <td colspan="{{ $globalSearch ? 11 : 10 }}"
+                                <td colspan="9"
                                     class="px-6 py-8 text-center text-gray-500">
                                     No hay documentos para los filtros seleccionados.
                                 </td>
@@ -782,6 +857,102 @@ function reportTable(allIds) {
 
         submitReport() {
             this.$refs.reportForm.submit();
+        },
+    };
+}
+
+function annexEditor(regulationId, companyId, initialAnnexes) {
+    return {
+        editing: false,
+        saving: false,
+        error: false,
+        annexes: JSON.parse(JSON.stringify(initialAnnexes)),
+        pending: [],
+        search: '',
+        results: [],
+        showDropdown: false,
+        _timer: null,
+
+        openEdit() {
+            this.pending = JSON.parse(JSON.stringify(this.annexes));
+            this.search = '';
+            this.results = [];
+            this.showDropdown = false;
+            this.editing = true;
+            this.$nextTick(() => this.$refs.searchInput?.focus());
+        },
+
+        cancelEdit() {
+            this.editing = false;
+            this.search = '';
+            this.results = [];
+            this.showDropdown = false;
+        },
+
+        onSearchInput() {
+            clearTimeout(this._timer);
+            if (! this.search.trim()) {
+                this.results = [];
+                this.showDropdown = false;
+                return;
+            }
+            this._timer = setTimeout(() => this.fetchResults(), 250);
+        },
+
+        async fetchResults() {
+            const q   = encodeURIComponent(this.search.trim());
+            const url = `/processes/search-annexes?company_id=${companyId}&q=${q}&exclude=${regulationId}`;
+            try {
+                const res  = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                const data = await res.json();
+                const pendingIds = this.pending.map(p => p.id);
+                this.results     = data.filter(r => ! pendingIds.includes(r.id));
+                this.showDropdown = this.results.length > 0;
+            } catch {
+                this.results = [];
+                this.showDropdown = false;
+            }
+        },
+
+        selectAnnex(annex) {
+            if (! this.pending.find(p => p.id === annex.id)) {
+                this.pending.push({ id: annex.id, code: annex.code, name: annex.name });
+            }
+            this.search = '';
+            this.results = [];
+            this.showDropdown = false;
+            this.$nextTick(() => this.$refs.searchInput?.focus());
+        },
+
+        removeAnnex(id) {
+            this.pending = this.pending.filter(p => p.id !== id);
+        },
+
+        async save() {
+            this.saving = true;
+            this.error  = false;
+            try {
+                const res = await fetch(`/processes/${regulationId}/annexes`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                    },
+                    body: JSON.stringify({ annex_ids: this.pending.map(p => p.id) }),
+                });
+                if (res.ok) {
+                    const data   = await res.json();
+                    this.annexes = data.annexes;
+                    this.editing = false;
+                    this.search  = '';
+                } else {
+                    this.error = true;
+                }
+            } catch {
+                this.error = true;
+            }
+            this.saving = false;
         },
     };
 }
