@@ -876,7 +876,7 @@
                                    class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
                         </div>
 
-                        <div class="max-h-56 overflow-y-auto border rounded-lg divide-y">
+                        <div class="border rounded-lg divide-y">
                             <template x-for="u in filtered()" :key="u.id">
                                 <label class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer">
                                     <input type="checkbox"
@@ -895,6 +895,9 @@
                             </template>
                         </div>
 
+                        <p x-show="showHint" class="text-xs text-gray-400">
+                            Mostrando 5 de <span x-text="users.length"></span>. Busca por nombre o correo para ver más.
+                        </p>
                         <p class="text-xs text-gray-400" x-show="selected.length > 0" x-text="`${selected.length} persona(s) seleccionada(s)`"></p>
                     </div>
 
@@ -984,11 +987,14 @@
             selected: [],
             get viewedCount() { return this.recipients.filter(r => r.viewed_at).length; },
             filtered() {
-                const q = this.search.toLowerCase();
-                if (!q) return this.users;
+                const q = this.search.toLowerCase().trim();
+                if (!q) return this.users.slice(0, 5);
                 return this.users.filter(u =>
                     u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
                 );
+            },
+            get showHint() {
+                return !this.search.trim() && this.users.length > 5;
             },
         };
     }
