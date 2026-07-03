@@ -57,13 +57,53 @@
 
             <div class="flex items-center gap-2 shrink-0">
                 @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
-                    <a href="{{ route('processes.edit', $regulation) }}"
-                       class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50">
-                        Editar
-                    </a>
+                    {{-- Dropdown Editar --}}
+                    <div class="relative" x-data="{ open: false }">
+                        <button type="button"
+                                @click="open = !open"
+                                @click.outside="open = false"
+                                class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50 text-sm flex items-center gap-1.5">
+                            Editar
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-150" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        <div x-show="open"
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="opacity-0 -translate-y-1"
+                             x-transition:enter-end="opacity-100 translate-y-0"
+                             class="absolute right-0 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg z-20 overflow-hidden"
+                             style="display:none;">
+                            <a href="{{ route('processes.editBasic', $regulation) }}"
+                               class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#1A428A]">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                </svg>
+                                Info básica
+                            </a>
+                            <a href="{{ route('processes.edit', $regulation) }}"
+                               class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#1A428A] border-t border-gray-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                                Prompt
+                            </a>
+                        </div>
+                    </div>
+
+                    @if($regulation->approval_status === 'approved')
+                        <button type="button"
+                                onclick="openShareModal('send')"
+                                class="px-4 py-2 rounded-md border border-green-600 bg-white text-green-700 font-semibold hover:bg-green-50 text-sm flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                            </svg>
+                            Compartir
+                        </button>
+                    @endif
                 @endif
-                <a href="{{ route('processes.index') }}"
-                   class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50">
+                <a href="{{ route('processes.index', ['company_id' => $regulation->company_id]) }}"
+                   class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50 text-sm">
                     Volver
                 </a>
             </div>
@@ -540,6 +580,23 @@
                     </svg>
                 </a>
             </div>
+        @elseif($regulation->approval_status === 'approved' && !$regulation->flow_locked)
+            {{-- Documento cargado y aprobado externamente (sin flujo interno) --}}
+            <div class="mt-8 flex items-start gap-4 rounded-xl border border-green-200 bg-green-50 px-5 py-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                    <p class="text-sm font-semibold text-green-800">Documento aprobado externamente</p>
+                    <p class="text-xs text-green-700 mt-0.5">
+                        Aprobado por: <span class="font-medium">{{ $regulation->details['quien_aprueba'] ?? '—' }}</span>
+                        @if(!empty($regulation->details['quien_elabora']))
+                            · Elaborado por: <span class="font-medium">{{ $regulation->details['quien_elabora'] }}</span>
+                        @endif
+                    </p>
+                    <p class="text-xs text-green-600 mt-1">Este documento fue cargado con aprobación previa y no requiere flujo interno.</p>
+                </div>
+            </div>
         @endif
         {{-- ===== FIN FLUJO DE APROBACIÓN ===== --}}
 
@@ -574,7 +631,7 @@
                                 @error('file')
                                     <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                                 @enderror
-                                <p class="text-xs text-gray-500 mt-1">PDF, JPG o PNG. Máximo 10 MB.</p>
+                                <p class="text-xs text-gray-500 mt-1">PDF, Word, Excel o PowerPoint. Máximo 10 MB.</p>
                             </div>
 
                             <div>
@@ -761,6 +818,182 @@
         </div>
 
     </div>
+
+    {{-- Modal: Compartir (2 pestañas: Enviar + Quién lo vio) --}}
+    @if($regulation->approval_status === 'approved' && (auth()->user()->isAdmin() || auth()->user()->isOperative()))
+    <div id="shareModal"
+         class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4"
+         x-data="shareModalApp({{ Js::from($shareableUsers) }}, {{ Js::from($shareRecipients->map(fn($s) => [
+             'name'      => $s->recipient?->name ?? '—',
+             'email'     => $s->recipient?->email ?? '',
+             'sender'    => $s->sender?->name ?? '—',
+             'sent_at'   => $s->sent_at?->format('d/m/Y H:i') ?? '—',
+             'viewed_at' => $s->viewed_at?->format('d/m/Y H:i'),
+         ])->values()) }})">
+        <div class="w-full max-w-lg rounded-xl bg-white shadow-2xl flex flex-col max-h-[90vh]">
+
+            {{-- Header --}}
+            <div class="p-5 border-b flex items-center justify-between shrink-0">
+                <h3 class="text-base font-bold text-gray-900">Compartir documento</h3>
+                <button type="button" onclick="closeShareModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            {{-- Pestañas --}}
+            <div class="flex border-b shrink-0">
+                <button type="button"
+                        @click="tab = 'send'"
+                        :class="tab === 'send' ? 'border-b-2 border-[#1A428A] text-[#1A428A] font-semibold' : 'text-gray-500 hover:text-gray-700'"
+                        class="px-5 py-2.5 text-sm transition">
+                    Enviar notificación
+                </button>
+                <button type="button"
+                        @click="tab = 'track'"
+                        :class="tab === 'track' ? 'border-b-2 border-[#1A428A] text-[#1A428A] font-semibold' : 'text-gray-500 hover:text-gray-700'"
+                        class="px-5 py-2.5 text-sm transition flex items-center gap-1.5">
+                    Quién lo vio
+                    <span class="text-xs rounded-full px-1.5 py-0.5 font-medium"
+                          :class="viewedCount > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
+                          x-text="`${viewedCount}/${recipients.length}`"></span>
+                </button>
+            </div>
+
+            {{-- Pestaña: Enviar --}}
+            <div x-show="tab === 'send'" class="flex flex-col overflow-hidden">
+                <form method="POST" action="{{ route('processes.share', $regulation) }}" class="flex flex-col overflow-hidden">
+                    @csrf
+                    <div class="p-5 space-y-4 overflow-y-auto">
+                        <p class="text-xs text-gray-500">Las personas seleccionadas recibirán un correo con enlace de acceso al documento.</p>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Buscar persona</label>
+                            <input type="text"
+                                   x-model="search"
+                                   placeholder="Nombre o correo…"
+                                   class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                        </div>
+
+                        <div class="max-h-56 overflow-y-auto border rounded-lg divide-y">
+                            <template x-for="u in filtered()" :key="u.id">
+                                <label class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox"
+                                           name="user_ids[]"
+                                           :value="u.id"
+                                           x-model="selected"
+                                           class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]">
+                                    <div>
+                                        <div class="text-sm font-medium text-gray-800" x-text="u.name"></div>
+                                        <div class="text-xs text-gray-400" x-text="u.email"></div>
+                                    </div>
+                                </label>
+                            </template>
+                            <template x-if="filtered().length === 0">
+                                <div class="px-4 py-3 text-sm text-gray-400 italic">Sin resultados</div>
+                            </template>
+                        </div>
+
+                        <p class="text-xs text-gray-400" x-show="selected.length > 0" x-text="`${selected.length} persona(s) seleccionada(s)`"></p>
+                    </div>
+
+                    <div class="p-5 border-t shrink-0 flex items-center justify-end gap-3">
+                        <button type="button" onclick="closeShareModal()"
+                                class="px-4 py-2 rounded-md border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                            Cancelar
+                        </button>
+                        <button type="submit"
+                                :disabled="selected.length === 0"
+                                :class="selected.length > 0 ? 'bg-[#1A428A] hover:bg-[#15356d] text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+                                class="px-5 py-2 rounded-md text-sm font-semibold transition">
+                            Enviar notificación
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {{-- Pestaña: Quién lo vio --}}
+            <div x-show="tab === 'track'" class="flex flex-col overflow-hidden">
+                <div class="p-5 overflow-y-auto">
+                    <template x-if="recipients.length === 0">
+                        <p class="text-sm text-gray-400">Aún no se han enviado notificaciones para este documento.</p>
+                    </template>
+                    <template x-if="recipients.length > 0">
+                        <div>
+                            <p class="text-xs text-gray-500 mb-3"
+                               x-text="`${viewedCount} de ${recipients.length} persona(s) abrieron el enlace`"></p>
+                            <div class="divide-y border rounded-lg overflow-hidden">
+                                <template x-for="(r, i) in recipients" :key="i">
+                                    <div class="flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50">
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-800" x-text="r.name"></div>
+                                            <div class="text-xs text-gray-400" x-text="r.email"></div>
+                                            <div class="text-xs text-gray-400 mt-0.5" x-text="`Enviado: ${r.sent_at} · por ${r.sender}`"></div>
+                                        </div>
+                                        <div class="shrink-0 ml-4">
+                                            <template x-if="r.viewed_at">
+                                                <span class="inline-flex items-center gap-1.5 text-xs text-green-700 font-medium">
+                                                    <span class="h-2 w-2 rounded-full bg-green-500"></span>
+                                                    <span x-text="r.viewed_at"></span>
+                                                </span>
+                                            </template>
+                                            <template x-if="!r.viewed_at">
+                                                <span class="inline-flex items-center gap-1.5 text-xs text-gray-400">
+                                                    <span class="h-2 w-2 rounded-full bg-gray-300"></span>
+                                                    No abierto
+                                                </span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <div class="p-5 border-t shrink-0 flex justify-end">
+                    <button type="button" onclick="closeShareModal()"
+                            class="px-4 py-2 rounded-md border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+    function openShareModal(tab) {
+        const m = document.getElementById('shareModal');
+        m.classList.remove('hidden');
+        m.classList.add('flex');
+        const comp = m._x_dataStack?.[0];
+        if (comp) comp.tab = tab || 'send';
+    }
+    function closeShareModal() {
+        const m = document.getElementById('shareModal');
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+    }
+    function shareModalApp(users, recipients) {
+        return {
+            tab: 'send',
+            users,
+            recipients,
+            search: '',
+            selected: [],
+            get viewedCount() { return this.recipients.filter(r => r.viewed_at).length; },
+            filtered() {
+                const q = this.search.toLowerCase();
+                if (!q) return this.users;
+                return this.users.filter(u =>
+                    u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+                );
+            },
+        };
+    }
+    </script>
+    @endif
 
     {{-- Modal: Confirmar eliminación de versión --}}
     <div id="deleteModal"

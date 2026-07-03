@@ -1,4 +1,4 @@
-<x-layouts.vigia :title="'Editar · ' . $regulation->name">
+<x-layouts.vigia :title="'Editar prompt · ' . $regulation->name">
 
     <x-slot name="breadcrumb">
         <a href="{{ route('processes.index') }}" class="text-gray-500 hover:underline">Procesos</a>
@@ -7,11 +7,12 @@
             <x-truncate max="max-w-[260px]">{{ $regulation->name }}</x-truncate>
         </a>
         <span class="mx-2 text-gray-400">/</span>
-        <span class="text-gray-700 font-medium">Editar</span>
+        <span class="text-gray-700 font-medium">Editar prompt</span>
     </x-slot>
 
     @php
         $d = $regulation->details ?? [];
+        $hasPrompt = !empty($d['resultado_esperado']) || !empty($d['problema_resuelve']);
 
         $initialForm = [
             'process_type_id'             => (string) ($regulation->process_type_id ?? ''),
@@ -53,6 +54,17 @@
         ];
     @endphp
 
+    @if(!$hasPrompt)
+    <div class="mb-5 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 flex items-start gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <p class="text-sm text-blue-800">
+            Este proceso fue cargado sin prompt. Llena los bloques de contenido para generar uno nuevo.
+        </p>
+    </div>
+    @endif
+
     <div
         x-data="wizardApp({{ Js::from($initialForm) }})"
         x-init="init()"
@@ -61,7 +73,7 @@
         {{-- ===== TOP PROGRESS BAR ===== --}}
         <div class="mb-6">
             <div class="flex items-center justify-between mb-1">
-                <h1 class="text-2xl font-semibold text-[#1A428A]">Editar Proceso</h1>
+                <h1 class="text-2xl font-semibold text-[#1A428A]">Editar Prompt</h1>
                 <span class="text-sm text-gray-500" x-text="Math.round(overallProgress()) + '% completado'"></span>
             </div>
             <div class="h-2 bg-gray-200 rounded-full overflow-hidden">

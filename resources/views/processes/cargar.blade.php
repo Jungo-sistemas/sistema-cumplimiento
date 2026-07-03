@@ -113,13 +113,16 @@
                         {{-- Código --}}
                         <div>
                             <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                                Código <span class="font-normal normal-case text-gray-400">(opcional)</span>
+                                Código <span class="text-red-500">*</span>
                             </label>
                             <input type="text"
                                    name="codigo"
                                    value="{{ old('codigo') }}"
                                    placeholder="Ej: P-COM-001"
-                                   class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                                   class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('codigo') border-red-400 @enderror">
+                            @error('codigo')
+                                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         {{-- Elaborado + Aprobado en fila --}}
@@ -189,17 +192,18 @@
                                     <span class="text-sm font-medium"
                                           :class="fileName ? 'text-[#1A428A]' : 'text-gray-500'"
                                           x-text="fileName || 'Haz clic para seleccionar archivo'"></span>
-                                    <span x-show="!fileName" class="text-xs text-gray-400">PDF, JPG o PNG — máx. 10 MB</span>
+                                    <span x-show="!fileName" class="text-xs text-gray-400">PDF, Word, Excel o PowerPoint — máx. 10 MB</span>
                                 </div>
                                 <input type="file"
                                        name="file"
-                                       accept=".pdf,.jpg,.jpeg,.png"
+                                       accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
                                        class="sr-only"
                                        @change="fileName = $event.target.files[0]?.name ?? ''">
                             </label>
                             @error('file')
                                 <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                             @enderror
+                            <p class="text-xs text-gray-400 mt-1">PDF, Word, Excel o PowerPoint — máx. 10 MB</p>
                         </div>
 
                         {{-- Fechas --}}

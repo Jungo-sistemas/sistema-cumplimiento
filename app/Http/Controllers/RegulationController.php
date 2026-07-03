@@ -194,6 +194,18 @@ class RegulationController extends Controller
                 ])
             : collect();
 
+        $shareRecipients = \App\Models\RegulationShare::with(['recipient', 'sender'])
+            ->where('regulation_id', $regulation->id)
+            ->orderByDesc('sent_at')
+            ->get();
+
+        $shareableUsers = $regulation->approval_status === 'approved'
+            ? User::where('group_id', $regulation->group_id)
+                ->where('id', '!=', $user->id)
+                ->orderBy('name')
+                ->get(['id', 'name', 'email'])
+            : collect();
+
         return view('processes.show', [
             'regulation'             => $regulation,
             'versionHistory'         => $versionHistory,
@@ -205,6 +217,8 @@ class RegulationController extends Controller
             'positionLabels'         => $positionLabels,
             'positionSortOrders'     => $positionSortOrders,
             'flowDefinitions'        => ApprovalFlowService::getAllFlows(),
+            'shareRecipients'        => $shareRecipients,
+            'shareableUsers'         => $shareableUsers,
         ]);
     }
 
@@ -328,10 +342,10 @@ class RegulationController extends Controller
             'process_type_id'  => ['required', 'exists:process_types,id'],
             'document_type'    => ['required', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
             'nombre'           => ['required', 'string', 'max:255'],
-            'codigo'           => ['nullable', 'string', 'max:50'],
+            'codigo'           => ['required', 'string', 'max:50'],
             'quien_elabora'    => ['required', 'string', 'max:255'],
             'quien_aprueba'    => ['required', 'string', 'max:255'],
-            'file'             => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
+            'file'             => ['required', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx'],
             'issued_at'        => ['nullable', 'date'],
             'valid_until'      => ['required', 'date', 'after_or_equal:issued_at'],
         ]);
@@ -590,6 +604,60 @@ class RegulationController extends Controller
             'expiredRegulations' => $expiredRegulations,
             'oldVersions'        => $oldVersions,
         ]);
+    }
+
+    public function editBasic(Regulation $regulation)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+        abort_unless($user->canAccessCompany($regulation->company), 403);
+
+        $regulation->load(['processType', 'company', 'currentVersion']);
+
+        $processTypes = ProcessType::where('group_id', $user->group_id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')->orderBy('name')->get();
+
+        return view('processes.edit-basic', [
+            'regulation'    => $regulation,
+            'processTypes'  => $processTypes,
+            'documentTypes' => Regulation::DOCUMENT_TYPES,
+        ]);
+    }
+
+    public function updateBasic(Request $request, Regulation $regulation)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+        abort_unless($user->canAccessCompany($regulation->company), 403);
+
+        $data = $request->validate([
+            'process_type_id' => ['required', 'exists:process_types,id'],
+            'document_type'   => ['required', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
+            'nombre'          => ['required', 'string', 'max:255'],
+            'codigo'          => ['nullable', 'string', 'max:50'],
+            'quien_elabora'   => ['required', 'string', 'max:255'],
+            'quien_aprueba'   => ['required', 'string', 'max:255'],
+            'fecha_vigencia'  => ['required', 'date'],
+        ]);
+
+        $newDetails = array_merge($regulation->details ?? [], [
+            'quien_elabora'  => $data['quien_elabora'],
+            'quien_aprueba'  => $data['quien_aprueba'],
+            'fecha_vigencia' => $data['fecha_vigencia'],
+        ]);
+
+        $regulation->update([
+            'process_type_id' => $data['process_type_id'],
+            'document_type'   => $data['document_type'],
+            'code'            => $data['codigo'] ? strtoupper($data['codigo']) : null,
+            'name'            => strtoupper($data['nombre']),
+            'details'         => $newDetails,
+        ]);
+
+        return redirect()
+            ->route('processes.show', $regulation)
+            ->with('success', 'Información básica actualizada.');
     }
 
     public function printView(Regulation $regulation)
