@@ -27,6 +27,11 @@ use App\Http\Controllers\DocumentTrashController;
 use App\Http\Controllers\DocumentReportController;
 use App\Http\Controllers\MyApprovalsController;
 use App\Http\Controllers\ProcessReportController;
+use App\Http\Controllers\RegulationShareController;
+
+// Tracking link — sin auth para registrar el clic antes del login
+Route::get('/processes/{regulation}/view/{token}', [RegulationShareController::class, 'track'])
+    ->name('processes.view-track');
 
 Route::get('/', function () {
     return auth()->check()
@@ -171,6 +176,12 @@ Route::middleware(['auth', 'module.access'])->group(function () {
     Route::put('/processes/{regulation}', [RegulationController::class, 'update'])
         ->name('processes.update');
 
+    Route::get('/processes/{regulation}/edit-basic', [RegulationController::class, 'editBasic'])
+        ->name('processes.editBasic');
+
+    Route::put('/processes/{regulation}/update-basic', [RegulationController::class, 'updateBasic'])
+        ->name('processes.updateBasic');
+
     Route::patch('/processes/{regulation}/set-flow', [RegulationController::class, 'setFlow'])
         ->name('processes.setFlow');
 
@@ -199,6 +210,9 @@ Route::middleware(['auth', 'module.access'])->group(function () {
         ->name('processes.reject');
     Route::post('/processes/{regulation}/resubmit', [RegulationApprovalController::class, 'resubmit'])
         ->name('processes.resubmit');
+
+    Route::post('/processes/{regulation}/share', [RegulationShareController::class, 'store'])
+        ->name('processes.share');
 
     // Job positions (admin de grupo)
     Route::get('/settings/positions', [JobPositionController::class, 'index'])

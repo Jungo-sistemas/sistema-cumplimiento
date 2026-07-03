@@ -18,7 +18,7 @@ class RegulationVersionController extends Controller
         abort_unless($user->canAccessCompany($regulation->company), 403);
 
         $data = $request->validate([
-            'file'               => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
+            'file'               => ['required', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx'],
             'change_description' => ['nullable', 'string', 'max:1000'],
             'responsible_name'   => ['nullable', 'string', 'max:255'],
         ]);
