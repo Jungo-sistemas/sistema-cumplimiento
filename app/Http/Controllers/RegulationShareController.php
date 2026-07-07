@@ -58,6 +58,7 @@ class RegulationShareController extends Controller
     {
         $share = RegulationShare::where('regulation_id', $regulation->id)
             ->where('token', $token)
+            ->where('user_id', auth()->id())
             ->firstOrFail();
 
         if (! $share->viewed_at) {
@@ -67,6 +68,6 @@ class RegulationShareController extends Controller
             ]);
         }
 
-        return redirect()->route('processes.show', $regulation);
+        return redirect()->route('processes.show', [$regulation, 'open_pdf' => 1]);
     }
 }

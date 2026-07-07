@@ -29,10 +29,6 @@ use App\Http\Controllers\MyApprovalsController;
 use App\Http\Controllers\ProcessReportController;
 use App\Http\Controllers\RegulationShareController;
 
-// Tracking link — sin auth para registrar el clic antes del login
-Route::get('/processes/{regulation}/view/{token}', [RegulationShareController::class, 'track'])
-    ->name('processes.view-track');
-
 Route::get('/', function () {
     return auth()->check()
         ? redirect()->route('dashboard')
@@ -203,6 +199,18 @@ Route::middleware(['auth', 'module.access'])->group(function () {
     Route::get('/regulation-versions/{version}/download', [RegulationVersionController::class, 'download'])
         ->name('regulation-versions.download');
 
+    Route::get('/regulation-versions/{version}/edit', [RegulationVersionController::class, 'editForm'])
+        ->name('regulation-versions.edit');
+
+    Route::post('/regulation-versions/{version}/edit', [RegulationVersionController::class, 'saveEdit'])
+        ->name('regulation-versions.saveEdit');
+
+    Route::post('/regulation-versions/{version}/draft', [RegulationVersionController::class, 'saveDraft'])
+        ->name('regulation-versions.saveDraft');
+
+    Route::delete('/regulation-versions/{version}/lock', [RegulationVersionController::class, 'releaseLock'])
+        ->name('regulation-versions.releaseLock');
+
     Route::delete('/processes/{regulation}/versions/{version}', [RegulationVersionController::class, 'destroy'])
         ->name('regulation-versions.destroy');
 
@@ -219,6 +227,9 @@ Route::middleware(['auth', 'module.access'])->group(function () {
 
     Route::post('/processes/{regulation}/share', [RegulationShareController::class, 'store'])
         ->name('processes.share');
+
+    Route::get('/processes/{regulation}/view/{token}', [RegulationShareController::class, 'track'])
+        ->name('processes.view-track');
 
     // Job positions (admin de grupo)
     Route::get('/settings/positions', [JobPositionController::class, 'index'])

@@ -719,6 +719,38 @@
                                     Descargar
                                 </a>
                                 @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
+                                    @php
+                                        $cvExt   = strtolower(pathinfo($currentVersion->original_name ?? $currentVersion->file_path, PATHINFO_EXTENSION));
+                                        $canEdit = $cvExt === 'docx';
+                                    @endphp
+                                    @if(! $canEdit)
+                                        {{-- Formato no editable --}}
+                                        <span title="Solo se pueden editar archivos .docx — este es .{{ $cvExt ?: 'desconocido' }}"
+                                              class="px-3 py-2 rounded-md border font-semibold text-sm bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed select-none">
+                                            Editar
+                                        </span>
+                                    @elseif($editLock && ! $editLock['by_me'])
+                                        {{-- Bloqueado por otro usuario --}}
+                                        <span title="Editando: {{ $editLock['user_name'] }} · Bloqueo expira a las {{ $editLock['expires'] }}"
+                                              class="inline-flex items-center gap-1 px-3 py-2 rounded-md border font-semibold text-sm bg-orange-50 text-orange-600 border-orange-300 cursor-not-allowed select-none">
+                                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                            Editando
+                                        </span>
+                                    @elseif($editLock && $editLock['by_me'] && $editLock['has_draft'])
+                                        {{-- El usuario actual tiene un borrador guardado --}}
+                                        <a href="{{ route('regulation-versions.edit', $currentVersion) }}"
+                                           title="Tienes un borrador guardado a las {{ $editLock['draft_at'] }}. Haz clic para retomarlo."
+                                           class="inline-flex items-center gap-1 px-3 py-2 rounded-md border font-semibold text-sm bg-yellow-50 text-yellow-700 border-yellow-400 hover:bg-yellow-100">
+                                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                            Borrador
+                                        </a>
+                                    @else
+                                        {{-- Libre para editar --}}
+                                        <a href="{{ route('regulation-versions.edit', $currentVersion) }}"
+                                           class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                            Editar
+                                        </a>
+                                    @endif
                                     <button type="button"
                                             onclick="openDeleteModal(
                                                 '{{ route('regulation-versions.destroy', [$regulation, $currentVersion]) }}',
@@ -1217,6 +1249,50 @@
             </div>
         </div>
     </div>
+    @endif
+
+    {{-- PDF Overlay: auto-abre cuando el link compartido redirige con ?open_pdf=1 --}}
+    @if(request('open_pdf') && $currentVersion)
+    <div id="pdfOverlay"
+         class="fixed inset-0 z-[60] flex flex-col bg-gray-900"
+         style="display:none!important">
+        <div class="flex items-center justify-between px-4 py-2 bg-[#1A428A] text-white shrink-0">
+            <span class="font-semibold text-sm truncate">
+                {{ $currentVersion->original_name ?? basename($currentVersion->file_path) }}
+                <span class="ml-2 text-blue-200 text-xs font-normal">v{{ $currentVersion->version_number }}</span>
+            </span>
+            <div class="flex items-center gap-3 shrink-0 ml-4">
+                <a href="{{ route('regulation-versions.download', $currentVersion) }}"
+                   class="text-blue-200 hover:text-white text-sm">Descargar</a>
+                <button type="button" onclick="closePdfOverlay()"
+                        class="text-blue-200 hover:text-white" title="Cerrar">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <iframe src="{{ route('regulation-versions.preview', $currentVersion) }}"
+                class="flex-1 w-full border-0"
+                title="{{ $currentVersion->original_name ?? basename($currentVersion->file_path) }}">
+        </iframe>
+    </div>
+    <script>
+        (function () {
+            const overlay = document.getElementById('pdfOverlay');
+            if (overlay) {
+                overlay.style.cssText = '';
+                document.body.style.overflow = 'hidden';
+            }
+        })();
+        function closePdfOverlay() {
+            const overlay = document.getElementById('pdfOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+                document.body.style.overflow = '';
+            }
+        }
+    </script>
     @endif
 
     <script>
