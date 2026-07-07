@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\JobPosition;
 use App\Models\ProcessType;
 use App\Models\Regulation;
+use App\Models\RegulationShare;
 use App\Models\User;
 use App\Services\ApprovalFlowService;
 use Illuminate\Http\JsonResponse;
@@ -162,7 +163,15 @@ class RegulationController extends Controller
     {
         $user = auth()->user();
 
-        abort_unless($user->canAccessCompany($regulation->company), 403);
+        // Acceso: empresa propia, aprobación pendiente asignada, o documento compartido directamente
+        $pendingApprovalForUser = $this->flowService->getPendingApprovalForUser($regulation, $user->id);
+        $hasShare = RegulationShare::where('regulation_id', $regulation->id)
+            ->where('user_id', $user->id)
+            ->exists();
+        abort_unless(
+            $user->canAccessCompany($regulation->company) || $pendingApprovalForUser !== null || $hasShare,
+            403
+        );
 
         $regulation->load(['processType', 'company', 'currentVersion', 'creator']);
 
@@ -174,8 +183,6 @@ class RegulationController extends Controller
             ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'operative']))
             ->orderBy('name')
             ->get(['id', 'name']);
-
-        $pendingApprovalForUser = $this->flowService->getPendingApprovalForUser($regulation, $user->id);
 
         $positions = JobPosition::where('group_id', $regulation->group_id)
             ->where('is_active', true)
@@ -207,6 +214,19 @@ class RegulationController extends Controller
                 ->get(['id', 'name', 'email'])
             : collect();
 
+        // Lock info for the edit button
+        $editLock = null;
+        if ($currentVersion && $currentVersion->editing_by && $currentVersion->editing_expires_at?->isFuture()) {
+            $lockUser = User::find($currentVersion->editing_by);
+            $editLock = [
+                'by_me'     => $currentVersion->editing_by === $user->id,
+                'user_name' => $lockUser?->name ?? 'otro usuario',
+                'expires'   => $currentVersion->editing_expires_at->format('H:i'),
+                'has_draft' => $currentVersion->editing_by === $user->id && $currentVersion->draft_html !== null,
+                'draft_at'  => $currentVersion->draft_saved_at?->format('H:i'),
+            ];
+        }
+
         return view('processes.show', [
             'regulation'             => $regulation,
             'versionHistory'         => $versionHistory,
@@ -220,6 +240,7 @@ class RegulationController extends Controller
             'flowDefinitions'        => ApprovalFlowService::getAllFlows(),
             'shareRecipients'        => $shareRecipients,
             'shareableUsers'         => $shareableUsers,
+            'editLock'               => $editLock,
         ]);
     }
 
@@ -227,7 +248,11 @@ class RegulationController extends Controller
     {
         $user = auth()->user();
 
-        abort_unless($user->canAccessCompany($regulation->company), 403);
+        $pendingApprovalForUser = $this->flowService->getPendingApprovalForUser($regulation, $user->id);
+        abort_unless(
+            $user->canAccessCompany($regulation->company) || $pendingApprovalForUser !== null,
+            403
+        );
         abort_unless($regulation->impact_level, 404);
 
         $regulation->load(['processType', 'company']);
@@ -238,8 +263,6 @@ class RegulationController extends Controller
             ->orderBy('id')
             ->get()
             ->groupBy('step_number');
-
-        $pendingApprovalForUser = $this->flowService->getPendingApprovalForUser($regulation, $user->id);
 
         return view('processes.flow', compact('regulation', 'approvals', 'pendingApprovalForUser'));
     }

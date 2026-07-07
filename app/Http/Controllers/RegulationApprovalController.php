@@ -13,8 +13,8 @@ class RegulationApprovalController extends Controller
     public function approve(Regulation $regulation)
     {
         $user = auth()->user();
-        abort_unless($user->canAccessCompany($regulation->company), 403);
 
+        // El permiso real es tener una aprobación pendiente asignada — no se requiere acceso general a la empresa
         $approval = $this->flowService->getPendingApprovalForUser($regulation, $user->id);
         abort_unless($approval !== null, 403, 'No tienes una aprobación pendiente para este reglamento.');
 
@@ -26,7 +26,6 @@ class RegulationApprovalController extends Controller
     public function reject(Request $request, Regulation $regulation)
     {
         $user = auth()->user();
-        abort_unless($user->canAccessCompany($regulation->company), 403);
 
         $request->validate([
             'comments' => 'required|string|max:1000',
