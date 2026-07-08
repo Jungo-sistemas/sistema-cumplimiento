@@ -322,30 +322,137 @@ class RegulationVersionController extends Controller
                     htmlspecialchars($r->code),
                     htmlspecialchars($r->name)
                 ))->implode('');
-                $legendHtml = '<details style="margin-top:2.5rem;border-top:1px solid #e5e7eb;padding-top:1rem;">'
-                    . '<summary style="cursor:pointer;font-weight:700;font-size:.85rem;color:#6b7280;letter-spacing:.05em;user-select:none;">'
-                    . '&#128196;&nbsp;DOCUMENTOS REFERENCIADOS EN ESTE TEXTO (' . $linked->count() . ')</summary>'
-                    . '<ul style="margin:.75rem 0 0 1.25rem;padding:0;font-size:.9rem;line-height:2.2;">' . $items . '</ul>'
+                $legendHtml = '<details id="legend">'
+                    . '<summary>DOCUMENTOS REFERENCIADOS EN ESTE TEXTO (' . $linked->count() . ')</summary>'
+                    . '<ul>' . $items . '</ul>'
                     . '</details>';
             }
+
+            $downloadUrl = route('regulation-versions.download', $version);
+            $backUrl     = route('processes.show', $regulation);
+            $versionLabel = 'v' . $version->version_number;
+            $regCode      = htmlspecialchars($regulation->code ?? '');
+            $regName      = htmlspecialchars($regulation->name);
 
             $html = <<<HTML
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{$name}</title>
 <style>
-  body { font-family: 'Georgia', serif; max-width: 860px; margin: 40px auto; padding: 0 24px 80px; color: #1a1a1a; line-height: 1.75; font-size: 15px; }
-  h1,h2,h3,h4 { font-weight: 700; margin: 1.2em 0 .4em; }
-  p  { margin: .5em 0; }
-  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-  td, th { border: 1px solid #ccc; padding: 6px 10px; }
-  mark, [style*="background-color: #FFFF00"], [style*="background-color:#FFFF00"],
-  [style*="background-color: #FFF176"], [style*="background-color:#FFF176"] { background: #FFF176; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #e5e7eb;
+    min-height: 100vh;
+    padding-top: 56px;
+  }
+
+  /* ── Top bar ── */
+  #topbar {
+    position: fixed; top: 0; left: 0; right: 0; height: 56px; z-index: 100;
+    background: #1A428A;
+    display: flex; align-items: center; gap: 12px; padding: 0 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  }
+  #topbar .back {
+    color: rgba(255,255,255,.7); text-decoration: none; font-size: 20px; line-height: 1;
+    padding: 4px 6px; border-radius: 4px; transition: background .15s;
+  }
+  #topbar .back:hover { background: rgba(255,255,255,.15); color: #fff; }
+  #topbar .doc-info { flex: 1; min-width: 0; }
+  #topbar .doc-name {
+    color: #fff; font-size: .9rem; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #topbar .doc-meta { color: rgba(255,255,255,.6); font-size: .75rem; margin-top: 1px; }
+  #topbar .dl-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
+    color: #fff; font-size: .8rem; font-weight: 600;
+    padding: 6px 14px; border-radius: 6px; text-decoration: none;
+    white-space: nowrap; transition: background .15s;
+  }
+  #topbar .dl-btn:hover { background: rgba(255,255,255,.25); }
+
+  /* ── Paper ── */
+  #paper {
+    background: #fff;
+    max-width: 820px;
+    margin: 28px auto 60px;
+    padding: 64px 80px;
+    border-radius: 4px;
+    box-shadow: 0 2px 16px rgba(0,0,0,.12), 0 1px 4px rgba(0,0,0,.08);
+    color: #1a1a1a;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 14.5px;
+    line-height: 1.8;
+  }
+
+  /* ── Document content overrides ── */
+  #paper h1 { font-size: 1.5em; font-weight: 700; margin: 1em 0 .5em; }
+  #paper h2 { font-size: 1.25em; font-weight: 700; margin: 1em 0 .4em; }
+  #paper h3 { font-size: 1.1em; font-weight: 600; margin: .9em 0 .35em; }
+  #paper h4 { font-size: 1em; font-weight: 600; margin: .8em 0 .3em; }
+  #paper p  { margin: .5em 0; }
+  #paper ul, #paper ol { padding-left: 1.6em; margin: .5em 0; }
+  #paper li { margin: .25em 0; }
+  #paper strong, #paper b { font-weight: 700; }
+  #paper em, #paper i { font-style: italic; }
+  #paper u { text-decoration: underline; }
+  #paper table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .95em; }
+  #paper td, #paper th { border: 1px solid #d1d5db; padding: 7px 12px; vertical-align: top; }
+  #paper th { background: #f9fafb; font-weight: 600; }
+  #paper mark,
+  #paper [style*="background-color: #FFFF00"],
+  #paper [style*="background-color:#FFFF00"],
+  #paper [style*="background-color: #FFF176"],
+  #paper [style*="background-color:#FFF176"] { background: #FFF176 !important; border-radius: 2px; padding: 0 1px; }
+
+  /* ── Annex legend ── */
+  #legend {
+    margin-top: 40px;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 16px;
+  }
+  #legend summary {
+    cursor: pointer; user-select: none;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: .78rem; font-weight: 700; letter-spacing: .06em;
+    color: #6b7280; list-style: none;
+    display: flex; align-items: center; gap: 6px;
+  }
+  #legend summary::before { content: '▶'; font-size: .65rem; transition: transform .2s; }
+  #legend[open] summary::before { transform: rotate(90deg); }
+  #legend ul {
+    margin: 12px 0 0 4px; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: .875rem; line-height: 2.2; list-style: none;
+  }
+  #legend ul a { color: #1d4ed8; font-weight: 600; text-decoration: none; }
+  #legend ul a:hover { text-decoration: underline; }
 </style>
 </head>
-<body>{$bodyHtml}{$legendHtml}</body>
+<body>
+
+<div id="topbar">
+  <a href="{$backUrl}" class="back" title="Volver">&#8592;</a>
+  <div class="doc-info">
+    <div class="doc-name">{$regName}</div>
+    <div class="doc-meta">{$regCode} &nbsp;·&nbsp; {$versionLabel} &nbsp;·&nbsp; {$name}</div>
+  </div>
+  <a href="{$downloadUrl}" class="dl-btn">&#8595; Descargar</a>
+</div>
+
+<div id="paper">
+  {$bodyHtml}
+  {$legendHtml}
+</div>
+
+</body>
 </html>
 HTML;
             return response($html, 200)->header('Content-Type', 'text/html; charset=UTF-8');
