@@ -23,14 +23,21 @@ class RegulationVersion extends Model
         'valid_until',
         'is_current',
         'uploaded_by',
+        'editing_by',
+        'editing_expires_at',
+        'draft_html',
+        'draft_saved_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'issued_at'   => 'date',
-            'valid_until' => 'date',
-            'is_current'  => 'boolean',
+            'issued_at'          => 'date',
+            'valid_until'        => 'date',
+            'is_current'         => 'boolean',
+            'editing_by'         => 'integer',
+            'editing_expires_at' => 'datetime',
+            'draft_saved_at'     => 'datetime',
         ];
     }
 

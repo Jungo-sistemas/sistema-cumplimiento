@@ -27,12 +27,6 @@
                 <span id="lockLabel">Bloqueo activo</span>
             </span>
 
-            {{-- Track changes badge --}}
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 border border-yellow-300">
-                <span class="h-2 w-2 rounded-full bg-yellow-400"></span>
-                Cambios en amarillo
-            </span>
-
             <button type="button" id="cancelBtn"
                     class="px-3 py-2 rounded-md border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50">
                 Cancelar
@@ -64,7 +58,8 @@
                 <button type="button" data-cmd="undo"        title="Deshacer"   class="tb-btn">↩</button>
                 <button type="button" data-cmd="redo"        title="Rehacer"    class="tb-btn">↪</button>
                 <div class="w-px h-5 bg-gray-300 mx-1"></div>
-                <button type="button" data-cmd="clearHighlight" title="Quitar resaltado de selección" class="tb-btn text-xs">✕ 🟡</button>
+                <button type="button" data-cmd="highlight"      title="Resaltar selección en amarillo" class="tb-btn text-xs" style="background:#FFF176;">🖊 Resaltar</button>
+                <button type="button" data-cmd="clearHighlight" title="Quitar resaltado de selección"  class="tb-btn text-xs">✕ Resaltado</button>
             </div>
             <div id="editor" class="flex-1 overflow-y-auto px-8 py-6 text-sm text-gray-900"></div>
         </div>
@@ -126,6 +121,27 @@
     </div>
 </div>
 
+{{-- Save confirmation modal --}}
+<div id="saveModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4">
+    <div class="w-full max-w-sm rounded-xl bg-white shadow-2xl p-6">
+        <h3 class="font-bold text-gray-900 mb-2">¿Guardar nueva versión?</h3>
+        <p class="text-sm text-gray-600 mb-5">
+            Se creará una versión nueva del documento con los cambios realizados.
+            La versión anterior quedará en el historial.
+        </p>
+        <div class="flex flex-col gap-2">
+            <button type="button" id="confirmSaveBtn"
+                    class="w-full px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                Guardar nueva versión
+            </button>
+            <button type="button" id="cancelSaveBtn"
+                    class="w-full px-4 py-2 rounded-md border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50">
+                Seguir editando
+            </button>
+        </div>
+    </div>
+</div>
+
 <style>
     #editor { min-height: 400px; }
     #editor h1 { font-size: 1.4em; font-weight: 700; margin: .8em 0 .4em; }
@@ -149,62 +165,28 @@
 </style>
 
 <script type="module">
-import { Editor, Extension } from 'https://esm.sh/@tiptap/core@2.11.5';
+import { Editor } from 'https://esm.sh/@tiptap/core@2.11.5';
 import StarterKit    from 'https://esm.sh/@tiptap/starter-kit@2.11.5';
 import Underline     from 'https://esm.sh/@tiptap/extension-underline@2.11.5';
 import Highlight     from 'https://esm.sh/@tiptap/extension-highlight@2.11.5';
-import { Plugin, PluginKey } from 'https://esm.sh/prosemirror-state@1.4.3';
-import { ReplaceStep }       from 'https://esm.sh/prosemirror-transform@1.10.0';
-
 // ── URLs ────────────────────────────────────────────────────────────────────
 const DRAFT_URL       = "{{ route('regulation-versions.saveDraft', $version) }}";
 const LOCK_URL        = "{{ route('regulation-versions.releaseLock', $version) }}";
 const CSRF            = document.querySelector('meta[name=csrf-token]')?.content ?? '';
-const AUTOSAVE_MS     = 30_000;   // 30 seconds
-const LOCK_WARN_SECS  = 300;      // warn when < 5 min remain
-// ── Lock expiry tracking ────────────────────────────────────────────────────
-let lockExpiresAt = Date.now() + 30 * 60 * 1000;  // server just set it
-
-// ── Change tracker plugin ───────────────────────────────────────────────────
-const CHANGE_KEY = new PluginKey('changeTracker');
-const ChangeTrackerPlugin = new Plugin({
-    key: CHANGE_KEY,
-    appendTransaction(transactions, _old, newState) {
-        const relevant = transactions.filter(tr => tr.docChanged && !tr.getMeta(CHANGE_KEY));
-        if (!relevant.length) return null;
-        const hlMark = newState.schema.marks.highlight;
-        if (!hlMark) return null;
-        const newTr = newState.tr.setMeta(CHANGE_KEY, true);
-        let any = false;
-        for (const tr of relevant) {
-            for (const step of tr.steps) {
-                if (!(step instanceof ReplaceStep) || !step.slice || step.slice.content.size === 0) continue;
-                const from = tr.mapping.map(step.from);
-                const to   = from + step.slice.content.size;
-                if (from >= to || to > newState.doc.content.size) continue;
-                newState.doc.nodesBetween(from, to, (node, pos) => {
-                    if (!node.isText) return;
-                    const nFrom = Math.max(pos, from);
-                    const nTo   = Math.min(pos + node.nodeSize, to);
-                    if (nFrom < nTo) { newTr.addMark(nFrom, nTo, hlMark.create({ color: '#FFF176' })); any = true; }
-                });
-            }
-        }
-        return any ? newTr : null;
-    }
-});
-const ChangeTracker = Extension.create({
-    name: 'changeTracker',
-    addProseMirrorPlugins: () => [ChangeTrackerPlugin],
-});
+const AUTOSAVE_MS     = 30_000;
+const LOCK_WARN_SECS  = 300;
+let lockExpiresAt     = Date.now() + 30 * 60 * 1000;
 
 // ── Editor ──────────────────────────────────────────────────────────────────
 const editor = new Editor({
     element: document.getElementById('editor'),
-    extensions: [ StarterKit, Underline, Highlight.configure({ multicolor: true }), ChangeTracker ],
+    extensions: [ StarterKit, Underline, Highlight.configure({ multicolor: true }) ],
     content: {!! json_encode($bodyHtml) !!},
     editorProps: { attributes: { class: 'ProseMirror focus:outline-none min-h-full' } },
-    onUpdate({ editor }) { updateToolbar(editor); markDirty(); },
+    onUpdate({ editor }) {
+        updateToolbar(editor);
+        markDirty();
+    },
     onSelectionUpdate({ editor }) { updateToolbar(editor); },
 });
 
@@ -216,6 +198,7 @@ function updateToolbar(ed) {
             c === 'bold'         ? ed.isActive('bold') :
             c === 'italic'       ? ed.isActive('italic') :
             c === 'underline'    ? ed.isActive('underline') :
+            c === 'highlight'    ? ed.isActive('highlight', { color: '#FFF176' }) :
             c === 'h1'           ? ed.isActive('heading', { level: 1 }) :
             c === 'h2'           ? ed.isActive('heading', { level: 2 }) :
             c === 'h3'           ? ed.isActive('heading', { level: 3 }) :
@@ -231,6 +214,7 @@ document.getElementById('toolbar').addEventListener('click', e => {
     if      (c === 'bold')           ch.toggleBold().run();
     else if (c === 'italic')         ch.toggleItalic().run();
     else if (c === 'underline')      ch.toggleUnderline().run();
+    else if (c === 'highlight')      ch.toggleHighlight({ color: '#FFF176' }).run();
     else if (c === 'h1')             ch.toggleHeading({ level: 1 }).run();
     else if (c === 'h2')             ch.toggleHeading({ level: 2 }).run();
     else if (c === 'h3')             ch.toggleHeading({ level: 3 }).run();
@@ -266,8 +250,8 @@ async function doAutoSave() {
         lockExpiresAt = Date.now() + 30 * 60 * 1000;  // renewed
         setStatus('Borrador guardado a las ' + data.saved_at);
         updateLockBadge();
-    } catch {
-        setStatus('Error al guardar borrador', true);
+    } catch (err) {
+        setStatus('Error al guardar borrador (' + err.message + ')', true);
     }
 }
 
@@ -300,8 +284,23 @@ setInterval(updateLockBadge, 1000);
 updateLockBadge();
 
 // ── Save final ────────────────────────────────────────────────────────────────
-document.getElementById('saveBtn').addEventListener('click', () => {
+function showSaveModal() {
+    const m = document.getElementById('saveModal');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+}
+function hideSaveModal() {
+    const m = document.getElementById('saveModal');
+    m.classList.add('hidden');
+    m.classList.remove('flex');
+}
+
+document.getElementById('saveBtn').addEventListener('click', showSaveModal);
+document.getElementById('cancelSaveBtn').addEventListener('click', hideSaveModal);
+
+document.getElementById('confirmSaveBtn').addEventListener('click', () => {
     clearTimeout(autoSaveTimer);
+    dirty = false;   // evita el diálogo nativo "¿Deseas abandonar el sitio?"
     document.getElementById('contentInput').value = editor.getHTML();
     document.getElementById('descInput').value    = document.getElementById('changeDesc').value.trim();
     document.getElementById('saveForm').submit();

@@ -783,28 +783,33 @@
 
             <div class="p-5">
                 @if($versionHistory->isNotEmpty())
+                    {{-- Encabezados de columna --}}
+                    <div class="flex items-stretch mb-1 px-1">
+                        <div class="flex-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">Documento</div>
+                        <div class="w-56 shrink-0 text-xs font-semibold text-gray-400 uppercase tracking-wide px-4">Razón del cambio</div>
+                        <div class="w-36 shrink-0 text-xs font-semibold text-gray-400 uppercase tracking-wide px-4">Acciones</div>
+                    </div>
+
                     <div class="space-y-3">
                         @foreach($versionHistory as $v)
-                            <div class="border rounded-xl p-4 flex items-start justify-between gap-4">
-                                <div class="min-w-0">
-                                    <div class="font-semibold text-gray-900 truncate">
-                                        {{ $v->original_name ?? basename($v->file_path) }}
-                                    </div>
-                                    <div class="text-sm text-gray-500 mt-1 space-y-0.5">
-                                        <div>
-                                            Versión: <span class="font-medium text-gray-700">{{ $v->version_number }}</span>
-                                            ·
-                                            @if($v->is_current)
-                                                <span class="text-green-700 font-medium">Actual</span>
-                                            @else
-                                                <span class="text-gray-500">Reemplazada</span>
-                                            @endif
-                                        </div>
-                                        @if($v->change_description)
-                                            <div>{{ $v->change_description }}</div>
+                            <div class="border rounded-xl overflow-hidden flex items-stretch">
+
+                                {{-- Info principal del documento --}}
+                                <div class="flex-1 p-4 min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="font-semibold text-gray-900 truncate">
+                                            {{ $v->original_name ?? basename($v->file_path) }}
+                                        </span>
+                                        <span class="text-xs text-gray-400 shrink-0">v{{ $v->version_number }}</span>
+                                        @if($v->is_current)
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 shrink-0">Actual</span>
+                                        @else
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-500 shrink-0">Reemplazada</span>
                                         @endif
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-2 space-y-0.5">
                                         @if($v->responsible_name)
-                                            <div>Responsable: <span class="font-medium text-gray-700">{{ $v->responsible_name }}</span></div>
+                                            <div>Responsable: {{ $v->responsible_name }}</div>
                                         @endif
                                         @if($v->issued_at)
                                             <div>Emisión: {{ $v->issued_at->format('d/m/Y') }}</div>
@@ -816,14 +821,22 @@
                                     </div>
                                 </div>
 
-                                <div class="flex items-center gap-2 shrink-0">
+                                {{-- Razón del cambio --}}
+                                <div class="w-56 shrink-0 border-l bg-gray-50 px-4 py-4 flex items-center">
+                                    <span class="text-xs text-gray-600 leading-relaxed">
+                                        {{ $v->change_description ?: '—' }}
+                                    </span>
+                                </div>
+
+                                {{-- Acciones --}}
+                                <div class="w-36 shrink-0 border-l flex flex-col items-stretch justify-center gap-2 px-4 py-4">
                                     <a href="{{ route('regulation-versions.preview', $v) }}"
                                        target="_blank"
-                                       class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                       class="px-3 py-1.5 rounded-md border text-xs font-semibold text-center text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
                                         Ver
                                     </a>
                                     <a href="{{ route('regulation-versions.download', $v) }}"
-                                       class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                       class="px-3 py-1.5 rounded-md border text-xs font-semibold text-center text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
                                         Descargar
                                     </a>
                                     @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
@@ -833,7 +846,7 @@
                                                     @js($v->original_name ?? basename($v->file_path)),
                                                     '{{ $v->version_number }}'
                                                 )"
-                                                class="px-3 py-2 rounded-md font-semibold text-sm bg-[#DB0000] text-white hover:bg-red-700">
+                                                class="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#DB0000] text-white hover:bg-red-700">
                                             Eliminar
                                         </button>
                                     @endif
