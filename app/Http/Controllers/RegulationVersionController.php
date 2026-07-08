@@ -117,14 +117,13 @@ class RegulationVersionController extends Controller
                 );
         }
 
-        // Determine content: resume draft if the same user has one, otherwise load docx
-        $hasDraft    = $version->editing_by === $user->id && $version->draft_html !== null;
-        $bodyHtml    = $hasDraft
+        // Acquire lock BEFORE converting docx, so the lock is set even if conversion is slow
+        $hasDraft = $version->editing_by === $user->id && $version->draft_html !== null;
+        $this->acquireLock($version, $user->id);
+
+        $bodyHtml = $hasDraft
             ? $version->draft_html
             : $this->docxToHtml(Storage::disk('private')->path($version->file_path));
-
-        // Acquire (or renew) the lock
-        $this->acquireLock($version, $user->id);
 
         $regulation = $version->regulation;
 
@@ -135,6 +134,13 @@ class RegulationVersionController extends Controller
     {
         $user = auth()->user();
         abort_unless($user->isAdmin() || $user->isOperative(), 403);
+
+        // Auto-acquire lock if free (defensivo: por si editForm falló en adquirirlo)
+        if ($version->editing_by === null) {
+            $this->acquireLock($version, $user->id);
+            $version->refresh();
+        }
+
         abort_unless($version->editing_by === $user->id, 403, 'No tienes el bloqueo de edición.');
 
         $data = $request->validate(['content' => ['required', 'string']]);
@@ -144,6 +150,8 @@ class RegulationVersionController extends Controller
             'draft_saved_at'     => now(),
             'editing_expires_at' => now()->addMinutes(self::LOCK_MINUTES),
         ]);
+
+        $version->refresh();
 
         return response()->json([
             'ok'         => true,
@@ -174,6 +182,13 @@ class RegulationVersionController extends Controller
         $user = auth()->user();
         abort_unless($user->isAdmin() || $user->isOperative(), 403);
         abort_unless($user->canAccessCompany($version->regulation->company), 403);
+
+        // Auto-acquire lock if free (defensivo)
+        if ($version->editing_by === null) {
+            $this->acquireLock($version, $user->id);
+            $version->refresh();
+        }
+
         abort_unless($version->editing_by === $user->id, 403, 'No tienes el bloqueo de edición.');
 
         $data = $request->validate([
@@ -200,7 +215,8 @@ class RegulationVersionController extends Controller
             $regulation->versions()->where('is_current', true)->update(['is_current' => false]);
 
             $next        = ($regulation->versions()->max('version_number') ?? 0) + 1;
-            $baseName    = pathinfo($version->original_name ?? 'documento.docx', PATHINFO_FILENAME);
+            $rawName     = pathinfo($version->original_name ?? 'documento.docx', PATHINFO_FILENAME);
+            $baseName    = preg_replace('/(_v\d+)+$/i', '', $rawName); // strip any previous _vN suffix
             $newName     = "{$baseName}_v{$next}.docx";
             $storagePath = "regulations/{$regulation->company_id}/{$regulation->id}/versions/{$newName}";
 
@@ -232,6 +248,46 @@ class RegulationVersionController extends Controller
             ->with('success', 'Documento editado y guardado como nueva versión con cambios resaltados.');
     }
 
+    /**
+     * Scan HTML text nodes for regulation codes from the same company and wrap them with links.
+     * Auto-detection: no manual annex setup required — any code found in the text that matches
+     * an existing regulation in the company becomes a clickable link.
+     *
+     * @param  string  $html
+     * @param  \Illuminate\Support\Collection  $regulations  Collection of {id, code, name}
+     * @return array{html: string, linked: \Illuminate\Support\Collection}
+     */
+    private function linkRegulationCodes(string $html, \Illuminate\Support\Collection $regulations): array
+    {
+        if ($regulations->isEmpty()) return ['html' => $html, 'linked' => collect()];
+
+        // Split into [text, <tag>, text, <tag>, ...] — only touch text segments
+        $parts = preg_split('/(<[^>]+>)/s', $html, -1, PREG_SPLIT_DELIM_CAPTURE);
+
+        // Longer codes first so "F-SAV-001A" matches before "F-SAV-001"
+        $sorted = $regulations->filter(fn ($r) => !empty($r->code))
+                              ->sortByDesc(fn ($r) => strlen($r->code));
+
+        $linked = collect();
+
+        foreach ($parts as &$part) {
+            if (str_starts_with($part, '<')) continue;
+            foreach ($sorted as $reg) {
+                $encoded = htmlspecialchars($reg->code);
+                if (!str_contains($part, $encoded)) continue;
+                $url  = route('processes.show', $reg->id);
+                $tip  = htmlspecialchars($reg->name, ENT_QUOTES);
+                $link = '<a href="' . $url . '" target="_blank"'
+                      . ' style="color:#1d4ed8;font-weight:600;text-decoration:underline;white-space:nowrap;"'
+                      . ' title="' . $tip . '">' . $encoded . '</a>';
+                $part = str_replace($encoded, $link, $part);
+                $linked->put($reg->id, $reg); // track which were actually found
+            }
+        }
+
+        return ['html' => implode('', $parts), 'linked' => $linked->values()];
+    }
+
     public function preview(RegulationVersion $version)
     {
         $user = auth()->user();
@@ -239,6 +295,63 @@ class RegulationVersionController extends Controller
 
         abort_unless($version->file_path && Storage::disk('private')->exists($version->file_path), 404);
 
+        $ext = strtolower(pathinfo($version->original_name ?? $version->file_path, PATHINFO_EXTENSION));
+
+        // .docx → convert to HTML and render in browser
+        if ($ext === 'docx') {
+            $bodyHtml = $this->docxToHtml(Storage::disk('private')->path($version->file_path));
+            $name     = $version->original_name ?? basename($version->file_path);
+
+            // Auto-detect any regulation code from the same company in the document text
+            $regulation    = $version->regulation;
+            $allRegs       = Regulation::where('company_id', $regulation->company_id)
+                                ->where('group_id', $regulation->group_id)
+                                ->where('is_active', true)
+                                ->where('id', '!=', $regulation->id)
+                                ->whereNotNull('code')
+                                ->get(['id', 'code', 'name']);
+
+            ['html' => $bodyHtml, 'linked' => $linked] = $this->linkRegulationCodes($bodyHtml, $allRegs);
+
+            // Collapsed legend showing only codes actually found in this document
+            $legendHtml = '';
+            if ($linked->isNotEmpty()) {
+                $items = $linked->map(fn ($r) => sprintf(
+                    '<li><a href="%s" target="_blank" style="color:#1d4ed8;font-weight:600;">%s</a>&nbsp;&mdash;&nbsp;%s</li>',
+                    route('processes.show', $r->id),
+                    htmlspecialchars($r->code),
+                    htmlspecialchars($r->name)
+                ))->implode('');
+                $legendHtml = '<details style="margin-top:2.5rem;border-top:1px solid #e5e7eb;padding-top:1rem;">'
+                    . '<summary style="cursor:pointer;font-weight:700;font-size:.85rem;color:#6b7280;letter-spacing:.05em;user-select:none;">'
+                    . '&#128196;&nbsp;DOCUMENTOS REFERENCIADOS EN ESTE TEXTO (' . $linked->count() . ')</summary>'
+                    . '<ul style="margin:.75rem 0 0 1.25rem;padding:0;font-size:.9rem;line-height:2.2;">' . $items . '</ul>'
+                    . '</details>';
+            }
+
+            $html = <<<HTML
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>{$name}</title>
+<style>
+  body { font-family: 'Georgia', serif; max-width: 860px; margin: 40px auto; padding: 0 24px 80px; color: #1a1a1a; line-height: 1.75; font-size: 15px; }
+  h1,h2,h3,h4 { font-weight: 700; margin: 1.2em 0 .4em; }
+  p  { margin: .5em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  td, th { border: 1px solid #ccc; padding: 6px 10px; }
+  mark, [style*="background-color: #FFFF00"], [style*="background-color:#FFFF00"],
+  [style*="background-color: #FFF176"], [style*="background-color:#FFF176"] { background: #FFF176; }
+</style>
+</head>
+<body>{$bodyHtml}{$legendHtml}</body>
+</html>
+HTML;
+            return response($html, 200)->header('Content-Type', 'text/html; charset=UTF-8');
+        }
+
+        // PDF and other viewable formats → serve directly
         return response()->file(
             Storage::disk('private')->path($version->file_path),
             ['Content-Type' => $version->mime_type ?? 'application/octet-stream']
