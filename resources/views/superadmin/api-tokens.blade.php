@@ -84,11 +84,22 @@
                     <span class="shrink-0 inline-block bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">GET</span>
                     <span class="text-gray-600 break-all">/api/v1/asset-types/{slug}/requirements</span>
                 </div>
+                <div class="flex items-start gap-2">
+                    <span class="shrink-0 inline-block bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">GET</span>
+                    <span class="text-gray-600 break-all">/api/v1/companies</span>
+                </div>
+                <div class="flex items-start gap-2">
+                    <span class="shrink-0 inline-block bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">GET</span>
+                    <span class="text-gray-600 break-all">/api/v1/companies/{company}/assets</span>
+                </div>
             </div>
             <div class="mt-3 rounded bg-gray-50 border px-3 py-2 text-xs font-mono text-gray-500 break-all">
                 Authorization: Bearer &lt;token&gt;
             </div>
-            <p class="mt-3 text-xs text-gray-400">La API devuelve todos los tipos y requerimientos sin filtrar por empresa ni grupo.</p>
+            <p class="mt-3 text-xs text-gray-400">
+                <span class="font-semibold">asset-types</span> devuelve todos los tipos y requerimientos sin filtrar por empresa ni grupo.
+                <span class="font-semibold">companies</span> y <span class="font-semibold">companies/{company}/assets</span> solo devuelven información de empresas que pertenezcan al mismo grupo del token (usa <span class="font-mono">?per_page=</span> y <span class="font-mono">?status=active|inactive</span> como filtros opcionales en assets).
+            </p>
         </div>
 
     </div>
