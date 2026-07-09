@@ -20,11 +20,15 @@ class Asset extends Model
         'name',
         'code',
         'location',
-        'vault_location',
         'responsible_user_id',
         'status',
         'compliance_start_date',
         'compliance_due_date',
+        // Dirección (México)
+        'street_address',
+        'colonia',
+        'municipality',
+        'postal_code',
         // Campos para activos tipo vehículo
         'no_economico',
         'numero_serie',
@@ -38,6 +42,54 @@ class Asset extends Model
 
     // Asset types that use vehicle-specific fields
     const VEHICLE_TYPES = ['Tracto', 'Semirremolque', 'ATQ', 'Carro tanque', 'Cilindrera'];
+
+    const MEXICO_STATES = [
+        'Aguascalientes',
+        'Baja California',
+        'Baja California Sur',
+        'Campeche',
+        'Chiapas',
+        'Chihuahua',
+        'Ciudad de México',
+        'Coahuila',
+        'Colima',
+        'Durango',
+        'Estado de México',
+        'Guanajuato',
+        'Guerrero',
+        'Hidalgo',
+        'Jalisco',
+        'Michoacán',
+        'Morelos',
+        'Nayarit',
+        'Nuevo León',
+        'Oaxaca',
+        'Puebla',
+        'Querétaro',
+        'Quintana Roo',
+        'San Luis Potosí',
+        'Sinaloa',
+        'Sonora',
+        'Tabasco',
+        'Tamaulipas',
+        'Tlaxcala',
+        'Veracruz',
+        'Yucatán',
+        'Zacatecas',
+    ];
+
+    public function getFullAddressAttribute(): ?string
+    {
+        $parts = array_filter([
+            $this->street_address,
+            $this->colonia,
+            $this->postal_code ? "C.P. {$this->postal_code}" : null,
+            $this->municipality,
+            $this->location,
+        ]);
+
+        return $parts === [] ? null : implode(', ', $parts);
+    }
 
     public function isVehicle(): bool
     {
@@ -125,6 +177,11 @@ class Asset extends Model
     public function assetRequirements()
     {
         return $this->hasMany(\App\Models\AssetRequirement::class);
+    }
+
+    public function extraDocuments()
+    {
+        return $this->hasMany(AssetExtraDocument::class);
     }
 }
 

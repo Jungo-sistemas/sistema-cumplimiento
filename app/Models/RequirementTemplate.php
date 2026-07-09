@@ -17,6 +17,42 @@ class RequirementTemplate extends Model
         'baja'       => 'Baja',
     ];
 
+    // Tipo de normativa/documento (independiente de la categoría de ciclo de vida).
+    // Define el orden en que se agrupan los requerimientos al listarlos.
+    const SUBTYPE_ORDER = [
+        'identificacion',
+        'permiso',
+        'licencia',
+        'contrato',
+        'poliza',
+        'recipiente',
+        'ubicacion',
+        'combustible',
+        'nom',
+        'dictamen',
+        'aviso',
+        'estudio',
+        'fotografia',
+        'otro',
+    ];
+
+    const SUBTYPES = [
+        'identificacion' => 'Identificación',
+        'permiso'        => 'Permiso',
+        'licencia'       => 'Licencia',
+        'contrato'       => 'Contrato',
+        'poliza'         => 'Póliza de seguro',
+        'recipiente'     => 'Recipiente',
+        'ubicacion'      => 'Ubicación',
+        'combustible'    => 'Combustible',
+        'nom'            => 'NOM',
+        'dictamen'       => 'Dictamen',
+        'aviso'          => 'Aviso',
+        'estudio'        => 'Estudio',
+        'fotografia'     => 'Fotografía',
+        'otro'           => 'Otro',
+    ];
+
     protected $fillable = [
         'asset_type_id',
         'name',
@@ -24,6 +60,7 @@ class RequirementTemplate extends Model
         'authority',
         'compliance_scope',
         'category',
+        'subtype',
     ];
 
     public function company()
@@ -39,6 +76,13 @@ class RequirementTemplate extends Model
     public function assetRequirements()
     {
         return $this->hasMany(AssetRequirement::class);
+    }
+
+    public function getSubtypeRankAttribute(): int
+    {
+        $rank = array_search($this->subtype, self::SUBTYPE_ORDER, true);
+
+        return $rank === false ? count(self::SUBTYPE_ORDER) : $rank;
     }
 }
 

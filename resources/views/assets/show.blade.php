@@ -52,8 +52,13 @@
                 @endif
             </div>
 
-            @can('update', $asset)
-                <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3">
+                <a href="{{ route('assets.extra-documents.index', $asset) }}"
+                   class="px-5 py-2 rounded-md border border-[#1A428A] text-[#1A428A] font-semibold hover:bg-blue-50">
+                    Extra
+                </a>
+
+                @can('update', $asset)
                     <a href="{{ route('assets.edit', array_merge(['asset' => $asset], array_filter(['company_id' => request('company_id', $asset->company_id)]))) }}"
                     class="px-5 py-2 rounded-md border border-[#1A428A] text-[#1A428A] font-semibold hover:bg-blue-50
                     {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
@@ -80,8 +85,8 @@
                             </button>
                         </form>
                     @endif
-                </div>
-            @endcan
+                @endcan
+            </div>
         </div>
 
         {{-- ================= RESUMEN ================= --}}
@@ -101,7 +106,7 @@
                         Ubicación
                     </div>
                     <div class="mt-1 text-base font-semibold text-gray-900">
-                        {{ $asset->location ?? '-' }}
+                        {{ $asset->full_address ?? '-' }}
                     </div>
                 </div>
 

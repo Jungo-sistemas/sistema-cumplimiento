@@ -236,7 +236,7 @@
 
                                     @if(!empty($navContext['asset']))
                                         <a href="{{ route('assets.show', $navContext['asset']) }}" @click="mobileMenuOpen = false"
-                                           class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                           class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) && !(($navContext['documentOwner'] ?? null) === 'asset') ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
                                             <span class="mr-2 text-gray-400">└</span>{{ $navContext['asset']->name }}
                                         </a>
                                     @endif
@@ -262,6 +262,12 @@
                                         <a href="{{ route('tasks.documents.index', $navContext['task']->id) }}" @click="mobileMenuOpen = false"
                                            class="ml-16 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
                                             <span class="mr-2 text-gray-400">└</span>Documentos
+                                        </a>
+                                    @endif
+                                    @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'asset')
+                                        <a href="{{ route('assets.extra-documents.index', $navContext['asset']->id) }}" @click="mobileMenuOpen = false"
+                                           class="ml-8 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
+                                            <span class="mr-2 text-gray-400">└</span>Info extra
                                         </a>
                                     @endif
                                 </div>
@@ -345,7 +351,7 @@
 
                                     @if(!empty($navContext['asset']))
                                         <a href="{{ route('assets.show', $navContext['asset']) }}"
-                                           class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                           class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) && !(($navContext['documentOwner'] ?? null) === 'asset') ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
                                             <span class="mr-2 text-gray-400">└</span>{{ $navContext['asset']->name }}
                                         </a>
                                     @endif
@@ -371,6 +377,12 @@
                                         <a href="{{ route('tasks.documents.index', $navContext['task']->id) }}"
                                            class="ml-16 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
                                             <span class="mr-2 text-gray-400">└</span>Documentos
+                                        </a>
+                                    @endif
+                                    @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'asset')
+                                        <a href="{{ route('assets.extra-documents.index', $navContext['asset']->id) }}"
+                                           class="ml-8 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
+                                            <span class="mr-2 text-gray-400">└</span>Info extra
                                         </a>
                                     @endif
                                 </div>

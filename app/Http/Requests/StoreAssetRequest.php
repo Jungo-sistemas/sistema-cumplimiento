@@ -74,11 +74,10 @@ class StoreAssetRequest extends FormRequest
                 'max:255',
             ],
 
-            'vault_location' => [
-                'nullable',
-                'string',
-                'max:255',
-            ],
+            'street_address' => ['nullable', 'string', 'max:255'],
+            'colonia' => ['nullable', 'string', 'max:150'],
+            'municipality' => ['nullable', 'string', 'max:150'],
+            'postal_code' => ['nullable', 'string', 'max:10'],
 
             'responsible_user_id' => [
                 'nullable',

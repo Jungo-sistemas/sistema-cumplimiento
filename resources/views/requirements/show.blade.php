@@ -171,9 +171,7 @@
                 <div class="space-y-1">
                     <div><strong>Progreso:</strong> {{ $requirement->progress }}%</div>
                     <div><strong>Tareas:</strong> {{ $doneNonRenewalTasks }}/{{ $totalNonRenewalTasks }}</div>
-                    <div>
-                        <strong>Bóveda:</strong> {{ $asset->vault_location ?: 'No asignada' }}
-                    </div>
+
                     @if(auth()->user()->hasGroupScope() && $asset->company)
                         <div><strong>Empresa:</strong> {{ $asset->company->name }}</div>
                     @endif

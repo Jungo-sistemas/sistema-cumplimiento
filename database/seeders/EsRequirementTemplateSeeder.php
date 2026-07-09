@@ -4,11 +4,14 @@ namespace Database\Seeders;
 
 use App\Models\AssetType;
 use App\Models\RequirementTemplate;
+use Database\Seeders\Concerns\GuessesRequirementSubtype;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 class EsRequirementTemplateSeeder extends Seeder
 {
+    use GuessesRequirementSubtype;
+
     public function run(): void
     {
         $filePath = database_path('seeders/data/es_checklist.csv');
@@ -91,6 +94,7 @@ class EsRequirementTemplateSeeder extends Seeder
                     [
                         'authority' => $this->normalizeRegulatoryEntity($currentAuthority),
                         'description' => $this->buildDescription($rowData),
+                        'subtype' => $this->guessSubtype($documentName),
                     ]
                 );
 

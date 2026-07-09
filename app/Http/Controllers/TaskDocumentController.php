@@ -57,7 +57,7 @@ class TaskDocumentController extends Controller
         }
 
         $request->validate([
-            'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
+            'file' => ['required', 'file', 'max:51200', 'mimes:pdf,jpg,jpeg,png,zip'],
         ]);
 
         $existing = TaskDocument::where('task_id', $task->id)->latest()->first();
