@@ -135,6 +135,7 @@
 
                                     <input type="file"
                                            name="file"
+                                           accept=".pdf,.jpg,.jpeg,.png,.zip"
                                            class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
                                            required>
 
@@ -145,7 +146,7 @@
                                     @enderror
 
                                     <div class="text-xs text-gray-500 mt-1">
-                                        Tamaño máximo: 10MB.
+                                        Tamaño máximo: 50MB.
                                     </div>
                                 </div>
 

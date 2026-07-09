@@ -69,20 +69,19 @@ class AssetRequirementDocumentController extends Controller
         $data = $request->validate([
             'date_mode' => ['required', 'in:no_dates,no_renewal,renewal'],
             'files'     => ['required', 'array', 'min:1', 'max:5'],
-            'files.*'   => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
+            'files.*'   => ['required', 'file', 'max:51200', 'mimes:pdf,jpg,jpeg,png,zip'],
             'issued_at' => ['nullable', 'date'],
             'expires_at' => $dateMode === 'renewal'
-                ? ['required', 'date', 'after:today']
+                ? ['required', 'date']
                 : ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
         ], [
             'files.required'    => 'Debes adjuntar al menos un archivo.',
             'files.max'         => 'Puedes subir un máximo de 5 archivos a la vez.',
             'files.*.required'  => 'Cada archivo es obligatorio.',
-            'files.*.mimes'     => 'Solo se permiten archivos PDF, JPG o PNG.',
-            'files.*.max'       => 'Cada archivo no puede superar los 10 MB.',
+            'files.*.mimes'     => 'Solo se permiten archivos PDF, JPG, PNG o ZIP.',
+            'files.*.max'       => 'Cada archivo no puede superar los 50 MB.',
             'expires_at.required' => 'La fecha de vencimiento es obligatoria cuando el documento tiene renovación.',
-            'expires_at.after'    => 'La fecha de vencimiento debe ser posterior a hoy.',
         ]);
 
         $issuedAt  = in_array($dateMode, ['no_renewal', 'renewal']) ? ($data['issued_at'] ?? null) : null;

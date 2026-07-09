@@ -4,11 +4,14 @@ namespace Database\Seeders;
 
 use App\Models\AssetType;
 use App\Models\RequirementTemplate;
+use Database\Seeders\Concerns\GuessesRequirementSubtype;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 class ComercializacionRequirementTemplateSeeder extends Seeder
 {
+    use GuessesRequirementSubtype;
+
     public function run(): void
     {
         $filePath = database_path('seeders/data/comercializacion_checklist.csv');
@@ -91,6 +94,7 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
                     [
                         'authority' => $this->normalizeRegulatoryEntity($currentAuthority),
                         'description' => $this->buildDescription($rowData),
+                        'subtype' => $this->guessSubtype($documentName),
                     ]
                 );
 

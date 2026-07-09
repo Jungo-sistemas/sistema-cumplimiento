@@ -9,6 +9,7 @@ use App\Http\Controllers\RequirementTaskController;
 use App\Http\Controllers\TaskDocumentController;
 use App\Http\Controllers\ComplianceDashboardController;
 use App\Http\Controllers\AssetRequirementDocumentController;
+use App\Http\Controllers\AssetExtraDocumentController;
 use App\Http\Controllers\RequirementAuditLogController;
 use App\Http\Controllers\RequirementHistoryController;
 use App\Http\Controllers\DashboardController;
@@ -258,6 +259,23 @@ Route::middleware(['auth', 'module.access'])->group(function () {
     // Asset activation
     Route::patch('assets/{asset}/deactivate', [AssetController::class, 'deactivate'])->name('assets.deactivate');
     Route::patch('assets/{asset}/activate', [AssetController::class, 'activate'])->name('assets.activate');
+
+
+    // Extra documentation (no afecta el cumplimiento, solo informativo)
+    Route::get('assets/{asset}/extra-documents', [AssetExtraDocumentController::class, 'index'])
+        ->name('assets.extra-documents.index');
+
+    Route::post('assets/{asset}/extra-documents', [AssetExtraDocumentController::class, 'store'])
+        ->name('assets.extra-documents.store');
+
+    Route::get('assets/{asset}/extra-documents/{document}/preview', [AssetExtraDocumentController::class, 'preview'])
+        ->name('assets.extra-documents.preview');
+
+    Route::get('assets/{asset}/extra-documents/{document}/download', [AssetExtraDocumentController::class, 'download'])
+        ->name('assets.extra-documents.download');
+
+    Route::delete('assets/{asset}/extra-documents/{document}', [AssetExtraDocumentController::class, 'destroy'])
+        ->name('assets.extra-documents.destroy');
 
     // Requirements (nested under asset)
     Route::get('assets/{asset}/requirements/{requirement}', [AssetRequirementController::class, 'show'])

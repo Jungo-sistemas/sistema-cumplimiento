@@ -130,25 +130,84 @@
                     @enderror
                 </div>
 
-                {{-- Ubicación --}}
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700">Ubicación</label>
-                    <select
-                        name="location"
-                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
-                        required
-                    >
-                        <option value="">-- Selecciona ubicación --</option>
+                {{-- Dirección --}}
+                <div class="lg:col-span-2 border rounded-lg p-4 space-y-4">
+                    <div class="text-sm font-semibold text-gray-700">Dirección</div>
 
-                        @foreach($mexicoStates as $state)
-                            <option value="{{ $state }}" @selected(old('location', $asset->location) === $state)>
-                                {{ $state }}
-                            </option>
-                        @endforeach
-                    </select>
-                    @error('location')
-                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700">Calle y número</label>
+                            <input
+                                type="text"
+                                name="street_address"
+                                value="{{ old('street_address', $asset->street_address) }}"
+                                class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                            >
+                            @error('street_address')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Colonia</label>
+                            <input
+                                type="text"
+                                name="colonia"
+                                value="{{ old('colonia', $asset->colonia) }}"
+                                class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                            >
+                            @error('colonia')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Código postal</label>
+                            <input
+                                type="text"
+                                name="postal_code"
+                                value="{{ old('postal_code', $asset->postal_code) }}"
+                                maxlength="10"
+                                class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                            >
+                            @error('postal_code')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Municipio / Ciudad</label>
+                            <input
+                                type="text"
+                                name="municipality"
+                                value="{{ old('municipality', $asset->municipality) }}"
+                                class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                            >
+                            @error('municipality')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Estado</label>
+                            <select
+                                name="location"
+                                class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                                required
+                            >
+                                <option value="">-- Selecciona estado --</option>
+
+                                @foreach($mexicoStates as $state)
+                                    <option value="{{ $state }}" @selected(old('location', $asset->location) === $state)>
+                                        {{ $state }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('location')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
                 </div>
 
                 {{-- Código --}}
@@ -188,24 +247,6 @@
                     </select>
 
                     @error('responsible_user_id')
-                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                {{-- Bóveda documental --}}
-                <div>
-                    <label for="vault_location" class="block text-sm font-semibold text-gray-700">
-                        Bóveda documental
-                    </label>
-                    <input
-                        type="text"
-                        name="vault_location"
-                        id="vault_location"
-                        value="{{ old('vault_location', $asset->vault_location) }}"
-                        class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-[#1A428A] focus:ring-[#1A428A] text-sm"
-                        placeholder="Ej. Bóveda A - Estante 3"
-                    >
-                    @error('vault_location')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>

@@ -253,7 +253,7 @@
                                         <div class="flex items-center gap-2">
                                             <input type="file"
                                                    name="files[]"
-                                                   accept=".pdf,.jpg,.jpeg,.png"
+                                                   accept=".pdf,.jpg,.jpeg,.png,.zip"
                                                    required
                                                    class="block flex-1 rounded-md border border-gray-300 text-sm text-gray-700
                                                           file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0
@@ -287,7 +287,7 @@
                                 @error('files.*')
                                     <div class="text-sm text-red-600 mt-1">{{ $message }}</div>
                                 @enderror
-                                <p class="text-xs text-gray-500 mt-1.5">PDF, JPG o PNG · Máximo 10 MB por archivo.</p>
+                                <p class="text-xs text-gray-500 mt-1.5">PDF, JPG, PNG o ZIP · Máximo 50 MB por archivo.</p>
                             </div>
 
                             <button type="submit"

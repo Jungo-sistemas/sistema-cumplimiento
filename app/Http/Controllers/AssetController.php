@@ -202,40 +202,7 @@ class AssetController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
-        $mexicoStates = [
-            'Aguascalientes',
-            'Baja California',
-            'Baja California Sur',
-            'Campeche',
-            'Coahuila',
-            'Colima',
-            'Chiapas',
-            'Chihuahua',
-            'Ciudad de México',
-            'Durango',
-            'Guanajuato',
-            'Guerrero',
-            'Hidalgo',
-            'Jalisco',
-            'México',
-            'Michoacán',
-            'Morelos',
-            'Nayarit',
-            'Nuevo León',
-            'Oaxaca',
-            'Puebla',
-            'Querétaro',
-            'Quintana Roo',
-            'San Luis Potosí',
-            'Sinaloa',
-            'Sonora',
-            'Tabasco',
-            'Tamaulipas',
-            'Tlaxcala',
-            'Veracruz',
-            'Yucatán',
-            'Zacatecas',
-        ];
+        $mexicoStates = Asset::MEXICO_STATES;
 
         $vehicleTypeIds = AssetType::whereIn('name', \App\Models\Asset::VEHICLE_TYPES)
             ->pluck('id')
@@ -488,6 +455,7 @@ class AssetController extends Controller
             ->when($status !== '', function (Collection $collection) use ($status) {
                 return $collection->filter(fn ($item) => ($item->computed_status ?? '') === $status);
             })
+            ->sortBy(fn ($item) => sprintf('%02d-%s', $item->template?->subtype_rank ?? 99, $item->template?->name ?? ''))
             ->values();
 
         $perPage = 10;
@@ -578,40 +546,7 @@ class AssetController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $mexicoStates = [
-            'Aguascalientes',
-            'Baja California',
-            'Baja California Sur',
-            'Campeche',
-            'Chiapas',
-            'Chihuahua',
-            'Ciudad de México',
-            'Coahuila',
-            'Colima',
-            'Durango',
-            'Estado de México',
-            'Guanajuato',
-            'Guerrero',
-            'Hidalgo',
-            'Jalisco',
-            'Michoacán',
-            'Morelos',
-            'Nayarit',
-            'Nuevo León',
-            'Oaxaca',
-            'Puebla',
-            'Querétaro',
-            'Quintana Roo',
-            'San Luis Potosí',
-            'Sinaloa',
-            'Sonora',
-            'Tabasco',
-            'Tamaulipas',
-            'Tlaxcala',
-            'Veracruz',
-            'Yucatán',
-            'Zacatecas',
-        ];
+        $mexicoStates = Asset::MEXICO_STATES;
 
         $vehicleTypeIds = AssetType::whereIn('name', \App\Models\Asset::VEHICLE_TYPES)
             ->pluck('id')
