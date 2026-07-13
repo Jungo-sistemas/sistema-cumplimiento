@@ -205,7 +205,13 @@ class RegulationVersionController extends Controller
         );
 
         $phpWord = new PhpWord();
-        $section = $phpWord->addSection();
+        $section = $phpWord->addSection([
+            'paperSize'    => 'Letter',
+            'marginTop'    => 1440,
+            'marginBottom' => 1440,
+            'marginLeft'   => 1440,
+            'marginRight'  => 1440,
+        ]);
         WordHtml::addHtml($section, $html, false, false);
 
         $tmp = tempnam(sys_get_temp_dir(), 'edited_docx_');
@@ -333,6 +339,8 @@ class RegulationVersionController extends Controller
             $versionLabel = 'v' . $version->version_number;
             $regCode      = htmlspecialchars($regulation->code ?? '');
             $regName      = htmlspecialchars($regulation->name);
+            $paginationCssUrl = asset('css/document-pagination.css');
+            $paginationJsUrl  = asset('js/document-pagination.js');
 
             $html = <<<HTML
 <!DOCTYPE html>
@@ -378,41 +386,8 @@ class RegulationVersionController extends Controller
   }
   #topbar .dl-btn:hover { background: rgba(255,255,255,.25); }
 
-  /* ── Paper ── */
-  #paper {
-    background: #fff;
-    max-width: 820px;
-    margin: 28px auto 60px;
-    padding: 64px 80px;
-    border-radius: 4px;
-    box-shadow: 0 2px 16px rgba(0,0,0,.12), 0 1px 4px rgba(0,0,0,.08);
-    color: #1a1a1a;
-    font-family: 'Georgia', 'Times New Roman', serif;
-    font-size: 14.5px;
-    line-height: 1.8;
-  }
-
-  /* ── Document content overrides ── */
-  #paper h1 { font-size: 1.5em; font-weight: 700; margin: 1em 0 .5em; }
-  #paper h2 { font-size: 1.25em; font-weight: 700; margin: 1em 0 .4em; }
-  #paper h3 { font-size: 1.1em; font-weight: 600; margin: .9em 0 .35em; }
-  #paper h4 { font-size: 1em; font-weight: 600; margin: .8em 0 .3em; }
-  #paper p  { margin: .5em 0; }
-  #paper ul, #paper ol { padding-left: 1.6em; margin: .5em 0; }
-  #paper li { margin: .25em 0; }
-  #paper strong, #paper b { font-weight: 700; }
-  #paper em, #paper i { font-style: italic; }
-  #paper u { text-decoration: underline; }
-  #paper table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .95em; }
-  #paper td, #paper th { border: 1px solid #d1d5db; padding: 7px 12px; vertical-align: top; }
-  #paper th { background: #f9fafb; font-weight: 600; }
-  #paper mark,
-  #paper [style*="background-color: #FFFF00"],
-  #paper [style*="background-color:#FFFF00"],
-  #paper [style*="background-color: #FFF176"],
-  #paper [style*="background-color:#FFF176"] { background: #FFF176 !important; border-radius: 2px; padding: 0 1px; }
-
   /* ── Annex legend ── */
+  #legend-wrap { max-width: 820px; margin: 0 auto 60px; }
   #legend {
     margin-top: 40px;
     border-top: 1px solid #e5e7eb;
@@ -435,6 +410,7 @@ class RegulationVersionController extends Controller
   #legend ul a { color: #1d4ed8; font-weight: 600; text-decoration: none; }
   #legend ul a:hover { text-decoration: underline; }
 </style>
+<link rel="stylesheet" href="{$paginationCssUrl}">
 </head>
 <body>
 
@@ -447,11 +423,16 @@ class RegulationVersionController extends Controller
   <a href="{$downloadUrl}" class="dl-btn">&#8595; Descargar</a>
 </div>
 
-<div id="paper">
+<div id="doc-source" style="display: none;">
   {$bodyHtml}
+</div>
+<div id="doc-pages"></div>
+
+<div id="legend-wrap">
   {$legendHtml}
 </div>
 
+<script src="{$paginationJsUrl}"></script>
 </body>
 </html>
 HTML;

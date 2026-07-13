@@ -65,11 +65,30 @@
     </div>
     @endif
 
+    @if($errors->first('ai'))
+        <div class="mb-4 rounded-md bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm">
+            {{ $errors->first('ai') }}
+        </div>
+    @endif
+
     <div
         x-data="wizardApp({{ Js::from($initialForm) }})"
         x-init="init()"
         class="pb-12"
     >
+        {{-- ===== OVERLAY: GENERANDO CON IA ===== --}}
+        <div x-show="submitting" style="display: none;"
+             class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+            <div class="bg-white rounded-lg px-8 py-6 shadow-xl text-center max-w-sm">
+                <svg class="animate-spin h-8 w-8 text-[#1A428A] mx-auto mb-3" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <p class="text-gray-700 font-medium">Generando la vista previa con IA…</p>
+                <p class="text-gray-500 text-sm mt-1">Esto puede tardar uno o dos minutos. No cierres esta ventana. Podrás revisar el documento antes de guardar los cambios.</p>
+            </div>
+        </div>
+
         {{-- ===== TOP PROGRESS BAR ===== --}}
         <div class="mb-6">
             <div class="flex items-center justify-between mb-1">
@@ -132,10 +151,9 @@
                 <form
                     id="wizard-form"
                     method="POST"
-                    action="{{ route('processes.update', $regulation) }}"
+                    action="{{ route('processes.preview.generateEdit', $regulation) }}"
                 >
                     @csrf
-                    @method('PUT')
 
                     {{-- ==================== BLOQUE 1: Identificación ==================== --}}
                     <div x-show="currentBlock === 1" x-transition.opacity>
@@ -573,7 +591,7 @@
                             <template x-if="currentBlock === 6">
                                 <button type="button" @click="submitWizard()"
                                         class="px-6 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
-                                    Guardar Cambios
+                                    Generar Vista Previa
                                 </button>
                             </template>
                         </div>
@@ -588,6 +606,8 @@
     function wizardApp(initialForm) {
         return {
             currentBlock: 1,
+
+            submitting: false,
 
             form: initialForm,
 
@@ -682,6 +702,7 @@
                     this.$nextTick(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
                     return;
                 }
+                this.submitting = true;
                 document.getElementById('wizard-form').submit();
             },
         };

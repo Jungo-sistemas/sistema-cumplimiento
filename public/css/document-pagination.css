@@ -1,0 +1,55 @@
+/* Estilos compartidos para la vista paginada de documentos (preview de IA y "Ver" versión). */
+
+#doc-pages {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.doc-page {
+    background: #fff;
+    box-shadow: 0 2px 16px rgba(0,0,0,.12), 0 1px 4px rgba(0,0,0,.08);
+    border-radius: 4px;
+    margin-bottom: 28px;
+    box-sizing: border-box;
+}
+
+.doc-page-content, .doc-page-measurer {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 14.5px;
+    line-height: 1.8;
+    color: #1a1a1a;
+}
+
+.doc-page-content h1, .doc-page-measurer h1 { font-size: 1.5em; font-weight: 700; margin: 1em 0 .5em; }
+.doc-page-content h2, .doc-page-measurer h2 { font-size: 1.25em; font-weight: 700; margin: 1em 0 .4em; }
+.doc-page-content h3, .doc-page-measurer h3 { font-size: 1.1em; font-weight: 600; margin: .9em 0 .35em; }
+.doc-page-content h4, .doc-page-measurer h4 { font-size: 1em; font-weight: 600; margin: .8em 0 .3em; }
+.doc-page-content p, .doc-page-measurer p { margin: .5em 0; }
+.doc-page-content ul, .doc-page-content ol,
+.doc-page-measurer ul, .doc-page-measurer ol { padding-left: 1.6em; margin: .5em 0; }
+.doc-page-content li, .doc-page-measurer li { margin: .25em 0; }
+.doc-page-content strong, .doc-page-content b,
+.doc-page-measurer strong, .doc-page-measurer b { font-weight: 700; }
+.doc-page-content em, .doc-page-content i,
+.doc-page-measurer em, .doc-page-measurer i { font-style: italic; }
+.doc-page-content u, .doc-page-measurer u { text-decoration: underline; }
+.doc-page-content table, .doc-page-measurer table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .95em; }
+.doc-page-content td, .doc-page-content th,
+.doc-page-measurer td, .doc-page-measurer th { border: 1px solid #d1d5db; padding: 7px 12px; vertical-align: top; }
+.doc-page-content th, .doc-page-measurer th { background: #f9fafb; font-weight: 600; }
+
+.doc-page-content mark,
+.doc-page-content [style*="background-color: #FFFF00"],
+.doc-page-content [style*="background-color:#FFFF00"],
+.doc-page-content [style*="background-color: #FFF176"],
+.doc-page-content [style*="background-color:#FFF176"] { background: #FFF176 !important; border-radius: 2px; padding: 0 1px; }
+
+.doc-page-footer {
+    text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: .7rem;
+    color: #9ca3af;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 8px;
+}
