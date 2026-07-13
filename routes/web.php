@@ -164,8 +164,20 @@ Route::middleware(['auth', 'module.access'])->group(function () {
     Route::get('/processes/search-annexes', [RegulationController::class, 'searchAnnexes'])
         ->name('processes.searchAnnexes');
 
-    Route::post('/processes', [RegulationController::class, 'store'])
-        ->name('processes.store');
+    Route::post('/processes/preview', [RegulationController::class, 'previewGenerate'])
+        ->name('processes.preview.generate');
+
+    Route::get('/processes/preview', [RegulationController::class, 'previewShow'])
+        ->name('processes.preview.show');
+
+    Route::post('/processes/preview/revise', [RegulationController::class, 'previewRevise'])
+        ->name('processes.preview.revise');
+
+    Route::post('/processes/preview/cancel', [RegulationController::class, 'previewCancel'])
+        ->name('processes.preview.cancel');
+
+    Route::post('/processes/preview/confirm', [RegulationController::class, 'previewConfirm'])
+        ->name('processes.preview.confirm');
 
     Route::get('/processes/{regulation}', [RegulationController::class, 'show'])
         ->name('processes.show');
@@ -173,8 +185,8 @@ Route::middleware(['auth', 'module.access'])->group(function () {
     Route::get('/processes/{regulation}/edit', [RegulationController::class, 'edit'])
         ->name('processes.edit');
 
-    Route::put('/processes/{regulation}', [RegulationController::class, 'update'])
-        ->name('processes.update');
+    Route::post('/processes/{regulation}/preview', [RegulationController::class, 'previewGenerateEdit'])
+        ->name('processes.preview.generateEdit');
 
     Route::get('/processes/{regulation}/edit-basic', [RegulationController::class, 'editBasic'])
         ->name('processes.editBasic');

@@ -7,10 +7,17 @@ use App\Models\JobPosition;
 use App\Models\ProcessType;
 use App\Models\Regulation;
 use App\Models\RegulationShare;
+use App\Models\RegulationVersion;
 use App\Models\User;
+use App\Services\AiProcedureGenerationService;
 use App\Services\ApprovalFlowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\Shared\Html as WordHtml;
 
 class RegulationController extends Controller
 {
@@ -137,6 +144,8 @@ class RegulationController extends Controller
     {
         $user = auth()->user();
         abort_unless($user->isAdmin() || $user->isOperative(), 403);
+
+        session()->forget(self::AI_DRAFT_SESSION_KEY); // empezar limpio; evita confusión con una vista previa abandonada
 
         $selectedCompanyId = $user->hasGroupScope()
             ? ($request->filled('company_id') ? (int) $request->company_id : null)
@@ -267,13 +276,11 @@ class RegulationController extends Controller
         return view('processes.flow', compact('regulation', 'approvals', 'pendingApprovalForUser'));
     }
 
-    public function store(Request $request)
+    private const AI_DRAFT_SESSION_KEY = 'ai_procedure_draft';
+
+    private function wizardValidationRules(): array
     {
-        $user = auth()->user();
-
-        abort_unless($user->isAdmin() || $user->isOperative(), 403);
-
-        $data = $request->validateWithBag('createRegulation', [
+        return [
             'company_id'                  => ['required', 'exists:companies,id'],
             'process_type_id'             => ['required', 'exists:process_types,id'],
             'document_type'               => ['required', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
@@ -303,32 +310,297 @@ class RegulationController extends Controller
             'terminos_abreviaturas'       => ['required', 'string'],
             'riesgos_errores'             => ['required', 'string'],
             'requerimientos_normativos'   => ['required', 'string'],
-        ]);
+        ];
+    }
+
+    /**
+     * Paso 1: valida el wizard, genera el procedimiento con IA y lo deja en sesión
+     * (todavía no se crea nada en BD) para mostrarlo en la vista previa.
+     */
+    public function previewGenerate(Request $request)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+
+        $data = $request->validateWithBag('createRegulation', $this->wizardValidationRules());
 
         $company = Company::findOrFail($data['company_id']);
         abort_unless($user->canAccessCompany($company), 403);
 
-        $details = collect($data)
+        $wizardDetails = collect($data)
             ->except(['company_id', 'process_type_id', 'document_type', 'nombre', 'codigo', 'impact_level'])
             ->toArray();
 
-        $regulation = Regulation::create([
-            'group_id'        => $user->group_id,
-            'company_id'      => $company->id,
-            'process_type_id' => $data['process_type_id'],
-            'document_type'   => $data['document_type'],
-            'code'            => $data['codigo'] ? strtoupper($data['codigo']) : null,
-            'name'            => strtoupper($data['nombre']),
-            'details'         => $details,
-            'is_active'       => true,
-            'created_by'      => $user->id,
-            'impact_level'    => null,
-            'approval_status' => null,
+        try {
+            set_time_limit(240); // la generación con IA puede tardar 1-3 minutos según el modelo
+            $ai = app(AiProcedureGenerationService::class)->generate($wizardDetails);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withInput()->withErrors([
+                'ai' => 'No se pudo generar el documento con IA: ' . $e->getMessage(),
+            ]);
+        }
+
+        session([self::AI_DRAFT_SESSION_KEY => [
+            'mode'          => 'create',
+            'regulation_id' => null,
+            'meta'          => $data,
+            'wizard'        => $wizardDetails,
+            'ai'            => $ai,
+            'revisions'     => 0,
+        ]]);
+
+        return redirect()->route('processes.preview.show');
+    }
+
+    /**
+     * Paso 2: muestra el documento generado (o su última revisión) para que el
+     * usuario decida si lo acepta o pide cambios, antes de tocar nada en BD.
+     */
+    public function previewShow()
+    {
+        $user = auth()->user();
+        $draft = session(self::AI_DRAFT_SESSION_KEY);
+
+        if (! $draft) {
+            return redirect()->route('processes.create')
+                ->with('error', 'No hay una vista previa activa. Genera un procedimiento desde el wizard primero.');
+        }
+
+        $isEdit = ($draft['mode'] ?? 'create') === 'edit';
+        $company = $isEdit
+            ? Regulation::findOrFail($draft['regulation_id'])->company
+            : Company::findOrFail($draft['meta']['company_id']);
+
+        abort_unless($user->canAccessCompany($company), 403);
+
+        return view('processes.preview', [
+            'draft'   => $draft,
+            'company' => $company,
         ]);
+    }
+
+    /**
+     * Pide a la IA que ajuste el resultado actual según el feedback del usuario,
+     * y actualiza la vista previa (sigue sin crear nada en BD).
+     */
+    public function previewRevise(Request $request)
+    {
+        $draft = session(self::AI_DRAFT_SESSION_KEY);
+        abort_unless($draft, 404);
+
+        $data = $request->validate([
+            'feedback' => ['required', 'string', 'max:2000'],
+        ]);
+
+        try {
+            set_time_limit(240);
+            $ai = app(AiProcedureGenerationService::class)->generate($draft['wizard'], $draft['ai'], $data['feedback']);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withErrors([
+                'ai' => 'No se pudieron aplicar los cambios: ' . $e->getMessage(),
+            ]);
+        }
+
+        $draft['ai'] = $ai;
+        $draft['revisions'] = ($draft['revisions'] ?? 0) + 1;
+        session([self::AI_DRAFT_SESSION_KEY => $draft]);
+
+        return redirect()->route('processes.preview.show');
+    }
+
+    /**
+     * Descarta la vista previa sin crear/modificar nada, y regresa al wizard
+     * correspondiente (crear en blanco, o editar con los datos originales).
+     */
+    public function previewCancel()
+    {
+        $draft = session(self::AI_DRAFT_SESSION_KEY);
+        session()->forget(self::AI_DRAFT_SESSION_KEY);
+
+        if (($draft['mode'] ?? null) === 'edit' && ($draft['regulation_id'] ?? null)) {
+            return redirect()->route('processes.edit', $draft['regulation_id']);
+        }
+
+        return redirect()->route('processes.create');
+    }
+
+    /**
+     * Paso 3: el usuario aceptó el documento. Crea el Regulation (modo "create") o
+     * actualiza uno existente y le agrega una nueva versión (modo "edit").
+     */
+    public function previewConfirm()
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+
+        $draft = session(self::AI_DRAFT_SESSION_KEY);
+        abort_unless($draft, 404);
+
+        $response = ($draft['mode'] ?? 'create') === 'edit'
+            ? $this->confirmEditDraft($draft, $user)
+            : $this->confirmCreateDraft($draft, $user);
+
+        session()->forget(self::AI_DRAFT_SESSION_KEY);
+
+        return $response;
+    }
+
+    private function confirmCreateDraft(array $draft, $user)
+    {
+        $data = $draft['meta'];
+        $ai = $draft['ai'];
+
+        $company = Company::findOrFail($data['company_id']);
+        abort_unless($user->canAccessCompany($company), 403);
+
+        $regulation = DB::transaction(function () use ($data, $company, $user, $ai) {
+            $regulation = Regulation::create([
+                'group_id'        => $user->group_id,
+                'company_id'      => $company->id,
+                'process_type_id' => $data['process_type_id'],
+                'document_type'   => $data['document_type'],
+                'code'            => $data['codigo'] ? strtoupper($data['codigo']) : null,
+                'name'            => strtoupper($data['nombre']),
+                'details'         => $this->mergeWizardMetaIntoDetails($ai['details'], $data),
+                'is_active'       => true,
+                'created_by'      => $user->id,
+                'impact_level'    => null,
+                'approval_status' => null,
+            ]);
+
+            // Se vuelve a sanear aunque generate() ya lo haga: protege borradores que quedaron
+            // en sesión desde antes de un ajuste al saneador (como este documento pendiente de confirmar).
+            $sanitizedHtml = app(AiProcedureGenerationService::class)->sanitizeHtmlForWord($ai['documento_html']);
+            $tmpDocx = $this->renderHtmlToDocx($sanitizedHtml);
+            $storagePath = "regulations/{$company->id}/{$regulation->id}/versions/procedimiento_v1.docx";
+            Storage::disk('private')->put($storagePath, file_get_contents($tmpDocx));
+            @unlink($tmpDocx);
+
+            RegulationVersion::create([
+                'regulation_id'      => $regulation->id,
+                'version_number'     => 1,
+                'change_description' => 'Versión inicial redactada con IA a partir del wizard',
+                'responsible_name'   => $data['quien_elabora'],
+                'file_path'          => $storagePath,
+                'original_name'      => 'procedimiento_v1.docx',
+                'disk'               => 'private',
+                'mime_type'          => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'issued_at'          => now()->toDateString(),
+                'valid_until'        => $data['fecha_vigencia'],
+                'is_current'         => true,
+                'uploaded_by'        => $user->id,
+            ]);
+
+            return $regulation;
+        });
 
         return redirect()
             ->route('processes.show', $regulation)
-            ->with('success', 'Documento creado. Asigna el flujo de aprobación desde la tabla de documentos.');
+            ->with('success', 'Documento creado y redactado con IA. Asigna el flujo de aprobación desde la tabla de documentos.');
+    }
+
+    private function confirmEditDraft(array $draft, $user)
+    {
+        $regulation = Regulation::findOrFail($draft['regulation_id']);
+        abort_unless($user->canAccessCompany($regulation->company), 403);
+
+        $data = $draft['meta'];
+        $ai = $draft['ai'];
+        $oldDetails = $draft['old_details'] ?? [];
+        $newDetails = $this->mergeWizardMetaIntoDetails($ai['details'], $data);
+
+        // Detectar cambios en cualquier campo (details O columnas directas) — igual que el update() anterior.
+        $sortedOld = $oldDetails;
+        ksort($sortedOld);
+        $sortedNew = $newDetails;
+        ksort($sortedNew);
+
+        $detailsChanged = $sortedOld !== $sortedNew
+            || ($draft['old_process_type_id'] ?? null) !== (int) $data['process_type_id']
+            || ($draft['old_document_type'] ?? '') !== ($data['document_type'] ?? '')
+            || ($draft['old_name'] ?? '') !== strtoupper($data['nombre'])
+            || ($draft['old_code'] ?? '') !== ($data['codigo'] ? strtoupper($data['codigo']) : '');
+
+        DB::transaction(function () use ($regulation, $data, $user, $ai, $oldDetails, $newDetails) {
+            $regulation->update([
+                'process_type_id'  => $data['process_type_id'],
+                'document_type'    => $data['document_type'] ?? null,
+                'code'             => $data['codigo'] ? strtoupper($data['codigo']) : null,
+                'name'             => strtoupper($data['nombre']),
+                'previous_details' => $oldDetails ?: null,
+                'details'          => $newDetails,
+            ]);
+
+            $regulation->versions()->where('is_current', true)->update(['is_current' => false]);
+            $next = ($regulation->versions()->max('version_number') ?? 0) + 1;
+
+            $sanitizedHtml = app(AiProcedureGenerationService::class)->sanitizeHtmlForWord($ai['documento_html']);
+            $tmpDocx = $this->renderHtmlToDocx($sanitizedHtml);
+            $storagePath = "regulations/{$regulation->company_id}/{$regulation->id}/versions/procedimiento_v{$next}.docx";
+            Storage::disk('private')->put($storagePath, file_get_contents($tmpDocx));
+            @unlink($tmpDocx);
+
+            RegulationVersion::create([
+                'regulation_id'      => $regulation->id,
+                'version_number'     => $next,
+                'change_description' => 'Actualizado con IA a partir del wizard de edición',
+                'responsible_name'   => $data['quien_elabora'],
+                'file_path'          => $storagePath,
+                'original_name'      => "procedimiento_v{$next}.docx",
+                'disk'               => 'private',
+                'mime_type'          => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'issued_at'          => now()->toDateString(),
+                'valid_until'        => $data['fecha_vigencia'],
+                'is_current'         => true,
+                'uploaded_by'        => $user->id,
+            ]);
+        });
+
+        if ($detailsChanged && ($draft['old_flow_locked'] ?? false) && $user->isAdmin()) {
+            return redirect()
+                ->route('processes.show', ['regulation' => $regulation->id, 'review_flow' => 1])
+                ->with('success', 'Documento actualizado y redactado con IA. Los cambios están resaltados en la vista de impresión.');
+        }
+
+        return redirect()
+            ->route('processes.show', $regulation)
+            ->with('success', 'Documento actualizado y redactado con IA. Los cambios están resaltados en la vista de impresión.');
+    }
+
+    /**
+     * El schema de salida de la IA solo cubre los 20 campos de AiProcedureGenerationService::DETAIL_FIELDS.
+     * quien_elabora/quien_aprueba/fecha_vigencia viven también dentro de "details" (igual que antes de
+     * la integración con IA) pero no pasan por la IA — hay que devolverlos al guardar, o se pierden.
+     */
+    private function mergeWizardMetaIntoDetails(array $aiDetails, array $wizardMeta): array
+    {
+        return array_merge($aiDetails, [
+            'quien_elabora'  => $wizardMeta['quien_elabora'],
+            'quien_aprueba'  => $wizardMeta['quien_aprueba'],
+            'fecha_vigencia' => $wizardMeta['fecha_vigencia'],
+        ]);
+    }
+
+    private function renderHtmlToDocx(string $html): string
+    {
+        $phpWord = new PhpWord();
+        $section = $phpWord->addSection([
+            'paperSize'    => 'Letter',
+            'marginTop'    => 1440,
+            'marginBottom' => 1440,
+            'marginLeft'   => 1440,
+            'marginRight'  => 1440,
+        ]);
+        WordHtml::addHtml($section, $html, false, false);
+
+        $tmp = tempnam(sys_get_temp_dir(), 'ai_procedure_docx_');
+        IOFactory::createWriter($phpWord, 'Word2007')->save($tmp);
+
+        return $tmp;
     }
 
     public function cargar(Request $request)
@@ -449,14 +721,9 @@ class RegulationController extends Controller
         ]);
     }
 
-    public function update(Request $request, Regulation $regulation)
+    private function editWizardValidationRules(): array
     {
-        $user = auth()->user();
-
-        abort_unless($user->isAdmin() || $user->isOperative(), 403);
-        abort_unless($user->canAccessCompany($regulation->company), 403);
-
-        $data = $request->validate([
+        return [
             'process_type_id'             => ['required', 'exists:process_types,id'],
             'document_type'               => ['nullable', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
             'codigo'                      => ['nullable', 'string', 'max:50'],
@@ -484,48 +751,53 @@ class RegulationController extends Controller
             'terminos_abreviaturas'       => ['required', 'string'],
             'riesgos_errores'             => ['required', 'string'],
             'requerimientos_normativos'   => ['required', 'string'],
-        ]);
+        ];
+    }
 
-        $oldDetails       = $regulation->details ?? [];
-        $flowLocked       = $regulation->flow_locked;
-        $oldProcessTypeId = (int) $regulation->process_type_id;
-        $oldDocumentType  = $regulation->document_type ?? '';
-        $oldName          = $regulation->name ?? '';
-        $oldCode          = $regulation->code ?? '';
+    /**
+     * Paso 1 (edición): valida el wizard de edición, genera el procedimiento con IA a partir
+     * de los campos editados y lo deja en sesión (el Regulation existente no se toca todavía)
+     * para mostrarlo en la vista previa.
+     */
+    public function previewGenerateEdit(Request $request, Regulation $regulation)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+        abort_unless($user->canAccessCompany($regulation->company), 403);
 
-        $newDetails = collect($data)
+        $data = $request->validate($this->editWizardValidationRules());
+
+        $wizardDetails = collect($data)
             ->except(['process_type_id', 'document_type', 'codigo', 'nombre'])
             ->toArray();
 
-        $regulation->update([
-            'process_type_id'  => $data['process_type_id'],
-            'document_type'    => $data['document_type'] ?? null,
-            'code'             => $data['codigo'] ? strtoupper($data['codigo']) : null,
-            'name'             => strtoupper($data['nombre']),
-            'previous_details' => $oldDetails ?: null,
-            'details'          => $newDetails,
-        ]);
+        try {
+            set_time_limit(240); // la generación con IA puede tardar 1-3 minutos según el modelo
+            $ai = app(AiProcedureGenerationService::class)->generate($wizardDetails);
+        } catch (\Throwable $e) {
+            report($e);
 
-        // Detectar cambios en cualquier campo (details O columnas directas)
-        ksort($oldDetails);
-        $sortedNew = $newDetails;
-        ksort($sortedNew);
-
-        $detailsChanged = $oldDetails !== $sortedNew
-            || $oldProcessTypeId !== (int) $data['process_type_id']
-            || $oldDocumentType  !== ($data['document_type'] ?? '')
-            || $oldName          !== strtoupper($data['nombre'])
-            || $oldCode          !== ($data['codigo'] ? strtoupper($data['codigo']) : '');
-
-        if ($detailsChanged && $flowLocked && $user->isAdmin()) {
-            return redirect()
-                ->route('processes.show', ['regulation' => $regulation->id, 'review_flow' => 1])
-                ->with('success', 'Documento actualizado. Los cambios están resaltados en la vista de impresión.');
+            return back()->withInput()->withErrors([
+                'ai' => 'No se pudo generar el documento con IA: ' . $e->getMessage(),
+            ]);
         }
 
-        return redirect()
-            ->route('processes.show', $regulation)
-            ->with('success', 'Documento actualizado. Los cambios están resaltados en la vista de impresión.');
+        session([self::AI_DRAFT_SESSION_KEY => [
+            'mode'                => 'edit',
+            'regulation_id'       => $regulation->id,
+            'meta'                => $data,
+            'wizard'              => $wizardDetails,
+            'ai'                  => $ai,
+            'revisions'           => 0,
+            'old_details'         => $regulation->details ?? [],
+            'old_flow_locked'     => $regulation->flow_locked,
+            'old_process_type_id' => (int) $regulation->process_type_id,
+            'old_document_type'   => $regulation->document_type ?? '',
+            'old_name'            => $regulation->name ?? '',
+            'old_code'            => $regulation->code ?? '',
+        ]]);
+
+        return redirect()->route('processes.preview.show');
     }
 
     public function setFlow(Request $request, Regulation $regulation)
