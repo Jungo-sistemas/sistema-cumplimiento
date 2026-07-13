@@ -24,3 +24,8 @@ Homestead.yaml
 Thumbs.db
 database/seeders/data/*.csv
 database/seeders/examples/*.csv
+
+# Documentos de referencia para generación IA de procedimientos — contenido interno/sensible
+/resources/ai-reference/documento_condiciones.docx
+/resources/ai-reference/documento_ejemplo.docx
+/resources/ai-reference/texto_validacion.md
