@@ -1,4 +1,4 @@
-<x-layouts.vigia title="Documentos obsoletos">
+<x-layouts.vigia title="Procedimientos obsoletos">
 
     <x-slot name="breadcrumb">
         <a href="{{ route('processes.index') }}" class="text-gray-600 hover:underline">Procesos</a>
@@ -69,7 +69,7 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-gray-100 bg-gray-50">
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Documento</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Procedimiento</th>
                             @if($user->hasGroupScope())
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Empresa</th>
                             @endif
@@ -157,7 +157,7 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-gray-100 bg-gray-50">
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Documento</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Procedimiento</th>
                             @if($user->hasGroupScope())
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Empresa</th>
                             @endif

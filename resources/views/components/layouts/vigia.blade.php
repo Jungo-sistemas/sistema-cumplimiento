@@ -197,7 +197,7 @@
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
 
                             <a href="{{ route('processes.index') }}" @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos</a>
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Procedimientos</a>
 
                             @if($pendingApprovalsCount > 0 || request()->routeIs('my-approvals.*'))
                                 <a href="{{ route('my-approvals.index') }}" @click="mobileMenuOpen = false"
@@ -314,7 +314,7 @@
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
 
                             <a href="{{ route('processes.index') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos</a>
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Procedimientos</a>
 
                             @if($pendingApprovalsCount > 0 || request()->routeIs('my-approvals.*'))
                                 <a href="{{ route('my-approvals.index') }}"

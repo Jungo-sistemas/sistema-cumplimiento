@@ -9,7 +9,7 @@
         {{-- Cards de resumen --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-white border rounded-lg shadow-sm p-4">
-                <div class="text-sm font-semibold text-[#1A428A]">Total documentos</div>
+                <div class="text-sm font-semibold text-[#1A428A]">Total procedimientos</div>
                 <div class="mt-2 text-2xl font-bold text-gray-800">{{ $stats['total'] }}</div>
             </div>
 
@@ -158,9 +158,9 @@
             </div>
         @endif
 
-        {{-- Documentos recientes --}}
+        {{-- Procedimientos recientes --}}
         <div>
-            <div class="text-sm font-semibold text-gray-700 mb-3">Documentos recientes</div>
+            <div class="text-sm font-semibold text-gray-700 mb-3">Procedimientos recientes</div>
             <div class="border rounded-lg overflow-hidden">
                 @forelse($recent as $regulation)
                     <div class="p-4 border-b last:border-b-0 flex items-center justify-between gap-4">
@@ -182,7 +182,7 @@
                         </a>
                     </div>
                 @empty
-                    <div class="p-4 text-sm text-gray-500">No hay documentos registrados.</div>
+                    <div class="p-4 text-sm text-gray-500">No hay procedimientos registrados.</div>
                 @endforelse
             </div>
         </div>
