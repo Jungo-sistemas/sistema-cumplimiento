@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Regulation;
 use App\Models\RegulationVersion;
+use App\Models\User;
+use App\Services\AiProcedureGenerationService;
+use App\Services\ChangeHighlightService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -160,6 +163,60 @@ class RegulationVersionController extends Controller
         ]);
     }
 
+    public function mentionUsers(Request $request, RegulationVersion $version)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+        abort_unless($user->canAccessCompany($version->regulation->company), 403);
+
+        $q = trim((string) $request->query('q', ''));
+
+        $users = User::where('group_id', $version->regulation->group_id)
+            ->where('status', 'active')
+            // LOWER(...) LIKE en vez de LIKE: en Postgres (local) el operador LIKE es sensible a
+            // mayúsculas por defecto — MySQL (producción) no, por su collation ci — esto funciona igual en ambos.
+            ->when($q !== '', fn ($query) => $query->whereRaw('LOWER(name) LIKE ?', ['%' . mb_strtolower($q) . '%']))
+            ->orderBy('name')
+            ->limit(10)
+            ->get(['id', 'name']);
+
+        return response()->json($users);
+    }
+
+    public function mentionDocuments(Request $request, RegulationVersion $version)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+        abort_unless($user->canAccessCompany($version->regulation->company), 403);
+
+        $q          = trim((string) $request->query('q', ''));
+        $regulation = $version->regulation;
+
+        $docs = Regulation::where('company_id', $regulation->company_id)
+            ->where('group_id', $regulation->group_id)
+            ->where('is_active', true)
+            ->where('id', '!=', $regulation->id)
+            ->whereNotNull('code')
+            ->when($q !== '', function ($query) use ($q) {
+                $needle = '%' . mb_strtolower($q) . '%';
+                $query->where(function ($qq) use ($needle) {
+                    $qq->whereRaw('LOWER(code) LIKE ?', [$needle])
+                       ->orWhereRaw('LOWER(name) LIKE ?', [$needle]);
+                });
+            })
+            ->orderBy('code')
+            ->limit(10)
+            ->get(['id', 'code', 'name'])
+            ->map(fn ($r) => [
+                'id'   => $r->id,
+                'code' => $r->code,
+                'name' => $r->name,
+                'url'  => route('processes.show', $r->id),
+            ]);
+
+        return response()->json($docs);
+    }
+
     public function releaseLock(Request $request, RegulationVersion $version)
     {
         $user = auth()->user();
@@ -177,7 +234,7 @@ class RegulationVersionController extends Controller
             );
     }
 
-    public function saveEdit(Request $request, RegulationVersion $version)
+    public function saveEdit(Request $request, RegulationVersion $version, ChangeHighlightService $changeHighlight, AiProcedureGenerationService $sanitizer)
     {
         $user = auth()->user();
         abort_unless($user->isAdmin() || $user->isOperative(), 403);
@@ -198,11 +255,28 @@ class RegulationVersionController extends Controller
 
         $regulation = $version->regulation;
 
+        $content = $data['content'];
+        $changeDescription = $data['change_description'] ?? null;
+
+        if ($version->file_path && Storage::disk('private')->exists($version->file_path)) {
+            $oldHtml = $this->docxToHtml(Storage::disk('private')->path($version->file_path));
+            $analysis = $changeHighlight->analyze($oldHtml, $content);
+
+            if ($analysis !== null) {
+                $content = $analysis['highlighted_html'];
+
+                if (empty($changeDescription)) {
+                    $changeDescription = $analysis['change_summary'];
+                }
+            }
+        }
+
         $html = preg_replace(
             '/<mark\b[^>]*>(.*?)<\/mark>/si',
             '<span style="background-color: #FFFF00;">$1</span>',
-            $data['content']
+            $content
         );
+        $html = $sanitizer->sanitizeHtmlForWord($html);
 
         $phpWord = new PhpWord();
         $section = $phpWord->addSection([
@@ -217,7 +291,7 @@ class RegulationVersionController extends Controller
         $tmp = tempnam(sys_get_temp_dir(), 'edited_docx_');
         IOFactory::createWriter($phpWord, 'Word2007')->save($tmp);
 
-        DB::transaction(function () use ($regulation, $version, $tmp, $user, $data) {
+        DB::transaction(function () use ($regulation, $version, $tmp, $user, $changeDescription) {
             $regulation->versions()->where('is_current', true)->update(['is_current' => false]);
 
             $next        = ($regulation->versions()->max('version_number') ?? 0) + 1;
@@ -231,7 +305,7 @@ class RegulationVersionController extends Controller
             RegulationVersion::create([
                 'regulation_id'      => $regulation->id,
                 'version_number'     => $next,
-                'change_description' => $data['change_description'] ?? 'Editado en línea',
+                'change_description' => $changeDescription ?: 'Editado en línea',
                 'responsible_name'   => $user->name,
                 'file_path'          => $storagePath,
                 'original_name'      => $newName,
