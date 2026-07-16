@@ -38,6 +38,7 @@ return [
     'anthropic' => [
         'key' => env('ANTHROPIC_API_KEY'),
         'model' => env('ANTHROPIC_MODEL', 'claude-opus-4-8'),
+        'change_model' => env('ANTHROPIC_CHANGE_MODEL', 'claude-haiku-4-5-20251001'),
     ],
 
 ];

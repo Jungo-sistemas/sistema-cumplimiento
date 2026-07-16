@@ -103,8 +103,16 @@ class ComplianceDashboardController extends Controller
 
                 $soonLimit = $today->copy()->addDays(30);
 
+                $assetsCount = Asset::query()
+                    ->when($user->hasGroupScope(), function ($query) use ($user) {
+                        $query->whereHas('company', fn ($q) => $q->where('group_id', $user->group_id));
+                    }, function ($query) use ($companyId) {
+                        $query->where('company_id', $companyId);
+                    })
+                    ->count();
+
                 $stats = [
-                    'assets'   => Asset::where('company_id', $companyId)->count(),
+                    'assets'   => $assetsCount,
                     'tasks'    => (clone $tasksQuery)->whereNull('completed_at')->count(),
                     'due_soon' => $metrics['kpis']['warning'] + $metrics['kpis']['danger'],
                     'overdue'  => $metrics['kpis']['expired'],

@@ -60,6 +60,10 @@
                 <div class="w-px h-5 bg-gray-300 mx-1"></div>
                 <button type="button" data-cmd="highlight"      title="Resaltar selección en amarillo" class="tb-btn text-xs" style="background:#FFF176;">🖊 Resaltar</button>
                 <button type="button" data-cmd="clearHighlight" title="Quitar resaltado de selección"  class="tb-btn text-xs">✕ Resaltado</button>
+                <div class="w-px h-5 bg-gray-300 mx-1"></div>
+                <span class="text-xs text-gray-400" title="Escribe @ para etiquetar a alguien del grupo, o # para referenciar otro documento">
+                    @ persona &nbsp;·&nbsp; # documento
+                </span>
             </div>
             <div id="editor" class="flex-1 overflow-y-auto px-8 py-6 text-sm text-gray-900"></div>
         </div>
@@ -162,25 +166,208 @@
     }
     .tb-btn:hover    { background: #e5e7eb; border-color: #d1d5db; }
     .tb-btn.is-active { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+
+    /* Etiquetas @persona y #documento */
+    .mention-tag {
+        display: inline-block; border-radius: 4px; padding: 0 4px; font-weight: 600;
+        text-decoration: none; white-space: nowrap;
+    }
+    .mention-person { background: #DBEAFE; color: #1D4ED8; }
+    .mention-doc     { background: #E0E7FF; color: #4338CA; cursor: pointer; }
+    .mention-doc:hover { text-decoration: underline; }
+    /* Links genéricos (ej. una referencia que perdió su etiqueta especial tras pasar por Word) */
+    #editor a:not(.mention-doc) { color: #2563eb; text-decoration: underline; }
+
+    /* Menú desplegable de sugerencias */
+    .mention-suggestion-list {
+        position: absolute; z-index: 1000; min-width: 220px; max-width: 320px; max-height: 260px;
+        overflow-y: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0,0,0,.12); padding: 4px; font-size: 13px;
+    }
+    .mention-suggestion-item {
+        padding: 6px 10px; border-radius: 6px; cursor: pointer; color: #374151;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .mention-suggestion-item.is-selected { background: #EFF6FF; color: #1D4ED8; }
+    .mention-suggestion-empty { padding: 6px 10px; color: #9ca3af; font-style: italic; }
 </style>
 
 <script type="module">
-import { Editor } from 'https://esm.sh/@tiptap/core@2.11.5';
-import StarterKit    from 'https://esm.sh/@tiptap/starter-kit@2.11.5';
-import Underline     from 'https://esm.sh/@tiptap/extension-underline@2.11.5';
-import Highlight     from 'https://esm.sh/@tiptap/extension-highlight@2.11.5';
+// Todas las importaciones fijan la MISMA versión de @tiptap/core y @tiptap/pm vía ?deps=
+// — sin esto, esm.sh resuelve la dependencia interna de Mention/Link a otra versión distinta
+// (ej. 2.27.2) y quedan dos copias incompatibles de @tiptap/core cargadas a la vez, rompiendo
+// silenciosamente cualquier chequeo de identidad de clase (Suggestion, PluginKey, etc.).
+import { Editor, mergeAttributes } from 'https://esm.sh/@tiptap/core@2.27.2';
+import StarterKit    from 'https://esm.sh/@tiptap/starter-kit@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
+import Underline     from 'https://esm.sh/@tiptap/extension-underline@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
+import Highlight     from 'https://esm.sh/@tiptap/extension-highlight@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
+import Mention       from 'https://esm.sh/@tiptap/extension-mention@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
+import Link          from 'https://esm.sh/@tiptap/extension-link@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
+import { PluginKey } from 'https://esm.sh/@tiptap/pm@2.27.2/state';
 // ── URLs ────────────────────────────────────────────────────────────────────
-const DRAFT_URL       = "{{ route('regulation-versions.saveDraft', $version) }}";
-const LOCK_URL        = "{{ route('regulation-versions.releaseLock', $version) }}";
+const DRAFT_URL         = "{{ route('regulation-versions.saveDraft', $version) }}";
+const LOCK_URL          = "{{ route('regulation-versions.releaseLock', $version) }}";
+const MENTION_USERS_URL = "{{ route('regulation-versions.mentions.users', $version) }}";
+const MENTION_DOCS_URL  = "{{ route('regulation-versions.mentions.documents', $version) }}";
 const CSRF            = document.querySelector('meta[name=csrf-token]')?.content ?? '';
 const AUTOSAVE_MS     = 30_000;
 const LOCK_WARN_SECS  = 300;
 let lockExpiresAt     = Date.now() + 30 * 60 * 1000;
 
+// ── @persona y #documento: búsqueda ──────────────────────────────────────────
+// Sin debounce manual a propósito: el plugin de sugerencias de TipTap espera que
+// CADA llamada a items() resuelva (aunque sea con datos obsoletos) para llevar su
+// propio ciclo de vida onStart/onUpdate/onExit — un debounce que descarta timers
+// anteriores deja esas promesas colgadas para siempre y rompe ese ciclo.
+async function fetchJson(url, query) {
+    try {
+        const res = await fetch(`${url}?q=${encodeURIComponent(query)}`, { headers: { Accept: 'application/json' } });
+        return res.ok ? await res.json() : [];
+    } catch {
+        return [];
+    }
+}
+const fetchUsers = (query) => fetchJson(MENTION_USERS_URL, query);
+const fetchDocs  = (query) => fetchJson(MENTION_DOCS_URL, query);
+
+// ── Menú desplegable genérico de sugerencias ─────────────────────────────────
+function makeSuggestionRenderer({ renderLabel, emptyText }) {
+    return () => {
+        // onKeyDown recibe un `props` distinto y más limitado que onStart/onUpdate
+        // ({view, event, range}, SIN command ni items — ver @tiptap/suggestion) — por eso
+        // `command` e `items` se guardan aparte en vez de leerse de props en cada callback.
+        let el, items = [], selected = 0, command = () => {};
+
+        function draw() {
+            el.innerHTML = '';
+            if (items.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'mention-suggestion-empty';
+                empty.textContent = emptyText;
+                el.appendChild(empty);
+                return;
+            }
+            items.forEach((item, i) => {
+                const row = document.createElement('div');
+                row.className = 'mention-suggestion-item' + (i === selected ? ' is-selected' : '');
+                row.textContent = renderLabel(item);
+                row.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    command(item.attrs);
+                });
+                el.appendChild(row);
+            });
+        }
+
+        function place(props) {
+            const rect = props.clientRect?.();
+            if (!rect) return;
+            el.style.left = (rect.left + window.scrollX) + 'px';
+            el.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+        }
+
+        return {
+            onStart(props) {
+                items = props.items; selected = 0; command = props.command;
+                el = document.createElement('div');
+                el.className = 'mention-suggestion-list';
+                document.body.appendChild(el);
+                draw(); place(props);
+            },
+            onUpdate(props) {
+                items = props.items; selected = 0; command = props.command;
+                draw(); place(props);
+            },
+            onKeyDown(props) {
+                if (props.event.key === 'Escape') { el.remove(); return true; }
+                if (!items.length) return false;
+                if (props.event.key === 'ArrowDown') { selected = (selected + 1) % items.length; draw(); return true; }
+                if (props.event.key === 'ArrowUp')   { selected = (selected - 1 + items.length) % items.length; draw(); return true; }
+                if (props.event.key === 'Enter')     { command(items[selected].attrs); return true; }
+                return false;
+            },
+            onExit() { el?.remove(); },
+        };
+    };
+}
+
+// ── Extensión @persona ────────────────────────────────────────────────────────
+const PersonMention = Mention.extend({
+    name: 'personMention',
+    addAttributes() {
+        return {
+            id:    { default: null, parseHTML: el => el.getAttribute('data-id'),    renderHTML: a => ({ 'data-id': a.id }) },
+            label: { default: null, parseHTML: el => el.getAttribute('data-label'), renderHTML: a => ({ 'data-label': a.label }) },
+        };
+    },
+    parseHTML()  { return [{ tag: 'span[data-type="person-mention"]' }]; },
+    renderHTML({ node, HTMLAttributes }) {
+        return ['span', mergeAttributes({
+            'data-type': 'person-mention',
+            class: 'mention-tag mention-person',
+            style: 'background-color:#DBEAFE;color:#1D4ED8;border-radius:4px;padding:0 4px;font-weight:600;',
+        }, HTMLAttributes), `@${node.attrs.label ?? ''}`];
+    },
+    renderText({ node }) { return `@${node.attrs.label ?? ''}`; },
+}).configure({
+    suggestion: {
+        char: '@',
+        pluginKey: new PluginKey('personMention'),
+        items: async ({ query }) => (await fetchUsers(query)).map(u => ({ attrs: { id: u.id, label: u.name } })),
+        render: makeSuggestionRenderer({ renderLabel: item => item.attrs.label, emptyText: 'Sin personas encontradas' }),
+        command: ({ editor, range, props }) => {
+            editor.chain().focus().insertContentAt(range, [
+                { type: 'personMention', attrs: props },
+                { type: 'text', text: ' ' },
+            ]).run();
+        },
+    },
+});
+
+// ── Extensión #documento ──────────────────────────────────────────────────────
+const DocReference = Mention.extend({
+    name: 'docReference',
+    addAttributes() {
+        return {
+            id:    { default: null, parseHTML: el => el.getAttribute('data-id'),    renderHTML: a => ({ 'data-id': a.id }) },
+            label: { default: null, parseHTML: el => el.getAttribute('data-label'), renderHTML: a => ({ 'data-label': a.label }) },
+            url:   { default: null, parseHTML: el => el.getAttribute('href'),       renderHTML: a => ({ href: a.url }) },
+        };
+    },
+    parseHTML()  { return [{ tag: 'a[data-type="doc-reference"]', priority: 100 }]; },
+    renderHTML({ node, HTMLAttributes }) {
+        return ['a', mergeAttributes({
+            'data-type': 'doc-reference',
+            class: 'mention-tag mention-doc',
+            target: '_blank',
+            rel: 'noopener',
+            style: 'background-color:#E0E7FF;color:#4338CA;border-radius:4px;padding:0 4px;font-weight:600;text-decoration:none;',
+        }, HTMLAttributes), `#${node.attrs.label ?? ''}`];
+    },
+    renderText({ node }) { return `#${node.attrs.label ?? ''}`; },
+}).configure({
+    suggestion: {
+        char: '#',
+        pluginKey: new PluginKey('docReference'),
+        items: async ({ query }) => (await fetchDocs(query)).map(d => ({ attrs: { id: d.id, label: d.code, url: d.url }, code: d.code, name: d.name })),
+        render: makeSuggestionRenderer({ renderLabel: item => `${item.code} — ${item.name}`, emptyText: 'Sin documentos encontrados' }),
+        command: ({ editor, range, props }) => {
+            editor.chain().focus().insertContentAt(range, [
+                { type: 'docReference', attrs: props },
+                { type: 'text', text: ' ' },
+            ]).run();
+        },
+    },
+});
+
 // ── Editor ──────────────────────────────────────────────────────────────────
 const editor = new Editor({
     element: document.getElementById('editor'),
-    extensions: [ StarterKit, Underline, Highlight.configure({ multicolor: true }) ],
+    extensions: [
+        StarterKit, Underline, Highlight.configure({ multicolor: true }),
+        Link.configure({ openOnClick: false, autolink: false, HTMLAttributes: { target: '_blank', rel: 'noopener' } }),
+        PersonMention, DocReference,
+    ],
     content: {!! json_encode($bodyHtml) !!},
     editorProps: { attributes: { class: 'ProseMirror focus:outline-none min-h-full' } },
     onUpdate({ editor }) {

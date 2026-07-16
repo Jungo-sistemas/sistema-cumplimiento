@@ -93,12 +93,21 @@ class AiProcedureGenerationService
      * - Un mismo atributo (típicamente "style") no puede repetirse en la misma etiqueta
      *   — el modelo lo hace sobre todo al revisar (ej. agrega un segundo style="..." en
      *   vez de fusionarlo con el existente), y eso rompe DOMDocument::loadXML().
+     * - Un "<" o "&" sueltos en el texto (ej. "100% en < 24 h", común en tablas de
+     *   indicadores) rompen el .docx de forma más sutil: PhpWord 1.1.0 tiene un bug real
+     *   donde, aunque el HTML de entrada venga bien escapado ("&lt;"), internamente lo
+     *   decodifica al caracter literal y al ESCRIBIR el .docx no lo vuelve a escapar —
+     *   el archivo queda con XML inválido y ni "Ver" ni "Editar" pueden volver a abrirlo
+     *   (confirmado con pruebas aisladas contra el pipeline real de PhpWord). Se
+     *   reemplazan por el caracter Unicode de ancho completo equivalente (se ve idéntico,
+     *   no tiene significado especial en XML) en vez de intentar escaparlos mejor.
      * También se quita cualquier <script>, ya que este HTML se muestra en el navegador
      * durante la vista previa antes de convertirse a Word.
      */
     public function sanitizeHtmlForWord(string $html): string
     {
         $html = preg_replace('/<script\b[^>]*>.*?<\/script>/si', '', $html);
+        $html = $this->escapeStrayCharsForPhpWord($html);
         $html = $this->dedupeTagAttributes($html);
 
         return preg_replace_callback('/<(br|hr|img)\b([^>]*)>/i', function (array $m) {
@@ -108,6 +117,21 @@ class AiProcedureGenerationService
                 ? "<{$m[1]}{$attrs}>"
                 : "<{$m[1]}{$attrs} />";
         }, $html);
+    }
+
+    /**
+     * Reemplaza "<" y "&" sueltos (no parte de una etiqueta o entidad real) — y las
+     * entidades "&lt;"/"&amp;" ya escapadas, que de todos modos se decodifican al
+     * caracter literal antes de llegar al bug de escritura de PhpWord — por su
+     * equivalente Unicode de ancho completo. No toca tags reales ("<table>", "</p>")
+     * ni otras entidades (acentos, "&nbsp;", etc.), que no disparan el bug.
+     */
+    private function escapeStrayCharsForPhpWord(string $html): string
+    {
+        $html = str_replace(['&lt;', '&amp;'], ['＜', '＆'], $html);
+        $html = preg_replace('/&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#x[0-9a-fA-F]+);)/', '＆', $html);
+
+        return preg_replace('/<(?![a-zA-Z\/!?])/', '＜', $html);
     }
 
     /**

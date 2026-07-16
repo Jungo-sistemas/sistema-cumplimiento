@@ -221,6 +221,12 @@ Route::middleware(['auth', 'module.access'])->group(function () {
     Route::post('/regulation-versions/{version}/draft', [RegulationVersionController::class, 'saveDraft'])
         ->name('regulation-versions.saveDraft');
 
+    Route::get('/regulation-versions/{version}/mentions/users', [RegulationVersionController::class, 'mentionUsers'])
+        ->name('regulation-versions.mentions.users');
+
+    Route::get('/regulation-versions/{version}/mentions/documents', [RegulationVersionController::class, 'mentionDocuments'])
+        ->name('regulation-versions.mentions.documents');
+
     Route::delete('/regulation-versions/{version}/lock', [RegulationVersionController::class, 'releaseLock'])
         ->name('regulation-versions.releaseLock');
 
