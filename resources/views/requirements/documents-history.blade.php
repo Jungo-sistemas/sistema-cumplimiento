@@ -7,7 +7,7 @@
     <x-slot name="breadcrumb">
         <a href="{{ route('assets.index', array_filter(['company_id' => $asset?->company_id])) }}"
            class="shrink-0 text-gray-600 hover:underline">
-            Activos y Actividades
+            Energético
         </a>
         <span class="shrink-0 text-gray-400">›</span>
 

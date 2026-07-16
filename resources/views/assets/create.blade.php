@@ -2,7 +2,7 @@
 <x-layouts.vigia :title="'Crear un activo'">
     <x-slot name="breadcrumb">
         <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">
-            Activos y Actividades
+            Energético
         </a>
         <span class="text-gray-400">›</span>
         <span class="text-gray-700 font-medium">Crear un activo</span>

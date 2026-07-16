@@ -1,6 +1,6 @@
 <x-layouts.vigia :title="'Historial: ' . ($requirement->template?->name ?? $requirement->type)">
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Activos y Actividades</a>
+        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Energético</a>
         <span class="text-gray-400">›</span>
 
         <a href="{{ route('assets.show', $asset) }}" class="text-gray-600 hover:underline">

@@ -17,7 +17,7 @@
                     </x-nav-link>
                     <x-nav-link :href="route('assets.index')" 
                                 :active="request()->routeIs('assets.*')">
-                        {{ __('Activos') }}
+                        {{ __('Energético') }}
                     </x-nav-link>
                 </div>
             </div>
