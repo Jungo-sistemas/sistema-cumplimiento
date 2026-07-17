@@ -380,4 +380,9 @@ class AssetRequirementDocumentController extends Controller
             abort(404);
         }
     }
+
+    private function safeFilename(string $name): string
+    {
+        return preg_replace('/[^\w.\-]/', '_', $name);
+    }
 }
