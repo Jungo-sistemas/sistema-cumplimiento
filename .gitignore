@@ -29,3 +29,4 @@ database/seeders/examples/*.csv
 /resources/ai-reference/documento_condiciones.docx
 /resources/ai-reference/documento_ejemplo.docx
 /resources/ai-reference/texto_validacion.md
+/resources/ai-reference/diagrama_ejemplo.png

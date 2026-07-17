@@ -5,6 +5,7 @@ namespace App\Services;
 use Anthropic\Client;
 use Anthropic\Messages\JSONOutputFormat;
 use Anthropic\Messages\OutputConfig;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpWord\IOFactory;
 use RuntimeException;
@@ -19,6 +20,12 @@ class AiProcedureGenerationService
 
     /** Texto de validación/instrucciones adicional (system prompt). */
     private const VALIDATION_TEXT = 'texto_validacion.md';
+
+    /** Imagen de ejemplo del diagrama de flujo por carriles — se manda como referencia visual (Claude ve imágenes). */
+    private const DIAGRAM_EXAMPLE_IMAGE = 'diagrama_ejemplo.png';
+
+    /** Marcador que la IA debe dejar en documento_html donde va el diagrama — se reemplaza por la imagen ya renderizada. */
+    private const DIAGRAM_MARKER = '{{DIAGRAMA_FLUJO}}';
 
     public const DETAIL_FIELDS = [
         'problema_resuelve', 'resultado_esperado', 'areas_aplica', 'fuera_alcance',
@@ -47,7 +54,20 @@ class AiProcedureGenerationService
             system: $this->validationText(),
             messages: [[
                 'role' => 'user',
-                'content' => $this->buildPrompt($wizardData, $previousResult, $feedback),
+                'content' => [
+                    [
+                        'type' => 'image',
+                        'source' => [
+                            'type' => 'base64',
+                            'media_type' => 'image/png',
+                            'data' => base64_encode($this->diagramExampleImage()),
+                        ],
+                    ],
+                    [
+                        'type' => 'text',
+                        'text' => $this->buildPrompt($wizardData, $previousResult, $feedback),
+                    ],
+                ],
             ]],
             outputConfig: OutputConfig::with(format: JSONOutputFormat::with(schema: $this->schema())),
         );
@@ -82,9 +102,87 @@ class AiProcedureGenerationService
             throw new RuntimeException('La IA devolvió una respuesta en un formato inesperado (stop_reason: ' . ($message->stopReason ?? 'desconocido') . ').');
         }
 
+        $data['documento_html'] = $this->insertFlowDiagram(
+            $data['documento_html'],
+            $data['diagrama_flujo_mermaid'] ?? null
+        );
         $data['documento_html'] = $this->sanitizeHtmlForWord($data['documento_html']);
 
         return $data;
+    }
+
+    /**
+     * Reemplaza el marcador {{DIAGRAMA_FLUJO}} por el diagrama ya renderizado como imagen
+     * (Mermaid → Kroki.io → PNG). Si no hay mermaid, Kroki falla, o el marcador no aparece
+     * (la IA no lo respetó), se deja una nota simple en vez de bloquear la generación —
+     * el documento completo nunca debe fallar solo por el diagrama.
+     */
+    private function insertFlowDiagram(string $html, ?string $mermaidSource): string
+    {
+        if (! str_contains($html, self::DIAGRAM_MARKER)) {
+            return $html;
+        }
+
+        $fallback = '<p><em>(No se pudo generar el diagrama de flujo automáticamente.)</em></p>';
+
+        if (empty($mermaidSource)) {
+            return str_replace(self::DIAGRAM_MARKER, $fallback, $html);
+        }
+
+        $png = $this->renderMermaidDiagram($mermaidSource);
+
+        $replacement = $png !== null
+            ? '<img src="data:image/png;base64,' . base64_encode($png) . '" style="max-width:100%;" />'
+            : $fallback;
+
+        return str_replace(self::DIAGRAM_MARKER, $replacement, $html);
+    }
+
+    /**
+     * Convierte una definición de diagrama Mermaid a PNG vía Kroki.io (gratuito, sin cuenta).
+     * No hay motor local para esto (sin Imagick/GD, y PhpWord no soporta SVG) — devuelve null
+     * en vez de lanzar una excepción si el servicio falla, para no bloquear todo el documento.
+     */
+    private function renderMermaidDiagram(string $mermaidSource): ?string
+    {
+        try {
+            // En local (detrás del proxy/firewall corporativo, mismo problema visto antes con
+            // otras herramientas) el bundle de certificados de PHP no confía en el proxy con
+            // inspección SSL y la petición falla con "self-signed certificate in certificate
+            // chain" — no ocurre en producción. Se desactiva la verificación SOLO en local.
+            $response = Http::withHeaders(['Content-Type' => 'text/plain'])
+                ->withOptions(['verify' => ! app()->environment('local')])
+                ->timeout(20)
+                ->withBody($mermaidSource, 'text/plain')
+                ->post('https://kroki.io/mermaid/png');
+
+            if (! $response->successful()) {
+                Log::warning('AiProcedureGenerationService: Kroki no pudo renderizar el diagrama', [
+                    'status' => $response->status(),
+                ]);
+
+                return null;
+            }
+
+            return $response->body();
+        } catch (\Throwable $e) {
+            Log::warning('AiProcedureGenerationService: fallo al renderizar el diagrama de flujo', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    private function diagramExampleImage(): string
+    {
+        $path = resource_path('ai-reference/' . self::DIAGRAM_EXAMPLE_IMAGE);
+
+        if (! file_exists($path)) {
+            throw new RuntimeException("Falta la imagen de ejemplo del diagrama en {$path}. Colócala antes de generar procedimientos con IA.");
+        }
+
+        return file_get_contents($path);
     }
 
     /**
@@ -106,6 +204,7 @@ class AiProcedureGenerationService
      */
     public function sanitizeHtmlForWord(string $html): string
     {
+        $html = $this->stripPageWrapper($html);
         $html = preg_replace('/<script\b[^>]*>.*?<\/script>/si', '', $html);
         $html = $this->escapeStrayCharsForPhpWord($html);
         $html = $this->dedupeTagAttributes($html);
@@ -117,6 +216,23 @@ class AiProcedureGenerationService
                 ? "<{$m[1]}{$attrs}>"
                 : "<{$m[1]}{$attrs} />";
         }, $html);
+    }
+
+    /**
+     * El schema/prompt prohíben explícitamente <!DOCTYPE>, <html>, <head> y <body> —
+     * el modelo casi siempre lo respeta, pero de vez en cuando (más probable cuanto más
+     * contenido lleva el prompt, ej. al agregar la imagen de referencia del diagrama)
+     * los incluye de todos modos. Un <body> real confunde el parser de PhpWord y produce
+     * "Cannot add TextRun in TextRun" al convertir a Word. Se quitan aquí en vez de
+     * confiar únicamente en la instrucción del prompt.
+     */
+    private function stripPageWrapper(string $html): string
+    {
+        $html = preg_replace('/<!DOCTYPE[^>]*>/i', '', $html);
+        $html = preg_replace('/<head\b[^>]*>.*?<\/head>/si', '', $html);
+        $html = preg_replace('/<\/?html\b[^>]*>/i', '', $html);
+
+        return preg_replace('/<\/?body\b[^>]*>/i', '', $html);
     }
 
     /**
@@ -191,10 +307,26 @@ class AiProcedureGenerationService
                     'description' => 'SOLO el fragmento de contenido del procedimiento, listo para insertarse dentro de un <body> ya existente. '
                         . 'PROHIBIDO incluir <!DOCTYPE>, <html>, <head>, <style>, <body> o <script> — el conversor a Word no los interpreta y el documento queda mal. '
                         . 'Usa únicamente: <h1>-<h6>, <p>, <table>/<tr>/<td>/<th>, <strong>, <em>, <u>, <ul>/<ol>/<li>, <br>. '
-                        . 'Para color o resaltado usa style inline en la propia etiqueta (ej. <p style="color:#1A428A;">), nunca clases CSS ni hojas de estilo.',
+                        . 'Para color o resaltado usa style inline en la propia etiqueta (ej. <p style="color:#1A428A;">), nunca clases CSS ni hojas de estilo. '
+                        . 'En la sección "Diagrama de Flujo del Proceso", el ÚNICO contenido debe ser el marcador literal '
+                        . '<p>{{DIAGRAMA_FLUJO}}</p> — nada de notas, ni descripciones, ni el diagrama en sí: el sistema '
+                        . 'inserta ahí la imagen ya renderizada a partir de diagrama_flujo_mermaid. '
+                        . 'NO incluyas ningún encabezado con logo/nombre/código/versión/elaboró/aprobó/fecha/número de '
+                        . 'página al inicio del documento — el sistema agrega ese encabezado automáticamente en cada '
+                        . 'página, con formato fijo, fuera de este campo. Empieza documento_html directo en el título '
+                        . 'del procedimiento u "Objetivo".',
+                ],
+                'diagrama_flujo_mermaid' => [
+                    'type' => 'string',
+                    'description' => 'El diagrama de flujo de ESTE procedimiento en sintaxis Mermaid, imitando el estilo visual '
+                        . 'de la imagen de referencia adjunta (carriles por puesto/responsable, óvalos de inicio/fin, pasos '
+                        . 'numerados, rombos de decisión con ramas Sí/No). Debe empezar con "flowchart LR" y usar un '
+                        . '"subgraph NOMBRE_CORTO[\"Nombre del puesto\"]" con "direction TB" adentro por cada puesto '
+                        . 'involucrado, en el orden en que participan. No uses acentos ni caracteres especiales en los '
+                        . 'IDs de nodos/subgraphs (sí puedes usarlos dentro de las etiquetas de texto entre corchetes/comillas).',
                 ],
             ],
-            'required' => ['details', 'documento_html'],
+            'required' => ['details', 'documento_html', 'diagrama_flujo_mermaid'],
             'additionalProperties' => false,
         ];
     }
@@ -202,6 +334,13 @@ class AiProcedureGenerationService
     private function buildPrompt(array $wizardData, ?array $previousResult = null, ?string $feedback = null): string
     {
         $parts = [
+            'La imagen adjunta es un EJEMPLO de cómo debe verse el diagrama de flujo del procedimiento — carriles por '
+                . 'puesto/responsable colocados lado a lado como columnas, óvalos de inicio y fin, pasos numerados dentro '
+                . 'de cada carril, rombos de decisión con ramas Sí/No, flechas que cruzan de un carril a otro cuando cambia '
+                . 'el responsable. Genera el diagrama de ESTE procedimiento (campo diagrama_flujo_mermaid) siguiendo ese '
+                . 'mismo estilo visual, con los pasos y responsables reales de este procedimiento — no copies el contenido '
+                . 'del ejemplo, solo su forma.',
+
             'El usuario capturó el siguiente esqueleto de procedimiento en un wizard. Es el punto de partida, en formato JSON:',
             json_encode($wizardData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
 
@@ -231,7 +370,11 @@ class AiProcedureGenerationService
         }
 
         $parts[] = 'Recuerda: documento_html es solo el fragmento de contenido, NUNCA un documento HTML completo '
-            . '(nada de <!DOCTYPE>, <html>, <head>, <style> ni <body>).';
+            . '(nada de <!DOCTYPE>, <html>, <head>, <style> ni <body>). Y en la sección "Diagrama de Flujo del Proceso" '
+            . 'de documento_html, escribe ÚNICAMENTE <p>{{DIAGRAMA_FLUJO}}</p> — el diagrama real va en el campo '
+            . 'diagrama_flujo_mermaid, no ahí. Tampoco escribas la tabla de encabezado (logo, nombre, código, versión, '
+            . 'elaboró, aprobó, fecha, número de página) al inicio de documento_html — eso lo agrega el sistema '
+            . 'automáticamente fuera de este campo, con un formato fijo que nunca cambia.';
 
         return implode("\n\n", $parts);
     }

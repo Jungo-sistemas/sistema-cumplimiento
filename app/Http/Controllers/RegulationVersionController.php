@@ -7,6 +7,7 @@ use App\Models\RegulationVersion;
 use App\Models\User;
 use App\Services\AiProcedureGenerationService;
 use App\Services\ChangeHighlightService;
+use App\Services\RegulationDocxHeaderBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -278,23 +279,37 @@ class RegulationVersionController extends Controller
         );
         $html = $sanitizer->sanitizeHtmlForWord($html);
 
+        $next = ($regulation->versions()->max('version_number') ?? 0) + 1;
+        $details = $regulation->details ?? [];
+
+        \PhpOffice\PhpWord\Settings::setDefaultFontName('Arial');
+        \PhpOffice\PhpWord\Settings::setDefaultFontSize(11);
+
         $phpWord = new PhpWord();
         $section = $phpWord->addSection([
             'paperSize'    => 'Letter',
-            'marginTop'    => 1440,
+            'marginTop'    => 2000,
             'marginBottom' => 1440,
             'marginLeft'   => 1440,
             'marginRight'  => 1440,
+            'headerHeight' => 1300,
+        ]);
+        app(RegulationDocxHeaderBuilder::class)->apply($section, [
+            'nombre'         => $regulation->name,
+            'codigo'         => $regulation->code,
+            'version'        => sprintf('%02d', $next),
+            'quien_elabora'  => $details['quien_elabora'] ?? null,
+            'quien_aprueba'  => $details['quien_aprueba'] ?? null,
+            'fecha_vigencia' => $details['fecha_vigencia'] ?? null,
         ]);
         WordHtml::addHtml($section, $html, false, false);
 
         $tmp = tempnam(sys_get_temp_dir(), 'edited_docx_');
         IOFactory::createWriter($phpWord, 'Word2007')->save($tmp);
 
-        DB::transaction(function () use ($regulation, $version, $tmp, $user, $changeDescription) {
+        DB::transaction(function () use ($regulation, $version, $tmp, $user, $changeDescription, $next) {
             $regulation->versions()->where('is_current', true)->update(['is_current' => false]);
 
-            $next        = ($regulation->versions()->max('version_number') ?? 0) + 1;
             $rawName     = pathinfo($version->original_name ?? 'documento.docx', PATHINFO_FILENAME);
             $baseName    = preg_replace('/(_v\d+)+$/i', '', $rawName); // strip any previous _vN suffix
             $newName     = "{$baseName}_v{$next}.docx";
