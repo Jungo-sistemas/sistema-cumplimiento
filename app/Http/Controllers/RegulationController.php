@@ -11,6 +11,7 @@ use App\Models\RegulationVersion;
 use App\Models\User;
 use App\Services\AiProcedureGenerationService;
 use App\Services\ApprovalFlowService;
+use App\Services\RegulationDocxHeaderBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -475,7 +476,14 @@ class RegulationController extends Controller
             // Se vuelve a sanear aunque generate() ya lo haga: protege borradores que quedaron
             // en sesión desde antes de un ajuste al saneador (como este documento pendiente de confirmar).
             $sanitizedHtml = app(AiProcedureGenerationService::class)->sanitizeHtmlForWord($ai['documento_html']);
-            $tmpDocx = $this->renderHtmlToDocx($sanitizedHtml);
+            $tmpDocx = $this->renderHtmlToDocx($sanitizedHtml, [
+                'nombre'         => strtoupper($data['nombre']),
+                'codigo'         => $data['codigo'] ? strtoupper($data['codigo']) : null,
+                'version'        => '01',
+                'quien_elabora'  => $data['quien_elabora'],
+                'quien_aprueba'  => $data['quien_aprueba'],
+                'fecha_vigencia' => $data['fecha_vigencia'],
+            ]);
             $storagePath = "regulations/{$company->id}/{$regulation->id}/versions/procedimiento_v1.docx";
             Storage::disk('private')->put($storagePath, file_get_contents($tmpDocx));
             @unlink($tmpDocx);
@@ -539,7 +547,14 @@ class RegulationController extends Controller
             $next = ($regulation->versions()->max('version_number') ?? 0) + 1;
 
             $sanitizedHtml = app(AiProcedureGenerationService::class)->sanitizeHtmlForWord($ai['documento_html']);
-            $tmpDocx = $this->renderHtmlToDocx($sanitizedHtml);
+            $tmpDocx = $this->renderHtmlToDocx($sanitizedHtml, [
+                'nombre'         => strtoupper($data['nombre']),
+                'codigo'         => $data['codigo'] ? strtoupper($data['codigo']) : null,
+                'version'        => sprintf('%02d', $next),
+                'quien_elabora'  => $data['quien_elabora'],
+                'quien_aprueba'  => $data['quien_aprueba'],
+                'fecha_vigencia' => $data['fecha_vigencia'],
+            ]);
             $storagePath = "regulations/{$regulation->company_id}/{$regulation->id}/versions/procedimiento_v{$next}.docx";
             Storage::disk('private')->put($storagePath, file_get_contents($tmpDocx));
             @unlink($tmpDocx);
@@ -585,16 +600,27 @@ class RegulationController extends Controller
         ]);
     }
 
-    private function renderHtmlToDocx(string $html): string
+    /**
+     * @param  array{nombre: string, codigo: ?string, version: int|string, quien_elabora: ?string, quien_aprueba: ?string, fecha_vigencia: ?string}  $headerMeta
+     */
+    private function renderHtmlToDocx(string $html, array $headerMeta): string
     {
+        // Fijo en código, igual que el encabezado: la tipografía base del documento no debe
+        // depender de que la IA la respete siempre — el estilo inline que sí ponga la IA
+        // (ej. <p style="color:#1A428A;">) sigue aplicando encima de este default.
+        \PhpOffice\PhpWord\Settings::setDefaultFontName('Arial');
+        \PhpOffice\PhpWord\Settings::setDefaultFontSize(11);
+
         $phpWord = new PhpWord();
         $section = $phpWord->addSection([
             'paperSize'    => 'Letter',
-            'marginTop'    => 1440,
+            'marginTop'    => 2000,
             'marginBottom' => 1440,
             'marginLeft'   => 1440,
             'marginRight'  => 1440,
+            'headerHeight' => 1300,
         ]);
+        app(RegulationDocxHeaderBuilder::class)->apply($section, $headerMeta);
         WordHtml::addHtml($section, $html, false, false);
 
         $tmp = tempnam(sys_get_temp_dir(), 'ai_procedure_docx_');
