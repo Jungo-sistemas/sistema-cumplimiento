@@ -123,6 +123,17 @@ class AiProcedureGenerationService
             return $html;
         }
 
+        // El prompt le pide a la IA que escriba el marcador como <p>{{DIAGRAMA_FLUJO}}</p>.
+        // El reemplazo (fallback o <img>) ya trae su propio wrapper de bloque, así que hay
+        // que quitar ese <p> envolvente aquí — si no, queda <p><p>...</p></p> (o <p><img/></p>,
+        // inofensivo, pero inconsistente), y PhpWord revienta con "Cannot add TextRun in
+        // TextRun" al convertir a Word porque no tolera un <p> anidado dentro de otro <p>.
+        $html = preg_replace(
+            '/<p\b[^>]*>\s*' . preg_quote(self::DIAGRAM_MARKER, '/') . '\s*<\/p>/i',
+            self::DIAGRAM_MARKER,
+            $html
+        );
+
         $fallback = '<p><em>(No se pudo generar el diagrama de flujo automáticamente.)</em></p>';
 
         if (empty($mermaidSource)) {
