@@ -5,21 +5,23 @@ namespace App\Services;
 use PhpOffice\PhpWord\Element\Section;
 
 /**
- * Encabezado fijo (tabla de 4 columnas x 2 filas) que debe aparecer idéntico en TODOS los
- * documentos de Procesos, en todas las páginas — nombre, código, versión, elaboró, aprobó,
- * fecha de efectividad y número de página automático.
+ * Encabezado fijo (tabla de 4 columnas x 2 filas, con el formato exacto ya aprobado por el
+ * cliente) que debe aparecer idéntico en TODOS los documentos de Procesos, en todas las
+ * páginas — nombre, código, versión, elaboró, aprobó, fecha de efectividad y número de página
+ * automático.
  *
  * A propósito NO se le pide esto a la IA en cada generación: por más detalladas que sean las
- * instrucciones, no hay garantía de que el modelo lo replique exactamente igual dos veces
- * (colores, bordes, estructura de tabla). Construirlo aquí, con los datos reales del
- * documento, lo deja 100% consistente siempre — y como se agrega vía `Section::addHeader()`,
- * Word lo repite nativamente en cada página sin que el HTML del cuerpo tenga que mencionarlo.
+ * instrucciones, no hay garantía de que el modelo replique exactamente el mismo diseño dos
+ * veces (colores, bordes, estructura de tabla), y cualquier variación rompe el formato ya
+ * establecido con el cliente. Construirlo aquí, con los datos reales del documento, lo deja
+ * 100% consistente siempre — y como se agrega vía `Section::addHeader()`, Word lo repite
+ * nativamente en cada página sin que el HTML del cuerpo tenga que mencionarlo.
  */
 class RegulationDocxHeaderBuilder
 {
-    private const NAVY = '002060';
-    private const LIGHT_GRAY = 'F2F3F4';
-    private const BORDER = '1A3A5C';
+    private const ACCENT_BG = 'D9E2F3';
+    private const GRAY_BG = 'A6A6A6';
+    private const BORDER = '000000';
 
     /**
      * @param  array{nombre: string, codigo: ?string, version: int|string, quien_elabora: ?string, quien_aprueba: ?string, fecha_vigencia: ?string}  $meta
@@ -30,57 +32,47 @@ class RegulationDocxHeaderBuilder
 
         $table = $header->addTable([
             'borderColor' => self::BORDER,
-            'borderSize'  => 6,
+            'borderSize'  => 4,
             'unit'        => 'pct',
             'width'       => 100 * 50,
             'cellMargin'  => 80,
         ]);
 
+        // Fila 1: logo / nombre del procedimiento / código / versión
         $table->addRow();
-        $this->headerCell($table, 'Logo');
-        $this->headerCell($table, 'Nombre del procedimiento');
-        $this->headerCell($table, 'Código');
-        $this->headerCell($table, 'Versión');
+        $this->logoCell($table);
+        $this->cell($table, self::ACCENT_BG, 'PROCEDIMIENTO', $meta['nombre'] ?? '', italicValue: true);
+        $this->cell($table, self::ACCENT_BG, 'CÓDIGO', $meta['codigo'] ?? '—');
+        $this->cell($table, self::ACCENT_BG, 'VERSIÓN', (string) ($meta['version'] ?? '01'));
 
+        // Fila 2: elaboró / aprobó / vigencia / página
         $table->addRow();
-        $this->labelValueCell($table, 'Elaborado por', $meta['quien_elabora'] ?? '—');
-        $this->labelValueCell($table, 'Aprobado por', $meta['quien_aprueba'] ?? '—');
-        $this->labelValueCell($table, 'Fecha efectividad', $this->formatFecha($meta['fecha_vigencia'] ?? null));
+        $this->cell($table, self::GRAY_BG, 'ELABORADO POR:', $meta['quien_elabora'] ?? '—');
+        $this->cell($table, self::GRAY_BG, 'APROBADO POR:', $meta['quien_aprueba'] ?? '—');
+        $this->cell($table, self::GRAY_BG, 'Fecha efectividad:', $this->formatFecha($meta['fecha_vigencia'] ?? null));
         $this->pageNumberCell($table);
-
-        // Segunda fila con los valores reales de nombre/código/versión, debajo de los títulos.
-        $table->addRow();
-        $this->valueCell($table, ''); // logo: sin valor, solo la etiqueta de arriba
-        $this->valueCell($table, $meta['nombre'] ?? '');
-        $this->valueCell($table, $meta['codigo'] ?? '—');
-        $this->valueCell($table, (string) ($meta['version'] ?? '01'));
     }
 
-    private function headerCell($table, string $text): void
-    {
-        $cell = $table->addCell(2500, ['bgColor' => self::NAVY, 'valign' => 'center']);
-        $cell->addText($text, ['color' => 'FFFFFF', 'bold' => true, 'size' => 9], ['alignment' => 'center']);
-    }
-
-    private function valueCell($table, string $text): void
+    private function logoCell($table): void
     {
         $cell = $table->addCell(2500, ['valign' => 'center']);
-        $cell->addText($text, ['size' => 9], ['alignment' => 'center']);
+        $cell->addText('LOGO EMPRESA', ['bold' => true, 'size' => 9], ['alignment' => 'center']);
+        $cell->addText('(insertar logotipo)', ['italic' => true, 'size' => 8], ['alignment' => 'center']);
     }
 
-    private function labelValueCell($table, string $label, string $value): void
+    private function cell($table, string $bgColor, string $label, string $value, bool $italicValue = false): void
     {
-        $cell = $table->addCell(2500, ['bgColor' => self::LIGHT_GRAY, 'valign' => 'center']);
-        $run = $cell->addTextRun(['alignment' => 'center']);
-        $run->addText($label . ': ', ['color' => self::NAVY, 'bold' => true, 'size' => 8]);
-        $run->addText($value, ['size' => 8]);
+        $cell = $table->addCell(2500, ['bgColor' => $bgColor, 'valign' => 'center']);
+        $cell->addText($label, ['bold' => true, 'size' => 9], ['alignment' => 'center']);
+        $cell->addText($value, ['italic' => $italicValue, 'size' => 8], ['alignment' => 'center']);
     }
 
     private function pageNumberCell($table): void
     {
-        $cell = $table->addCell(2500, ['bgColor' => self::LIGHT_GRAY, 'valign' => 'center']);
+        $cell = $table->addCell(2500, ['bgColor' => self::GRAY_BG, 'valign' => 'center']);
+        $cell->addText('Página:', ['bold' => true, 'size' => 9], ['alignment' => 'center']);
+
         $run = $cell->addTextRun(['alignment' => 'center']);
-        $run->addText('Página ', ['color' => self::NAVY, 'bold' => true, 'size' => 8]);
         $run->addField('PAGE', [], [], null);
         $run->addText(' de ', ['size' => 8]);
         $run->addField('NUMPAGES', [], [], null);
