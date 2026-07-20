@@ -5,8 +5,8 @@ namespace App\Services;
 use Anthropic\Client;
 use Anthropic\Messages\JSONOutputFormat;
 use Anthropic\Messages\OutputConfig;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Process;
 use PhpOffice\PhpWord\IOFactory;
 use RuntimeException;
 
@@ -150,44 +150,42 @@ class AiProcedureGenerationService
     }
 
     /**
-     * Convierte una definición de diagrama Mermaid a PNG vía Kroki.io (gratuito, sin cuenta).
-     * No hay motor local para esto (sin Imagick/GD, y PhpWord no soporta SVG) — devuelve null
-     * en vez de lanzar una excepción si el servicio falla, para no bloquear todo el documento.
+     * Convierte una definición de diagrama Mermaid a PNG con mermaid-cli (@mermaid-js/mermaid-cli,
+     * instalado como dependencia del proyecto en package.json — no globalmente, para no depender
+     * del PATH del usuario/servicio que corra PHP). Devuelve null en vez de lanzar una excepción
+     * si falla, para no bloquear todo el documento.
      *
-     * Kroki renderiza Mermaid lanzando un Chromium headless internamente, y en su instancia
-     * pública (gratuita, sin SLA) ese lanzamiento falla de forma intermitente por falta de
-     * recursos en su servidor compartido — confirmado en pruebas locales (~40% de fallas bajo
-     * ráfagas de peticiones, con el mismo Mermaid válido funcionando en el siguiente intento).
-     * No es un problema de sintaxis del Mermaid generado; por eso vale la pena reintentar antes
-     * de rendirse.
+     * Antes esto se hacía vía Kroki.io (servicio público gratuito, sin SLA), que renderiza Mermaid
+     * lanzando un Chromium headless en SU servidor compartido — y ese lanzamiento fallaba
+     * intermitentemente por falta de recursos ahí (confirmado en pruebas: ~40% de fallas bajo
+     * ráfagas de peticiones). Renderizar localmente con mermaid-cli (que también usa Puppeteer/
+     * Chromium, pero corriendo en nuestro propio servidor) elimina esa dependencia externa.
      */
     private function renderMermaidDiagram(string $mermaidSource): ?string
     {
         $maxAttempts = 3;
 
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
-            try {
-                // En local (detrás del proxy/firewall corporativo, mismo problema visto antes con
-                // otras herramientas) el bundle de certificados de PHP no confía en el proxy con
-                // inspección SSL y la petición falla con "self-signed certificate in certificate
-                // chain" — no ocurre en producción. Se desactiva la verificación SOLO en local.
-                $response = Http::withHeaders(['Content-Type' => 'text/plain'])
-                    ->withOptions(['verify' => ! app()->environment('local')])
-                    ->timeout(20)
-                    ->withBody($mermaidSource, 'text/plain')
-                    ->post('https://kroki.io/mermaid/png');
+            $input = tempnam(sys_get_temp_dir(), 'mmd_in_') . '.mmd';
+            $output = tempnam(sys_get_temp_dir(), 'mmd_out_') . '.png';
+            file_put_contents($input, $mermaidSource);
 
-                if ($response->successful()) {
-                    return $response->body();
+            try {
+                $result = Process::timeout(30)->run([
+                    $this->mermaidCliBinary(),
+                    '-i', $input,
+                    '-o', $output,
+                    '-b', 'white',
+                ]);
+
+                if ($result->successful() && is_file($output)) {
+                    return file_get_contents($output);
                 }
 
-                // El body de Kroki trae el motivo real (ej. el error de sintaxis que reportó
-                // el parser de Mermaid, o el fallo interno al lanzar su Chromium) — sin esto,
-                // un 400 no dice nada de qué falló.
-                Log::warning('AiProcedureGenerationService: Kroki no pudo renderizar el diagrama', [
+                Log::warning('AiProcedureGenerationService: mermaid-cli no pudo renderizar el diagrama', [
                     'attempt' => $attempt,
-                    'status' => $response->status(),
-                    'body' => $response->body(),
+                    'exit_code' => $result->exitCode(),
+                    'output' => $result->errorOutput() ?: $result->output(),
                     'mermaid' => $mermaidSource,
                 ]);
             } catch (\Throwable $e) {
@@ -195,14 +193,27 @@ class AiProcedureGenerationService
                     'attempt' => $attempt,
                     'error' => $e->getMessage(),
                 ]);
+            } finally {
+                @unlink($input);
+                @unlink($output);
             }
 
             if ($attempt < $maxAttempts) {
-                usleep(800_000);
+                usleep(500_000);
             }
         }
 
         return null;
+    }
+
+    /**
+     * mermaid-cli vive en node_modules/.bin (instalado vía "npm install" en la raíz del proyecto,
+     * mismo package.json que usan Vite/Tailwind) en vez de una instalación global — así el
+     * binario siempre está en una ruta fija sin importar el PATH del usuario/servicio que corra PHP.
+     */
+    private function mermaidCliBinary(): string
+    {
+        return base_path('node_modules/.bin/' . (PHP_OS_FAMILY === 'Windows' ? 'mmdc.cmd' : 'mmdc'));
     }
 
     private function diagramExampleImage(): string
