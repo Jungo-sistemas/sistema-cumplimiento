@@ -123,6 +123,17 @@ class AiProcedureGenerationService
             return $html;
         }
 
+        // El prompt le pide a la IA que escriba el marcador como <p>{{DIAGRAMA_FLUJO}}</p>.
+        // El reemplazo (fallback o <img>) ya trae su propio wrapper de bloque, así que hay
+        // que quitar ese <p> envolvente aquí — si no, queda <p><p>...</p></p> (o <p><img/></p>,
+        // inofensivo, pero inconsistente), y PhpWord revienta con "Cannot add TextRun in
+        // TextRun" al convertir a Word porque no tolera un <p> anidado dentro de otro <p>.
+        $html = preg_replace(
+            '/<p\b[^>]*>\s*' . preg_quote(self::DIAGRAM_MARKER, '/') . '\s*<\/p>/i',
+            self::DIAGRAM_MARKER,
+            $html
+        );
+
         $fallback = '<p><em>(No se pudo generar el diagrama de flujo automáticamente.)</em></p>';
 
         if (empty($mermaidSource)) {
@@ -142,36 +153,56 @@ class AiProcedureGenerationService
      * Convierte una definición de diagrama Mermaid a PNG vía Kroki.io (gratuito, sin cuenta).
      * No hay motor local para esto (sin Imagick/GD, y PhpWord no soporta SVG) — devuelve null
      * en vez de lanzar una excepción si el servicio falla, para no bloquear todo el documento.
+     *
+     * Kroki renderiza Mermaid lanzando un Chromium headless internamente, y en su instancia
+     * pública (gratuita, sin SLA) ese lanzamiento falla de forma intermitente por falta de
+     * recursos en su servidor compartido — confirmado en pruebas locales (~40% de fallas bajo
+     * ráfagas de peticiones, con el mismo Mermaid válido funcionando en el siguiente intento).
+     * No es un problema de sintaxis del Mermaid generado; por eso vale la pena reintentar antes
+     * de rendirse.
      */
     private function renderMermaidDiagram(string $mermaidSource): ?string
     {
-        try {
-            // En local (detrás del proxy/firewall corporativo, mismo problema visto antes con
-            // otras herramientas) el bundle de certificados de PHP no confía en el proxy con
-            // inspección SSL y la petición falla con "self-signed certificate in certificate
-            // chain" — no ocurre en producción. Se desactiva la verificación SOLO en local.
-            $response = Http::withHeaders(['Content-Type' => 'text/plain'])
-                ->withOptions(['verify' => ! app()->environment('local')])
-                ->timeout(20)
-                ->withBody($mermaidSource, 'text/plain')
-                ->post('https://kroki.io/mermaid/png');
+        $maxAttempts = 3;
 
-            if (! $response->successful()) {
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                // En local (detrás del proxy/firewall corporativo, mismo problema visto antes con
+                // otras herramientas) el bundle de certificados de PHP no confía en el proxy con
+                // inspección SSL y la petición falla con "self-signed certificate in certificate
+                // chain" — no ocurre en producción. Se desactiva la verificación SOLO en local.
+                $response = Http::withHeaders(['Content-Type' => 'text/plain'])
+                    ->withOptions(['verify' => ! app()->environment('local')])
+                    ->timeout(20)
+                    ->withBody($mermaidSource, 'text/plain')
+                    ->post('https://kroki.io/mermaid/png');
+
+                if ($response->successful()) {
+                    return $response->body();
+                }
+
+                // El body de Kroki trae el motivo real (ej. el error de sintaxis que reportó
+                // el parser de Mermaid, o el fallo interno al lanzar su Chromium) — sin esto,
+                // un 400 no dice nada de qué falló.
                 Log::warning('AiProcedureGenerationService: Kroki no pudo renderizar el diagrama', [
+                    'attempt' => $attempt,
                     'status' => $response->status(),
+                    'body' => $response->body(),
+                    'mermaid' => $mermaidSource,
                 ]);
-
-                return null;
+            } catch (\Throwable $e) {
+                Log::warning('AiProcedureGenerationService: fallo al renderizar el diagrama de flujo', [
+                    'attempt' => $attempt,
+                    'error' => $e->getMessage(),
+                ]);
             }
 
-            return $response->body();
-        } catch (\Throwable $e) {
-            Log::warning('AiProcedureGenerationService: fallo al renderizar el diagrama de flujo', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
+            if ($attempt < $maxAttempts) {
+                usleep(800_000);
+            }
         }
+
+        return null;
     }
 
     private function diagramExampleImage(): string
