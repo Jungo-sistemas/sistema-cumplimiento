@@ -16,3 +16,6 @@ Schedule::command('requirements:notify-due-soon')
 
 Schedule::command('documents:purge-trash')
     ->dailyAt('01:00');
+
+Schedule::command('licenses:check')
+    ->dailyAt('07:00');

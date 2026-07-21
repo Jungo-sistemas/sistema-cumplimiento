@@ -103,7 +103,8 @@
                             <th class="px-5 py-3">Grupo</th>
                             <th class="px-5 py-3 text-center">Usuarios</th>
                             <th class="px-5 py-3">Licencia de activos</th>
-                            <th class="px-5 py-3 text-center">Procesos</th>
+                            <th class="px-5 py-3 text-center">Aparece en Procesos</th>
+                            <th class="px-5 py-3 min-w-[220px]">Ciclo de licencia</th>
                             <th class="px-5 py-3 text-right">Acciones</th>
                         </tr>
                     </thead>
@@ -204,6 +205,22 @@
                                         <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">No</span>
                                     @endif
                                 </td>
+                                <td class="px-5 py-3">
+                                    @if($company->license_scope_group)
+                                        <p class="text-xs text-gray-500">
+                                            Se licencia vía el grupo «{{ $company->group?->name }}».
+                                        </p>
+                                        @include('superadmin.partials.license-cycle', [
+                                            'license'       => $company->current_license,
+                                            'activateRoute' => route('superadmin.groups.license', $company->group),
+                                        ])
+                                    @else
+                                        @include('superadmin.partials.license-cycle', [
+                                            'license'       => $company->current_license,
+                                            'activateRoute' => route('superadmin.companies.license', $company),
+                                        ])
+                                    @endif
+                                </td>
                                 <td class="px-5 py-3 text-right">
                                     @if($company->assets_count === 0 && $company->users_count === 0)
                                         <form method="POST" action="{{ route('superadmin.companies.destroy', $company) }}" class="inline"
@@ -221,7 +238,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-5 py-6 text-center text-gray-400">No hay empresas registradas.</td>
+                                <td colspan="7" class="px-5 py-6 text-center text-gray-400">No hay empresas registradas.</td>
                             </tr>
                         @endforelse
                     </tbody>

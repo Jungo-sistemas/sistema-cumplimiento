@@ -37,10 +37,10 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', [ComplianceDashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth', 'verified', 'license.active'])
     ->name('dashboard');
 
-Route::middleware(['auth', 'module.access'])->group(function () {
+Route::middleware(['auth', 'license.active', 'module.access'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
@@ -53,10 +53,12 @@ Route::middleware(['auth', 'module.access'])->group(function () {
         Route::post('/groups', [SuperAdminController::class, 'storeGroup'])->name('groups.store');
         Route::delete('/groups/{group}', [SuperAdminController::class, 'destroyGroup'])->name('groups.destroy');
         Route::patch('/groups/{group}/limit', [SuperAdminController::class, 'updateGroupLimit'])->name('groups.limit');
+        Route::post('/groups/{group}/license', [SuperAdminController::class, 'activateGroupLicense'])->name('groups.license');
         Route::get('/companies', [SuperAdminController::class, 'companies'])->name('companies');
         Route::post('/companies', [SuperAdminController::class, 'storeCompany'])->name('companies.store');
         Route::delete('/companies/{company}', [SuperAdminController::class, 'destroyCompany'])->name('companies.destroy');
         Route::patch('/companies/{company}/limit', [SuperAdminController::class, 'updateCompanyLimit'])->name('companies.limit');
+        Route::post('/companies/{company}/license', [SuperAdminController::class, 'activateCompanyLicense'])->name('companies.license');
         Route::get('/users', [SuperAdminController::class, 'users'])->name('users');
         Route::post('/users', [SuperAdminController::class, 'storeUser'])->name('users.store');
         Route::patch('/users/{user}', [SuperAdminController::class, 'updateUser'])->name('users.update');

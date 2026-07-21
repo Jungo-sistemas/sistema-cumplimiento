@@ -13,8 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'api.token'     => \App\Http\Middleware\ValidateApiToken::class,
-            'module.access' => \App\Http\Middleware\EnsureModuleAccess::class,
+            'api.token'      => \App\Http\Middleware\ValidateApiToken::class,
+            'module.access'  => \App\Http\Middleware\EnsureModuleAccess::class,
+            'license.active' => \App\Http\Middleware\EnsureLicenseActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
