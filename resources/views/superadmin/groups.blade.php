@@ -72,6 +72,7 @@
                             <th class="px-5 py-3 text-center">Usuarios</th>
                             <th class="px-5 py-3">Licencia (activos)</th>
                             <th class="px-5 py-3 text-center">Estado</th>
+                            <th class="px-5 py-3 min-w-[220px]">Ciclo de licencia</th>
                             <th class="px-5 py-3 text-right">Acciones</th>
                         </tr>
                     </thead>
@@ -162,6 +163,12 @@
                                         <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactivo</span>
                                     @endif
                                 </td>
+                                <td class="px-5 py-3">
+                                    @include('superadmin.partials.license-cycle', [
+                                        'license'      => $group->current_license,
+                                        'activateRoute' => route('superadmin.groups.license', $group),
+                                    ])
+                                </td>
                                 <td class="px-5 py-3 text-right">
                                     @if($group->companies_count === 0)
                                         <form method="POST" action="{{ route('superadmin.groups.destroy', $group) }}" class="inline"
@@ -179,7 +186,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-5 py-6 text-center text-gray-400">No hay grupos registrados.</td>
+                                <td colspan="7" class="px-5 py-6 text-center text-gray-400">No hay grupos registrados.</td>
                             </tr>
                         @endforelse
                     </tbody>

@@ -54,10 +54,20 @@ class SuperAdminController extends Controller
                 $group->asset_current = Asset::whereHas('company', fn ($q) => $q->where('group_id', $group->id))
                     ->where('status', 'active')
                     ->count();
+                $group->current_license = $this->licenseService->currentLicense($group);
                 return $group;
             });
 
         return view('superadmin.groups', compact('groups'));
+    }
+
+    public function activateGroupLicense(Request $request, Group $group)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        $this->licenseService->activate($group, $request->boolean('includes_procesos'), auth()->user());
+
+        return back()->with('success', 'Licencia del grupo «' . $group->name . '» activada por 1 mes.');
     }
 
     public function updateGroupLimit(Request $request, Group $group)
@@ -125,12 +135,31 @@ class SuperAdminController extends Controller
             ->map(function ($company) {
                 $info = $this->licenseService->info($company);
                 $company->license_info = $info;
+                $company->current_license = $this->licenseService->currentLicense(
+                    $this->licenseService->resolveLicensable($company)
+                );
+                $company->license_scope_group = $this->licenseService->resolveLicensable($company) instanceof Group;
                 return $company;
             });
 
         $groups = Group::orderBy('name')->get();
 
         return view('superadmin.companies', compact('companies', 'groups'));
+    }
+
+    public function activateCompanyLicense(Request $request, Company $company)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        $licensable = $this->licenseService->resolveLicensable($company);
+
+        if ($licensable instanceof Group) {
+            return back()->with('error', 'Esta empresa se licencia a través de su grupo «' . $licensable->name . '» — activa la licencia desde la sección de Grupos.');
+        }
+
+        $this->licenseService->activate($company, $request->boolean('includes_procesos'), auth()->user());
+
+        return back()->with('success', 'Licencia de «' . $company->name . '» activada por 1 mes.');
     }
 
     public function updateCompanyLimit(Request $request, Company $company)

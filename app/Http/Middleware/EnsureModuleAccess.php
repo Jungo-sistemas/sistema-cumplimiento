@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\LicenseService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -32,12 +33,24 @@ class EnsureModuleAccess
     {
         $user = auth()->user();
 
-        // Admins and superadmins are never restricted by module_access.
-        if (!$user || $user->isAdmin()) {
+        if (!$user) {
             return $next($request);
         }
 
         $module = $this->detectModule($request);
+
+        // Paywall: Procesos requiere que la licencia de la empresa/grupo lo incluya. A propósito
+        // esto NO se salta con isAdmin() — un "admin" del cliente tampoco tiene acceso si su
+        // organización no pagó el módulo. Solo el superadmin (Vigia) queda exento.
+        if ($module === 'procesos' && !$user->isSuperAdmin() && !app(LicenseService::class)->hasProcesosAccessForUser($user)) {
+            return redirect($this->fallbackUrl($user))
+                ->with('error', 'El módulo de Procesos no está incluido en la licencia de tu empresa.');
+        }
+
+        // Admins and superadmins are never restricted by module_access.
+        if ($user->isAdmin()) {
+            return $next($request);
+        }
 
         if ($module !== null && !$user->canAccessModule($module)) {
             return redirect($this->fallbackUrl($user))

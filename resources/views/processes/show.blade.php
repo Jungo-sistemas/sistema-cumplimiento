@@ -133,7 +133,7 @@
                 'Identificación' => [
                     'quien_elabora'  => 'Elaborado por',
                     'quien_aprueba'  => 'Aprobado por',
-                    'fecha_vigencia' => 'Fecha de vigencia',
+                    'fecha_vigencia' => 'Fecha de elaboración',
                 ],
                 'Objetivo y Alcance' => [
                     'resultado_esperado' => 'Resultado esperado',
@@ -703,6 +703,8 @@
                                             @elseif($currentVersion->isNearExpiration()) <span class="text-xs">(Por vencer)</span>
                                             @endif
                                         </div>
+                                    @else
+                                        <div class="text-gray-400">Vigencia: se asigna al aprobarse (1 año)</div>
                                     @endif
                                     <div>Subido por: {{ $currentVersion->uploader?->name ?? '—' }} · {{ $currentVersion->created_at->format('d/m/Y H:i') }}</div>
                                 </div>

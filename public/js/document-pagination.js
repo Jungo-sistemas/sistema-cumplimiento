@@ -6,24 +6,42 @@
  *
  * Requiere en el DOM:
  *   <div id="doc-source" style="display:none;">...HTML del documento...</div>
+ *   <template id="doc-header-template">...tabla de encabezado fija...</template> (opcional)
  *   <div id="doc-pages"></div>
  *
- * Genera dentro de #doc-pages una serie de <div class="doc-page"> con su
- * <div class="doc-page-content"> y <div class="doc-page-footer">.
+ * Genera dentro de #doc-pages una serie de <div class="doc-page"> con su encabezado
+ * (clonado del template, igual que Word repite la tabla fija en cada página) y su
+ * <div class="doc-page-content">.
  */
 function paginateDocument() {
     var PAGE_WIDTH = 816;
     var PAGE_HEIGHT = 1056;
     var PAD_TOP = 56, PAD_RIGHT = 72, PAD_BOTTOM = 56, PAD_LEFT = 72;
-    var FOOTER_RESERVE = 32; // espacio del pie "Página X de Y", restado para que la hoja no crezca más de PAGE_HEIGHT
-    var contentHeight = PAGE_HEIGHT - PAD_TOP - PAD_BOTTOM - FOOTER_RESERVE;
     var contentWidth = PAGE_WIDTH - PAD_LEFT - PAD_RIGHT;
 
     var source = document.getElementById('doc-source');
     var container = document.getElementById('doc-pages');
+    var headerTemplate = document.getElementById('doc-header-template');
     if (!source || !container) {
         return;
     }
+
+    // La tabla de encabezado es la misma en todas las páginas — se mide una sola vez para
+    // saber cuánto espacio reservarle arriba de cada hoja.
+    var headerHeight = 0;
+    if (headerTemplate) {
+        var headerMeasurer = document.createElement('div');
+        headerMeasurer.style.position = 'absolute';
+        headerMeasurer.style.visibility = 'hidden';
+        headerMeasurer.style.left = '-9999px';
+        headerMeasurer.style.width = contentWidth + 'px';
+        headerMeasurer.appendChild(headerTemplate.content.cloneNode(true));
+        document.body.appendChild(headerMeasurer);
+        headerHeight = headerMeasurer.scrollHeight;
+        headerMeasurer.remove();
+    }
+
+    var contentHeight = PAGE_HEIGHT - PAD_TOP - PAD_BOTTOM - headerHeight;
 
     var measurer = document.createElement('div');
     measurer.className = 'doc-page-content doc-page-measurer';
@@ -64,6 +82,15 @@ function paginateDocument() {
         page.style.display = 'flex';
         page.style.flexDirection = 'column';
 
+        if (headerTemplate) {
+            var header = headerTemplate.content.cloneNode(true);
+            var pageIndicator = header.querySelector('.doc-page-indicator');
+            if (pageIndicator) {
+                pageIndicator.textContent = (i + 1) + ' de ' + pages.length;
+            }
+            page.appendChild(header);
+        }
+
         var content = document.createElement('div');
         content.className = 'doc-page-content';
         content.style.flex = '1';
@@ -71,12 +98,7 @@ function paginateDocument() {
             content.appendChild(n);
         });
 
-        var footer = document.createElement('div');
-        footer.className = 'doc-page-footer';
-        footer.textContent = 'Página ' + (i + 1) + ' de ' + pages.length;
-
         page.appendChild(content);
-        page.appendChild(footer);
         container.appendChild(page);
     });
 }
@@ -89,12 +111,16 @@ document.addEventListener('DOMContentLoaded', function () {
         console.error('No se pudo paginar el documento, mostrando sin dividir:', e);
         var source = document.getElementById('doc-source');
         var container = document.getElementById('doc-pages');
+        var headerTemplate = document.getElementById('doc-header-template');
         if (source && container) {
             var page = document.createElement('div');
             page.className = 'doc-page doc-page-content';
             page.style.width = '816px';
             page.style.padding = '56px 72px';
-            page.innerHTML = source.innerHTML;
+            if (headerTemplate) {
+                page.appendChild(headerTemplate.content.cloneNode(true));
+            }
+            page.insertAdjacentHTML('beforeend', source.innerHTML);
             container.innerHTML = '';
             container.appendChild(page);
         }

@@ -23,4 +23,16 @@ class Group extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    public function licenses()
+    {
+        return $this->morphMany(License::class, 'licensable');
+    }
+
+    public function activeLicense()
+    {
+        return $this->morphOne(License::class, 'licensable')
+            ->where('status', 'active')
+            ->latest('activated_at');
+    }
 }

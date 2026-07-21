@@ -11,11 +11,24 @@ class Company extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'group_id', 'show_in_processes', 'asset_limit', 'otras'];
+    protected $fillable = ['name', 'group_id', 'show_in_processes', 'asset_limit', 'otras', 'is_active'];
 
     protected $casts = [
-        'otras' => 'boolean',
+        'otras'     => 'boolean',
+        'is_active' => 'boolean',
     ];
+
+    public function licenses()
+    {
+        return $this->morphMany(License::class, 'licensable');
+    }
+
+    public function activeLicense()
+    {
+        return $this->morphOne(License::class, 'licensable')
+            ->where('status', 'active')
+            ->latest('activated_at');
+    }
 
     public function users()
     {
