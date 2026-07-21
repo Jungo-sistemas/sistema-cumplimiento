@@ -370,15 +370,21 @@ class RegulationController extends Controller
         }
 
         $isEdit = ($draft['mode'] ?? 'create') === 'edit';
-        $company = $isEdit
-            ? Regulation::findOrFail($draft['regulation_id'])->company
-            : Company::findOrFail($draft['meta']['company_id']);
+        $regulation = $isEdit ? Regulation::findOrFail($draft['regulation_id']) : null;
+        $company = $isEdit ? $regulation->company : Company::findOrFail($draft['meta']['company_id']);
 
         abort_unless($user->canAccessCompany($company), 403);
 
+        // Mismo número que verá renderHtmlToDocx() al confirmar — así el encabezado de la
+        // vista previa (ver abajo) muestra la versión real, no un valor a adivinar.
+        $headerVersion = $isEdit
+            ? sprintf('%02d', ($regulation->versions()->max('version_number') ?? 0) + 1)
+            : '01';
+
         return view('processes.preview', [
-            'draft'   => $draft,
-            'company' => $company,
+            'draft'         => $draft,
+            'company'       => $company,
+            'headerVersion' => $headerVersion,
         ]);
     }
 

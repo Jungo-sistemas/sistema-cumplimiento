@@ -68,6 +68,18 @@
                 <div id="doc-source" style="display: none;">
                     {!! $draft['ai']['documento_html'] !!}
                 </div>
+                <template id="doc-header-template">
+                    @include('processes.partials.header-table', ['meta' => [
+                        'nombre'                   => $draft['meta']['nombre'],
+                        'codigo'                   => $draft['meta']['codigo'] ? strtoupper($draft['meta']['codigo']) : null,
+                        'version'                  => $headerVersion,
+                        'quien_elabora'            => $draft['meta']['quien_elabora'],
+                        'quien_aprueba'            => $draft['meta']['quien_aprueba'],
+                        'fecha_vigencia_formatted' => $draft['meta']['fecha_vigencia']
+                            ? \Carbon\Carbon::parse($draft['meta']['fecha_vigencia'])->format('d/m/Y')
+                            : null,
+                    ]])
+                </template>
                 <div id="doc-pages"></div>
             </div>
 
