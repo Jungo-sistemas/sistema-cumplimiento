@@ -504,7 +504,10 @@ class RegulationController extends Controller
                 'disk'               => 'private',
                 'mime_type'          => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                 'issued_at'          => now()->toDateString(),
-                'valid_until'        => $data['fecha_vigencia'],
+                // La vigencia real (1 año) se asigna sola al aprobarse — ver
+                // ApprovalFlowService::processApproval(). fecha_vigencia del wizard es solo la
+                // fecha de elaboración, ya no alimenta valid_until.
+                'valid_until'        => null,
                 'is_current'         => true,
                 'uploaded_by'        => $user->id,
             ]);
@@ -540,6 +543,12 @@ class RegulationController extends Controller
             || ($draft['old_code'] ?? '') !== ($data['codigo'] ? strtoupper($data['codigo']) : '');
 
         DB::transaction(function () use ($regulation, $data, $user, $ai, $oldDetails, $newDetails) {
+            // Se conserva la vigencia de la versión que se reemplaza — si esta edición no dispara
+            // un nuevo ciclo de aprobación (ver setFlow()), no tiene caso dejar la nueva versión
+            // sin vigencia; y si sí dispara uno nuevo, ApprovalFlowService la vuelve a asignar
+            // (1 año) en cuanto se apruebe, sobrescribiendo este valor de todos modos.
+            $previousValidUntil = $regulation->currentVersion?->valid_until;
+
             $regulation->update([
                 'process_type_id'  => $data['process_type_id'],
                 'document_type'    => $data['document_type'] ?? null,
@@ -575,7 +584,7 @@ class RegulationController extends Controller
                 'disk'               => 'private',
                 'mime_type'          => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                 'issued_at'          => now()->toDateString(),
-                'valid_until'        => $data['fecha_vigencia'],
+                'valid_until'        => $previousValidUntil,
                 'is_current'         => true,
                 'uploaded_by'        => $user->id,
             ]);

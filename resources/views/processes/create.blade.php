@@ -257,10 +257,11 @@
                                     <p x-show="errors.quien_aprueba" x-text="errors.quien_aprueba" class="text-sm text-red-600 mt-1"></p>
                                 </div>
 
-                                {{-- fecha_vigencia --}}
+                                {{-- fecha_vigencia: pese al nombre interno, esto es la fecha de ELABORACIÓN del
+                                     documento — la vigencia real (1 año) se asigna sola hasta que se aprueba. --}}
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Fecha de vigencia <span class="text-red-500">*</span>
+                                        Fecha de elaboración <span class="text-red-500">*</span>
                                     </label>
                                     <input
                                         type="date"
@@ -269,6 +270,7 @@
                                         :class="errors.fecha_vigencia ? 'border-red-400' : 'border-gray-300'"
                                         class="w-full rounded-md text-sm focus:border-blue-600 focus:ring-blue-600"
                                     >
+                                    <p class="text-xs text-gray-400 mt-1">La vigencia (1 año) se asigna automáticamente cuando el documento se aprueba.</p>
                                     <p x-show="errors.fecha_vigencia" x-text="errors.fecha_vigencia" class="text-sm text-red-600 mt-1"></p>
                                 </div>
 

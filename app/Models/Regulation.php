@@ -109,15 +109,18 @@ class Regulation extends Model
     {
         $version = $this->currentVersion;
 
-        if (! $version) {
+        // Sin versión, o con versión pero sin vigencia asignada todavía (se asigna solo al
+        // aprobarse — ver ApprovalFlowService::processApproval()): no se puede saber si está
+        // vigente o no, así que nunca cae en "Vigente" (verde) por default.
+        if (! $version || ! $version->valid_until) {
             return $this->approval_status === 'approved' ? 'blue' : 'yellow';
         }
 
-        if ($version->valid_until && $version->valid_until->isPast()) {
+        if ($version->valid_until->isPast()) {
             return 'red';
         }
 
-        if ($version->valid_until && $version->valid_until->lte(now()->addDays(60))) {
+        if ($version->valid_until->lte(now()->addDays(60))) {
             return 'yellow';
         }
 
@@ -126,10 +129,15 @@ class Regulation extends Model
 
     public function statusLabel(): string
     {
+        $version = $this->currentVersion;
+
+        if (! $version || ! $version->valid_until) {
+            return $this->approval_status === 'approved' ? 'Aprobado' : 'Pendiente de aprobación';
+        }
+
         return match ($this->statusColor()) {
             'red'    => 'Vencido',
-            'yellow' => $this->currentVersion ? 'Por vencer' : 'Pendiente',
-            'blue'   => 'Aprobado',
+            'yellow' => 'Por vencer',
             default  => 'Vigente',
         };
     }

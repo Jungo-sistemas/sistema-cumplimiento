@@ -147,15 +147,16 @@
                     @enderror
                 </div>
 
-                {{-- Fecha de vigencia --}}
+                {{-- Fecha de elaboración (el nombre interno del campo sigue siendo fecha_vigencia) --}}
                 <div>
                     <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                        Fecha de vigencia <span class="text-red-500">*</span>
+                        Fecha de elaboración <span class="text-red-500">*</span>
                     </label>
                     <input type="date"
                            name="fecha_vigencia"
                            value="{{ old('fecha_vigencia', $d['fecha_vigencia'] ?? '') }}"
                            class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('fecha_vigencia') border-red-400 @enderror">
+                    <p class="text-xs text-gray-400 mt-1">La vigencia (1 año) se asigna automáticamente cuando el documento se aprueba.</p>
                     @error('fecha_vigencia')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                     @enderror

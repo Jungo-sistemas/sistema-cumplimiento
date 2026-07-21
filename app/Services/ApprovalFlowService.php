@@ -105,6 +105,13 @@ class ApprovalFlowService
                     $this->notifyPendingApprovers($regulation, $nextStep);
                 } else {
                     $regulation->update(['approval_status' => 'approved']);
+
+                    // La vigencia real (1 año) se asigna hasta este momento — la "fecha de
+                    // elaboración" capturada en el wizard ya no determina el vencimiento.
+                    $regulation->currentVersion?->update([
+                        'valid_until' => now()->addYear(),
+                    ]);
+
                     $this->notifyCreator($regulation, 'approved');
                 }
             }

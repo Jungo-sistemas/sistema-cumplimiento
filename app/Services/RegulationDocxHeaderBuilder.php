@@ -49,7 +49,7 @@ class RegulationDocxHeaderBuilder
         $table->addRow();
         $this->cell($table, self::GRAY_BG, 'ELABORADO POR:', $meta['quien_elabora'] ?? '—');
         $this->cell($table, self::GRAY_BG, 'APROBADO POR:', $meta['quien_aprueba'] ?? '—');
-        $this->cell($table, self::GRAY_BG, 'Fecha efectividad:', $this->formatFecha($meta['fecha_vigencia'] ?? null));
+        $this->cell($table, self::GRAY_BG, 'Fecha de elaboración:', $this->formatFecha($meta['fecha_vigencia'] ?? null));
         $this->pageNumberCell($table);
     }
 
