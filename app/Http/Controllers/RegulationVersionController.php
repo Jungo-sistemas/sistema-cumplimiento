@@ -25,7 +25,10 @@ class RegulationVersionController extends Controller
         abort_unless($user->canAccessCompany($regulation->company), 403);
 
         $data = $request->validate([
-            'file'               => ['required', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx'],
+            // Ver comentario en RegulationController::storeCargar() — "mimes" rechaza .docx/.xlsx/.pptx
+            // válidos en este entorno porque el detector de tipo de archivo del servidor los reporta
+            // como "application/zip" en vez de su tipo específico. "extensions" valida la extensión.
+            'file'               => ['required', 'file', 'max:10240', 'extensions:pdf,doc,docx,xls,xlsx,ppt,pptx'],
             'change_description' => ['nullable', 'string', 'max:1000'],
             'responsible_name'   => ['nullable', 'string', 'max:255'],
         ]);
