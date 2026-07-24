@@ -102,7 +102,7 @@ class AssetController extends Controller
         }
 
         if ($request->filled('location')) {
-            $query->whereRaw('UPPER(TRIM(location)) = ?', [strtoupper(trim($request->location))]);
+            $query->whereRaw('UPPER(TRIM(location)) = ?', [Str::upper(trim($request->location))]);
         }
 
         $assets = $query

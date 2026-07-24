@@ -71,7 +71,7 @@
                 <template id="doc-header-template">
                     @include('processes.partials.header-table', ['meta' => [
                         'nombre'                   => $draft['meta']['nombre'],
-                        'codigo'                   => $draft['meta']['codigo'] ? strtoupper($draft['meta']['codigo']) : null,
+                        'codigo'                   => $draft['meta']['codigo'] ? \Illuminate\Support\Str::upper($draft['meta']['codigo']) : null,
                         'version'                  => $headerVersion,
                         'quien_elabora'            => $draft['meta']['quien_elabora'],
                         'quien_aprueba'            => $draft['meta']['quien_aprueba'],

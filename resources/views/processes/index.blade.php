@@ -394,27 +394,41 @@
                                         {{ Js::from($regulation->annexes->map(fn($a) => ['id' => $a->id, 'code' => $a->code, 'name' => $a->name])->values()) }}
                                     )">
 
-                                    {{-- Vista: chips + botón editar --}}
-                                    <div x-show="! editing" class="flex items-center flex-wrap gap-1">
-                                        <template x-if="annexes.length === 0">
-                                            <span class="text-gray-400 text-xs">—</span>
-                                        </template>
-                                        <template x-for="annex in annexes" :key="annex.id">
-                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-mono"
-                                                  :title="annex.name"
-                                                  x-text="annex.code || '?'">
-                                            </span>
-                                        </template>
-                                        @if($user->isAdmin() || $user->isOperative())
-                                        <button type="button"
-                                                @click="openEdit()"
-                                                class="text-gray-400 hover:text-[#1A428A] transition shrink-0"
-                                                title="Editar anexos">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
-                                            </svg>
-                                        </button>
-                                        @endif
+                                    {{-- Vista: lista colapsable + botón editar --}}
+                                    <div x-show="! editing" class="space-y-1">
+                                        <div class="flex items-center gap-1">
+                                            <template x-if="annexes.length > 0">
+                                                <button type="button"
+                                                        @click="expanded = ! expanded"
+                                                        class="flex items-center gap-1 text-xs text-gray-600 hover:text-[#1A428A]">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 transition-transform duration-150" :class="expanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                                                    </svg>
+                                                    <span x-text="'Anexos (' + annexes.length + ')'"></span>
+                                                </button>
+                                            </template>
+                                            <template x-if="annexes.length === 0">
+                                                <span class="text-gray-400 text-xs">Sin anexos</span>
+                                            </template>
+                                            @if($user->isAdmin() || $user->isOperative())
+                                            <button type="button"
+                                                    @click="openEdit()"
+                                                    class="text-gray-400 hover:text-[#1A428A] transition shrink-0"
+                                                    title="Editar anexos">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                                </svg>
+                                            </button>
+                                            @endif
+                                        </div>
+                                        <div x-show="expanded" class="flex items-center flex-wrap gap-1">
+                                            <template x-for="annex in annexes" :key="annex.id">
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-mono"
+                                                      :title="annex.name"
+                                                      x-text="annex.code || '?'">
+                                                </span>
+                                            </template>
+                                        </div>
                                     </div>
 
                                     {{-- Edición inline --}}
@@ -864,6 +878,7 @@ function reportTable(allIds) {
 function annexEditor(regulationId, companyId, initialAnnexes) {
     return {
         editing: false,
+        expanded: false,
         saving: false,
         error: false,
         annexes: JSON.parse(JSON.stringify(initialAnnexes)),

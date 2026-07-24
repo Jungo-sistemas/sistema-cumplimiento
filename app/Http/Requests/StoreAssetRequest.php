@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class StoreAssetRequest extends FormRequest
@@ -115,7 +116,7 @@ class StoreAssetRequest extends FormRequest
         $data = [];
 
         if ($this->has('location')) {
-            $data['location'] = strtoupper(trim((string) $this->location));
+            $data['location'] = Str::upper(trim((string) $this->location));
         }
 
         if (! $this->filled('company_id') && $this->user()) {

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class UpdateAssetRequest extends FormRequest
@@ -112,7 +113,7 @@ class UpdateAssetRequest extends FormRequest
     {
         if ($this->has('location')) {
             $this->merge([
-                'location' => strtoupper(trim((string) $this->location)),
+                'location' => Str::upper(trim((string) $this->location)),
             ]);
         }
     }

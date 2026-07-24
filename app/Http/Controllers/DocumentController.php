@@ -7,6 +7,7 @@ use App\Models\Document;
 use App\Models\DocumentFolder;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class DocumentController extends Controller
 {
@@ -41,7 +42,7 @@ class DocumentController extends Controller
         $matchingDocuments  = collect();
 
         if ($request->filled('q')) {
-            $q = strtoupper($request->q);
+            $q = Str::upper($request->q);
 
             $foldersQuery->where('name', 'like', '%' . $q . '%');
 
@@ -200,7 +201,7 @@ class DocumentController extends Controller
             'group_id'                => $category->group_id,
             'company_id'              => $companyId,
             'document_folder_id'      => $category->id,
-            'name'                    => strtoupper($data['name']),
+            'name'                    => Str::upper($data['name']),
             'reference'               => $data['reference'] ?? null,
             'document_type'           => $data['document_type'] ?? null,
             'responsible_name'        => $data['responsible_name'] ?? null,
