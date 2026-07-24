@@ -6,7 +6,6 @@ use Anthropic\Client;
 use Anthropic\Messages\JSONOutputFormat;
 use Anthropic\Messages\OutputConfig;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Process;
 use PhpOffice\PhpWord\IOFactory;
 use RuntimeException;
 
@@ -171,21 +170,16 @@ class AiProcedureGenerationService
             file_put_contents($input, $mermaidSource);
 
             try {
-                $result = Process::timeout(30)->run([
-                    $this->mermaidCliBinary(),
-                    '-i', $input,
-                    '-o', $output,
-                    '-b', 'white',
-                ]);
+                [$exitCode, $stdout, $stderr] = $this->runMermaidCli($input, $output);
 
-                if ($result->successful() && is_file($output)) {
+                if ($exitCode === 0 && is_file($output)) {
                     return file_get_contents($output);
                 }
 
                 Log::warning('AiProcedureGenerationService: mermaid-cli no pudo renderizar el diagrama', [
                     'attempt' => $attempt,
-                    'exit_code' => $result->exitCode(),
-                    'output' => $result->errorOutput() ?: $result->output(),
+                    'exit_code' => $exitCode,
+                    'output' => $stderr ?: $stdout,
                     'mermaid' => $mermaidSource,
                 ]);
             } catch (\Throwable $e) {
@@ -207,13 +201,62 @@ class AiProcedureGenerationService
     }
 
     /**
-     * mermaid-cli vive en node_modules/.bin (instalado vía "npm install" en la raíz del proyecto,
-     * mismo package.json que usan Vite/Tailwind) en vez de una instalación global — así el
-     * binario siempre está en una ruta fija sin importar el PATH del usuario/servicio que corra PHP.
+     * Se invoca con proc_open() nativo de PHP en vez de Illuminate\Support\Facades\Process a
+     * propósito: en Windows (confirmado en producción y en local, con Node 22 LTS y con Node 24,
+     * y sin importar si se llama al binario node_modules/.bin/mmdc.cmd o a "node" + el script
+     * directamente), Symfony Process hace que Node truene al arrancar con "Assertion failed:
+     * ncrypto::CSPRNG" — Node ni siquiera llega a ejecutar una línea del script. La MISMA llamada
+     * vía proc_open()/shell_exec() nativo, en el mismo proceso PHP, funciona sin problema. No se
+     * investigó más a fondo por qué Symfony Process dispara esto (aparenta ser una interacción
+     * rara con cómo arma el comando en Windows); proc_open es la vía que sí funciona.
      */
-    private function mermaidCliBinary(): string
+    private function runMermaidCli(string $input, string $output): array
     {
-        return base_path('node_modules/.bin/' . (PHP_OS_FAMILY === 'Windows' ? 'mmdc.cmd' : 'mmdc'));
+        $cliJs = base_path('node_modules/@mermaid-js/mermaid-cli/src/cli.js');
+        $cmd = sprintf(
+            'node %s -i %s -o %s -b white',
+            escapeshellarg($cliJs),
+            escapeshellarg($input),
+            escapeshellarg($output)
+        );
+
+        $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+
+        if (! is_resource($proc)) {
+            return [1, '', 'No se pudo iniciar el proceso de mermaid-cli.'];
+        }
+
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
+
+        $stdout = '';
+        $stderr = '';
+        $start = microtime(true);
+        $timeoutSeconds = 30;
+
+        do {
+            $stdout .= stream_get_contents($pipes[1]);
+            $stderr .= stream_get_contents($pipes[2]);
+            $status = proc_get_status($proc);
+
+            if ($status['running'] && (microtime(true) - $start) > $timeoutSeconds) {
+                proc_terminate($proc);
+                $stderr .= "\n[mermaid-cli: tiempo de espera agotado tras {$timeoutSeconds}s]";
+                break;
+            }
+
+            if ($status['running']) {
+                usleep(100_000);
+            }
+        } while ($status['running']);
+
+        $stdout .= stream_get_contents($pipes[1]);
+        $stderr .= stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $exitCode = proc_close($proc);
+
+        return [$exitCode, $stdout, $stderr];
     }
 
     private function diagramExampleImage(): string
