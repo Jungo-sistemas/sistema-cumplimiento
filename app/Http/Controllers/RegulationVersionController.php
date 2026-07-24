@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Regulation;
+use App\Models\RegulationShare;
 use App\Models\RegulationVersion;
 use App\Models\User;
 use App\Services\AiProcedureGenerationService;
+use App\Services\ApprovalFlowService;
 use App\Services\ChangeHighlightService;
 use App\Services\RegulationDocxHeaderBuilder;
 use Illuminate\Http\Request;
@@ -67,6 +69,30 @@ class RegulationVersionController extends Controller
     }
 
     private const LOCK_MINUTES = 30;
+
+    /**
+     * Mismo criterio de acceso que RegulationController::show(): empresa propia, aprobación
+     * pendiente asignada, o el documento compartido directamente con este usuario. Antes preview()
+     * y download() solo revisaban canAccessCompany() — así que alguien de otra empresa del mismo
+     * grupo a quien SÍ se le compartió el documento (o se le asignó como aprobador) pasaba el
+     * candado de show() pero se topaba con un 403 al intentar ver o descargar el archivo en sí.
+     */
+    private function authorizeVersionAccess(RegulationVersion $version, User $user): void
+    {
+        $regulation = $version->regulation;
+
+        $hasPendingApproval = app(ApprovalFlowService::class)
+            ->getPendingApprovalForUser($regulation, $user->id) !== null;
+
+        $hasShare = RegulationShare::where('regulation_id', $regulation->id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        abort_unless(
+            $user->canAccessCompany($regulation->company) || $hasPendingApproval || $hasShare,
+            403
+        );
+    }
 
     private function isLockedByOther(RegulationVersion $version, int $userId): bool
     {
@@ -215,7 +241,7 @@ class RegulationVersionController extends Controller
                 'id'   => $r->id,
                 'code' => $r->code,
                 'name' => $r->name,
-                'url'  => route('processes.show', $r->id),
+                'url'  => route('processes.show', ['regulation' => $r->id, 'open_pdf' => 1]),
             ]);
 
         return response()->json($docs);
@@ -373,7 +399,7 @@ class RegulationVersionController extends Controller
             foreach ($sorted as $reg) {
                 $encoded = htmlspecialchars($reg->code);
                 if (!str_contains($part, $encoded)) continue;
-                $url  = route('processes.show', $reg->id);
+                $url  = route('processes.show', ['regulation' => $reg->id, 'open_pdf' => 1]);
                 $tip  = htmlspecialchars($reg->name, ENT_QUOTES);
                 $link = '<a href="' . $url . '" target="_blank"'
                       . ' style="color:#1d4ed8;font-weight:600;text-decoration:underline;white-space:nowrap;"'
@@ -389,7 +415,7 @@ class RegulationVersionController extends Controller
     public function preview(RegulationVersion $version)
     {
         $user = auth()->user();
-        abort_unless($user->canAccessCompany($version->regulation->company), 403);
+        $this->authorizeVersionAccess($version, $user);
 
         abort_unless($version->file_path && Storage::disk('private')->exists($version->file_path), 404);
 
@@ -416,7 +442,7 @@ class RegulationVersionController extends Controller
             if ($linked->isNotEmpty()) {
                 $items = $linked->map(fn ($r) => sprintf(
                     '<li><a href="%s" target="_blank" style="color:#1d4ed8;font-weight:600;">%s</a>&nbsp;&mdash;&nbsp;%s</li>',
-                    route('processes.show', $r->id),
+                    route('processes.show', ['regulation' => $r->id, 'open_pdf' => 1]),
                     htmlspecialchars($r->code),
                     htmlspecialchars($r->name)
                 ))->implode('');
@@ -541,7 +567,7 @@ HTML;
     public function download(RegulationVersion $version)
     {
         $user = auth()->user();
-        abort_unless($user->canAccessCompany($version->regulation->company), 403);
+        $this->authorizeVersionAccess($version, $user);
 
         abort_unless($version->file_path && Storage::disk('private')->exists($version->file_path), 404);
 

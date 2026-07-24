@@ -423,10 +423,12 @@
                                         </div>
                                         <div x-show="expanded" class="flex items-center flex-wrap gap-1">
                                             <template x-for="annex in annexes" :key="annex.id">
-                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-mono"
-                                                      :title="annex.name"
-                                                      x-text="annex.code || '?'">
-                                                </span>
+                                                <a :href="'/processes/' + annex.id + '?open_pdf=1'"
+                                                   @click="event.stopPropagation()"
+                                                   class="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-mono hover:bg-blue-100 hover:text-[#1A428A]"
+                                                   :title="'Ver ' + annex.name"
+                                                   x-text="annex.code || '?'">
+                                                </a>
                                             </template>
                                         </div>
                                     </div>
