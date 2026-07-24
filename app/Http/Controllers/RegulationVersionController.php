@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Regulation;
+use App\Models\RegulationShare;
 use App\Models\RegulationVersion;
 use App\Models\User;
 use App\Services\AiProcedureGenerationService;
+use App\Services\ApprovalFlowService;
 use App\Services\ChangeHighlightService;
 use App\Services\RegulationDocxHeaderBuilder;
 use Illuminate\Http\Request;
@@ -67,6 +69,30 @@ class RegulationVersionController extends Controller
     }
 
     private const LOCK_MINUTES = 30;
+
+    /**
+     * Mismo criterio de acceso que RegulationController::show(): empresa propia, aprobación
+     * pendiente asignada, o el documento compartido directamente con este usuario. Antes preview()
+     * y download() solo revisaban canAccessCompany() — así que alguien de otra empresa del mismo
+     * grupo a quien SÍ se le compartió el documento (o se le asignó como aprobador) pasaba el
+     * candado de show() pero se topaba con un 403 al intentar ver o descargar el archivo en sí.
+     */
+    private function authorizeVersionAccess(RegulationVersion $version, User $user): void
+    {
+        $regulation = $version->regulation;
+
+        $hasPendingApproval = app(ApprovalFlowService::class)
+            ->getPendingApprovalForUser($regulation, $user->id) !== null;
+
+        $hasShare = RegulationShare::where('regulation_id', $regulation->id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        abort_unless(
+            $user->canAccessCompany($regulation->company) || $hasPendingApproval || $hasShare,
+            403
+        );
+    }
 
     private function isLockedByOther(RegulationVersion $version, int $userId): bool
     {
@@ -389,7 +415,7 @@ class RegulationVersionController extends Controller
     public function preview(RegulationVersion $version)
     {
         $user = auth()->user();
-        abort_unless($user->canAccessCompany($version->regulation->company), 403);
+        $this->authorizeVersionAccess($version, $user);
 
         abort_unless($version->file_path && Storage::disk('private')->exists($version->file_path), 404);
 
@@ -541,7 +567,7 @@ HTML;
     public function download(RegulationVersion $version)
     {
         $user = auth()->user();
-        abort_unless($user->canAccessCompany($version->regulation->company), 403);
+        $this->authorizeVersionAccess($version, $user);
 
         abort_unless($version->file_path && Storage::disk('private')->exists($version->file_path), 404);
 
