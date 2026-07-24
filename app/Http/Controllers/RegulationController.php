@@ -682,7 +682,13 @@ class RegulationController extends Controller
             'codigo'           => ['required', 'string', 'max:50'],
             'quien_elabora'    => ['required', 'string', 'max:255'],
             'quien_aprueba'    => ['required', 'string', 'max:255'],
-            'file'             => ['required', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx'],
+            // "mimes" valida por el tipo de archivo detectado por el servidor (fileinfo/magic), no
+            // por la extensión — y en este entorno (Windows/XAMPP) los formatos de Office modernos
+            // (.docx/.xlsx/.pptx, que internamente son un ZIP) se detectan genéricamente como
+            // "application/zip" en vez de su tipo específico, así que "mimes" los rechazaba aunque
+            // el archivo fuera válido (confirmado reproduciendo el mismo rechazo con un .pptx real).
+            // "extensions" valida solo la extensión del archivo, que es justo lo que el usuario ve.
+            'file'             => ['required', 'file', 'max:10240', 'extensions:pdf,doc,docx,xls,xlsx,ppt,pptx'],
             'issued_at'        => ['nullable', 'date'],
             'valid_until'      => ['required', 'date', 'after_or_equal:issued_at'],
         ]);
