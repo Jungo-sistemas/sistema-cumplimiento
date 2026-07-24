@@ -1266,11 +1266,13 @@
     </div>
     @endif
 
-    {{-- PDF Overlay: auto-abre cuando el link compartido redirige con ?open_pdf=1 --}}
+    {{-- PDF Overlay: auto-abre cuando el link compartido (o un anexo) redirige con ?open_pdf=1.
+         Se renderiza YA visible (sin display:none inicial) — antes se ocultaba con !important y
+         un script la revelaba después, lo que dejaba ver de golpe toda la ficha del documento
+         (nombre, aprobaciones, etc.) antes de que apareciera el documento en sí. Al no depender de
+         JS para mostrarse, aparece desde el primer render, tapando la ficha de inmediato. --}}
     @if(request('open_pdf') && $currentVersion)
-    <div id="pdfOverlay"
-         class="fixed inset-0 z-[60] flex flex-col bg-gray-900"
-         style="display:none!important">
+    <div id="pdfOverlay" class="fixed inset-0 z-[60] flex flex-col bg-gray-900">
         <div class="flex items-center justify-between px-4 py-2 bg-[#1A428A] text-white shrink-0">
             <span class="font-semibold text-sm truncate">
                 {{ $currentVersion->original_name ?? basename($currentVersion->file_path) }}
@@ -1293,13 +1295,7 @@
         </iframe>
     </div>
     <script>
-        (function () {
-            const overlay = document.getElementById('pdfOverlay');
-            if (overlay) {
-                overlay.style.cssText = '';
-                document.body.style.overflow = 'hidden';
-            }
-        })();
+        document.body.style.overflow = 'hidden';
         function closePdfOverlay() {
             const overlay = document.getElementById('pdfOverlay');
             if (overlay) {
