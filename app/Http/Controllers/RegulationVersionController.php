@@ -241,7 +241,7 @@ class RegulationVersionController extends Controller
                 'id'   => $r->id,
                 'code' => $r->code,
                 'name' => $r->name,
-                'url'  => route('processes.show', $r->id),
+                'url'  => route('processes.show', ['regulation' => $r->id, 'open_pdf' => 1]),
             ]);
 
         return response()->json($docs);
@@ -399,7 +399,7 @@ class RegulationVersionController extends Controller
             foreach ($sorted as $reg) {
                 $encoded = htmlspecialchars($reg->code);
                 if (!str_contains($part, $encoded)) continue;
-                $url  = route('processes.show', $reg->id);
+                $url  = route('processes.show', ['regulation' => $reg->id, 'open_pdf' => 1]);
                 $tip  = htmlspecialchars($reg->name, ENT_QUOTES);
                 $link = '<a href="' . $url . '" target="_blank"'
                       . ' style="color:#1d4ed8;font-weight:600;text-decoration:underline;white-space:nowrap;"'
@@ -442,7 +442,7 @@ class RegulationVersionController extends Controller
             if ($linked->isNotEmpty()) {
                 $items = $linked->map(fn ($r) => sprintf(
                     '<li><a href="%s" target="_blank" style="color:#1d4ed8;font-weight:600;">%s</a>&nbsp;&mdash;&nbsp;%s</li>',
-                    route('processes.show', $r->id),
+                    route('processes.show', ['regulation' => $r->id, 'open_pdf' => 1]),
                     htmlspecialchars($r->code),
                     htmlspecialchars($r->name)
                 ))->implode('');
