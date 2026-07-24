@@ -16,6 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\Shared\Html as WordHtml;
@@ -85,7 +86,7 @@ class RegulationController extends Controller
         }
 
         if ($request->filled('q')) {
-            $search = '%' . strtoupper($request->q) . '%';
+            $search = '%' . Str::upper($request->q) . '%';
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', $search)
                   ->orWhere('code', 'like', $search);
@@ -470,8 +471,8 @@ class RegulationController extends Controller
                 'company_id'      => $company->id,
                 'process_type_id' => $data['process_type_id'],
                 'document_type'   => $data['document_type'],
-                'code'            => $data['codigo'] ? strtoupper($data['codigo']) : null,
-                'name'            => strtoupper($data['nombre']),
+                'code'            => $data['codigo'] ? Str::upper($data['codigo']) : null,
+                'name'            => Str::upper($data['nombre']),
                 'details'         => $this->mergeWizardMetaIntoDetails($ai['details'], $data),
                 'is_active'       => true,
                 'created_by'      => $user->id,
@@ -483,8 +484,8 @@ class RegulationController extends Controller
             // en sesión desde antes de un ajuste al saneador (como este documento pendiente de confirmar).
             $sanitizedHtml = app(AiProcedureGenerationService::class)->sanitizeHtmlForWord($ai['documento_html']);
             $tmpDocx = $this->renderHtmlToDocx($sanitizedHtml, [
-                'nombre'         => strtoupper($data['nombre']),
-                'codigo'         => $data['codigo'] ? strtoupper($data['codigo']) : null,
+                'nombre'         => Str::upper($data['nombre']),
+                'codigo'         => $data['codigo'] ? Str::upper($data['codigo']) : null,
                 'version'        => '01',
                 'quien_elabora'  => $data['quien_elabora'],
                 'quien_aprueba'  => $data['quien_aprueba'],
@@ -539,8 +540,8 @@ class RegulationController extends Controller
         $detailsChanged = $sortedOld !== $sortedNew
             || ($draft['old_process_type_id'] ?? null) !== (int) $data['process_type_id']
             || ($draft['old_document_type'] ?? '') !== ($data['document_type'] ?? '')
-            || ($draft['old_name'] ?? '') !== strtoupper($data['nombre'])
-            || ($draft['old_code'] ?? '') !== ($data['codigo'] ? strtoupper($data['codigo']) : '');
+            || ($draft['old_name'] ?? '') !== Str::upper($data['nombre'])
+            || ($draft['old_code'] ?? '') !== ($data['codigo'] ? Str::upper($data['codigo']) : '');
 
         DB::transaction(function () use ($regulation, $data, $user, $ai, $oldDetails, $newDetails) {
             // Se conserva la vigencia de la versión que se reemplaza — si esta edición no dispara
@@ -552,8 +553,8 @@ class RegulationController extends Controller
             $regulation->update([
                 'process_type_id'  => $data['process_type_id'],
                 'document_type'    => $data['document_type'] ?? null,
-                'code'             => $data['codigo'] ? strtoupper($data['codigo']) : null,
-                'name'             => strtoupper($data['nombre']),
+                'code'             => $data['codigo'] ? Str::upper($data['codigo']) : null,
+                'name'             => Str::upper($data['nombre']),
                 'previous_details' => $oldDetails ?: null,
                 'details'          => $newDetails,
             ]);
@@ -563,8 +564,8 @@ class RegulationController extends Controller
 
             $sanitizedHtml = app(AiProcedureGenerationService::class)->sanitizeHtmlForWord($ai['documento_html']);
             $tmpDocx = $this->renderHtmlToDocx($sanitizedHtml, [
-                'nombre'         => strtoupper($data['nombre']),
-                'codigo'         => $data['codigo'] ? strtoupper($data['codigo']) : null,
+                'nombre'         => Str::upper($data['nombre']),
+                'codigo'         => $data['codigo'] ? Str::upper($data['codigo']) : null,
                 'version'        => sprintf('%02d', $next),
                 'quien_elabora'  => $data['quien_elabora'],
                 'quien_aprueba'  => $data['quien_aprueba'],
@@ -708,8 +709,8 @@ class RegulationController extends Controller
                 'company_id'      => $company->id,
                 'process_type_id' => $data['process_type_id'],
                 'document_type'   => $data['document_type'],
-                'code'            => $data['codigo'] ? strtoupper($data['codigo']) : null,
-                'name'            => strtoupper($data['nombre']),
+                'code'            => $data['codigo'] ? Str::upper($data['codigo']) : null,
+                'name'            => Str::upper($data['nombre']),
                 'details'         => $details,
                 'is_active'       => true,
                 'created_by'      => $user->id,
@@ -993,8 +994,8 @@ class RegulationController extends Controller
         $regulation->update([
             'process_type_id' => $data['process_type_id'],
             'document_type'   => $data['document_type'],
-            'code'            => $data['codigo'] ? strtoupper($data['codigo']) : null,
-            'name'            => strtoupper($data['nombre']),
+            'code'            => $data['codigo'] ? Str::upper($data['codigo']) : null,
+            'name'            => Str::upper($data['nombre']),
             'details'         => $newDetails,
         ]);
 
@@ -1014,7 +1015,7 @@ class RegulationController extends Controller
         $company = Company::findOrFail($companyId);
         abort_unless($user->canAccessCompany($company), 403);
 
-        $search = '%' . strtoupper(trim($request->q ?? '')) . '%';
+        $search = '%' . Str::upper(trim($request->q ?? '')) . '%';
 
         $results = Regulation::where('company_id', $companyId)
             ->where('group_id', $user->group_id)

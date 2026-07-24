@@ -89,7 +89,7 @@
                     <div class="text-xs text-gray-400 italic">(insertar logotipo)</div>
                 </td>
                 <td class="border border-gray-400 p-3 text-center align-middle">
-                    <div class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{{ strtoupper($regulation->document_type ?? 'PROCEDIMIENTO') }}</div>
+                    <div class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{{ \Illuminate\Support\Str::upper($regulation->document_type ?? 'PROCEDIMIENTO') }}</div>
                     <div class="font-semibold text-gray-800 text-sm">{{ $regulation->name }}</div>
                 </td>
                 <td class="border border-gray-400 p-3 text-center w-28 align-middle">
@@ -227,7 +227,7 @@
                         <div class="text-xs text-gray-400 italic">(insertar logotipo)</div>
                     </td>
                     <td class="border border-gray-400 p-3 text-center align-middle">
-                        <div class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{{ strtoupper($regulation->document_type ?? 'PROCEDIMIENTO') }}</div>
+                        <div class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{{ \Illuminate\Support\Str::upper($regulation->document_type ?? 'PROCEDIMIENTO') }}</div>
                         <div class="font-semibold text-gray-800 text-sm">{{ $regulation->name }}</div>
                     </td>
                     <td class="border border-gray-400 p-3 text-center w-28 align-middle">
