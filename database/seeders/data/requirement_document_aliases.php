@@ -15,6 +15,10 @@ return [
         // archivos, ver Título de Permiso), así que aquí va sin el "(EVIS)".
         'Resolutivo de Evaluación de Impacto Social'
             => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
+        // Variante donde el proveedor pone ", EVIS" tras coma en vez de "(EVIS)" entre paréntesis
+        // (ese sufijo entre paréntesis sí se recorta antes de buscar alias, la coma no).
+        'Resolutivo de Evaluación de Impacto Social, EVIS'
+            => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
 
         // Nombres del Excel de vigencias (fechas de emisión/vigencia por documento) que no
         // calzan literal con el catálogo — confirmado manualmente que es el mismo requerimiento.
