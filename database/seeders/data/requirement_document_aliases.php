@@ -19,6 +19,11 @@ return [
         // (ese sufijo entre paréntesis sí se recorta antes de buscar alias, la coma no).
         'Resolutivo de Evaluación de Impacto Social, EVIS'
             => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
+        // Confirmado con negocio: mismo requerimiento, redactado sin "Resolutivo de" (ES Barquito).
+        'Evaluación de Impacto Social, EVIS'
+            => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
+        'Evaluación de Impacto Social'
+            => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
 
         // Nombres del Excel de vigencias (fechas de emisión/vigencia por documento) que no
         // calzan literal con el catálogo — confirmado manualmente que es el mismo requerimiento.
@@ -53,6 +58,9 @@ return [
         'Pólizas de seguros RC' => 'Pólizas de seguros RC y RCA+ Determinación de los Límites',
         'NOM-016-CRE-2016 Muestreo de Laboratorio' => 'NOM-016-CRE-2016 Muestreo de laboratorio de Calidad de Petroliferos',
         'Escritura de inmueble o Contrato de Arrendamiento'
+            => 'Escritura de inmueble o Contrato de Arrendamiento que avale propiedad o posesión del inmueble',
+        // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de vigencias (ES Barquito).
+        'Escritura/Contrato de Arrendamiento'
             => 'Escritura de inmueble o Contrato de Arrendamiento que avale propiedad o posesión del inmueble',
 
         // Confirmado con negocio: "PH" en el alias de arriba es "Prueba de Hermeticidad", así
