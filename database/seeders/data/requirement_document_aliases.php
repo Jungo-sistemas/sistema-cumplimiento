@@ -45,6 +45,8 @@ return [
         'NOM-005-ASEA-2016 Dictamen de Construcción' => 'NOM-005-ASEA- Dictamen de Construcción',
         'NOM-005-ASEA-2016 Dictamen de Diseño' => 'NOM-005-ASEA- Dictamen de Diseño',
         'NOM-005-ASEA-2016 Dictamen de operación y mantenimiento' => 'NOM-005-ASEA- Dictamen de operación y mantenimiento',
+        // Confirmado con negocio: mismo requerimiento, al Excel de vigencias le falta el "de" (ES Colonias).
+        'NOM-005-ASEA-2016 Dictamen Operación y Mantenimiento' => 'NOM-005-ASEA- Dictamen de operación y mantenimiento',
         'NOM-005-ASEA-2016 Dossier de obra' => 'NOM-005-ASEA- Dossier de obra',
         'NOM-005-ASEA-2016 Proyecto Ejecutivo' => 'NOM-005-ASEA- Proyecto Ejecutivo',
         'NOM-016-CRE-2016 Dictamen de Calidad de Petroliferos' => 'NOM-016-- Dictamen de Calidad de Petroliferos',
