@@ -157,7 +157,7 @@
         </div>
 
         <div>
-            <a href="{{ route('assets.index') }}"
+            <a href="{{ route('assets.index', ['clear_filters' => 1]) }}"
                class="w-full inline-flex justify-center px-4 py-2 rounded-md border bg-white text-gray-700 font-semibold hover:bg-gray-50">
                 Limpiar
             </a>

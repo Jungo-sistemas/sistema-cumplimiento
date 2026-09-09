@@ -5,7 +5,7 @@
     :nav-context="$navContext"
 >
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index', array_filter(['company_id' => request('company_id', $asset?->company_id)])) }}"
+        <a href="{{ route('assets.index') }}"
            class="text-gray-600 hover:underline">
             Energético
         </a>

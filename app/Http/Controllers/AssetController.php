@@ -32,6 +32,29 @@ class AssetController extends Controller
     {
         $user = $request->user();
 
+        // ── Filtros persistentes por sesión ─────────────────────────────────────
+        // Recuerda con qué filtro/pestaña se quedó el usuario (empresa, tipo, estatus,
+        // ubicación, búsqueda, página) para que al volver de ver un activo no se reinicie
+        // a la lista completa.
+        $sessionKey = 'asset_list_filters';
+        $filterKeys = ['company_id', 'otras', 'status', 'asset_type_id', 'q', 'location', 'page'];
+        $hasFiltersInUrl = $request->hasAny($filterKeys);
+
+        if ($request->has('clear_filters')) {
+            $request->session()->forget($sessionKey);
+            return redirect()->route('assets.index');
+        }
+
+        if ($hasFiltersInUrl) {
+            $request->session()->put($sessionKey, array_filter(
+                $request->only($filterKeys),
+                fn ($v) => $v !== '' && $v !== null && $v !== false
+            ));
+        } elseif (count($request->query()) === 0 && $request->session()->has($sessionKey)) {
+            return redirect()->route('assets.index', $request->session()->get($sessionKey));
+        }
+        // ────────────────────────────────────────────────────────────────────────
+
         $assetTypes = AssetType::query()
             ->orderBy('name')
             ->get(['id', 'name']);
