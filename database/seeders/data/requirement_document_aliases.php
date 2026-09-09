@@ -83,5 +83,8 @@ return [
         // Confirmado con negocio: "PH" en el alias de arriba es "Prueba de Hermeticidad", así
         // que la prueba de hermeticidad se archiva bajo el mismo requerimiento.
         'Prueba de hermeticidad' => 'Pruebas de integridad mecánica',
+        // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de
+        // vigencias (ES Allende-Cadereyta).
+        'Planos Oficiales Aprobados' => 'Planos Oficiales aprobados por Municipio y tercero autorizado',
     ],
 ];

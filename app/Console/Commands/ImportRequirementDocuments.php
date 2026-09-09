@@ -364,12 +364,13 @@ class ImportRequirementDocuments extends Command
     }
 
     /**
-     * Igual que normalize(), pero además quita puntos: tolera abreviaturas como "Dr." que el
-     * proveedor a veces escribe con punto y el nombre del activo en el sistema no trae.
+     * Igual que normalize(), pero además quita puntos y trata guiones como espacio: tolera
+     * abreviaturas como "Dr." que el proveedor a veces escribe con punto, y nombres de
+     * estación como "Allende-Cadereyta" en el archivo vs "ALLENDE CADEREYTA" en el activo.
      */
     private function normalizeForSuffixMatch(string $value): string
     {
-        return $this->normalize(str_replace('.', '', $value));
+        return $this->normalize(str_replace(['.', '-'], ['', ' '], $value));
     }
 
     private function orderFiles(array $files): array
