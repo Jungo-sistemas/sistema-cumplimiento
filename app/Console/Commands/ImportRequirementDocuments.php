@@ -510,6 +510,17 @@ class ImportRequirementDocuments extends Command
                     'expires_at' => $data['expires_at'],
                 ]);
 
+                // El documento oficial (lo que se ve al abrir el PDF) tiene sus propias
+                // columnas issued_at/expires_at, independientes de las del requerimiento:
+                // sin esto, la fecha quedaba solo en la vista general del requerimiento y
+                // el documento en sí se mostraba sin fechas.
+                if ($assetRequirement->current_document_id) {
+                    AssetRequirementDocument::whereKey($assetRequirement->current_document_id)->update([
+                        'issued_at' => $data['issued_at'],
+                        'expires_at' => $data['expires_at'],
+                    ]);
+                }
+
                 $datesApplied++;
             }
         }
