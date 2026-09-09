@@ -46,12 +46,26 @@ class AssetController extends Controller
         }
 
         if ($hasFiltersInUrl) {
-            $request->session()->put($sessionKey, array_filter(
+            $filtered = array_filter(
                 $request->only($filterKeys),
                 fn ($v) => $v !== '' && $v !== null && $v !== false
-            ));
-        } elseif (count($request->query()) === 0 && $request->session()->has($sessionKey)) {
-            return redirect()->route('assets.index', $request->session()->get($sessionKey));
+            );
+
+            // Si el formulario se mandó con todo vacío no queda nada que guardar: si se
+            // guardara un arreglo vacío, la siguiente visita sin query params vería "hay
+            // algo en sesión" y redirigiría a la misma URL sin parámetros una y otra vez
+            // (bucle infinito de redirecciones).
+            if (empty($filtered)) {
+                $request->session()->forget($sessionKey);
+            } else {
+                $request->session()->put($sessionKey, $filtered);
+            }
+        } elseif (count($request->query()) === 0) {
+            $saved = $request->session()->get($sessionKey);
+
+            if (! empty($saved)) {
+                return redirect()->route('assets.index', $saved);
+            }
         }
         // ────────────────────────────────────────────────────────────────────────
 
@@ -338,13 +352,24 @@ class AssetController extends Controller
         }
 
         if ($hasFiltersInUrl) {
-            $request->session()->put($sessionKey, array_filter(
+            $filtered = array_filter(
                 $request->only($filterKeys),
                 fn ($v) => $v !== '' && $v !== null && $v !== false
-            ));
-        } elseif (count($request->query()) === 0 && $request->session()->has($sessionKey)) {
+            );
+
+            // Igual que en index(): nunca guardar un arreglo vacío, o la siguiente visita
+            // sin query params se redirigiría a la misma URL sin parámetros en bucle.
+            if (empty($filtered)) {
+                $request->session()->forget($sessionKey);
+            } else {
+                $request->session()->put($sessionKey, $filtered);
+            }
+        } elseif (count($request->query()) === 0) {
             $saved = $request->session()->get($sessionKey);
-            return redirect()->route('assets.show', array_merge(['asset' => $asset->id], $saved));
+
+            if (! empty($saved)) {
+                return redirect()->route('assets.show', array_merge(['asset' => $asset->id], $saved));
+            }
         }
         // ────────────────────────────────────────────────────────────────────────
 
