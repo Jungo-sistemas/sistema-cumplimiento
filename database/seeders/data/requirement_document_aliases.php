@@ -63,6 +63,12 @@ return [
         'NOM-016-CRE-2016 Muestreo de Laboratorio' => 'NOM-016-CRE-2016 Muestreo de laboratorio de Calidad de Petroliferos',
         'Escritura de inmueble o Contrato de Arrendamiento'
             => 'Escritura de inmueble o Contrato de Arrendamiento que avale propiedad o posesión del inmueble',
+        // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de vigencias (ES Ebano).
+        'Escritura de inmueble'
+            => 'Escritura de inmueble o Contrato de Arrendamiento que avale propiedad o posesión del inmueble',
+        // Confirmado con negocio: mismo requerimiento "Acta Constitutiva", con texto de más
+        // agregado por el proveedor (ES Ebano).
+        'Acta Constitutiva de la empresa' => 'Acta Constitutiva',
         // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de vigencias (ES Barquito).
         'Escritura/Contrato de Arrendamiento'
             => 'Escritura de inmueble o Contrato de Arrendamiento que avale propiedad o posesión del inmueble',
