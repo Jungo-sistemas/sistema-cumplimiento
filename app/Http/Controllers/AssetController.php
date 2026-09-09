@@ -325,8 +325,11 @@ class AssetController extends Controller
         $this->authorize('view', $asset);
 
         // ── Filtros persistentes por sesión ─────────────────────────────────────
+        // Incluye "scope" (pestaña Expediente/Alta/Baja) y "page" (página de la lista de
+        // requerimientos) para que cambiar de pestaña o de página también se recuerde al
+        // volver, no solo los filtros de búsqueda/autoridad/riesgo/etc.
         $sessionKey  = "asset_req_filters.{$asset->id}";
-        $filterKeys  = ['search', 'authority', 'risk', 'status', 'responsible_area', 'show_filters'];
+        $filterKeys  = ['search', 'authority', 'risk', 'status', 'responsible_area', 'show_filters', 'scope', 'page'];
         $hasFiltersInUrl = $request->hasAny($filterKeys);
 
         if ($request->has('clear_filters')) {
@@ -336,7 +339,7 @@ class AssetController extends Controller
 
         if ($hasFiltersInUrl) {
             $request->session()->put($sessionKey, array_filter(
-                $request->only(array_merge($filterKeys, ['scope'])),
+                $request->only($filterKeys),
                 fn ($v) => $v !== '' && $v !== null && $v !== false
             ));
         } elseif (count($request->query()) === 0 && $request->session()->has($sessionKey)) {
