@@ -152,6 +152,15 @@ class ImportRequirementDocuments extends Command
 
         $nextVersion = (int) $existingByName->max('version_number');
 
+        // Documento(s) ya marcados como vigentes en el sistema (subidos manualmente desde la
+        // app, o de una carga previa) que no están en esta carpeta: si no se detectan aquí,
+        // quedarían vigentes "a la vez" que el nuevo documento que esta carpeta va a marcar
+        // como vigente.
+        $orderedNames = collect($ordered)->pluck('original_name');
+        $staleCurrent = $existingByName->filter(
+            fn ($d) => $d->is_current && ! $orderedNames->contains($d->original_name)
+        );
+
         $docs = [];
 
         foreach ($ordered as $index => $fileInfo) {
@@ -210,6 +219,10 @@ class ImportRequirementDocuments extends Command
         }
 
         if ($dryRun) {
+            foreach ($staleCurrent as $stale) {
+                $this->warn("  [atención] \"{$template->name}\": el documento vigente actual \"{$stale->original_name}\" no está en esta carpeta y quedará marcado como reemplazado por la nueva versión.");
+            }
+
             return;
         }
 
@@ -227,6 +240,18 @@ class ImportRequirementDocuments extends Command
                 'completed_at' => $assetRequirement->completed_at ?? now(),
                 'current_document_id' => $currentDoc->id,
             ]);
+
+            // Cualquier otro documento de este requerimiento que siga marcado como vigente
+            // (subido manualmente desde la app, o de una carga previa) queda reemplazado por
+            // el nuevo vigente, para que no haya dos documentos "vigentes" a la vez.
+            AssetRequirementDocument::where('asset_requirement_id', $assetRequirement->id)
+                ->where('is_current', true)
+                ->where('id', '!=', $currentDoc->id)
+                ->update([
+                    'is_current' => false,
+                    'status' => 'replaced',
+                    'replaced_by_document_id' => $currentDoc->id,
+                ]);
         }
     }
 
