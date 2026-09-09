@@ -315,16 +315,18 @@ class ImportRequirementDocuments extends Command
      */
     private function stripAssetSuffix(string $baseName, Asset $asset): string
     {
-        $pos = strrpos($baseName, ' - ');
-        if ($pos === false) {
+        // Busca el último "-" seguido de espacio(s): tolera que el proveedor no deje espacio
+        // antes del guión (p. ej. "...Petrolíferos 2024- ES Dr. Arroyo"), a diferencia de un
+        // simple strrpos(' - ') que solo encuentra el guión con espacios en ambos lados.
+        if (! preg_match('/^(.*)-\s+(.+)$/su', $baseName, $m)) {
             return $baseName;
         }
 
-        $suffix = $this->normalize(substr($baseName, $pos + 3));
+        $suffix = $this->normalizeForSuffixMatch($m[2]);
 
-        $candidates = [$this->normalize($asset->name)];
+        $candidates = [$this->normalizeForSuffixMatch($asset->name)];
         if ($typeName = $asset->assetType?->name) {
-            $candidates[] = $this->normalize($typeName . ' ' . $asset->name);
+            $candidates[] = $this->normalizeForSuffixMatch($typeName . ' ' . $asset->name);
         }
 
         // Tolera singular/plural entre el nombre del activo y el que trae el archivo
@@ -333,7 +335,16 @@ class ImportRequirementDocuments extends Command
         $matches = in_array($suffix, $candidates, true)
             || in_array(rtrim($suffix, 's'), array_map(fn ($c) => rtrim($c, 's'), $candidates), true);
 
-        return $matches ? trim(substr($baseName, 0, $pos)) : $baseName;
+        return $matches ? trim($m[1]) : $baseName;
+    }
+
+    /**
+     * Igual que normalize(), pero además quita puntos: tolera abreviaturas como "Dr." que el
+     * proveedor a veces escribe con punto y el nombre del activo en el sistema no trae.
+     */
+    private function normalizeForSuffixMatch(string $value): string
+    {
+        return $this->normalize(str_replace('.', '', $value));
     }
 
     private function orderFiles(array $files): array
