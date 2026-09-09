@@ -327,9 +327,13 @@ class ImportRequirementDocuments extends Command
             $candidates[] = $this->normalize($typeName . ' ' . $asset->name);
         }
 
-        return in_array($suffix, $candidates, true)
-            ? trim(substr($baseName, 0, $pos))
-            : $baseName;
+        // Tolera singular/plural entre el nombre del activo y el que trae el archivo
+        // (p. ej. archivo "ES Crucero" vs activo "CRUCEROS"): compara también quitando
+        // una "s" final de ambos lados.
+        $matches = in_array($suffix, $candidates, true)
+            || in_array(rtrim($suffix, 's'), array_map(fn ($c) => rtrim($c, 's'), $candidates), true);
+
+        return $matches ? trim(substr($baseName, 0, $pos)) : $baseName;
     }
 
     private function orderFiles(array $files): array

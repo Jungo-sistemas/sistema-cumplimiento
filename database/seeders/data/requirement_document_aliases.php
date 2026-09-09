@@ -28,6 +28,8 @@ return [
         // Nombres del Excel de vigencias (fechas de emisión/vigencia por documento) que no
         // calzan literal con el catálogo — confirmado manualmente que es el mismo requerimiento.
         'Pólizas de Seguros RC y RCA - Determinación de Límites' => 'Pólizas de seguros RC y RCA+ Determinación de los Límites',
+        // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de vigencias (ES Crucero).
+        'Pólizas de seguros RC y RCA - Límites' => 'Pólizas de seguros RC y RCA+ Determinación de los Límites',
         'Vo.Bo. Inicio de Operaciones - Protección Civil' => 'Vobo de Inicio de Operaciones Protección Civil',
         'Pruebas de Integridad Mecánica PH' => 'Pruebas de integridad mecánica',
         'SASISOPA - Implementación' => 'SASISOPA Implementación',
@@ -63,6 +65,9 @@ return [
             => 'Escritura de inmueble o Contrato de Arrendamiento que avale propiedad o posesión del inmueble',
         // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de vigencias (ES Barquito).
         'Escritura/Contrato de Arrendamiento'
+            => 'Escritura de inmueble o Contrato de Arrendamiento que avale propiedad o posesión del inmueble',
+        // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de vigencias (ES Crucero).
+        'Contrato de arrendamiento'
             => 'Escritura de inmueble o Contrato de Arrendamiento que avale propiedad o posesión del inmueble',
 
         // Confirmado con negocio: "PH" en el alias de arriba es "Prueba de Hermeticidad", así
