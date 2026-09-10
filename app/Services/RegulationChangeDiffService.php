@@ -103,8 +103,22 @@ class RegulationChangeDiffService
      */
     private function splitSections(string $html): array
     {
-        $titles  = array_map(fn (string $t) => preg_quote($t, '/'), RegulationBodyHtmlBuilder::SECTION_TITLES);
-        $pattern = '/<p[^>]*>\s*<span[^>]*>\s*(' . implode('|', $titles) . ')\s*<\/span>\s*<\/p>/u';
+        $titles = array_map(fn (string $t) => preg_quote($t, '/'), RegulationBodyHtmlBuilder::SECTION_TITLES);
+
+        // RegulationBodyHtmlBuilder escribe el título como texto directo dentro del <span> (negrita
+        // vía "font-weight: bold" en el propio style, sin <strong>). Pero en cuanto ese documento se
+        // abre UNA VEZ en el editor de texto libre (regulation-versions/edit.blade.php, TipTap), el
+        // parser HTML de la extensión Bold reconoce ese "font-weight: bold" y le agrega su propia
+        // marca — al serializar de vuelta (editor.getHTML()) el título queda envuelto en
+        // "<strong>...</strong>" ADENTRO del span (el span y su estilo original se conservan aparte,
+        // vía la extensión PreserveInlineStyle) — confirmado guardando una edición real de un
+        // documento generado por el wizard. Sin tolerar esa etiqueta de por medio, splitSections()
+        // deja de reconocer los 10 títulos desde la PRIMERA edición manual (así el usuario no haya
+        // tocado esa sección), y el diff cae siempre al respaldo de "Documento completo" — que sigue
+        // siendo correcto, pero pierde el detalle por sección que se le muestra a quien aprueba.
+        $inline  = '(?:strong|b|em|i|u)';
+        $pattern = '/<p[^>]*>\s*<span[^>]*>\s*(?:<' . $inline . '[^>]*>\s*)*('
+            . implode('|', $titles) . ')\s*(?:<\/' . $inline . '>\s*)*<\/span>\s*<\/p>/u';
 
         if (! preg_match_all($pattern, $html, $matches, PREG_OFFSET_CAPTURE)) {
             return [];
