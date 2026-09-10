@@ -8,6 +8,7 @@ use App\Models\RegulationApproval;
 use App\Models\User;
 use App\Notifications\ApprovalFlowMemberNotification;
 use App\Notifications\ApprovalRequestedNotification;
+use App\Notifications\ApprovalStepUnassignedNotification;
 use App\Notifications\RegulationApprovedNotification;
 use App\Notifications\RegulationAccessRequestedNotification;
 use App\Notifications\RegulationReadyToResubmitNotification;
@@ -222,6 +223,30 @@ class ApprovalFlowService
         return $admins->count();
     }
 
+    /**
+     * Mismo filtro de admins que notifyIfCorrectedAfterRejection()/notifyAdminsOfAccessRequest():
+     * solo quienes de verdad pueden corregir la asignación de puestos de este reglamento.
+     *
+     * @param  array<int, string>  $positionSlugs
+     */
+    private function notifyStepUnassigned(Regulation $regulation, int $step, array $positionSlugs): void
+    {
+        $names = JobPosition::where('group_id', $regulation->group_id)
+            ->whereIn('slug', $positionSlugs)
+            ->pluck('name')
+            ->all();
+
+        $admins = User::where('group_id', $regulation->group_id)
+            ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
+            ->get()
+            ->filter(fn (User $u) => $u->canAccessCompany($regulation->company))
+            ->filter(fn (User $u) => $u->canAccessModule('procesos'));
+
+        foreach ($admins as $admin) {
+            $admin->notify(new ApprovalStepUnassignedNotification($regulation, $step, $names ?: $positionSlugs));
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
@@ -236,6 +261,14 @@ class ApprovalFlowService
         }
 
         $users = $this->resolveStepUsers($regulation, $stepDef, $userMap)->values();
+
+        // Ningún puesto del paso tiene usuarios reales (o flow_user_map apunta a usuarios que ya
+        // no existen/no están activos) — sin este aviso el reglamento queda en
+        // "pending_authorization" para siempre, sin ninguna fila "pending" sobre la cual nadie
+        // (ni siquiera el recordatorio automático) pueda actuar. Ver ApprovalStepUnassignedNotification.
+        if ($users->isEmpty()) {
+            $this->notifyStepUnassigned($regulation, $step, $stepDef['positions']);
+        }
 
         // Cuando el paso exige que TODOS aprueben y hay más de un aprobador, van uno a la vez en
         // el orden en que se agregaron (flow_user_map conserva ese orden) — no en paralelo: solo

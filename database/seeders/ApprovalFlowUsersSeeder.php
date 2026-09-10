@@ -11,16 +11,17 @@ use Illuminate\Support\Facades\Hash;
 
 class ApprovalFlowUsersSeeder extends Seeder
 {
+    // Slugs alineados con JobPositionSeeder::POSITIONS (lider/jefe/gerente/direccion) — antes de
+    // ese rename estos usuarios se creaban con los slugs viejos (ejecutivo_reglamentos,
+    // direccion_general, director_finanzas), que ya no existen como JobPosition: en una base de
+    // datos nueva (tests, ambiente local recién sembrado) el lookup por slug fallaba en silencio
+    // y estos 3 usuarios quedaban sin ningún puesto asignado — nunca entraban a ningún flujo de
+    // aprobación pese a que el seeder "los creó correctamente".
     private const USERS = [
         [
             'name'     => 'Dirección General',
             'email'    => 'direccion@vigia.com.mx',
-            'position' => 'direccion_general',
-        ],
-        [
-            'name'     => 'Director de Finanzas',
-            'email'    => 'finanzas@vigia.com.mx',
-            'position' => 'director_finanzas',
+            'position' => 'direccion',
         ],
         [
             'name'     => 'Líder',
@@ -33,9 +34,9 @@ class ApprovalFlowUsersSeeder extends Seeder
             'position' => 'gerente',
         ],
         [
-            'name'     => 'Ejecutivo de Reglamentos',
+            'name'     => 'Jefe',
             'email'    => 'ejecutivo@vigia.com.mx',
-            'position' => 'ejecutivo_reglamentos',
+            'position' => 'jefe',
         ],
     ];
 

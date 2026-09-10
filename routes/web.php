@@ -443,6 +443,7 @@ if (app()->environment('local')) {
             'approval-flow-member'        => 'Aviso de participación futura en el flujo',
             'regulation-approved'         => 'Documento aprobado',
             'regulation-rejected'         => 'Documento rechazado',
+            'approval-step-unassigned'    => 'Flujo detenido — puesto sin asignar',
         ];
 
         Route::get('/', function () use ($emails) {
@@ -548,6 +549,19 @@ if (app()->environment('local')) {
 
             return view($mail->view, $mail->viewData);
         })->name('regulation-rejected');
+
+        Route::get('/approval-step-unassigned', function () {
+            $regulation = Regulation::with('company')->latest()->first();
+            abort_unless($regulation, 404, 'No hay reglamentos para previsualizar.');
+
+            $mail = (new \App\Notifications\ApprovalStepUnassignedNotification(
+                $regulation,
+                (int) request('step', 2),
+                [request('position', 'Gerente')],
+            ))->toMail(auth()->user());
+
+            return view($mail->view, $mail->viewData);
+        })->name('approval-step-unassigned');
     });
 }
 
