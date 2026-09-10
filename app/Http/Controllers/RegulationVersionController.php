@@ -565,6 +565,23 @@ class RegulationVersionController extends Controller
             $paginationCssUrl = asset('css/document-pagination.css');
             $paginationJsUrl  = asset('js/document-pagination.js');
 
+            // Mismo encabezado fijo que ya se ve en la vista previa del wizard antes de confirmar
+            // (processes/preview.blade.php) — aquí faltaba por completo: "Ver" sobre una versión ya
+            // guardada (la pantalla que de verdad usa alguien para revisar el documento después)
+            // nunca lo mostraba, así que el formato ya autorizado con el cliente parecía "perdido"
+            // en pantalla aunque el .docx real sí lo trae siempre (RegulationDocxHeaderBuilder).
+            $details = $regulation->details ?? [];
+            $headerTableHtml = view('processes.partials.header-table', ['meta' => [
+                'nombre'                   => $regulation->name,
+                'codigo'                   => $regulation->code ? \Illuminate\Support\Str::upper($regulation->code) : null,
+                'version'                  => sprintf('%02d', $version->version_number),
+                'quien_elabora'            => $details['quien_elabora'] ?? null,
+                'quien_aprueba'            => $details['quien_aprueba'] ?? null,
+                'fecha_vigencia_formatted' => ! empty($details['fecha_vigencia'])
+                    ? \Carbon\Carbon::parse($details['fecha_vigencia'])->format('d/m/Y')
+                    : null,
+            ]])->render();
+
             $html = <<<HTML
 <!DOCTYPE html>
 <html lang="es">
@@ -649,6 +666,9 @@ class RegulationVersionController extends Controller
 <div id="doc-source" style="display: none;">
   {$bodyHtml}
 </div>
+<template id="doc-header-template">
+  {$headerTableHtml}
+</template>
 <div id="doc-pages"></div>
 
 <div id="legend-wrap">
