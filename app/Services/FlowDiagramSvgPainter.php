@@ -32,7 +32,9 @@ class FlowDiagramSvgPainter
     private const LANE_BODY_FILL = '#F7F9FC';
     private const LANE_BODY_STROKE = '#CCCCCC';
     private const BADGE_FILL = '#1F3864';
-    private const BADGE_RADIUS = 16;
+    private const BADGE_RADIUS = 13;
+    /** Cuánto se recorre el centro de la insignia hacia adentro desde la esquina exacta de la caja. */
+    private const BADGE_INSET = 6;
 
     /**
      * @param  string  $svg  El SVG crudo tal como lo devolvió mermaid-cli.
@@ -136,20 +138,28 @@ class FlowDiagramSvgPainter
             }
 
             if ($meta['paso_numero'] !== null) {
+                // La insignia se recorre un poco hacia adentro de la esquina (en vez de quedar
+                // centrada justo en el vértice) — cuando el carril es muy compacto y la caja
+                // empieza casi pegada al encabezado de color, una insignia centrada EXACTO en la
+                // esquina se monta sobre el texto del encabezado; recorrida hacia adentro sigue
+                // leyéndose como "superpuesta en la esquina" sin invadir lo que hay arriba.
+                $badgeX = $x + self::BADGE_INSET;
+                $badgeY = $y + self::BADGE_INSET;
+
                 // style="" (no los atributos sueltos fill/stroke): Mermaid ya trae sus propias
                 // reglas de hoja de estilo tipo ".node circle{...}" que le ganan a un atributo de
                 // presentación suelto sin importar in specificidad — confirmado que fill="..." se
                 // ignoraba en silencio hasta cambiarlo por style="fill:...".
                 $badge = $dom->createElement('circle');
-                $badge->setAttribute('cx', (string) $x);
-                $badge->setAttribute('cy', (string) $y);
+                $badge->setAttribute('cx', (string) $badgeX);
+                $badge->setAttribute('cy', (string) $badgeY);
                 $badge->setAttribute('r', (string) self::BADGE_RADIUS);
                 $badge->setAttribute('style', 'fill:' . self::BADGE_FILL . ';stroke:#FFFFFF;stroke-width:1.5px;');
                 $nodeGroup->appendChild($badge);
 
                 $text = $dom->createElement('text', (string) $meta['paso_numero']);
-                $text->setAttribute('x', (string) $x);
-                $text->setAttribute('y', (string) ($y + 5));
+                $text->setAttribute('x', (string) $badgeX);
+                $text->setAttribute('y', (string) ($badgeY + 5));
                 $text->setAttribute('text-anchor', 'middle');
                 $text->setAttribute('style', 'font-size:18px;font-weight:bold;fill:#FFFFFF;');
                 $nodeGroup->appendChild($text);
@@ -187,7 +197,19 @@ class FlowDiagramSvgPainter
             $bg->setAttribute('style', 'fill:' . self::LANE_BODY_FILL . ';stroke:' . self::LANE_BODY_STROKE . ';stroke-width:1px;');
 
             $color = self::LANE_HEADER_COLORS[$index % count(self::LANE_HEADER_COLORS)];
-            $headerHeight = 34;
+
+            // El texto del carril (cluster-label) vive dentro de un <foreignObject><div><p>
+            // real de HTML, no de SVG — hay que recolorear el texto en CADA nivel (div/p/span)
+            // porque el color heredado de Mermaid (".cluster-label span{color:#333}") se aplica
+            // directo en cada uno de esos elementos, no solo en el contenedor.
+            $labelGroup = $xpath->query('.//*[contains(@class,"cluster-label")]', $clusterGroup)->item(0);
+
+            // Alto de la barra = el espacio que Mermaid YA reservó para su propio título del
+            // carril (posición del cluster-label + alto de su foreignObject), no un número fijo —
+            // un valor fijo se montaba sobre la primera caja en carriles muy compactos (con un
+            // solo paso pegado arriba), porque el espacio real que Mermaid deja varía según el
+            // tamaño de fuente/longitud del nombre del carril, confirmado con un diagrama real.
+            $headerHeight = $this->labelReservedHeight($labelGroup) ?? 34.0;
 
             $header = $dom->createElement('rect');
             $header->setAttribute('x', $bg->getAttribute('x'));
@@ -197,11 +219,6 @@ class FlowDiagramSvgPainter
             $header->setAttribute('style', 'fill:' . $color . ';');
             $bg->parentNode?->insertBefore($header, $bg->nextSibling);
 
-            // El texto del carril (cluster-label) vive dentro de un <foreignObject><div><p>
-            // real de HTML, no de SVG — hay que recolorear el texto en CADA nivel (div/p/span)
-            // porque el color heredado de Mermaid (".cluster-label span{color:#333}") se aplica
-            // directo en cada uno de esos elementos, no solo en el contenedor.
-            $labelGroup = $xpath->query('.//*[contains(@class,"cluster-label")]', $clusterGroup)->item(0);
             if ($labelGroup instanceof \DOMElement) {
                 $labelGroup->setAttribute('style', 'color:#FFFFFF !important;');
                 foreach ($xpath->query('.//*', $labelGroup) as $descendant) {
@@ -211,6 +228,37 @@ class FlowDiagramSvgPainter
                 }
             }
         }
+    }
+
+    /**
+     * Cuánto espacio vertical reservó Mermaid para el título de este carril: la posición Y de su
+     * propio <g class="cluster-label" transform="translate(x,y)"> más el alto de su
+     * <foreignObject>, con un pequeño margen. Devuelve null si no se pudo leer (el llamador cae
+     * a un valor fijo en ese caso, nunca truena por esto).
+     */
+    private function labelReservedHeight(?\DOMElement $labelGroup): ?float
+    {
+        if ($labelGroup === null) {
+            return null;
+        }
+
+        if (! preg_match('/translate\(\s*[-\d.]+\s*,\s*([-\d.]+)\s*\)/', $labelGroup->getAttribute('transform'), $m)) {
+            return null;
+        }
+
+        $foreignObject = null;
+        foreach ($labelGroup->childNodes as $child) {
+            if ($child instanceof \DOMElement && $child->localName === 'foreignObject') {
+                $foreignObject = $child;
+                break;
+            }
+        }
+
+        if ($foreignObject === null || ! $foreignObject->hasAttribute('height')) {
+            return null;
+        }
+
+        return (float) $m[1] + (float) $foreignObject->getAttribute('height') + 8;
     }
 
     /** @return array{x: float, y: float, width: float} Esquina superior-izquierda y ancho del cuadro que envuelve al polígono. */

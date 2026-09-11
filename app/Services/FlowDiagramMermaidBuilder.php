@@ -24,9 +24,16 @@ class FlowDiagramMermaidBuilder
      * — el diagrama siempre se encoge a 6.5in en el documento final (ver
      * AiProcedureGenerationService::imageDimensionAttrs()), así que sin esto las etiquetas largas
      * quedan ilegibles. Es afinación de LAYOUT (lo sigue resolviendo Mermaid), no de color.
+     *
+     * subGraphTitleMargin.top (por defecto 0 en Mermaid) fuerza espacio real de sobra entre el
+     * título de cada carril y su primer nodo — sin esto, FlowDiagramSvgPainter podía dejar la
+     * insignia numerada (que se superpone a la esquina de la caja) encimada con el texto del
+     * encabezado de color en carriles muy compactos: no es un ajuste de la capa de pintura, es
+     * espacio real reservado por Mermaid al calcular el acomodo.
      */
     private const INIT_DIRECTIVE = '%%{init: {"flowchart": {"nodeSpacing": 15, "rankSpacing": 25, '
-        . '"padding": 6}, "themeVariables": {"fontSize": "26px"}}}%%';
+        . '"padding": 6, "subGraphTitleMargin": {"top": 30, "bottom": 6}}, '
+        . '"themeVariables": {"fontSize": "26px"}}}%%';
 
     /**
      * @param  array{carriles: array<int, array{id: string, nombre: string}>, decisiones: array<int, array{id: string, carril_id: string, texto: string, tras_paso: int, destino_si: string, etiqueta_si: string, destino_no: string, etiqueta_no: string}>, pasos_especiales: array<int, array{paso_numero: int, nota: string}>}  $diagrama
