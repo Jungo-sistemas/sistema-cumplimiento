@@ -22,7 +22,7 @@ class CheckProcessesRequirements extends Command
 {
     protected $signature = 'processes:check-requirements {--deep : Además de revisar que los binarios existan, ejecuta una conversión de prueba real}';
 
-    protected $description = 'Verifica que las dependencias del módulo de Procesos (migración, GD, LibreOffice, mermaid-cli, Anthropic) estén listas en este servidor';
+    protected $description = 'Verifica que las dependencias del módulo de Procesos (migración, GD, LibreOffice, mermaid-cli, Puppeteer, Anthropic) estén listas en este servidor';
 
     public function handle(OfficeDocumentConverter $officeConverter, DiagramTitleBarComposer $titleBarComposer, AiProcedureGenerationService $aiService): int
     {
@@ -66,6 +66,18 @@ class CheckProcessesRequirements extends Command
         );
 
         $failures += $this->check(
+            'Puppeteer instalado (node_modules)',
+            fn () => is_dir(base_path('node_modules/puppeteer')),
+            'Falta correr "npm install" en la raíz del proyecto — hace falta para pintar el diagrama de flujo con el estilo exacto de referencia.'
+        );
+
+        $failures += $this->check(
+            'Script de renderizado del diagrama presente',
+            fn () => is_file(resource_path('diagram-renderer/render.mjs')),
+            'Falta resources/diagram-renderer/render.mjs — revisa que el despliegue haya traído todos los archivos nuevos.'
+        );
+
+        $failures += $this->check(
             'LibreOffice (soffice) disponible',
             fn () => $officeConverter->isAvailable(),
             'Instala LibreOffice — sin esto, "Ver" en documentos .ppt/.pptx/.xls/.xlsx/.doc solo permite descargar, no previsualizar.'
@@ -82,14 +94,14 @@ class CheckProcessesRequirements extends Command
             $this->newLine();
             $this->components->info('Pruebas reales (--deep)');
 
-            $mermaidResult = $aiService->testMermaidCli();
+            $diagramResult = $aiService->testDiagramPipeline();
             $failures += $this->check(
-                'Render de diagrama Mermaid de prueba',
-                fn () => $mermaidResult['ok'],
-                $mermaidResult['ok']
+                'Render de diagrama de flujo de prueba (Mermaid + Puppeteer)',
+                fn () => $diagramResult['ok'],
+                $diagramResult['ok']
                     ? ''
-                    : "mermaid-cli falló (exit code {$mermaidResult['exit_code']}): "
-                        . ($mermaidResult['stderr'] ?: $mermaidResult['stdout'] ?: '(sin salida)')
+                    : "Falló (exit code {$diagramResult['exit_code']}): "
+                        . ($diagramResult['stderr'] ?: $diagramResult['stdout'] ?: '(sin salida)')
             );
 
             if ($officeConverter->isAvailable()) {

@@ -20,6 +20,7 @@
     },
     "dependencies": {
         "@mermaid-js/mermaid-cli": "^11.16.0",
+        "puppeteer": "^25.3.0",
         "tom-select": "^2.5.2"
     }
 }

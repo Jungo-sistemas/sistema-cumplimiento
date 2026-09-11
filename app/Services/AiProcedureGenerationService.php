@@ -45,7 +45,8 @@ class AiProcedureGenerationService
 
     public function __construct(
         private readonly RegulationBodyHtmlBuilder $bodyBuilder,
-        private readonly MermaidDiagramStyler $diagramStyler,
+        private readonly FlowDiagramMermaidBuilder $mermaidBuilder,
+        private readonly FlowDiagramSvgPainter $svgPainter,
         private readonly DiagramTitleBarComposer $titleBarComposer,
     ) {}
 
@@ -56,7 +57,7 @@ class AiProcedureGenerationService
      * @param  string  $companyName  Nombre de la empresa, para el aviso de control al pie del documento.
      * @param  string  $documentName  Nombre del procedimiento, para la barra de título del diagrama de flujo.
      * @param  string  $documentCode  Código del procedimiento, para la barra de título del diagrama de flujo.
-     * @return array{details: array<string, string>, documento: array<string, mixed>, documento_html: string, diagrama_flujo_mermaid: ?string}
+     * @return array{details: array<string, string>, documento: array<string, mixed>, documento_html: string, diagrama_flujo: array<string, mixed>}
      */
     public function generate(
         array $wizardData,
@@ -130,7 +131,8 @@ class AiProcedureGenerationService
         $data['documento_html'] = $this->bodyBuilder->build($data['details'], $data['documento'], $companyName);
         $data['documento_html'] = $this->insertFlowDiagram(
             $data['documento_html'],
-            $data['diagrama_flujo_mermaid'] ?? null,
+            $data['diagrama_flujo'] ?? null,
+            $data['documento']['pasos'] ?? [],
             $documentName,
             $documentCode
         );
@@ -140,14 +142,19 @@ class AiProcedureGenerationService
     }
 
     /**
-     * Reemplaza el marcador {{DIAGRAMA_FLUJO}} por el diagrama ya renderizado como imagen
-     * (Mermaid → mermaid-cli → PNG, con el estilo fijo de MermaidDiagramStyler y la barra de
-     * título de DiagramTitleBarComposer encima — igual que el documento_ejemplo.docx). Si no
-     * hay mermaid, la renderización falla, o el marcador no aparece (la IA no lo respetó), se
-     * deja una nota simple en vez de bloquear la generación — el documento completo nunca debe
-     * fallar solo por el diagrama.
+     * Reemplaza el marcador {{DIAGRAMA_FLUJO}} por el diagrama ya renderizado como imagen:
+     * FlowDiagramMermaidBuilder arma el Mermaid (topología de la IA + texto real de
+     * documento.pasos) → mermaid-cli lo convierte a SVG (solo para resolver el acomodo
+     * automático del grafo) → FlowDiagramSvgPainter pinta ESE MISMO SVG con los colores/insignias
+     * exactos de referencia → Puppeteer lo rasteriza a PNG → DiagramTitleBarComposer le agrega la
+     * barra de título encima, igual que el documento_ejemplo.docx. Si algo falla en cualquier
+     * paso, se deja una nota simple en vez de bloquear la generación — el documento completo
+     * nunca debe fallar solo por el diagrama.
+     *
+     * @param  ?array<string, mixed>  $diagrama  El campo diagrama_flujo del schema (carriles/decisiones/pasos_especiales).
+     * @param  array<int, array{titulo: string, responsable: string}>  $pasos  documento.pasos.
      */
-    private function insertFlowDiagram(string $html, ?string $mermaidSource, string $documentName = '', string $documentCode = ''): string
+    private function insertFlowDiagram(string $html, ?array $diagrama, array $pasos, string $documentName = '', string $documentCode = ''): string
     {
         if (! str_contains($html, self::DIAGRAM_MARKER)) {
             return $html;
@@ -166,17 +173,14 @@ class AiProcedureGenerationService
 
         $fallback = '<p><em>(No se pudo generar el diagrama de flujo automáticamente.)</em></p>';
 
-        if (empty($mermaidSource)) {
+        if (empty($diagrama) || $pasos === []) {
             return str_replace(self::DIAGRAM_MARKER, $fallback, $html);
         }
 
-        // El color/forma de cada nodo y el fondo de los carriles NUNCA los decide la IA ni el
-        // tema por defecto de Mermaid — se fuerzan aquí, igual que el resto del formato del documento.
-        $styledMermaid = $this->diagramStyler->style($mermaidSource);
-        $png = $this->renderMermaidDiagram($styledMermaid);
+        $png = $this->renderFlowDiagramPng($diagrama, $pasos);
 
         if ($png !== null) {
-            $steps = $this->diagramStyler->countActivitySteps($mermaidSource);
+            $steps = count($pasos);
             $label = trim("{$documentCode} {$documentName}");
             $title = 'Diagrama de flujo' . ($label !== '' ? " — {$label}" : '') . " ({$steps} pasos)";
             $png = $this->titleBarComposer->addTitleBar($png, $title, self::DIAGRAM_RENDER_SCALE);
@@ -187,6 +191,24 @@ class AiProcedureGenerationService
             : $fallback;
 
         return str_replace(self::DIAGRAM_MARKER, $replacement, $html);
+    }
+
+    /**
+     * @param  array<string, mixed>  $diagrama
+     * @param  array<int, array{titulo: string, responsable: string}>  $pasos
+     */
+    private function renderFlowDiagramPng(array $diagrama, array $pasos): ?string
+    {
+        ['mermaid' => $mermaid, 'nodeMeta' => $nodeMeta] = $this->mermaidBuilder->build($diagrama, $pasos);
+
+        $rawSvg = $this->renderMermaidToSvg($mermaid);
+        if ($rawSvg === null) {
+            return null;
+        }
+
+        $paintedSvg = $this->svgPainter->paint($rawSvg, $nodeMeta);
+
+        return $this->rasterizeSvg($paintedSvg);
     }
 
     /**
@@ -222,10 +244,12 @@ class AiProcedureGenerationService
     }
 
     /**
-     * Convierte una definición de diagrama Mermaid a PNG con mermaid-cli (@mermaid-js/mermaid-cli,
+     * Convierte una definición de diagrama Mermaid a SVG con mermaid-cli (@mermaid-js/mermaid-cli,
      * instalado como dependencia del proyecto en package.json — no globalmente, para no depender
-     * del PATH del usuario/servicio que corra PHP). Devuelve null en vez de lanzar una excepción
-     * si falla, para no bloquear todo el documento.
+     * del PATH del usuario/servicio que corra PHP). Se pide SVG y no PNG a propósito: aquí Mermaid
+     * solo resuelve el acomodo automático del grafo (posiciones, rutas de las flechas) — el color y
+     * las insignias los pinta después FlowDiagramSvgPainter sobre ESTE MISMO SVG. Devuelve null en
+     * vez de lanzar una excepción si falla, para no bloquear todo el documento.
      *
      * Antes esto se hacía vía Kroki.io (servicio público gratuito, sin SLA), que renderiza Mermaid
      * lanzando un Chromium headless en SU servidor compartido — y ese lanzamiento fallaba
@@ -233,13 +257,13 @@ class AiProcedureGenerationService
      * ráfagas de peticiones). Renderizar localmente con mermaid-cli (que también usa Puppeteer/
      * Chromium, pero corriendo en nuestro propio servidor) elimina esa dependencia externa.
      */
-    private function renderMermaidDiagram(string $mermaidSource): ?string
+    private function renderMermaidToSvg(string $mermaidSource): ?string
     {
         $maxAttempts = 3;
 
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             $input = tempnam(sys_get_temp_dir(), 'mmd_in_') . '.mmd';
-            $output = tempnam(sys_get_temp_dir(), 'mmd_out_') . '.png';
+            $output = tempnam(sys_get_temp_dir(), 'mmd_out_') . '.svg';
             file_put_contents($input, $mermaidSource);
 
             try {
@@ -257,6 +281,49 @@ class AiProcedureGenerationService
                 ]);
             } catch (\Throwable $e) {
                 Log::warning('AiProcedureGenerationService: fallo al renderizar el diagrama de flujo', [
+                    'attempt' => $attempt,
+                    'error' => $e->getMessage(),
+                ]);
+            } finally {
+                @unlink($input);
+                @unlink($output);
+            }
+
+            if ($attempt < $maxAttempts) {
+                usleep(500_000);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Rasteriza a PNG el SVG ya pintado por FlowDiagramSvgPainter, con Puppeteer (resources/
+     * diagram-renderer/render.mjs) — mismo patrón de reintentos que renderMermaidToSvg().
+     */
+    private function rasterizeSvg(string $svg): ?string
+    {
+        $maxAttempts = 3;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            $input = tempnam(sys_get_temp_dir(), 'flowdiag_in_') . '.svg';
+            $output = tempnam(sys_get_temp_dir(), 'flowdiag_out_') . '.png';
+            file_put_contents($input, $svg);
+
+            try {
+                [$exitCode, $stdout, $stderr] = $this->runDiagramRenderer($input, $output);
+
+                if ($exitCode === 0 && is_file($output)) {
+                    return file_get_contents($output);
+                }
+
+                Log::warning('AiProcedureGenerationService: no se pudo rasterizar el diagrama de flujo', [
+                    'attempt' => $attempt,
+                    'exit_code' => $exitCode,
+                    'output' => $stderr ?: $stdout,
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('AiProcedureGenerationService: fallo al rasterizar el diagrama de flujo', [
                     'attempt' => $attempt,
                     'error' => $e->getMessage(),
                 ]);
@@ -334,27 +401,101 @@ class AiProcedureGenerationService
     }
 
     /**
-     * Prueba real de renderizado, reusando exactamente el mismo camino (proc_open) que usa
-     * insertFlowDiagram() en producción — a diferencia de un chequeo con exec()/Process, esto
-     * detecta con certeza si el render de verdad funciona en este servidor, no solo si el
-     * binario existe. Pensada para diagnóstico (processes:check-requirements --deep).
+     * Mismo patrón de proc_open() que runMermaidCli() (ver ese docblock para el porqué: la
+     * fachada Process de Laravel hace tronar a Node en este servidor Windows) — invoca
+     * resources/diagram-renderer/render.mjs con Puppeteer para rasterizar el SVG ya pintado.
+     */
+    private function runDiagramRenderer(string $inputSvg, string $outputPng): array
+    {
+        $script = resource_path('diagram-renderer/render.mjs');
+        $cmd = sprintf(
+            'node %s %s %s',
+            escapeshellarg($script),
+            escapeshellarg($inputSvg),
+            escapeshellarg($outputPng)
+        );
+
+        $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+
+        if (! is_resource($proc)) {
+            return [1, '', 'No se pudo iniciar el proceso de renderizado del diagrama.'];
+        }
+
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
+
+        $stdout = '';
+        $stderr = '';
+        $start = microtime(true);
+        $timeoutSeconds = 30;
+
+        do {
+            $stdout .= stream_get_contents($pipes[1]);
+            $stderr .= stream_get_contents($pipes[2]);
+            $status = proc_get_status($proc);
+
+            if ($status['running'] && (microtime(true) - $start) > $timeoutSeconds) {
+                proc_terminate($proc);
+                $stderr .= "\n[render.mjs: tiempo de espera agotado tras {$timeoutSeconds}s]";
+                break;
+            }
+
+            if ($status['running']) {
+                usleep(100_000);
+            }
+        } while ($status['running']);
+
+        $stdout .= stream_get_contents($pipes[1]);
+        $stderr .= stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $exitCode = proc_close($proc);
+
+        return [$exitCode, $stdout, $stderr];
+    }
+
+    /**
+     * Prueba real de todo el pipeline (Mermaid → SVG → pintado → Puppeteer → PNG), reusando
+     * exactamente el mismo camino que usa insertFlowDiagram() en producción — a diferencia de un
+     * chequeo con exec()/Process, esto detecta con certeza si el render de verdad funciona en
+     * este servidor, no solo si los binarios existen. Pensada para diagnóstico
+     * (processes:check-requirements --deep).
      *
      * @return array{ok: bool, exit_code: int, stderr: string, stdout: string}
      */
-    public function testMermaidCli(): array
+    public function testDiagramPipeline(): array
     {
-        $input = tempnam(sys_get_temp_dir(), 'mmd_check_') . '.mmd';
-        $output = tempnam(sys_get_temp_dir(), 'mmd_check_out_') . '.png';
-        file_put_contents($input, "flowchart LR\n  a([Inicio]) --> b[Paso] --> c([Fin])\n");
+        $mermaidInput = tempnam(sys_get_temp_dir(), 'mmd_check_') . '.mmd';
+        $svgOutput = tempnam(sys_get_temp_dir(), 'mmd_check_out_') . '.svg';
+        file_put_contents($mermaidInput, "flowchart LR\nsubgraph l1[\"Prueba\"]\ndirection TB\na([Inicio]) --> b[\"1. Paso\"] --> c([Fin])\nend\n");
 
         try {
-            [$exitCode, $stdout, $stderr] = $this->runMermaidCli($input, $output);
-            $ok = $exitCode === 0 && is_file($output) && filesize($output) > 0;
+            [$exitCode, $stdout, $stderr] = $this->runMermaidCli($mermaidInput, $svgOutput);
 
-            return ['ok' => $ok, 'exit_code' => $exitCode, 'stderr' => trim($stderr), 'stdout' => trim($stdout)];
+            if ($exitCode !== 0 || ! is_file($svgOutput)) {
+                return ['ok' => false, 'exit_code' => $exitCode, 'stderr' => trim($stderr), 'stdout' => trim($stdout)];
+            }
+
+            $painted = $this->svgPainter->paint(file_get_contents($svgOutput), [
+                'b' => ['tipo' => 'actividad', 'carril_id' => 'l1', 'paso_numero' => 1, 'nota' => null],
+            ]);
+
+            $pngInput = tempnam(sys_get_temp_dir(), 'flowdiag_check_') . '.svg';
+            $pngOutput = tempnam(sys_get_temp_dir(), 'flowdiag_check_out_') . '.png';
+            file_put_contents($pngInput, $painted);
+
+            try {
+                [$exitCode, $stdout, $stderr] = $this->runDiagramRenderer($pngInput, $pngOutput);
+                $ok = $exitCode === 0 && is_file($pngOutput) && filesize($pngOutput) > 0;
+
+                return ['ok' => $ok, 'exit_code' => $exitCode, 'stderr' => trim($stderr), 'stdout' => trim($stdout)];
+            } finally {
+                @unlink($pngInput);
+                @unlink($pngOutput);
+            }
         } finally {
-            @unlink($input);
-            @unlink($output);
+            @unlink($mermaidInput);
+            @unlink($svgOutput);
         }
     }
 
@@ -579,17 +720,67 @@ class AiProcedureGenerationService
                     ],
                     'additionalProperties' => false,
                 ],
-                'diagrama_flujo_mermaid' => [
-                    'type' => 'string',
-                    'description' => 'El diagrama de flujo de ESTE procedimiento en sintaxis Mermaid, imitando el estilo visual '
-                        . 'de la imagen de referencia adjunta (carriles por puesto/responsable, óvalos de inicio/fin, pasos '
-                        . 'numerados, rombos de decisión con ramas Sí/No). Debe empezar con "flowchart LR" y usar un '
-                        . '"subgraph NOMBRE_CORTO[\"Nombre del puesto\"]" con "direction TB" adentro por cada puesto '
-                        . 'involucrado, en el orden en que participan. No uses acentos ni caracteres especiales en los '
-                        . 'IDs de nodos/subgraphs (sí puedes usarlos dentro de las etiquetas de texto entre corchetes/comillas).',
+                'diagrama_flujo' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'carriles' => [
+                            'type' => 'array',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'id' => ['type' => 'string', 'description' => 'Identificador corto, sin acentos ni espacios ni caracteres especiales (ej. "lider").'],
+                                    'nombre' => ['type' => 'string', 'description' => 'Nombre del puesto/responsable tal como debe verse en el encabezado del carril — debe coincidir textualmente con el "responsable" que uses en documento.pasos para ese mismo puesto.'],
+                                ],
+                                'required' => ['id', 'nombre'],
+                                'additionalProperties' => false,
+                            ],
+                            'description' => 'Un carril por puesto/responsable involucrado en el proceso, en el orden en que participan (de izquierda a derecha).',
+                        ],
+                        'decisiones' => [
+                            'type' => 'array',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'id' => ['type' => 'string', 'description' => 'Identificador corto, sin acentos ni espacios ni caracteres especiales.'],
+                                    'carril_id' => ['type' => 'string', 'description' => 'A qué carril (id de "carriles") pertenece esta decisión.'],
+                                    'texto' => ['type' => 'string', 'description' => 'Pregunta de la decisión, ej. "¿Propuesta dentro del tabulador?".'],
+                                    'tras_paso' => ['type' => 'integer', 'description' => 'Número (1-based, según el orden en documento.pasos) del paso después del cual se evalúa esta decisión.'],
+                                    'destino_si' => ['type' => 'string', 'description' => 'A dónde va la rama afirmativa: "paso:N" para continuar en el paso N, "fin" para terminar el proceso ahí, o el id de otra decisión de este mismo arreglo.'],
+                                    'etiqueta_si' => ['type' => 'string', 'description' => 'Texto de la rama afirmativa (normalmente "Sí").'],
+                                    'destino_no' => ['type' => 'string', 'description' => 'A dónde va la rama negativa — mismo formato que destino_si.'],
+                                    'etiqueta_no' => ['type' => 'string', 'description' => 'Texto de la rama negativa (ej. "No: corregir", "No: ajustar").'],
+                                ],
+                                'required' => ['id', 'carril_id', 'texto', 'tras_paso', 'destino_si', 'etiqueta_si', 'destino_no', 'etiqueta_no'],
+                                'additionalProperties' => false,
+                            ],
+                            'description' => 'Puntos de decisión del proceso (rombos con dos ramas). Arreglo vacío si el proceso no tiene ninguna decisión — no inventes una si no aplica.',
+                        ],
+                        'pasos_especiales' => [
+                            'type' => 'array',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'paso_numero' => ['type' => 'integer', 'description' => 'Número (1-based) del paso de documento.pasos que se dibuja como subproceso paralelo.'],
+                                    'nota' => ['type' => 'string', 'description' => 'Nota corta que acompaña el paso, ej. "Subproceso paralelo al ciclo anual".'],
+                                ],
+                                'required' => ['paso_numero', 'nota'],
+                                'additionalProperties' => false,
+                            ],
+                            'description' => 'Pasos de documento.pasos que deben dibujarse con el estilo especial de "subproceso paralelo" en vez de como paso normal. Arreglo vacío si ninguno aplica — la mayoría de los procesos no tienen ninguno.',
+                        ],
+                    ],
+                    'required' => ['carriles', 'decisiones', 'pasos_especiales'],
+                    'additionalProperties' => false,
+                    'description' => 'Describe ÚNICAMENTE la lógica/topología del diagrama de flujo de ESTE procedimiento — '
+                        . 'nunca el texto de cada paso normal ni su color/forma: eso el sistema lo arma automáticamente a '
+                        . 'partir de documento.pasos, de forma idéntica al cuerpo del documento, para que el diagrama y el '
+                        . 'texto nunca queden inconsistentes entre sí. Solo describes: los carriles (uno por responsable), '
+                        . 'los puntos de decisión (si los hay), y qué pasos son subprocesos paralelos (si los hay). El '
+                        . 'diagrama siempre inicia en el primer paso y, salvo que una decisión indique otra cosa, sigue '
+                        . 'los pasos en el mismo orden de documento.pasos hasta terminar en el último.',
                 ],
             ],
-            'required' => ['details', 'documento', 'diagrama_flujo_mermaid'],
+            'required' => ['details', 'documento', 'diagrama_flujo'],
             'additionalProperties' => false,
         ];
     }
@@ -597,12 +788,11 @@ class AiProcedureGenerationService
     private function buildPrompt(array $wizardData, ?array $previousResult = null, ?string $feedback = null): string
     {
         $parts = [
-            'La imagen adjunta es un EJEMPLO de cómo debe verse el diagrama de flujo del procedimiento — carriles por '
-                . 'puesto/responsable colocados lado a lado como columnas, óvalos de inicio y fin, pasos numerados dentro '
-                . 'de cada carril, rombos de decisión con ramas Sí/No, flechas que cruzan de un carril a otro cuando cambia '
-                . 'el responsable. Genera el diagrama de ESTE procedimiento (campo diagrama_flujo_mermaid) siguiendo ese '
-                . 'mismo estilo visual, con los pasos y responsables reales de este procedimiento — no copies el contenido '
-                . 'del ejemplo, solo su forma.',
+            'La imagen adjunta es un EJEMPLO de cómo se ve el diagrama de flujo ya terminado — el sistema arma ese dibujo '
+                . 'automáticamente (colores, carriles, insignias numeradas, formas) a partir de la lógica que describas en '
+                . 'el campo diagrama_flujo; no necesitas describir el estilo visual, ni copiar el contenido del ejemplo, '
+                . 'solo captura la lógica real de ESTE procedimiento: qué carriles/responsables hay, en qué punto (si '
+                . 'acaso) hay una decisión con dos ramas, y si algún paso es un subproceso paralelo.',
 
             'El usuario capturó el siguiente esqueleto de procedimiento en un wizard. Es el punto de partida, en formato JSON:',
             json_encode($wizardData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
