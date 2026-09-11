@@ -352,13 +352,16 @@ class AiProcedureGenerationService
      */
     private function runMermaidCli(string $input, string $output): array
     {
+        // Sin "-s" (factor de escala): confirmado con una prueba real que no tiene ningún efecto
+        // sobre la salida SVG (el viewBox sale idéntico con -s 1 o -s 3) — solo servía cuando
+        // mermaid-cli exportaba PNG directo. La resolución final ahora la da el deviceScaleFactor
+        // de Puppeteer en runDiagramRenderer(), sobre el SVG ya pintado.
         $cliJs = base_path('node_modules/@mermaid-js/mermaid-cli/src/cli.js');
         $cmd = sprintf(
-            'node %s -i %s -o %s -b white -s %d',
+            'node %s -i %s -o %s -b white',
             escapeshellarg($cliJs),
             escapeshellarg($input),
-            escapeshellarg($output),
-            self::DIAGRAM_RENDER_SCALE
+            escapeshellarg($output)
         );
 
         $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
@@ -409,10 +412,11 @@ class AiProcedureGenerationService
     {
         $script = resource_path('diagram-renderer/render.mjs');
         $cmd = sprintf(
-            'node %s %s %s',
+            'node %s %s %s %d',
             escapeshellarg($script),
             escapeshellarg($inputSvg),
-            escapeshellarg($outputPng)
+            escapeshellarg($outputPng),
+            self::DIAGRAM_RENDER_SCALE
         );
 
         $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);

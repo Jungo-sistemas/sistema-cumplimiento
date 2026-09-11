@@ -13,10 +13,11 @@ import puppeteer from "puppeteer";
 import path from "path";
 import { pathToFileURL } from "url";
 
-const [, , inputSvgPath, outputPngPath] = process.argv;
+const [, , inputSvgPath, outputPngPath, scaleArg] = process.argv;
+const scale = scaleArg ? parseFloat(scaleArg) : 1;
 
-if (!inputSvgPath || !outputPngPath) {
-  console.error("Uso: node render.mjs <entrada.svg> <salida.png>");
+if (!inputSvgPath || !outputPngPath || !Number.isFinite(scale) || scale <= 0) {
+  console.error("Uso: node render.mjs <entrada.svg> <salida.png> [factor-de-escala]");
   process.exit(1);
 }
 
@@ -38,9 +39,15 @@ if (!inputSvgPath || !outputPngPath) {
       throw new Error("No se pudo medir el tamaño del SVG.");
     }
 
+    // deviceScaleFactor: el SVG es vectorial (su viewBox no cambia con esto), pero la captura de
+    // pantalla SÍ es un raster — sin subir este factor, el PNG final sale a 1 pixel físico por
+    // punto CSS y se ve borroso/pixelado en cuanto Word lo encoge o alguien hace zoom (el "-s" de
+    // mermaid-cli ya no sirve para esto: confirmado que no cambia el viewBox del SVG en absoluto,
+    // solo afectaba la resolución cuando mermaid-cli exportaba PNG directo).
     await page.setViewport({
       width: Math.ceil(box.width),
       height: Math.ceil(box.height),
+      deviceScaleFactor: scale,
     });
 
     await svgHandle.screenshot({ path: outputPngPath, omitBackground: false });
