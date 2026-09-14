@@ -183,7 +183,15 @@ class FlowDiagramSvgPainter
      */
     private function paintLanes(\DOMDocument $dom, \DOMXPath $xpath, string $rootId, array $carrilOrder): void
     {
-        foreach ($carrilOrder as $index => $carrilId) {
+        // Mermaid dimensiona el rectángulo de cada carril justo a la altura de SU PROPIO
+        // contenido — un carril con un solo paso queda mucho más corto que uno con varios,
+        // dejando un hueco en blanco feo entre las franjas de color en vez de verse como
+        // columnas parejas (que es como se ve en el documento de referencia). Primera pasada:
+        // localizar el <rect> de fondo de cada carril y quedarnos con la altura máxima real.
+        $bgRects = [];
+        $maxHeight = 0.0;
+
+        foreach ($carrilOrder as $carrilId) {
             $clusterGroup = $xpath->query("//*[@id=\"{$rootId}-{$carrilId}\"]")->item(0);
             if (! $clusterGroup instanceof \DOMElement) {
                 continue;
@@ -194,6 +202,21 @@ class FlowDiagramSvgPainter
                 continue;
             }
 
+            $bgRects[$carrilId] = ['cluster' => $clusterGroup, 'rect' => $bg];
+            $maxHeight = max($maxHeight, (float) $bg->getAttribute('height'));
+        }
+
+        foreach ($carrilOrder as $index => $carrilId) {
+            if (! isset($bgRects[$carrilId])) {
+                continue;
+            }
+
+            $clusterGroup = $bgRects[$carrilId]['cluster'];
+            $bg = $bgRects[$carrilId]['rect'];
+
+            // Todos los carriles se estiran a la misma altura (la del más alto) — el punto de
+            // arriba (y) no se toca, los encabezados ya alinean ahí; solo se alarga hacia abajo.
+            $bg->setAttribute('height', (string) $maxHeight);
             $bg->setAttribute('style', 'fill:' . self::LANE_BODY_FILL . ';stroke:' . self::LANE_BODY_STROKE . ';stroke-width:1px;');
 
             $color = self::LANE_HEADER_COLORS[$index % count(self::LANE_HEADER_COLORS)];

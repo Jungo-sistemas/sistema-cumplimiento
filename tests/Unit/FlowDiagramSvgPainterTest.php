@@ -88,4 +88,44 @@ class FlowDiagramSvgPainterTest extends TestCase
 
         $this->assertStringContainsString('<svg', $painted);
     }
+
+    /**
+     * Bug real encontrado con un diagrama generado por la IA (2026-09): Mermaid dimensiona el
+     * rectángulo de cada carril justo a la altura de SU PROPIO contenido — un carril con un solo
+     * paso quedaba mucho más corto que uno con varios, dejando un hueco en blanco feo entre las
+     * franjas de color en vez de verse como columnas parejas (como en el documento de
+     * referencia). Las 4 franjas deben terminar con la misma altura: la del carril más alto.
+     */
+    public function test_todos_los_carriles_quedan_con_la_misma_altura(): void
+    {
+        $dom = new \DOMDocument();
+        $dom->loadXML($this->rawSvg);
+        $rootId = $dom->documentElement->getAttribute('id');
+        $xpath = new \DOMXPath($dom);
+
+        // gun/con tienen 1 solo nodo cada uno; gch tiene varios — alturas naturales distintas.
+        $heightsBefore = [];
+        foreach (['gch', 'gun', 'con', 'nom'] as $carrilId) {
+            $cluster = $xpath->query("//*[@id=\"{$rootId}-{$carrilId}\"]")->item(0);
+            $rect = $xpath->query('.//*[local-name()="rect"]', $cluster)->item(0);
+            $heightsBefore[$carrilId] = (float) $rect->getAttribute('height');
+        }
+        $this->assertGreaterThan(1, count(array_unique($heightsBefore)), 'El fixture no sirve para esta prueba: todos los carriles ya nacen con la misma altura.');
+
+        $painted = $this->painter->paint($this->rawSvg, $this->nodeMeta());
+
+        $paintedDom = new \DOMDocument();
+        $paintedDom->loadXML($painted);
+        $paintedXpath = new \DOMXPath($paintedDom);
+
+        $heightsAfter = [];
+        foreach (['gch', 'gun', 'con', 'nom'] as $carrilId) {
+            $cluster = $paintedXpath->query("//*[@id=\"{$rootId}-{$carrilId}\"]")->item(0);
+            $rect = $paintedXpath->query('.//*[local-name()="rect"]', $cluster)->item(0);
+            $heightsAfter[$carrilId] = (float) $rect->getAttribute('height');
+        }
+
+        $this->assertCount(1, array_unique($heightsAfter), 'Los 4 carriles deben terminar con la misma altura tras pintar.');
+        $this->assertEquals(max($heightsBefore), reset($heightsAfter), 'La altura común debe ser la del carril más alto, no un valor arbitrario.');
+    }
 }
