@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Verifica, en el servidor donde corra este comando, que todas las dependencias externas del
- * módulo de Procesos (migración, GD, LibreOffice, mermaid-cli/Node.js, API key de Anthropic)
+ * módulo de Procesos (migración, GD, LibreOffice, Node.js/Puppeteer, API key de Anthropic)
  * estén presentes — pensado para correrlo justo después de desplegar, sin tener que probar cada
  * cosa manualmente desde la interfaz (crear un documento, ver un ppt, etc.).
  *
@@ -22,7 +22,7 @@ class CheckProcessesRequirements extends Command
 {
     protected $signature = 'processes:check-requirements {--deep : Además de revisar que los binarios existan, ejecuta una conversión de prueba real}';
 
-    protected $description = 'Verifica que las dependencias del módulo de Procesos (migración, GD, LibreOffice, mermaid-cli, Puppeteer, Anthropic) estén listas en este servidor';
+    protected $description = 'Verifica que las dependencias del módulo de Procesos (migración, GD, LibreOffice, Puppeteer, Anthropic) estén listas en este servidor';
 
     public function handle(OfficeDocumentConverter $officeConverter, DiagramTitleBarComposer $titleBarComposer, AiProcedureGenerationService $aiService): int
     {
@@ -60,15 +60,9 @@ class CheckProcessesRequirements extends Command
         );
 
         $failures += $this->check(
-            'mermaid-cli instalado (node_modules)',
-            fn () => is_file(base_path('node_modules/@mermaid-js/mermaid-cli/src/cli.js')),
-            'Falta correr "npm install" en la raíz del proyecto.'
-        );
-
-        $failures += $this->check(
             'Puppeteer instalado (node_modules)',
             fn () => is_dir(base_path('node_modules/puppeteer')),
-            'Falta correr "npm install" en la raíz del proyecto — hace falta para pintar el diagrama de flujo con el estilo exacto de referencia.'
+            'Falta correr "npm install" en la raíz del proyecto — hace falta para rasterizar el diagrama de flujo con el estilo exacto de referencia.'
         );
 
         $failures += $this->check(
@@ -96,7 +90,7 @@ class CheckProcessesRequirements extends Command
 
             $diagramResult = $aiService->testDiagramPipeline();
             $failures += $this->check(
-                'Render de diagrama de flujo de prueba (Mermaid + Puppeteer)',
+                'Render de diagrama de flujo de prueba (layout propio + Puppeteer)',
                 fn () => $diagramResult['ok'],
                 $diagramResult['ok']
                     ? ''

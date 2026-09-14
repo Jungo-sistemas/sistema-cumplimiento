@@ -5,9 +5,9 @@ namespace App\Services;
 /**
  * Agrega la barra de título azul marino sobre el diagrama de flujo ya renderizado — igual que
  * el documento_ejemplo.docx trae "DIAGRAMA DE FLUJO — CÓDIGO NOMBRE (N pasos)" como banner fijo
- * encima del diagrama. Se compone aquí con GD (fuera del control de la IA y de Mermaid) por la
- * misma razón que el encabezado del documento se construye en PHP: ni el modelo ni el tema por
- * defecto de Mermaid pueden garantizar el mismo banner exacto en cada generación.
+ * encima del diagrama. Se compone aquí con GD (fuera del control de la IA) por la misma razón
+ * que el encabezado del documento se construye en PHP: ni el modelo ni el SVG generado pueden
+ * garantizar el mismo banner exacto en cada generación.
  */
 class DiagramTitleBarComposer
 {

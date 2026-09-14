@@ -27,10 +27,11 @@ class AiProcedureGenerationService
     private const DIAGRAM_MARKER = '{{DIAGRAMA_FLUJO}}';
 
     /**
-     * Factor de escala (Puppeteer deviceScaleFactor) con el que mermaid-cli captura el diagrama.
-     * El diagrama siempre se muestra al mismo tamaño físico en el documento (imageDimensionAttrs()
-     * lo topa a 624px), así que subir este factor no lo agranda — solo aumenta la densidad de
-     * píxeles, evitando que se vea borroso/pixelado al imprimir o hacer zoom en el PDF.
+     * Factor de escala (Puppeteer deviceScaleFactor) con el que se captura el diagrama ya
+     * renderizado. El diagrama siempre se muestra al mismo tamaño físico en el documento
+     * (imageDimensionAttrs() lo topa a 624px), así que subir este factor no lo agranda — solo
+     * aumenta la densidad de píxeles, evitando que se vea borroso/pixelado al imprimir o hacer
+     * zoom en el PDF.
      */
     private const DIAGRAM_RENDER_SCALE = 3;
 
@@ -45,8 +46,8 @@ class AiProcedureGenerationService
 
     public function __construct(
         private readonly RegulationBodyHtmlBuilder $bodyBuilder,
-        private readonly FlowDiagramMermaidBuilder $mermaidBuilder,
-        private readonly FlowDiagramSvgPainter $svgPainter,
+        private readonly FlowDiagramLayoutEngine $layoutEngine,
+        private readonly FlowDiagramSvgRenderer $svgRenderer,
         private readonly DiagramTitleBarComposer $titleBarComposer,
     ) {}
 
@@ -143,13 +144,13 @@ class AiProcedureGenerationService
 
     /**
      * Reemplaza el marcador {{DIAGRAMA_FLUJO}} por el diagrama ya renderizado como imagen:
-     * FlowDiagramMermaidBuilder arma el Mermaid (topología de la IA + texto real de
-     * documento.pasos) → mermaid-cli lo convierte a SVG (solo para resolver el acomodo
-     * automático del grafo) → FlowDiagramSvgPainter pinta ESE MISMO SVG con los colores/insignias
-     * exactos de referencia → Puppeteer lo rasteriza a PNG → DiagramTitleBarComposer le agrega la
-     * barra de título encima, igual que el documento_ejemplo.docx. Si algo falla en cualquier
-     * paso, se deja una nota simple en vez de bloquear la generación — el documento completo
-     * nunca debe fallar solo por el diagrama.
+     * FlowDiagramLayoutEngine calcula la geometría completa (topología de la IA + texto real de
+     * documento.pasos, en una cuadrícula pareja calculada por nosotros, no por un motor de
+     * acomodo automático ajeno) → FlowDiagramSvgRenderer arma el SVG desde cero con los
+     * colores/insignias exactos de referencia → Puppeteer lo rasteriza a PNG →
+     * DiagramTitleBarComposer le agrega la barra de título encima, igual que el
+     * documento_ejemplo.docx. Si algo falla en cualquier paso, se deja una nota simple en vez de
+     * bloquear la generación — el documento completo nunca debe fallar solo por el diagrama.
      *
      * @param  ?array<string, mixed>  $diagrama  El campo diagrama_flujo del schema (carriles/decisiones/pasos_especiales).
      * @param  array<int, array{titulo: string, responsable: string}>  $pasos  documento.pasos.
@@ -199,16 +200,10 @@ class AiProcedureGenerationService
      */
     private function renderFlowDiagramPng(array $diagrama, array $pasos): ?string
     {
-        ['mermaid' => $mermaid, 'nodeMeta' => $nodeMeta] = $this->mermaidBuilder->build($diagrama, $pasos);
+        $layout = $this->layoutEngine->build($diagrama, $pasos);
+        $svg = $this->svgRenderer->render($layout);
 
-        $rawSvg = $this->renderMermaidToSvg($mermaid);
-        if ($rawSvg === null) {
-            return null;
-        }
-
-        $paintedSvg = $this->svgPainter->paint($rawSvg, $nodeMeta);
-
-        return $this->rasterizeSvg($paintedSvg);
+        return $this->rasterizeSvg($svg);
     }
 
     /**
@@ -217,7 +212,7 @@ class AiProcedureGenerationService
      * las dimensiones de una imagen de los atributos width/height del <img>, nunca de su style=""
      * (por eso el "max-width:100%" que se usaba antes no hacía nada: el diagrama se insertaba a su
      * ancho nativo en píxeles, casi siempre mucho más ancho que la página, y Word lo recortaba en
-     * vez de encogerlo). El diagrama de mermaid-cli suele salir bastante más ancho que alto (varios
+     * vez de encogerlo). El diagrama suele salir bastante más ancho que alto (varios
      * carriles en fila), así que casi siempre hay que reducir el ancho y mantener la proporción.
      */
     private function imageDimensionAttrs(string $png): string
@@ -244,62 +239,8 @@ class AiProcedureGenerationService
     }
 
     /**
-     * Convierte una definición de diagrama Mermaid a SVG con mermaid-cli (@mermaid-js/mermaid-cli,
-     * instalado como dependencia del proyecto en package.json — no globalmente, para no depender
-     * del PATH del usuario/servicio que corra PHP). Se pide SVG y no PNG a propósito: aquí Mermaid
-     * solo resuelve el acomodo automático del grafo (posiciones, rutas de las flechas) — el color y
-     * las insignias los pinta después FlowDiagramSvgPainter sobre ESTE MISMO SVG. Devuelve null en
-     * vez de lanzar una excepción si falla, para no bloquear todo el documento.
-     *
-     * Antes esto se hacía vía Kroki.io (servicio público gratuito, sin SLA), que renderiza Mermaid
-     * lanzando un Chromium headless en SU servidor compartido — y ese lanzamiento fallaba
-     * intermitentemente por falta de recursos ahí (confirmado en pruebas: ~40% de fallas bajo
-     * ráfagas de peticiones). Renderizar localmente con mermaid-cli (que también usa Puppeteer/
-     * Chromium, pero corriendo en nuestro propio servidor) elimina esa dependencia externa.
-     */
-    private function renderMermaidToSvg(string $mermaidSource): ?string
-    {
-        $maxAttempts = 3;
-
-        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
-            $input = tempnam(sys_get_temp_dir(), 'mmd_in_') . '.mmd';
-            $output = tempnam(sys_get_temp_dir(), 'mmd_out_') . '.svg';
-            file_put_contents($input, $mermaidSource);
-
-            try {
-                [$exitCode, $stdout, $stderr] = $this->runMermaidCli($input, $output);
-
-                if ($exitCode === 0 && is_file($output)) {
-                    return file_get_contents($output);
-                }
-
-                Log::warning('AiProcedureGenerationService: mermaid-cli no pudo renderizar el diagrama', [
-                    'attempt' => $attempt,
-                    'exit_code' => $exitCode,
-                    'output' => $stderr ?: $stdout,
-                    'mermaid' => $mermaidSource,
-                ]);
-            } catch (\Throwable $e) {
-                Log::warning('AiProcedureGenerationService: fallo al renderizar el diagrama de flujo', [
-                    'attempt' => $attempt,
-                    'error' => $e->getMessage(),
-                ]);
-            } finally {
-                @unlink($input);
-                @unlink($output);
-            }
-
-            if ($attempt < $maxAttempts) {
-                usleep(500_000);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Rasteriza a PNG el SVG ya pintado por FlowDiagramSvgPainter, con Puppeteer (resources/
-     * diagram-renderer/render.mjs) — mismo patrón de reintentos que renderMermaidToSvg().
+     * Rasteriza a PNG el SVG ya armado por FlowDiagramSvgRenderer, con Puppeteer (resources/
+     * diagram-renderer/render.mjs).
      */
     private function rasterizeSvg(string $svg): ?string
     {
@@ -343,70 +284,11 @@ class AiProcedureGenerationService
     /**
      * Se invoca con proc_open() nativo de PHP en vez de Illuminate\Support\Facades\Process a
      * propósito: en Windows (confirmado en producción y en local, con Node 22 LTS y con Node 24,
-     * y sin importar si se llama al binario node_modules/.bin/mmdc.cmd o a "node" + el script
-     * directamente), Symfony Process hace que Node truene al arrancar con "Assertion failed:
-     * ncrypto::CSPRNG" — Node ni siquiera llega a ejecutar una línea del script. La MISMA llamada
-     * vía proc_open()/shell_exec() nativo, en el mismo proceso PHP, funciona sin problema. No se
-     * investigó más a fondo por qué Symfony Process dispara esto (aparenta ser una interacción
-     * rara con cómo arma el comando en Windows); proc_open es la vía que sí funciona.
-     */
-    private function runMermaidCli(string $input, string $output): array
-    {
-        // Sin "-s" (factor de escala): confirmado con una prueba real que no tiene ningún efecto
-        // sobre la salida SVG (el viewBox sale idéntico con -s 1 o -s 3) — solo servía cuando
-        // mermaid-cli exportaba PNG directo. La resolución final ahora la da el deviceScaleFactor
-        // de Puppeteer en runDiagramRenderer(), sobre el SVG ya pintado.
-        $cliJs = base_path('node_modules/@mermaid-js/mermaid-cli/src/cli.js');
-        $cmd = sprintf(
-            'node %s -i %s -o %s -b white',
-            escapeshellarg($cliJs),
-            escapeshellarg($input),
-            escapeshellarg($output)
-        );
-
-        $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
-
-        if (! is_resource($proc)) {
-            return [1, '', 'No se pudo iniciar el proceso de mermaid-cli.'];
-        }
-
-        stream_set_blocking($pipes[1], false);
-        stream_set_blocking($pipes[2], false);
-
-        $stdout = '';
-        $stderr = '';
-        $start = microtime(true);
-        $timeoutSeconds = 30;
-
-        do {
-            $stdout .= stream_get_contents($pipes[1]);
-            $stderr .= stream_get_contents($pipes[2]);
-            $status = proc_get_status($proc);
-
-            if ($status['running'] && (microtime(true) - $start) > $timeoutSeconds) {
-                proc_terminate($proc);
-                $stderr .= "\n[mermaid-cli: tiempo de espera agotado tras {$timeoutSeconds}s]";
-                break;
-            }
-
-            if ($status['running']) {
-                usleep(100_000);
-            }
-        } while ($status['running']);
-
-        $stdout .= stream_get_contents($pipes[1]);
-        $stderr .= stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        $exitCode = proc_close($proc);
-
-        return [$exitCode, $stdout, $stderr];
-    }
-
-    /**
-     * Mismo patrón de proc_open() que runMermaidCli() (ver ese docblock para el porqué: la
-     * fachada Process de Laravel hace tronar a Node en este servidor Windows) — invoca
-     * resources/diagram-renderer/render.mjs con Puppeteer para rasterizar el SVG ya pintado.
+     * y sin importar si se llama al binario directo o a "node" + el script), Symfony Process hace
+     * que Node truene al arrancar con "Assertion failed: ncrypto::CSPRNG" — Node ni siquiera
+     * llega a ejecutar una línea del script. La MISMA llamada vía proc_open()/shell_exec() nativo,
+     * en el mismo proceso PHP, funciona sin problema. No se investigó más a fondo por qué Symfony
+     * Process dispara esto; proc_open es la vía que sí funciona.
      */
     private function runDiagramRenderer(string $inputSvg, string $outputPng): array
     {
@@ -459,7 +341,7 @@ class AiProcedureGenerationService
     }
 
     /**
-     * Prueba real de todo el pipeline (Mermaid → SVG → pintado → Puppeteer → PNG), reusando
+     * Prueba real de todo el pipeline (layout propio → SVG → Puppeteer → PNG), reusando
      * exactamente el mismo camino que usa insertFlowDiagram() en producción — a diferencia de un
      * chequeo con exec()/Process, esto detecta con certeza si el render de verdad funciona en
      * este servidor, no solo si los binarios existen. Pensada para diagnóstico
@@ -469,37 +351,28 @@ class AiProcedureGenerationService
      */
     public function testDiagramPipeline(): array
     {
-        $mermaidInput = tempnam(sys_get_temp_dir(), 'mmd_check_') . '.mmd';
-        $svgOutput = tempnam(sys_get_temp_dir(), 'mmd_check_out_') . '.svg';
-        file_put_contents($mermaidInput, "flowchart LR\nsubgraph l1[\"Prueba\"]\ndirection TB\na([Inicio]) --> b[\"1. Paso\"] --> c([Fin])\nend\n");
+        $diagrama = [
+            'carriles' => [['id' => 'l1', 'nombre' => 'Prueba']],
+            'decisiones' => [],
+            'pasos_especiales' => [],
+        ];
+        $pasos = [['titulo' => 'Paso de prueba', 'responsable' => 'Prueba']];
+
+        $layout = $this->layoutEngine->build($diagrama, $pasos);
+        $svg = $this->svgRenderer->render($layout);
+
+        $pngInput = tempnam(sys_get_temp_dir(), 'flowdiag_check_') . '.svg';
+        $pngOutput = tempnam(sys_get_temp_dir(), 'flowdiag_check_out_') . '.png';
+        file_put_contents($pngInput, $svg);
 
         try {
-            [$exitCode, $stdout, $stderr] = $this->runMermaidCli($mermaidInput, $svgOutput);
+            [$exitCode, $stdout, $stderr] = $this->runDiagramRenderer($pngInput, $pngOutput);
+            $ok = $exitCode === 0 && is_file($pngOutput) && filesize($pngOutput) > 0;
 
-            if ($exitCode !== 0 || ! is_file($svgOutput)) {
-                return ['ok' => false, 'exit_code' => $exitCode, 'stderr' => trim($stderr), 'stdout' => trim($stdout)];
-            }
-
-            $painted = $this->svgPainter->paint(file_get_contents($svgOutput), [
-                'b' => ['tipo' => 'actividad', 'carril_id' => 'l1', 'paso_numero' => 1, 'nota' => null],
-            ]);
-
-            $pngInput = tempnam(sys_get_temp_dir(), 'flowdiag_check_') . '.svg';
-            $pngOutput = tempnam(sys_get_temp_dir(), 'flowdiag_check_out_') . '.png';
-            file_put_contents($pngInput, $painted);
-
-            try {
-                [$exitCode, $stdout, $stderr] = $this->runDiagramRenderer($pngInput, $pngOutput);
-                $ok = $exitCode === 0 && is_file($pngOutput) && filesize($pngOutput) > 0;
-
-                return ['ok' => $ok, 'exit_code' => $exitCode, 'stderr' => trim($stderr), 'stdout' => trim($stdout)];
-            } finally {
-                @unlink($pngInput);
-                @unlink($pngOutput);
-            }
+            return ['ok' => $ok, 'exit_code' => $exitCode, 'stderr' => trim($stderr), 'stdout' => trim($stdout)];
         } finally {
-            @unlink($mermaidInput);
-            @unlink($svgOutput);
+            @unlink($pngInput);
+            @unlink($pngOutput);
         }
     }
 

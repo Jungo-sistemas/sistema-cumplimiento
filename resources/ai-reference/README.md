@@ -18,8 +18,10 @@ Coloca aquí:
 4. **`diagrama_ejemplo.png`** — imagen de ejemplo de un diagrama de flujo por
    carriles (uno por puesto/responsable), con óvalos de inicio/fin, pasos
    numerados y rombos de decisión. Se manda a la IA como referencia visual
-   (Claude sí puede "ver" imágenes) para que genere el diagrama de cada
-   procedimiento nuevo en ese mismo estilo, vía Mermaid + Kroki.io.
+   (Claude sí puede "ver" imágenes) para que describa únicamente la LÓGICA de
+   cada procedimiento nuevo (carriles, decisiones, subprocesos) — el dibujo en
+   sí lo arma el sistema con un motor de acomodo propio (FlowDiagramLayoutEngine
+   + FlowDiagramSvgRenderer), nunca la IA ni un motor de acomodo ajeno.
 
 Junto con el esqueleto que arma el usuario en el wizard, son las fuentes que
 la IA combina para redactar el procedimiento final.

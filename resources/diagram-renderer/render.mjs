@@ -1,13 +1,10 @@
-// Rasteriza a PNG un SVG ya pintado por FlowDiagramSvgPainter (colores/insignias/carriles ya
-// inyectados — este script NUNCA decide estilo, solo toma la foto). Reutiliza el mismo Chromium
-// que ya trae instalado @mermaid-js/mermaid-cli (mismo `headless: "shell"` que usa su propio
-// código, ver node_modules/@mermaid-js/mermaid-cli/src/index.js) para no depender de una segunda
-// descarga de navegador ni de argumentos de lanzamiento sin probar en este servidor.
+// Rasteriza a PNG un SVG ya armado por FlowDiagramSvgRenderer (colores/insignias/carriles ya
+// dibujados — este script NUNCA decide estilo, solo toma la foto).
 //
 // Uso: node render.mjs <ruta-svg-entrada> <ruta-png-salida>
 // Invocado desde PHP con proc_open() — NUNCA con Illuminate\Support\Facades\Process, que hace
 // tronar a Node en este servidor Windows con "Assertion failed: ncrypto::CSPRNG" (ver
-// AiProcedureGenerationService::runMermaidCli() para el mismo problema ya documentado).
+// AiProcedureGenerationService::runDiagramRenderer() para el mismo problema ya documentado).
 
 import puppeteer from "puppeteer";
 import path from "path";
@@ -41,9 +38,7 @@ if (!inputSvgPath || !outputPngPath || !Number.isFinite(scale) || scale <= 0) {
 
     // deviceScaleFactor: el SVG es vectorial (su viewBox no cambia con esto), pero la captura de
     // pantalla SÍ es un raster — sin subir este factor, el PNG final sale a 1 pixel físico por
-    // punto CSS y se ve borroso/pixelado en cuanto Word lo encoge o alguien hace zoom (el "-s" de
-    // mermaid-cli ya no sirve para esto: confirmado que no cambia el viewBox del SVG en absoluto,
-    // solo afectaba la resolución cuando mermaid-cli exportaba PNG directo).
+    // punto CSS y se ve borroso/pixelado en cuanto Word lo encoge o alguien hace zoom.
     await page.setViewport({
       width: Math.ceil(box.width),
       height: Math.ceil(box.height),

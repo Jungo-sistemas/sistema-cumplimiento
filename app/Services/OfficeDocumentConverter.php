@@ -104,7 +104,7 @@ class OfficeDocumentConverter
     }
 
     /**
-     * Igual patrón que AiProcedureGenerationService::runMermaidCli(): proc_open() nativo con
+     * Igual patrón que AiProcedureGenerationService::runDiagramRenderer(): proc_open() nativo con
      * pipes no bloqueantes y sondeo manual — Symfony Process (Illuminate\Support\Facades\Process)
      * hace tronar procesos hijos de Node en este servidor Windows; por consistencia y porque ya
      * está probado que funciona, se usa el mismo mecanismo aquí para el proceso de soffice.
