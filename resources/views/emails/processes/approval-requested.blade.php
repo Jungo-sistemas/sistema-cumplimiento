@@ -28,10 +28,6 @@
         .change-box p { margin: 0 0 6px; font-size: 14px; color: #92400e; }
         .change-box .change-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #92400e; margin-bottom: 8px; }
         .change-box a { color: #92400e; font-weight: 600; font-size: 13px; text-decoration: underline; margin-right: 16px; }
-        .diff-table { width: 100%; border-collapse: collapse; margin: 10px 0; table-layout: fixed; }
-        .diff-table td { padding: 8px 10px; border: 1px solid #fde68a; font-size: 13px; color: #374151; vertical-align: top; word-wrap: break-word; }
-        .diff-table td.head { background: #fef3c7; font-weight: 700; color: #92400e; font-size: 12px; text-transform: uppercase; }
-        .diff-table td.section-title { font-weight: 600; color: #92400e; width: 18%; }
         .footer { background: #f9fafb; padding: 16px 32px; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
     </style>
 </head>
@@ -86,7 +82,7 @@
                 </table>
             @endif
 
-            @if($currentVersion && ($currentVersion->change_description || $currentVersion->change_justification || count($changedSections) > 0))
+            @if($currentVersion && ($currentVersion->change_description || $currentVersion->change_justification))
                 <div class="change-box">
                     <p class="change-label">Qué cambió en esta versión</p>
                     @if($currentVersion->change_description)
@@ -94,23 +90,6 @@
                     @endif
                     @if($currentVersion->change_justification)
                         <p><strong>Justificación:</strong> {{ $currentVersion->change_justification }}</p>
-                    @endif
-
-                    @if(count($changedSections) > 0)
-                        <table class="diff-table">
-                            <tr>
-                                <td class="head">Sección</td>
-                                <td class="head">Antes</td>
-                                <td class="head">Después</td>
-                            </tr>
-                            @foreach($changedSections as $section)
-                                <tr>
-                                    <td class="section-title">{{ $section['title'] }}</td>
-                                    <td>{!! nl2br(e($section['before'])) !!}</td>
-                                    <td>{!! nl2br(e($section['after'])) !!}</td>
-                                </tr>
-                            @endforeach
-                        </table>
                     @endif
 
                     <p style="margin-top: 10px;">

@@ -73,8 +73,13 @@
                     $totalSteps = count(\App\Services\ApprovalFlowService::getFlowSteps($regulation->impact_level));
                     $currentVersion  = $regulation->currentVersion;
                     $previousVersion = $currentVersion?->previousVersion();
-                    $changedSections = app(\App\Services\RegulationChangeDiffService::class)
+                    $changedSectionsAll = app(\App\Services\RegulationChangeDiffService::class)
                         ->diff($previousVersion?->body_html, $currentVersion?->body_html);
+                    // Solo el último cambio (la sección más reciente), no la lista completa —
+                    // con varias secciones modificadas en la misma edición esto podía salir muy
+                    // largo; decisión explícita del usuario, se sigue calculando todo pero solo
+                    // se muestra 1 fila.
+                    $changedSections = $changedSectionsAll !== [] ? [end($changedSectionsAll)] : [];
                 @endphp
 
                 <div x-data="{ showPreview: false, showReject: false, showConfirm: false }" class="bg-white rounded-xl border shadow-sm overflow-hidden">
