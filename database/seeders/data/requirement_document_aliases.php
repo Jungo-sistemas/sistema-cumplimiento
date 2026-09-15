@@ -62,11 +62,27 @@ return [
         'NOM-016-CRE-2016 Muestreo de laboratorio de Calidad de Petroliferos' => 'NOM-016-- Muestreo de laboratorio de Calidad de Petroliferos',
         'NOM-185-SCFI-2011 Modelo prototipo software de dispensarios' => 'NOM-185-SCFI- Modelo prototipo software de dispensarios',
 
+        // Confirmado con negocio: mismo requerimiento, redactado con guion entre el código de
+        // norma y la descripción en el Excel de vigencias (ES Mante 1).
+        'NOM-005-ASEA-2016 - Dictamen de Construcción' => 'NOM-005-ASEA- Dictamen de Construcción',
+        'NOM-005-ASEA-2016 - Dictamen de Diseño' => 'NOM-005-ASEA- Dictamen de Diseño',
+        'NOM-005-ASEA-2016 - Dictamen de Operación y Mantenimiento' => 'NOM-005-ASEA- Dictamen de operación y mantenimiento',
+        'NOM-016-CRE-2016 - Dictamen de Calidad de Petrolíferos' => 'NOM-016-- Dictamen de Calidad de Petroliferos',
+        'NOM-016-CRE-2016 - Muestreo de Laboratorio' => 'NOM-016-- Muestreo de laboratorio de Calidad de Petroliferos',
+        // Confirmado con negocio: iniciales ARSH = Análisis de Riesgo del Sector de Hidrocarburos (ES Mante 1).
+        'ARSH' => 'Analisis de Riesgo del Sector de Hidrocarburos',
+
         // Confirmado con negocio: mismo requerimiento con nombre abreviado en la carpeta
         // entregada por la estación ES Linares 3.
         'Controles volumetricos' => 'ANEXO 21-22 Certificado de Control Volúmetrico',
+        // Confirmado con negocio: mismo requerimiento, con "/" en vez de "-" en el Excel de
+        // vigencias (ES Mante 1).
+        'ANEXO 21/22 Certificado de Control Volumétrico' => 'ANEXO 21-22 Certificado de Control Volúmetrico',
         'Manifiesto de Impacto Ambiental' => 'Manifiesto de Impacto Ambiental / Informe Preventivo',
         'Pólizas de seguros RC' => 'Pólizas de seguros RC y RCA+ Determinación de los Límites',
+        // Confirmado con negocio: mismo requerimiento, "Seguro" en singular en el Excel de
+        // vigencias (ES Mante 1).
+        'Pólizas de Seguro RC' => 'Pólizas de seguros RC y RCA+ Determinación de los Límites',
         // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de vigencias (ES Libramiento).
         'Pólizas de Seguros RC y RCA' => 'Pólizas de seguros RC y RCA+ Determinación de los Límites',
         'NOM-016-CRE-2016 Muestreo de Laboratorio' => 'NOM-016-CRE-2016 Muestreo de laboratorio de Calidad de Petroliferos',
