@@ -30,7 +30,14 @@ return [
         'Pólizas de Seguros RC y RCA - Determinación de Límites' => 'Pólizas de seguros RC y RCA+ Determinación de los Límites',
         // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de vigencias (ES Crucero).
         'Pólizas de seguros RC y RCA - Límites' => 'Pólizas de seguros RC y RCA+ Determinación de los Límites',
+        // Confirmado con negocio: mismo requerimiento, sin el "+" ni el guion (ES Los Angeles).
+        'Pólizas de seguros RC y RCA Determinación de los Límites' => 'Pólizas de seguros RC y RCA+ Determinación de los Límites',
         'Vo.Bo. Inicio de Operaciones - Protección Civil' => 'Vobo de Inicio de Operaciones Protección Civil',
+        // Confirmado con negocio: mismo requerimiento, nombre abreviado en archivo y CSV (ES Los Angeles).
+        'Vo Bo Protección Civil' => 'Vobo de Inicio de Operaciones Protección Civil',
+        // Confirmado con negocio: la licencia federal ASEA, identificada por los logos de ASEA
+        // dentro del propio documento (ES Los Angeles).
+        'Licencia de Funcionamiento' => 'Licencia Ambiental Única / Licencia de Funcionamiento',
         'Pruebas de Integridad Mecánica PH' => 'Pruebas de integridad mecánica',
         'SASISOPA - Implementación' => 'SASISOPA Implementación',
 
