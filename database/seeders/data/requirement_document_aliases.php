@@ -83,12 +83,21 @@ return [
         // Confirmado con negocio: mismo requerimiento, "Seguro" en singular en el Excel de
         // vigencias (ES Mante 1).
         'Pólizas de Seguro RC' => 'Pólizas de seguros RC y RCA+ Determinación de los Límites',
+        // Confirmado con negocio: mismo requerimiento, "Póliza" y "Seguro" en singular en el
+        // Excel de vigencias (ES Mante 3).
+        'Póliza de Seguro RC' => 'Pólizas de seguros RC y RCA+ Determinación de los Límites',
+        // Confirmado con negocio: mismo requerimiento, segundo documento/copia (ES Mante 3).
+        'Licencia de Uso de Suelo 2' => 'Licencia de Uso de Suelo',
         // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de vigencias (ES Libramiento).
         'Pólizas de Seguros RC y RCA' => 'Pólizas de seguros RC y RCA+ Determinación de los Límites',
         'NOM-016-CRE-2016 Muestreo de Laboratorio' => 'NOM-016-CRE-2016 Muestreo de laboratorio de Calidad de Petroliferos',
         // Confirmado con negocio: mismo requerimiento, al Excel de vigencias le falta el "de" (ES Libramiento).
         'NOM-016-CRE-2016 Muestreo Laboratorio' => 'NOM-016-- Muestreo de laboratorio de Calidad de Petroliferos',
         'Escritura de inmueble o Contrato de Arrendamiento'
+            => 'Escritura de inmueble o Contrato de Arrendamiento que avale propiedad o posesión del inmueble',
+        // Confirmado con negocio: mismo requerimiento, redactado con "/" en vez de "o" en el
+        // Excel de vigencias (ES Mante 3).
+        'Escritura de Inmueble / Contrato de Arrendamiento'
             => 'Escritura de inmueble o Contrato de Arrendamiento que avale propiedad o posesión del inmueble',
         // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de vigencias (ES Ebano).
         'Escritura de inmueble'
