@@ -24,6 +24,10 @@ return [
             => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
         'Evaluación de Impacto Social'
             => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
+        // Confirmado con negocio: mismo requerimiento, sin la coma antes de "EVIS" en el Excel
+        // de vigencias (ES Mezquital).
+        'Resolutivo de Evaluación de Impacto Social EVIS'
+            => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
 
         // Nombres del Excel de vigencias (fechas de emisión/vigencia por documento) que no
         // calzan literal con el catálogo — confirmado manualmente que es el mismo requerimiento.
@@ -61,6 +65,9 @@ return [
         'NOM-016-CRE-2016 Dictamen de Calidad de Petroliferos' => 'NOM-016-- Dictamen de Calidad de Petroliferos',
         'NOM-016-CRE-2016 Muestreo de laboratorio de Calidad de Petroliferos' => 'NOM-016-- Muestreo de laboratorio de Calidad de Petroliferos',
         'NOM-185-SCFI-2011 Modelo prototipo software de dispensarios' => 'NOM-185-SCFI- Modelo prototipo software de dispensarios',
+        // Confirmado con negocio: mismo requerimiento (no el de NOM-185), con typo "dipensarios"
+        // en el Excel de vigencias (ES Mezquital).
+        'Modelo prototipo de los dipensarios' => 'Modelo prototipo de los dispensario',
 
         // Confirmado con negocio: mismo requerimiento, redactado con guion entre el código de
         // norma y la descripción en el Excel de vigencias (ES Mante 1).
