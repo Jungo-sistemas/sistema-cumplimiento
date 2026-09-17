@@ -57,6 +57,9 @@ return [
         'NOM-004-ASEA-2017 Proyecto Ejecutivo SRV' => 'NOM-004-ASEA- Proyecto Ejecutivo SRV',
         'NOM-005-ASEA-2016 Dictamen de Construcción' => 'NOM-005-ASEA- Dictamen de Construcción',
         'NOM-005-ASEA-2016 Dictamen de Diseño' => 'NOM-005-ASEA- Dictamen de Diseño',
+        // Confirmado con negocio: mismo requerimiento; el Excel de vigencias pegó el nombre de
+        // la estación directo al texto, sin guion ni el código de norma (ES Mil Cumbres).
+        'Dictamen Diseño Mil Cumbres' => 'NOM-005-ASEA- Dictamen de Diseño',
         'NOM-005-ASEA-2016 Dictamen de operación y mantenimiento' => 'NOM-005-ASEA- Dictamen de operación y mantenimiento',
         // Confirmado con negocio: mismo requerimiento, al Excel de vigencias le falta el "de" (ES Colonias).
         'NOM-005-ASEA-2016 Dictamen Operación y Mantenimiento' => 'NOM-005-ASEA- Dictamen de operación y mantenimiento',
