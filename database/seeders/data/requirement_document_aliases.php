@@ -28,6 +28,10 @@ return [
         // de vigencias (ES Mezquital).
         'Resolutivo de Evaluación de Impacto Social EVIS'
             => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
+        // Confirmado con negocio: mismo requerimiento, sin "Resolutivo de" ni la coma antes de
+        // "EVIS" en el Excel de vigencias (ES Papantla).
+        'Evaluación de Impacto Social EVIS'
+            => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
 
         // Nombres del Excel de vigencias (fechas de emisión/vigencia por documento) que no
         // calzan literal con el catálogo — confirmado manualmente que es el mismo requerimiento.
