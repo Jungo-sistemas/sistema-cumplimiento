@@ -121,6 +121,10 @@ return [
         // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de vigencias (ES Barquito).
         'Escritura/Contrato de Arrendamiento'
             => 'Escritura de inmueble o Contrato de Arrendamiento que avale propiedad o posesión del inmueble',
+        // Confirmado con negocio: mismo requerimiento, con "del inmueble" agregado al final en
+        // el Excel de vigencias (ES Morones 2).
+        'Escritura/Contrato de Arrendamiento del inmueble'
+            => 'Escritura de inmueble o Contrato de Arrendamiento que avale propiedad o posesión del inmueble',
         // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de vigencias (ES Crucero).
         'Contrato de arrendamiento'
             => 'Escritura de inmueble o Contrato de Arrendamiento que avale propiedad o posesión del inmueble',
