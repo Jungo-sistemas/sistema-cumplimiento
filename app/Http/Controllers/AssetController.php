@@ -376,6 +376,7 @@ class AssetController extends Controller
         $asset->load([
             'parent.assetType',
             'children.assetType',
+            'children.responsible',
         ]);
 
         $search = trim((string) $request->get('search', ''));
