@@ -13,6 +13,7 @@ use App\Models\RequirementTemplate;
 use App\Models\User;
 use App\Services\LicenseService;
 use App\Services\SyncAssetRequirementsService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -141,15 +142,6 @@ class AssetController extends Controller
             $query->whereRaw('LOWER(name) LIKE ?', ['%' . mb_strtolower($q) . '%']);
         }
 
-        if ($request->filled('location')) {
-            $query->whereRaw('UPPER(TRIM(location)) = ?', [Str::upper(trim($request->location))]);
-        }
-
-        $assets = $query
-            ->latest('id')
-            ->paginate(15)
-            ->withQueryString();
-
         $locationsQuery = Asset::query()
             ->when($user->hasGroupScope(), function ($query) use ($user) {
                 $query->whereHas('company', function ($subQuery) use ($user) {
@@ -169,17 +161,25 @@ class AssetController extends Controller
             $locationsQuery->where('company_id', $selectedCompanyId);
         }
 
-        // INITCAP(TRIM(...)): la ubicación se guarda con formatos distintos según cómo haya
-        // entrado el activo (mayúsculas en cargas por CSV, minúsculas o mixto desde el
-        // formulario), y sin normalizar el combo mostraba "Nuevo León" y "NUEVO LEÓN" como dos
-        // opciones separadas. El filtro WHERE de abajo ya compara sin distinguir mayúsculas ni
-        // espacios, así que mostrar la versión normalizada aquí no rompe el matching.
-        $locations = $locationsQuery
-            ->whereNotNull('location')
-            ->where('location', '!=', '')
-            ->select(DB::raw('DISTINCT INITCAP(TRIM(location)) AS location'))
-            ->orderBy('location')
-            ->pluck('location');
+        // La ubicación se guarda con formatos distintos según cómo haya entrado el activo:
+        // mayúsculas en cargas por CSV, sin acentos, o abreviada ("SLP"/"S.L.P." en vez de "San
+        // Luis Potosí"). locationGroups() agrupa esas variantes crudas bajo una sola etiqueta
+        // canónica (ver normalizeLocationKey() y location_aliases.php), tanto para poblar el
+        // combo como para que filtrar por una de ellas traiga los activos guardados con
+        // cualquier otra variante del mismo lugar.
+        $locationGroups = $this->locationGroups($locationsQuery);
+
+        if ($request->filled('location')) {
+            $key = $this->normalizeLocationKey(trim($request->location));
+            $query->whereIn('location', $locationGroups[$key]['raws'] ?? [trim($request->location)]);
+        }
+
+        $assets = $query
+            ->latest('id')
+            ->paginate(15)
+            ->withQueryString();
+
+        $locations = collect($locationGroups)->pluck('display')->sort()->values();
 
         // License info for the current context
         $licenseCompany = $selectedCompanyId
@@ -198,6 +198,52 @@ class AssetController extends Controller
             'assets', 'assetTypes', 'locations', 'companies', 'otrasCompanies',
             'selectedCompanyId', 'filterGrupo', 'filterOtraId', 'licenseInfo'
         ));
+    }
+
+    /**
+     * Agrupa los valores crudos de "location" que representan el mismo lugar bajo una sola
+     * etiqueta canónica: variantes que solo difieren en mayúsculas/acentos/espacios se agrupan
+     * automáticamente (normalizeLocationKey), y las abreviaturas o nombres realmente distintos
+     * ("SLP", "S.L.P.") se resuelven contra database/seeders/data/location_aliases.php.
+     *
+     * @return array<string, array{display: string, raws: array<int, string>}>
+     */
+    private function locationGroups(Builder $scopedQuery): array
+    {
+        $aliases = collect(require database_path('seeders/data/location_aliases.php'))
+            ->mapWithKeys(fn ($canonical, $alias) => [$this->normalizeLocationKey($alias) => $canonical]);
+
+        $groups = [];
+
+        $scopedQuery->whereNotNull('location')
+            ->where('location', '!=', '')
+            ->distinct()
+            ->pluck('location')
+            ->each(function (string $raw) use (&$groups, $aliases) {
+                $trimmed = trim($raw);
+                $display = $aliases[$this->normalizeLocationKey($trimmed)] ?? Str::title(mb_strtolower($trimmed));
+                // Se agrupa por la clave del nombre ya resuelto (no la del crudo): así "SLP" y
+                // "S.L.P." (alias -> "San Luis Potosí") caen en el mismo grupo que las filas que
+                // ya traen "San Luis Potosí" escrito directo, en vez de quedar cada uno aparte.
+                $key = $this->normalizeLocationKey($display);
+                $groups[$key]['raws'][] = $raw;
+                $groups[$key]['candidates'][] = $display;
+            });
+
+        foreach ($groups as $key => &$group) {
+            // Entre las variantes del mismo lugar, se prefiere como etiqueta la que sí trae
+            // acentos (p. ej. "Nuevo León" sobre "Nuevo Leon") por ser la forma correcta.
+            usort($group['candidates'], fn ($a, $b) => ($b !== Str::ascii($b)) <=> ($a !== Str::ascii($a)));
+            $group['display'] = $group['candidates'][0];
+            unset($group['candidates']);
+        }
+
+        return $groups;
+    }
+
+    private function normalizeLocationKey(string $value): string
+    {
+        return Str::of($value)->trim()->squish()->ascii()->upper()->toString();
     }
 
     public function create(Request $request)
