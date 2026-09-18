@@ -169,10 +169,15 @@ class AssetController extends Controller
             $locationsQuery->where('company_id', $selectedCompanyId);
         }
 
+        // INITCAP(TRIM(...)): la ubicación se guarda con formatos distintos según cómo haya
+        // entrado el activo (mayúsculas en cargas por CSV, minúsculas o mixto desde el
+        // formulario), y sin normalizar el combo mostraba "Nuevo León" y "NUEVO LEÓN" como dos
+        // opciones separadas. El filtro WHERE de abajo ya compara sin distinguir mayúsculas ni
+        // espacios, así que mostrar la versión normalizada aquí no rompe el matching.
         $locations = $locationsQuery
             ->whereNotNull('location')
             ->where('location', '!=', '')
-            ->distinct()
+            ->select(DB::raw('DISTINCT INITCAP(TRIM(location)) AS location'))
             ->orderBy('location')
             ->pluck('location');
 

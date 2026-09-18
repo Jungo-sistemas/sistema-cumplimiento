@@ -140,7 +140,7 @@
                 <option value="">Todas</option>
 
                 @foreach($locations as $loc)
-                    <option value="{{ $loc }}" @selected(request('location') === $loc)>
+                    <option value="{{ $loc }}" @selected(mb_strtoupper(trim((string) request('location'))) === mb_strtoupper(trim($loc)))>
                         {{ $loc }}
                     </option>
                 @endforeach
