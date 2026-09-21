@@ -106,6 +106,11 @@ class User extends Authenticatable
         return $this->role?->slug === 'readonly';
     }
 
+    public function isAuditor(): bool
+    {
+        return $this->role?->slug === 'auditor';
+    }
+
     public function isInvited(): bool
     {
         return $this->status === 'invited';

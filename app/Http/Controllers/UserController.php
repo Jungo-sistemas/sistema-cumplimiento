@@ -35,8 +35,8 @@ class UserController extends Controller
             ->paginate(10);
 
         $allowedRoleSlugs = ($authUser->hasGroupScope() || $authUser->isGlobalScope())
-            ? ['admin', 'operative', 'readonly']
-            : ['operative', 'readonly'];
+            ? ['admin', 'operative', 'readonly', 'auditor']
+            : ['operative', 'readonly', 'auditor'];
 
         $roles = Role::whereIn('slug', $allowedRoleSlugs)->orderBy('name')->get();
 
@@ -58,7 +58,9 @@ class UserController extends Controller
         $authUser = auth()->user();
 
         $canAssignAdmin = $authUser->hasGroupScope() || $authUser->isGlobalScope();
-        $allowedRoleSlugs = $canAssignAdmin ? ['admin', 'operative', 'readonly'] : ['operative', 'readonly'];
+        $allowedRoleSlugs = $canAssignAdmin
+            ? ['admin', 'operative', 'readonly', 'auditor']
+            : ['operative', 'readonly', 'auditor'];
 
         $roles = Role::whereIn('slug', $allowedRoleSlugs)->orderBy('name')->get();
 
@@ -119,7 +121,7 @@ class UserController extends Controller
                 'company_id'    => ['nullable', 'exists:companies,id'],
                 'module_access' => ['required', 'in:all,cumplimiento,procesos'],
             ]);
-            $moduleAccess = $request->module_access;
+            $moduleAccess = $role->slug === 'auditor' ? 'procesos' : $request->module_access;
 
             if ($request->filled('company_id')) {
                 $company = Company::findOrFail($request->company_id);
@@ -187,9 +189,11 @@ class UserController extends Controller
         abort_if($role->slug === 'admin' && ! $authUser->hasGroupScope() && ! $authUser->isGlobalScope(), 403);
 
         $scopeLevel   = ($role->slug === 'admin') ? 'group' : ($user->company_id ? 'company' : 'group');
-        $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
-            ? $request->module_access
-            : 'all';
+        $moduleAccess = $role->slug === 'auditor'
+            ? 'procesos'
+            : (in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
+                ? $request->module_access
+                : 'all');
 
         $user->update([
             'role_id'       => $role->id,

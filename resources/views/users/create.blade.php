@@ -9,6 +9,7 @@
 
     @php
         $adminRoleId      = $roles->where('slug', 'admin')->first()?->id;
+        $auditorRoleId    = $roles->where('slug', 'auditor')->first()?->id;
         $companiesByGroup = $companies->groupBy('group_id')->map->values();
     @endphp
 
@@ -20,9 +21,11 @@
             selectedCompany: '{{ old('company_id', $singleCompany?->id ?? '') }}',
             selectedPosition: '{{ old('job_position_id', '') }}',
             adminRoleId: '{{ $adminRoleId }}',
+            auditorRoleId: '{{ $auditorRoleId }}',
             companiesByGroup: @json($companiesByGroup),
             positionsByGroup: @json($positionsByGroup),
             get isAdmin() { return this.selectedRole === this.adminRoleId; },
+            get isAuditor() { return this.selectedRole === this.auditorRoleId; },
             get needsCompany() { return this.selectedRole !== '' && !this.isAdmin; },
             get availableCompanies() {
                 if (!this.selectedGroup) return [];
@@ -90,12 +93,13 @@
                                     @case('admin') Administrador @break
                                     @case('operative') Operativo @break
                                     @case('readonly') Solo lectura @break
+                                    @case('auditor') Auditor @break
                                     @default {{ $role->name }}
                                 @endswitch
                             </option>
                         @endforeach
                     </select>
-                    <div class="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-500">
+                    <div class="mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs text-gray-500">
                         <div class="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
                             <span class="font-medium text-gray-700">Administrador</span><br>
                             Gestiona usuarios, activos y configuración del grupo.
@@ -107,6 +111,10 @@
                         <div class="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
                             <span class="font-medium text-gray-700">Solo lectura</span><br>
                             Solo consulta. No puede crear ni modificar.
+                        </div>
+                        <div class="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
+                            <span class="font-medium text-gray-700">Auditor</span><br>
+                            Evalúa y califica procedimientos. Exclusivo del módulo Procesos.
                         </div>
                     </div>
                 </div>
@@ -235,19 +243,34 @@
             {{-- Módulos / Vista predeterminada --}}
             <div x-show="selectedRole !== ''" x-transition class="space-y-2">
                 <label class="block text-sm font-medium text-gray-700">
-                    <span x-text="isAdmin ? 'Vista predeterminada' : 'Módulos visibles'"></span>
-                    <span x-show="!isAdmin" class="text-red-500">*</span>
+                    <span x-text="isAdmin ? 'Vista predeterminada' : (isAuditor ? 'Módulo' : 'Módulos visibles')"></span>
+                    <span x-show="!isAdmin && !isAuditor" class="text-red-500">*</span>
                 </label>
-                <select name="module_access"
-                        class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
-                    <option value="all"         {{ old('module_access', 'all') === 'all'         ? 'selected' : '' }}>Ambos módulos</option>
-                    <option value="cumplimiento" {{ old('module_access') === 'cumplimiento'       ? 'selected' : '' }}>Solo Cumplimiento</option>
-                    <option value="procesos"     {{ old('module_access') === 'procesos'           ? 'selected' : '' }}>Solo Procesos</option>
-                </select>
+
+                <template x-if="isAuditor">
+                    <div>
+                        <input type="hidden" name="module_access" value="procesos">
+                        <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                            Solo Procesos
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="!isAuditor">
+                    <select name="module_access"
+                            class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
+                        <option value="all"         {{ old('module_access', 'all') === 'all'         ? 'selected' : '' }}>Ambos módulos</option>
+                        <option value="cumplimiento" {{ old('module_access') === 'cumplimiento'       ? 'selected' : '' }}>Solo Cumplimiento</option>
+                        <option value="procesos"     {{ old('module_access') === 'procesos'           ? 'selected' : '' }}>Solo Procesos</option>
+                    </select>
+                </template>
+
                 <p class="text-xs text-gray-400"
                    x-text="isAdmin
                        ? 'El administrador accede a todo; esto solo define el módulo de inicio al entrar al sistema.'
-                       : 'Define a qué sección del sistema tendrá acceso este usuario.'">
+                       : (isAuditor
+                           ? 'El auditor solo tiene acceso al módulo de Procesos.'
+                           : 'Define a qué sección del sistema tendrá acceso este usuario.')">
                 </p>
             </div>
 

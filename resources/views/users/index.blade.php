@@ -14,8 +14,10 @@
             editModuleAccess: 'all',
             editPosition: '',
             adminRoleId: '{{ $adminRoleId ?? '' }}',
+            auditorRoleId: '{{ $roles->where('slug', 'auditor')->first()?->id ?? '' }}',
             positionsByGroup: @json($positionsByGroup),
             get isAdminEdit() { return this.editRole === this.adminRoleId; },
+            get isAuditorEdit() { return this.editRole === this.auditorRoleId; },
             get editPositions() {
                 if (!this.editGroup) return [];
                 return this.positionsByGroup[this.editGroup] ?? [];
@@ -105,18 +107,33 @@
                         {{-- Vista predeterminada / Módulos --}}
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">
-                                <span x-text="isAdminEdit ? 'Vista predeterminada' : 'Módulos visibles'"></span>
+                                <span x-text="isAdminEdit ? 'Vista predeterminada' : (isAuditorEdit ? 'Módulo' : 'Módulos visibles')"></span>
                             </label>
-                            <select name="module_access" x-model="editModuleAccess"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
-                                <option value="all">Ambos módulos</option>
-                                <option value="cumplimiento">Solo Cumplimiento</option>
-                                <option value="procesos">Solo Procesos</option>
-                            </select>
+
+                            <template x-if="isAuditorEdit">
+                                <div>
+                                    <input type="hidden" name="module_access" value="procesos">
+                                    <div class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-500">
+                                        Solo Procesos
+                                    </div>
+                                </div>
+                            </template>
+
+                            <template x-if="!isAuditorEdit">
+                                <select name="module_access" x-model="editModuleAccess"
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                    <option value="all">Ambos módulos</option>
+                                    <option value="cumplimiento">Solo Cumplimiento</option>
+                                    <option value="procesos">Solo Procesos</option>
+                                </select>
+                            </template>
+
                             <p class="mt-1 text-xs text-gray-400"
                                x-text="isAdminEdit
                                    ? 'Define el módulo de inicio (el admin accede a todo).'
-                                   : 'Define a qué módulo tendrá acceso este usuario.'">
+                                   : (isAuditorEdit
+                                       ? 'El auditor solo tiene acceso al módulo de Procesos.'
+                                       : 'Define a qué módulo tendrá acceso este usuario.')">
                             </p>
                         </div>
 

@@ -29,5 +29,10 @@ class RoleSeeder extends Seeder
             ['slug' => 'readonly'],
             ['name' => 'Solo Vista']
         );
+
+        Role::updateOrCreate(
+            ['slug' => 'auditor'],
+            ['name' => 'Auditor']
+        );
     }
 }
