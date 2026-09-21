@@ -42,5 +42,21 @@ window.initPersonPicker = function (selectEl, { multiple = true } = {}) {
         });
     };
 
+    // Dentro de un modal con el scroll del body bloqueado, esas coordenadas de
+    // viewport no cambian mientras está abierto. Pero este mismo picker también
+    // se usa en formularios de página normal (sin modal), donde sí se puede
+    // seguir haciendo scroll con el dropdown abierto — sin recalcular aquí, se
+    // queda pegado a donde estaba el campo cuando se abrió y se ve "flotando"
+    // en otro lugar de la pantalla.
+    const reposition = () => ts.positionDropdown();
+    ts.on('dropdown_open', () => {
+        window.addEventListener('scroll', reposition, true);
+        window.addEventListener('resize', reposition);
+    });
+    ts.on('dropdown_close', () => {
+        window.removeEventListener('scroll', reposition, true);
+        window.removeEventListener('resize', reposition);
+    });
+
     return ts;
 };

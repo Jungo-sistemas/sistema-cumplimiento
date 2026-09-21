@@ -636,6 +636,8 @@
                         <form method="POST"
                               action="{{ route('processes.versions.store', $regulation) }}"
                               enctype="multipart/form-data"
+                              x-data
+                              x-init="$nextTick(() => { initPersonPicker($refs.responsibleName, { multiple: false }); })"
                               class="space-y-4">
                             @csrf
 
@@ -665,8 +667,7 @@
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Responsable</label>
-                                <select name="responsible_name"
-                                        class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
+                                <select name="responsible_name" x-ref="responsibleName">
                                     <option value="">— Seleccionar —</option>
                                     @foreach($users as $u)
                                         <option value="{{ $u->name }}"
