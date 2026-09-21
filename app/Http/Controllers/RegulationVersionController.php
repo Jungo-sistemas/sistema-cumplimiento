@@ -45,6 +45,13 @@ class RegulationVersionController extends Controller
             // Mark previous current version as not current
             $regulation->versions()->where('is_current', true)->update(['is_current' => false]);
 
+            // Subir una versión nueva es una de las dos formas sancionadas de "actualizar" un
+            // documento antiguo (la otra es el wizard, ver confirmEditDraft) — a partir de aquí
+            // deja de estar bloqueado y funciona como cualquier otro documento.
+            if ($regulation->is_legacy) {
+                $regulation->update(['is_legacy' => false]);
+            }
+
             $nextVersion = ($regulation->versions()->max('version_number') ?? 0) + 1;
 
             $file = $request->file('file');
@@ -202,6 +209,11 @@ class RegulationVersionController extends Controller
     {
         $user = auth()->user();
         abort_unless($version->regulation->isEditableBy($user), 403);
+        // A diferencia de isEditableBy() (que también gobierna el wizard, y ese SÍ debe seguir
+        // abierto — es una de las dos formas sancionadas de "actualizar" un documento antiguo),
+        // el editor de texto en línea se bloquea aparte: reconstruir un documento antiguo desde
+        // su .docx en este editor no es lo que se quiere para estos casos.
+        abort_if($version->regulation->is_legacy, 403, 'Este es un documento antiguo — no se puede editar directamente aquí. Actualízalo con el wizard o subiendo una nueva versión.');
 
         $ext = strtolower(pathinfo($version->original_name ?? $version->file_path, PATHINFO_EXTENSION));
         abort_unless($ext === 'docx', 422, 'Solo se pueden editar archivos .docx');

@@ -21,6 +21,13 @@
                 <div class="flex items-center gap-3 flex-wrap">
                     <h1 class="text-2xl font-bold text-[#1A428A]">{{ $regulation->name }}</h1>
 
+                    @if($regulation->is_legacy)
+                        <span class="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border bg-gray-100 text-gray-600 border-gray-300"
+                              title="Documento antiguo cargado tal cual — solo puede verse. Se actualiza con el wizard o subiendo una nueva versión.">
+                            Documento antiguo
+                        </span>
+                    @endif
+
                     <span class="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border
                         {{ $color === 'green'  ? 'bg-green-50 text-green-700 border-green-200' : '' }}
                         {{ $color === 'yellow' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : '' }}
@@ -74,13 +81,23 @@
                              x-transition:enter-end="opacity-100 translate-y-0"
                              class="absolute right-0 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg z-20 overflow-hidden"
                              style="display:none;">
-                            <a href="{{ route('processes.editBasic', $regulation) }}"
-                               class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#1A428A]">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                                </svg>
-                                Info básica
-                            </a>
+                            @if($regulation->is_legacy)
+                                <span title="Documento antiguo — actualízalo con el wizard o subiendo una nueva versión para poder editar la info básica"
+                                      class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-400 cursor-not-allowed select-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                    </svg>
+                                    Info básica
+                                </span>
+                            @else
+                                <a href="{{ route('processes.editBasic', $regulation) }}"
+                                   class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#1A428A]">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                    </svg>
+                                    Info básica
+                                </a>
+                            @endif
                             <a href="{{ route('processes.edit', $regulation) }}"
                                class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#1A428A] border-t border-gray-100">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

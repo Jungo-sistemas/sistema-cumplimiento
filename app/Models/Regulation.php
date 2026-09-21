@@ -39,6 +39,7 @@ class Regulation extends Model
         'process_type_id',
         'document_type',
         'is_annex',
+        'is_legacy',
         'code',
         'name',
         'details',
@@ -57,6 +58,7 @@ class Regulation extends Model
         'previous_details' => 'array',
         'flow_user_map'    => 'array',
         'is_annex'         => 'boolean',
+        'is_legacy'        => 'boolean',
     ];
 
     /*

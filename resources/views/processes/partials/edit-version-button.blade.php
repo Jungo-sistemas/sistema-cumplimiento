@@ -6,9 +6,14 @@
 @if($currentVersion && $regulation->isEditableBy(auth()->user()))
     @php
         $cvExt   = strtolower(pathinfo($currentVersion->original_name ?? $currentVersion->file_path, PATHINFO_EXTENSION));
-        $canEdit = $cvExt === 'docx';
+        $canEdit = $cvExt === 'docx' && ! $regulation->is_legacy;
     @endphp
-    @if(! $canEdit)
+    @if($regulation->is_legacy)
+        <span title="Documento antiguo — actualízalo con el wizard o subiendo una nueva versión para poder editarlo aquí"
+              class="px-3 py-2 rounded-md border font-semibold text-sm bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed select-none">
+            Editar
+        </span>
+    @elseif(! $canEdit)
         <span title="Solo se pueden editar archivos .docx — este es .{{ $cvExt ?: 'desconocido' }}"
               class="px-3 py-2 rounded-md border font-semibold text-sm bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed select-none">
             Editar

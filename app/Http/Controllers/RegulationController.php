@@ -611,6 +611,10 @@ class RegulationController extends Controller
                 'process_type_id'  => $data['process_type_id'],
                 'document_type'    => $data['document_type'] ?? null,
                 'is_annex'         => $data['is_annex'] ?? false,
+                // El wizard es una de las dos formas sancionadas de "actualizar" un documento
+                // antiguo (la otra es subir una versión nueva, ver RegulationVersionController::store) —
+                // a partir de aquí deja de estar bloqueado.
+                'is_legacy'        => false,
                 'code'             => $data['codigo'] ? Str::upper($data['codigo']) : null,
                 'name'             => Str::upper($data['nombre']),
                 'previous_details' => $oldDetails ?: null,
@@ -1050,6 +1054,9 @@ class RegulationController extends Controller
     {
         $user = auth()->user();
         abort_unless($regulation->isEditableBy($user), 403);
+        // Igual que el editor en línea: bloqueado aparte de isEditableBy() para no tocar el
+        // wizard, que sigue siendo una forma válida de actualizar un documento antiguo.
+        abort_if($regulation->is_legacy, 403, 'Este es un documento antiguo — actualízalo con el wizard o subiendo una nueva versión.');
 
         $regulation->load(['processType', 'company', 'currentVersion', 'responsables']);
 
@@ -1079,6 +1086,7 @@ class RegulationController extends Controller
     {
         $user = auth()->user();
         abort_unless($regulation->isEditableBy($user), 403);
+        abort_if($regulation->is_legacy, 403, 'Este es un documento antiguo — actualízalo con el wizard o subiendo una nueva versión.');
 
         $data = $request->validate([
             'process_type_id' => ['required', 'exists:process_types,id'],
