@@ -34,3 +34,6 @@ database/seeders/examples/*.csv
 /resources/ai-reference/documento_ejemplo.docx
 /resources/ai-reference/texto_validacion.md
 /resources/ai-reference/diagrama_ejemplo.png
+
+# Capturas sueltas de ejemplo/depuración dejadas en la raíz durante el desarrollo
+/_ejemplo_*.png
