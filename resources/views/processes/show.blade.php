@@ -774,7 +774,8 @@
                     {{-- Encabezados de columna --}}
                     <div class="flex items-stretch mb-1 px-1">
                         <div class="flex-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">Documento</div>
-                        <div class="w-56 shrink-0 text-xs font-semibold text-gray-400 uppercase tracking-wide px-4">Razón del cambio</div>
+                        <div class="w-48 shrink-0 text-xs font-semibold text-gray-400 uppercase tracking-wide px-4">Descripción del cambio</div>
+                        <div class="w-48 shrink-0 text-xs font-semibold text-gray-400 uppercase tracking-wide px-4">Justificación</div>
                         <div class="w-36 shrink-0 text-xs font-semibold text-gray-400 uppercase tracking-wide px-4">Acciones</div>
                     </div>
 
@@ -809,16 +810,18 @@
                                     </div>
                                 </div>
 
-                                {{-- Razón del cambio --}}
-                                <div class="w-56 shrink-0 border-l bg-gray-50 px-4 py-4 flex flex-col justify-center gap-1.5">
+                                {{-- Descripción del cambio --}}
+                                <div class="w-48 shrink-0 border-l bg-gray-50 px-4 py-4 flex items-center">
                                     <span class="text-xs text-gray-600 leading-relaxed">
                                         {{ $v->change_description ?: '—' }}
                                     </span>
-                                    @if($v->change_justification)
-                                        <span class="text-xs text-gray-500 leading-relaxed">
-                                            <span class="font-semibold text-gray-600">Justificación:</span> {{ $v->change_justification }}
-                                        </span>
-                                    @endif
+                                </div>
+
+                                {{-- Justificación --}}
+                                <div class="w-48 shrink-0 border-l bg-gray-50 px-4 py-4 flex items-center">
+                                    <span class="text-xs text-gray-500 leading-relaxed">
+                                        {{ $v->change_justification ?: '—' }}
+                                    </span>
                                 </div>
 
                                 {{-- Acciones --}}
