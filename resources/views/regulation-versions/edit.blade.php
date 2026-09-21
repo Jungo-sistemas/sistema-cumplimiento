@@ -53,22 +53,84 @@
         {{-- TipTap --}}
         <div class="flex-1 flex flex-col min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div id="toolbar" class="flex flex-wrap items-center gap-1 px-3 py-2 border-b border-gray-200 bg-gray-50 shrink-0">
-                <button type="button" data-cmd="bold"        title="Negrita"    class="tb-btn font-bold">B</button>
-                <button type="button" data-cmd="italic"      title="Cursiva"    class="tb-btn italic">I</button>
-                <button type="button" data-cmd="underline"   title="Subrayado"  class="tb-btn underline">U</button>
+                {{-- Fuente y tamaño --}}
+                <select data-cmd="fontFamily" title="Fuente" class="tb-select w-32">
+                    <option value="">Fuente</option>
+                    <option value="Calibri, sans-serif">Calibri</option>
+                    <option value="Arial, sans-serif">Arial</option>
+                    <option value="Times New Roman, serif">Times New Roman</option>
+                    <option value="Georgia, serif">Georgia</option>
+                    <option value="Verdana, sans-serif">Verdana</option>
+                    <option value="Tahoma, sans-serif">Tahoma</option>
+                    <option value="Courier New, monospace">Courier New</option>
+                </select>
+                <select data-cmd="fontSize" title="Tamaño de fuente" class="tb-select w-16">
+                    <option value="">Tamaño</option>
+                    @foreach([8,9,10,11,12,14,16,18,20,24,28,32,36,40,44,48,54,60,66,72,80,88,96] as $size)
+                        <option value="{{ $size }}pt">{{ $size }}</option>
+                    @endforeach
+                </select>
                 <div class="w-px h-5 bg-gray-300 mx-1"></div>
+
+                {{-- Énfasis --}}
+                <button type="button" data-cmd="bold"         title="Negrita"                class="tb-btn font-bold">B</button>
+                <button type="button" data-cmd="italic"       title="Cursiva"                class="tb-btn italic">I</button>
+                <button type="button" data-cmd="underline"    title="Subrayado"              class="tb-btn underline">U</button>
+                <button type="button" data-cmd="strike"       title="Tachado"                class="tb-btn line-through">S</button>
+                <button type="button" data-cmd="subscript"    title="Subíndice"              class="tb-btn text-xs">X₂</button>
+                <button type="button" data-cmd="superscript"  title="Superíndice"            class="tb-btn text-xs">X²</button>
+                <div class="w-px h-5 bg-gray-300 mx-1"></div>
+
+                {{-- Color de texto y resaltado --}}
+                <label class="tb-btn flex items-center gap-1 cursor-pointer" title="Color de texto">
+                    A<input type="color" data-cmd="textColor" value="#000000" class="tb-color">
+                </label>
+                <label class="tb-btn flex items-center gap-1 cursor-pointer" title="Color de resaltado">
+                    🖊<input type="color" data-cmd="highlightColor" value="#FFF176" class="tb-color">
+                </label>
+                <button type="button" data-cmd="clearHighlight" title="Quitar resaltado" class="tb-btn text-xs">✕🖊</button>
+                <button type="button" data-cmd="clearFormat"    title="Limpiar formato"  class="tb-btn text-xs">Tx✕</button>
+                <div class="w-px h-5 bg-gray-300 mx-1"></div>
+
+                {{-- Estilos de párrafo --}}
+                <button type="button" data-cmd="normal"      title="Texto normal" class="tb-btn text-xs">¶</button>
                 <button type="button" data-cmd="h1"          title="Título 1"   class="tb-btn text-xs">H1</button>
                 <button type="button" data-cmd="h2"          title="Título 2"   class="tb-btn text-xs">H2</button>
                 <button type="button" data-cmd="h3"          title="Título 3"   class="tb-btn text-xs">H3</button>
                 <div class="w-px h-5 bg-gray-300 mx-1"></div>
-                <button type="button" data-cmd="bulletList"  title="Lista"      class="tb-btn">≡</button>
-                <button type="button" data-cmd="orderedList" title="Numerada"   class="tb-btn">#</button>
+
+                {{-- Alineación --}}
+                <button type="button" data-cmd="alignLeft"    title="Alinear a la izquierda" class="tb-btn text-xs">⇤</button>
+                <button type="button" data-cmd="alignCenter"  title="Centrar"                class="tb-btn text-xs">↔</button>
+                <button type="button" data-cmd="alignRight"   title="Alinear a la derecha"   class="tb-btn text-xs">⇥</button>
+                <button type="button" data-cmd="alignJustify" title="Justificar"             class="tb-btn text-xs">≡J</button>
                 <div class="w-px h-5 bg-gray-300 mx-1"></div>
+
+                {{-- Listas y sangría --}}
+                <button type="button" data-cmd="bulletList"  title="Lista con viñetas" class="tb-btn">≡</button>
+                <button type="button" data-cmd="orderedList" title="Lista numerada"    class="tb-btn">#</button>
+                <button type="button" data-cmd="outdent"     title="Disminuir sangría" class="tb-btn text-xs">⇤¶</button>
+                <button type="button" data-cmd="indent"      title="Aumentar sangría"  class="tb-btn text-xs">⇥¶</button>
+                <div class="w-px h-5 bg-gray-300 mx-1"></div>
+
+                {{-- Tabla --}}
+                <button type="button" data-cmd="insertTable"     title="Insertar tabla"              class="tb-btn text-xs">⊞ Tabla</button>
+                <button type="button" data-cmd="addRowAfter"     title="Agregar fila abajo"          class="tb-btn text-xs">+Fila</button>
+                <button type="button" data-cmd="deleteRow"       title="Eliminar fila"               class="tb-btn text-xs">−Fila</button>
+                <button type="button" data-cmd="addColumnAfter"  title="Agregar columna a la derecha" class="tb-btn text-xs">+Col</button>
+                <button type="button" data-cmd="deleteColumn"    title="Eliminar columna"            class="tb-btn text-xs">−Col</button>
+                <button type="button" data-cmd="mergeOrSplit"    title="Combinar / dividir celdas"   class="tb-btn text-xs">⊟ Celdas</button>
+                <button type="button" data-cmd="toggleHeaderRow" title="Encabezado de tabla"         class="tb-btn text-xs">Enc.</button>
+                <button type="button" data-cmd="deleteTable"     title="Eliminar tabla"              class="tb-btn text-xs">✕Tabla</button>
+                <div class="w-px h-5 bg-gray-300 mx-1"></div>
+
+                {{-- Enlace --}}
+                <button type="button" data-cmd="link"   title="Insertar / editar enlace" class="tb-btn text-xs">🔗</button>
+                <button type="button" data-cmd="unlink" title="Quitar enlace"            class="tb-btn text-xs">🔗✕</button>
+                <div class="w-px h-5 bg-gray-300 mx-1"></div>
+
                 <button type="button" data-cmd="undo"        title="Deshacer"   class="tb-btn">↩</button>
                 <button type="button" data-cmd="redo"        title="Rehacer"    class="tb-btn">↪</button>
-                <div class="w-px h-5 bg-gray-300 mx-1"></div>
-                <button type="button" data-cmd="highlight"      title="Resaltar selección en amarillo" class="tb-btn text-xs" style="background:#FFF176;">🖊 Resaltar</button>
-                <button type="button" data-cmd="clearHighlight" title="Quitar resaltado de selección"  class="tb-btn text-xs">✕ Resaltado</button>
                 <div class="w-px h-5 bg-gray-300 mx-1"></div>
                 <span class="text-xs text-gray-400" title="Escribe @ para etiquetar a alguien del grupo, o # para referenciar otro documento">
                     @ persona &nbsp;·&nbsp; # documento
@@ -204,12 +266,27 @@
         content: ""; position: absolute; inset: 0; z-index: 2;
         background: rgba(37, 99, 235, .12); pointer-events: none;
     }
+
+    /* Imágenes (diagramas de flujo, etc.) — el HTML trae width/height fijos pensados para la
+       exportación a Word (ver imageDimensionAttrs en AiProcedureGenerationService); en el panel
+       del editor, más angosto, eso desborda y se ve "partido". Esto solo reescala la vista, no
+       toca esos atributos. */
+    #editor img { max-width: 100%; height: auto; display: block; margin: .5em auto; }
     .tb-btn {
         padding: 3px 8px; border-radius: 4px; font-size: 13px; color: #374151;
         background: transparent; border: 1px solid transparent; cursor: pointer;
     }
     .tb-btn:hover    { background: #e5e7eb; border-color: #d1d5db; }
     .tb-btn.is-active { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+    .tb-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .tb-btn:disabled:hover { background: transparent; border-color: transparent; }
+    .tb-select {
+        padding: 3px 4px; border-radius: 4px; font-size: 12px; color: #374151;
+        background: #fff; border: 1px solid #d1d5db; cursor: pointer;
+    }
+    .tb-color {
+        width: 16px; height: 16px; padding: 0; border: none; background: none; cursor: pointer; vertical-align: middle;
+    }
 
     /* Etiquetas @persona y #documento */
     .mention-tag {
@@ -253,6 +330,8 @@ import Table         from 'https://esm.sh/@tiptap/extension-table@2.27.2?deps=@t
 import TableRow      from 'https://esm.sh/@tiptap/extension-table-row@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
 import TableHeader   from 'https://esm.sh/@tiptap/extension-table-header@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
 import TableCell     from 'https://esm.sh/@tiptap/extension-table-cell@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
+import Subscript     from 'https://esm.sh/@tiptap/extension-subscript@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
+import Superscript   from 'https://esm.sh/@tiptap/extension-superscript@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
 import { PluginKey } from 'https://esm.sh/@tiptap/pm@2.27.2/state';
 // ── URLs ────────────────────────────────────────────────────────────────────
 const DRAFT_URL         = "{{ route('regulation-versions.saveDraft', $version) }}";
@@ -451,7 +530,7 @@ const PreserveInlineStyle = Extension.create({
             },
         };
         return [
-            { types: ['paragraph', 'table', 'tableRow'], attributes: rawStyle },
+            { types: ['paragraph', 'heading', 'table', 'tableRow'], attributes: rawStyle },
             { types: ['image'], attributes: { ...rawStyle, ...rawDimensions } },
             { types: ['tableCell', 'tableHeader'], attributes: { ...rawStyle, ...rawBgcolor } },
             { types: ['textStyle'], attributes: rawStyle },
@@ -463,7 +542,11 @@ const PreserveInlineStyle = Extension.create({
 const editor = new Editor({
     element: document.getElementById('editor'),
     extensions: [
-        StarterKit, Underline, Highlight.configure({ multicolor: true }),
+        // strike: false — el <s> que genera el mark Strike de StarterKit no lo reconoce el
+        // importador HTML de PHPWord (Html::$nodes no lo mapea) y el tachado se pierde en
+        // silencio al exportar a .docx. En vez de eso, "Tachado" en el toolbar aplica
+        // "text-decoration: line-through" sobre el mismo textStyle/span que ya sí se preserva.
+        StarterKit.configure({ strike: false }), Underline, Highlight.configure({ multicolor: true }),
         Link.configure({ openOnClick: false, autolink: false, HTMLAttributes: { target: '_blank', rel: 'noopener' } }),
         // inline: true — el diagrama de flujo (y cualquier otra imagen) viene envuelto en un
         // <p> (RegulationBodyHtmlBuilder); Image es un nodo de bloque por defecto, y ProseMirror
@@ -474,6 +557,7 @@ const editor = new Editor({
         // (insertFlowDiagram()) — sin esto también desaparecía en silencio, sin ningún error.
         Image.configure({ inline: true, allowBase64: true }), TextStyle,
         Table.configure({ resizable: false }), TableRow, TableHeader, TableCell,
+        Subscript, Superscript,
         PreserveInlineStyle,
         PersonMention, DocReference,
     ],
@@ -487,38 +571,150 @@ const editor = new Editor({
 });
 
 // ── Toolbar ──────────────────────────────────────────────────────────────────
+// Fuente/tamaño/color de texto y alineación/sangría NO se modelan como atributos propios
+// (a diferencia de bold/italic, que TipTap ya trae) — se leen/escriben directo sobre el
+// atributo "style" genérico que PreserveInlineStyle ya preserva en textStyle/paragraph/heading,
+// para no duplicar el manejo de "style" con extensiones oficiales (Color, FontFamily, TextAlign)
+// que competirían por ese mismo atributo y se pisarían entre sí al renderizar.
+function parseStyle(str) {
+    const obj = {};
+    (str || '').split(';').forEach(rule => {
+        const idx = rule.indexOf(':');
+        if (idx === -1) return;
+        const k = rule.slice(0, idx).trim().toLowerCase();
+        const v = rule.slice(idx + 1).trim();
+        if (k && v) obj[k] = v;
+    });
+    return obj;
+}
+function stringifyStyle(obj) {
+    return Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join('; ');
+}
+function currentBlockType() {
+    return editor.isActive('heading') ? 'heading' : 'paragraph';
+}
+function applyTextStyleProp(prop, value) {
+    const style = parseStyle(editor.getAttributes('textStyle').style || '');
+    if (!value) delete style[prop]; else style[prop] = value;
+    const next = stringifyStyle(style);
+    if (next) editor.chain().focus().setMark('textStyle', { style: next }).run();
+    else editor.chain().focus().unsetMark('textStyle').run();
+}
+function applyBlockStyleProp(prop, value) {
+    const type = currentBlockType();
+    const style = parseStyle(editor.getAttributes(type).style || '');
+    if (!value) delete style[prop]; else style[prop] = value;
+    editor.chain().focus().updateAttributes(type, { style: stringifyStyle(style) || null }).run();
+}
+function adjustIndent(delta) {
+    if (delta > 0 && editor.can().sinkListItem('listItem')) { editor.chain().focus().sinkListItem('listItem').run(); return; }
+    if (delta < 0 && editor.can().liftListItem('listItem')) { editor.chain().focus().liftListItem('listItem').run(); return; }
+    const type = currentBlockType();
+    const style = parseStyle(editor.getAttributes(type).style || '');
+    const next = Math.max(0, Math.min(240, (parseInt(style['margin-left']) || 0) + delta));
+    if (next > 0) style['margin-left'] = next + 'px'; else delete style['margin-left'];
+    editor.chain().focus().updateAttributes(type, { style: stringifyStyle(style) || null }).run();
+}
+
+const TABLE_CMDS = ['addRowAfter', 'deleteRow', 'addColumnAfter', 'deleteColumn', 'deleteTable', 'toggleHeaderRow', 'mergeOrSplit'];
+
 function updateToolbar(ed) {
-    document.querySelectorAll('[data-cmd]').forEach(btn => {
-        const c = btn.dataset.cmd;
-        btn.classList.toggle('is-active',
-            c === 'bold'         ? ed.isActive('bold') :
-            c === 'italic'       ? ed.isActive('italic') :
-            c === 'underline'    ? ed.isActive('underline') :
-            c === 'highlight'    ? ed.isActive('highlight', { color: '#FFF176' }) :
-            c === 'h1'           ? ed.isActive('heading', { level: 1 }) :
-            c === 'h2'           ? ed.isActive('heading', { level: 2 }) :
-            c === 'h3'           ? ed.isActive('heading', { level: 3 }) :
-            c === 'bulletList'   ? ed.isActive('bulletList') :
-            c === 'orderedList'  ? ed.isActive('orderedList') : false
+    const textStyle  = parseStyle(ed.getAttributes('textStyle').style || '');
+    const blockStyle = parseStyle(ed.getAttributes(currentBlockType()).style || '');
+    const align      = blockStyle['text-align'] || 'left';
+    const hexColor   = v => /^#[0-9a-f]{6}$/i.test(v || '') ? v : null;
+
+    document.querySelectorAll('[data-cmd]').forEach(el => {
+        const c = el.dataset.cmd;
+
+        if (el.tagName === 'SELECT') {
+            if (c === 'fontFamily') el.value = textStyle['font-family'] || '';
+            if (c === 'fontSize')   el.value = textStyle['font-size'] || '';
+            return;
+        }
+        if (el.tagName === 'INPUT') {
+            if (c === 'textColor')      el.value = hexColor(textStyle.color) || '#000000';
+            if (c === 'highlightColor') el.value = hexColor(ed.getAttributes('highlight').color) || '#FFF176';
+            return;
+        }
+        if (TABLE_CMDS.includes(c)) el.disabled = !ed.can()[c]();
+
+        el.classList.toggle('is-active',
+            c === 'bold'          ? ed.isActive('bold') :
+            c === 'italic'        ? ed.isActive('italic') :
+            c === 'underline'     ? ed.isActive('underline') :
+            c === 'strike'        ? textStyle['text-decoration'] === 'line-through' :
+            c === 'subscript'     ? ed.isActive('subscript') :
+            c === 'superscript'   ? ed.isActive('superscript') :
+            c === 'h1'            ? ed.isActive('heading', { level: 1 }) :
+            c === 'h2'            ? ed.isActive('heading', { level: 2 }) :
+            c === 'h3'            ? ed.isActive('heading', { level: 3 }) :
+            c === 'normal'        ? ed.isActive('paragraph') :
+            c === 'bulletList'    ? ed.isActive('bulletList') :
+            c === 'orderedList'   ? ed.isActive('orderedList') :
+            c === 'alignLeft'     ? align === 'left' :
+            c === 'alignCenter'   ? align === 'center' :
+            c === 'alignRight'    ? align === 'right' :
+            c === 'alignJustify'  ? align === 'justify' :
+            c === 'link'          ? ed.isActive('link') : false
         );
     });
 }
+
 document.getElementById('toolbar').addEventListener('click', e => {
     const btn = e.target.closest('[data-cmd]');
-    if (!btn) return;
+    if (!btn || btn.tagName === 'SELECT' || btn.tagName === 'INPUT') return;
     const c = btn.dataset.cmd, ch = editor.chain().focus();
     if      (c === 'bold')           ch.toggleBold().run();
     else if (c === 'italic')         ch.toggleItalic().run();
     else if (c === 'underline')      ch.toggleUnderline().run();
-    else if (c === 'highlight')      ch.toggleHighlight({ color: '#FFF176' }).run();
+    else if (c === 'strike') {
+        const isStrike = parseStyle(editor.getAttributes('textStyle').style || '')['text-decoration'] === 'line-through';
+        applyTextStyleProp('text-decoration', isStrike ? null : 'line-through');
+    }
+    else if (c === 'subscript')      ch.toggleSubscript().run();
+    else if (c === 'superscript')    ch.toggleSuperscript().run();
+    else if (c === 'clearHighlight') ch.unsetHighlight().run();
+    else if (c === 'clearFormat')    ch.unsetAllMarks().updateAttributes(currentBlockType(), { style: null }).run();
+    else if (c === 'normal')         ch.setParagraph().run();
     else if (c === 'h1')             ch.toggleHeading({ level: 1 }).run();
     else if (c === 'h2')             ch.toggleHeading({ level: 2 }).run();
     else if (c === 'h3')             ch.toggleHeading({ level: 3 }).run();
+    else if (c === 'alignLeft')      applyBlockStyleProp('text-align', null);
+    else if (c === 'alignCenter')    applyBlockStyleProp('text-align', 'center');
+    else if (c === 'alignRight')     applyBlockStyleProp('text-align', 'right');
+    else if (c === 'alignJustify')   applyBlockStyleProp('text-align', 'justify');
     else if (c === 'bulletList')     ch.toggleBulletList().run();
     else if (c === 'orderedList')    ch.toggleOrderedList().run();
+    else if (c === 'indent')         adjustIndent(24);
+    else if (c === 'outdent')        adjustIndent(-24);
+    else if (c === 'insertTable')    ch.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+    else if (c === 'addRowAfter')    ch.addRowAfter().run();
+    else if (c === 'deleteRow')      ch.deleteRow().run();
+    else if (c === 'addColumnAfter') ch.addColumnAfter().run();
+    else if (c === 'deleteColumn')   ch.deleteColumn().run();
+    else if (c === 'deleteTable')    ch.deleteTable().run();
+    else if (c === 'toggleHeaderRow') ch.toggleHeaderRow().run();
+    else if (c === 'mergeOrSplit')   ch.mergeOrSplit().run();
+    else if (c === 'link') {
+        const prev = editor.getAttributes('link').href || 'https://';
+        const url = window.prompt('URL del enlace', prev);
+        if (url === null) return;
+        if (url === '') { ch.unsetLink().run(); return; }
+        ch.extendMarkRange('link').setLink({ href: url }).run();
+    }
+    else if (c === 'unlink')         ch.unsetLink().run();
     else if (c === 'undo')           ch.undo().run();
     else if (c === 'redo')           ch.redo().run();
-    else if (c === 'clearHighlight') ch.unsetHighlight().run();
+});
+document.getElementById('toolbar').addEventListener('change', e => {
+    const el = e.target.closest('[data-cmd]');
+    if (!el) return;
+    const c = el.dataset.cmd;
+    if      (c === 'fontFamily')     applyTextStyleProp('font-family', el.value || null);
+    else if (c === 'fontSize')       applyTextStyleProp('font-size', el.value || null);
+    else if (c === 'textColor')      applyTextStyleProp('color', el.value);
+    else if (c === 'highlightColor') editor.chain().focus().setHighlight({ color: el.value }).run();
 });
 
 // El navegador normaliza cualquier "color:#RRGGBB" que llega en el HTML a "color: rgb(r, g, b)"

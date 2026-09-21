@@ -39,6 +39,7 @@
 .doc-page-content td, .doc-page-content th,
 .doc-page-measurer td, .doc-page-measurer th { border: 1px solid #d1d5db; padding: 7px 12px; vertical-align: top; }
 .doc-page-content th, .doc-page-measurer th { background: #f9fafb; font-weight: 600; }
+.doc-page-content img, .doc-page-measurer img { max-width: 100%; height: auto; display: block; margin: .5em auto; }
 
 .doc-page-content mark,
 .doc-page-content [style*="background-color: #FFFF00"],
