@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solicitud de acceso a reglamento</title>
+    <title>Acceso otorgado a reglamento</title>
     <style>
         body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 24px; }
         .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
@@ -23,22 +23,19 @@
     <div class="container">
         <div class="header">
             <h1>VIGIA Cumplimiento</h1>
-            <p>Solicitud de acceso a reglamento</p>
+            <p>Acceso otorgado</p>
         </div>
         <div class="body">
             <p>Hola <strong>{{ $notifiable->name }}</strong>,</p>
-            <p><strong>{{ $requester->name }}</strong> quiere poder editar el siguiente reglamento, pero
-               no está asignado como responsable. Si corresponde, puedes agregarlo como responsable desde
-               "Info básica" para que pueda editarlo.</p>
+            <p>Ya se te dio acceso para editar el siguiente reglamento:</p>
 
             <table class="info-table">
                 <tr><td>Reglamento</td><td><strong>{{ $regulation->name }}</strong></td></tr>
                 <tr><td>Código</td><td>{{ $regulation->code ?? '—' }}</td></tr>
                 <tr><td>Empresa</td><td>{{ $regulation->company->name ?? '—' }}</td></tr>
-                <tr><td>Solicitado por</td><td>{{ $requester->name }} ({{ $requester->email }})</td></tr>
             </table>
 
-            <a href="{{ route('processes.editBasic', $regulation) }}?highlight={{ $requester->id }}#responsables" class="btn">Dar acceso a {{ $requester->name }}</a>
+            <a href="{{ route('processes.show', $regulation) }}" class="btn">Ver reglamento</a>
         </div>
         <div class="footer">
             Este correo fue generado automáticamente por VIGIA Cumplimiento. Por favor no respondas a este mensaje.

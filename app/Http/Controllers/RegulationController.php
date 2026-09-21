@@ -1111,7 +1111,12 @@ class RegulationController extends Controller
                 'responsables.*' => ['integer', 'exists:users,id'],
             ])['responsables'] ?? [];
 
-            $regulation->responsables()->sync($responsableIds);
+            $sync = $regulation->responsables()->sync($responsableIds);
+
+            if (! empty($sync['attached'])) {
+                $newResponsables = User::whereIn('id', $sync['attached'])->get();
+                $this->flowService->notifyAccessGranted($regulation, $newResponsables);
+            }
         }
 
         return redirect()

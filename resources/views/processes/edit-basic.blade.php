@@ -31,7 +31,9 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('processes.updateBasic', $regulation) }}">
+    <form method="POST" action="{{ route('processes.updateBasic', $regulation) }}"
+          x-data
+          x-init="$nextTick(() => { initPersonPicker($refs.responsables); })">
         @csrf
         @method('PUT')
 
@@ -199,26 +201,27 @@
                 {{-- Responsables de edición — solo un admin puede reasignarlos --}}
                 @if(auth()->user()->isAdmin())
                     @php
+                        // Un correo de "solicitud de acceso" trae ?highlight=<user_id> para que el
+                        // admin aterrice exacto en la persona que pidió acceso, ya seleccionada
+                        // como "chip" en el buscador — solo falta que dé clic en "Guardar".
+                        $highlightUserId = (int) request('highlight');
                         $selectedResponsables = old('responsables', $regulation->responsables->pluck('id')->all());
+                        if ($highlightUserId && ! in_array($highlightUserId, $selectedResponsables, true)) {
+                            $selectedResponsables[] = $highlightUserId;
+                        }
                     @endphp
                     <div id="responsables">
                         <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
                             Responsables (pueden editar este reglamento)
                         </label>
-                        <div class="max-h-44 overflow-y-auto rounded-md border border-gray-300 p-2 space-y-1">
-                            @forelse($candidateResponsables as $candidate)
-                                <label class="flex items-center gap-2 text-sm text-gray-700">
-                                    <input type="checkbox"
-                                           name="responsables[]"
-                                           value="{{ $candidate->id }}"
-                                           {{ in_array($candidate->id, $selectedResponsables) ? 'checked' : '' }}
-                                           class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]">
-                                    {{ $candidate->name }}
-                                </label>
-                            @empty
-                                <p class="text-xs text-gray-400 italic">No hay usuarios disponibles en esta empresa.</p>
-                            @endforelse
-                        </div>
+                        <select name="responsables[]" multiple x-ref="responsables">
+                            @foreach($candidateResponsables as $candidate)
+                                <option value="{{ $candidate->id }}"
+                                    @selected(in_array($candidate->id, $selectedResponsables, true))>
+                                    {{ $candidate->name }}{{ $highlightUserId === $candidate->id ? ' (pidió acceso)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
                         <p class="text-xs text-gray-400 mt-1">
                             Un operativo solo puede editar los reglamentos de los que es responsable. Los admins
                             pueden editar cualquier reglamento sin necesidad de estar en esta lista.

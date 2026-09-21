@@ -10,6 +10,7 @@ use App\Notifications\ApprovalFlowMemberNotification;
 use App\Notifications\ApprovalRequestedNotification;
 use App\Notifications\ApprovalStepUnassignedNotification;
 use App\Notifications\RegulationApprovedNotification;
+use App\Notifications\RegulationAccessGrantedNotification;
 use App\Notifications\RegulationAccessRequestedNotification;
 use App\Notifications\RegulationReadyToResubmitNotification;
 use App\Notifications\RegulationRejectedNotification;
@@ -221,6 +222,18 @@ class ApprovalFlowService
         }
 
         return $admins->count();
+    }
+
+    /**
+     * Un admin acaba de agregar a estos usuarios como responsables de un reglamento (les dio
+     * acceso de edición) — se les avisa para que sepan que ya pueden entrar a trabajarlo, en vez
+     * de que se enteren solo si vuelven a intentar pedir acceso.
+     */
+    public function notifyAccessGranted(Regulation $regulation, Collection $newResponsables): void
+    {
+        foreach ($newResponsables as $responsable) {
+            $responsable->notify(new RegulationAccessGrantedNotification($regulation));
+        }
     }
 
     /**
