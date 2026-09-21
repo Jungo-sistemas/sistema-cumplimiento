@@ -17,14 +17,15 @@ class ProcessesDashboardController extends Controller
 
         $scopeKey = $user->hasCompanyScope() ? "c{$user->company_id}" : "g{$user->group_id}";
 
-        // v3 — incluye daysData por paso
+        // v5 — excluye anexos de los conteos y gráficas
         [$stats, $recent, $chartData] = Cache::remember(
-            "dashboard:processes:v4:{$scopeKey}",
+            "dashboard:processes:v5:{$scopeKey}",
             now()->addMinutes(15),
             function () use ($user) {
                 $query = Regulation::query()
                     ->where('group_id', $user->group_id)
-                    ->where('is_active', true);
+                    ->where('is_active', true)
+                    ->where('is_annex', false);
 
                 if ($user->hasCompanyScope()) {
                     $query->where('company_id', $user->company_id);
