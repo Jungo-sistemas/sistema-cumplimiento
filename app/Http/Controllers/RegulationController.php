@@ -100,7 +100,16 @@ class RegulationController extends Controller
             });
         }
 
-        $regulations = $query->orderBy('code')->orderBy('name')->get();
+        // Búsqueda global: sin empresa seleccionada + búsqueda, o modo reporte (todas las empresas)
+        $globalSearch = $user->hasGroupScope() && ! $selectedCompanyId
+            && ($request->filled('q') || $request->boolean('report'));
+
+        $query->orderBy('code')->orderBy('name');
+
+        // El modo reporte/búsqueda global necesita la lista completa (selecciona ids de todas las
+        // empresas para exportar a Excel, ver reportTable() en la vista) — el listado normal de una
+        // empresa sí se pagina para no volcar cientos de procedimientos en una sola pantalla.
+        $regulations = $globalSearch ? $query->get() : $query->paginate(10)->withQueryString();
 
         // IDs de reglamentos donde el usuario autenticado tiene aprobación pendiente
         $pendingApprovalIds = \App\Models\RegulationApproval::where('user_id', $user->id)
@@ -108,10 +117,6 @@ class RegulationController extends Controller
             ->whereIn('regulation_id', $regulations->pluck('id'))
             ->pluck('regulation_id')
             ->flip(); // flip para lookup O(1)
-
-        // Búsqueda global: sin empresa seleccionada + búsqueda, o modo reporte (todas las empresas)
-        $globalSearch = $user->hasGroupScope() && ! $selectedCompanyId
-            && ($request->filled('q') || $request->boolean('report'));
 
         // Users grouped by position slug for flow assignment modal (admin only)
         $positions = JobPosition::where('group_id', $user->group_id)

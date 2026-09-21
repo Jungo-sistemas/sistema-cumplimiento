@@ -700,12 +700,18 @@
                 encontrados en {{ $regulations->pluck('company_id')->unique()->count() }}
                 {{ \Illuminate\Support\Str::plural('empresa', $regulations->pluck('company_id')->unique()->count()) }}
             @else
-                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural($itemLabel, $regulations->count()) }} encontrados
+                {{ $regulations->total() }} {{ \Illuminate\Support\Str::plural($itemLabel, $regulations->total()) }} encontrados
             @endif
             <span x-show="selected.length > 0" class="ml-2 font-medium text-[#1A428A]">
                 · <span x-text="selected.length"></span> seleccionado<span x-show="selected.length !== 1">s</span>
             </span>
         </p>
+
+        @unless($globalSearch)
+            <div class="mt-3">
+                {{ $regulations->links() }}
+            </div>
+        @endunless
 
     </div>{{-- fin reportTable --}}
 
