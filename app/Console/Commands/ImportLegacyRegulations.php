@@ -136,7 +136,10 @@ class ImportLegacyRegulations extends Command
         int &$skippedExisting,
         array &$problems,
     ): void {
-        $code = trim($row[self::COL_CODIGO] ?? '');
+        // rtrim('.') — error de captura visto en datos reales ("REG-SAV-028." en vez de
+        // "REG-SAV-028"), que rompe el match contra el nombre del archivo y se guardaría tal cual
+        // como código del documento.
+        $code = rtrim(trim($row[self::COL_CODIGO] ?? ''), '.');
         $name = trim($row[self::COL_NOMBRE] ?? '');
 
         if ($code === '' && $name === '' && trim(implode('', $row)) === '') {
