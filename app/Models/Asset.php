@@ -12,6 +12,13 @@ class Asset extends Model
     use HasFactory;
     public const STATUS_ACTIVE = 'active';
     public const STATUS_INACTIVE = 'inactive';
+    public const STATUS_UNDER_CONSTRUCTION = 'under_construction';
+
+    public const STATUSES = [
+        self::STATUS_ACTIVE            => 'Operando',
+        self::STATUS_UNDER_CONSTRUCTION => 'En construcción',
+        self::STATUS_INACTIVE          => 'Sin operación',
+    ];
 
     protected $fillable = [
         'company_id',

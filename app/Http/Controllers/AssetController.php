@@ -126,7 +126,7 @@ class AssetController extends Controller
             $query->where('company_id', $selectedCompanyId);
         }
 
-        if ($request->filled('status') && in_array($request->status, ['active', 'inactive'], true)) {
+        if ($request->filled('status') && array_key_exists($request->status, \App\Models\Asset::STATUSES)) {
             $query->where('status', $request->status);
         }
 

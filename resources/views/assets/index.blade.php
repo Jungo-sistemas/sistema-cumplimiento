@@ -116,6 +116,7 @@
             <select name="status" class="w-full rounded-md border-gray-300 text-sm">
                 <option value="">Todos</option>
                 <option value="active" @selected(request('status') === 'active')>Operación</option>
+                <option value="under_construction" @selected(request('status') === 'under_construction')>En construcción</option>
                 <option value="inactive" @selected(request('status') === 'inactive')>Sin operación</option>
             </select>
         </div>
@@ -196,7 +197,7 @@
                             <td class="px-6 py-3">
                                 <div class="font-semibold text-gray-800">{{ $asset->display_name }}</div>
                                 <div class="text-xs text-gray-500">
-                                    {{ $asset->status === 'active' ? 'OPERACIÓN' : 'SIN OPERACIÓN' }}
+                                    {{ \Illuminate\Support\Str::upper(\App\Models\Asset::STATUSES[$asset->status] ?? 'Sin operación') }}
                                 </div>
                             </td>
 

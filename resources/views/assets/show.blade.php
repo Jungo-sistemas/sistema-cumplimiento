@@ -39,11 +39,14 @@
                         {{ $asset->display_name }}
                     </h1>
 
+                    @php $underConstruction = $asset->status === \App\Models\Asset::STATUS_UNDER_CONSTRUCTION; @endphp
                     <span class="text-xs px-3 py-1 rounded border
-                        {{ $assetInactive
-                            ? 'bg-gray-100 text-gray-700 border-gray-300'
-                            : 'bg-green-50 text-green-700 border-green-200' }}">
-                        {{ $assetInactive ? 'SIN OPERACIÓN' : 'OPERANDO' }}
+                        {{ $underConstruction
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : ($assetInactive
+                                ? 'bg-gray-100 text-gray-700 border-gray-300'
+                                : 'bg-green-50 text-green-700 border-green-200') }}">
+                        {{ \Illuminate\Support\Str::upper(\App\Models\Asset::STATUSES[$asset->status] ?? 'Sin operación') }}
                     </span>
                 </div>
 
@@ -67,13 +70,36 @@
                         Editar
                     </a>
 
-                    @if($assetInactive)
+                    {{-- La máquina de estados es de un solo sentido: en construcción -> operando ->
+                         sin operación. Nunca hay un botón que regrese a "en construcción" — ese
+                         estado solo se asigna una vez, al dar de alta el activo. Desde "en
+                         construcción" se puede pasar a cualquiera de los otros dos (termina la obra
+                         y abre, u opera se cancela el proyecto antes de operar). --}}
+                    @if($asset->status === \App\Models\Asset::STATUS_INACTIVE)
                         <form method="POST" action="{{ route('assets.activate', $asset) }}">
                             @csrf
                             @method('PATCH')
                             <button type="submit"
                                 class="px-6 py-2 rounded-md font-semibold text-white bg-[#1A428A] hover:bg-[#15356d]">
                                 Volver a Operar
+                            </button>
+                        </form>
+                    @elseif($asset->status === \App\Models\Asset::STATUS_UNDER_CONSTRUCTION)
+                        <form method="POST" action="{{ route('assets.activate', $asset) }}">
+                            @csrf
+                            @method('PATCH')
+                            <button type="submit"
+                                class="px-6 py-2 rounded-md font-semibold text-white bg-[#1A428A] hover:bg-[#15356d]">
+                                Marcar como Operando
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ route('assets.deactivate', $asset) }}">
+                            @csrf
+                            @method('PATCH')
+                            <button type="submit"
+                                onclick="return confirm('¿Seguro que quieres marcar este activo como sin operación?');"
+                                class="px-6 py-2 rounded-md font-semibold text-white bg-[#DB0000] hover:bg-red-700">
+                                Sin Operación
                             </button>
                         </form>
                     @else
