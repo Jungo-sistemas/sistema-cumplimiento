@@ -473,10 +473,17 @@ class ImportRequirementDocuments extends Command
         foreach ($csvFiles as $csvFile) {
             $rows = $this->readCsv($csvFile->getPathname());
 
+            if (! empty($rows) && ! array_key_exists('documento', $rows[0]) && ! array_key_exists('nombre del documento', $rows[0])) {
+                $this->warn('El CSV "' . $csvFile->getFilename() . '" no trae una columna "Documento" ni "Nombre del Documento" — no se pueden aplicar fechas desde este archivo. Columnas encontradas: ' . implode(', ', array_keys($rows[0])));
+                continue;
+            }
+
             $byTemplate = [];
 
             foreach ($rows as $row) {
-                $documento = trim($row['documento'] ?? '');
+                // Acepta ambos encabezados: "Documento" (formato original) y "Nombre del
+                // Documento" (el que trae el reporte de SoftExpert por estación).
+                $documento = trim($row['documento'] ?? $row['nombre del documento'] ?? '');
                 if ($documento === '') {
                     continue;
                 }
