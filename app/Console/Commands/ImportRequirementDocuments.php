@@ -21,6 +21,7 @@ class ImportRequirementDocuments extends Command
     protected $signature = 'requirements:import-documents
         {folder : Carpeta con los documentos a importar (ruta absoluta o relativa al proyecto)}
         {--asset= : ID del activo destino (si se omite, se detecta a partir del nombre de la carpeta)}
+        {--alias=* : Abreviatura adicional del activo para el sufijo "- <alias>" del nombre de archivo (ej. --alias="SV1" si el activo se llama "SAN VALENTIN 1" pero los archivos traen "- ES SV1"). Se puede repetir.}
         {--dry-run : Muestra lo que se haría sin escribir en base de datos ni copiar archivos}';
 
     protected $description = 'Carga masiva de documentos de un activo hacia sus requerimientos, marcando la versión más reciente por año/semestre como vigente y el resto como histórico. Si la carpeta trae un .csv con columnas Documento/Fecha de Emisión/Fecha de Vigencia, también actualiza esas fechas en el requerimiento.';
@@ -59,7 +60,9 @@ class ImportRequirementDocuments extends Command
         $catalog = $this->buildCatalog($asset->asset_type_id);
         $catalog = $this->applyAliases($catalog, $asset->assetType?->name);
 
-        [$groups, $unmatched] = $this->scanFolder($folder, $catalog, $asset);
+        $assetAliases = $this->option('alias');
+
+        [$groups, $unmatched] = $this->scanFolder($folder, $catalog, $asset, $assetAliases);
 
         if (empty($groups)) {
             $this->warn('No se encontró ningún archivo que coincida con el catálogo de requerimientos de este activo.');
@@ -255,8 +258,11 @@ class ImportRequirementDocuments extends Command
         }
     }
 
-    /** @return array{0: array<int, array{template: RequirementTemplate, files: array}>, 1: array<int, string>} */
-    private function scanFolder(string $folder, array $catalog, Asset $asset): array
+    /**
+     * @param  array<int, string>  $assetAliases
+     * @return array{0: array<int, array{template: RequirementTemplate, files: array}>, 1: array<int, string>}
+     */
+    private function scanFolder(string $folder, array $catalog, Asset $asset, array $assetAliases = []): array
     {
         $groups = [];
         $unmatched = [];
@@ -267,7 +273,7 @@ class ImportRequirementDocuments extends Command
 
         foreach ($files as $file) {
             $baseName = pathinfo($file->getFilename(), PATHINFO_FILENAME);
-            $match = $this->matchFile($baseName, $catalog, $asset);
+            $match = $this->matchFile($baseName, $catalog, $asset, $assetAliases);
 
             if (! $match) {
                 $unmatched[] = $file->getRelativePathname();
@@ -304,10 +310,11 @@ class ImportRequirementDocuments extends Command
         return [$groups, $unmatched];
     }
 
-    private function matchFile(string $baseName, array $catalog, Asset $asset): ?array
+    /** @param  array<int, string>  $assetAliases */
+    private function matchFile(string $baseName, array $catalog, Asset $asset, array $assetAliases = []): ?array
     {
         $baseName = trim(preg_replace(self::PAREN_SUFFIX_PATTERN, '', $baseName));
-        $baseName = $this->stripAssetSuffix($baseName, $asset);
+        $baseName = $this->stripAssetSuffix($baseName, $asset, $assetAliases);
 
         $normalizedFull = $this->normalize($baseName);
         if (isset($catalog[$normalizedFull])) {
@@ -336,9 +343,13 @@ class ImportRequirementDocuments extends Command
     /**
      * Quita un sufijo final "- <nombre del activo>" (opcionalmente precedido por el nombre del
      * tipo de activo, p. ej. "- ES Linares 3") que el proveedor a veces agrega al nombre del
-     * archivo pero que el catálogo de requerimientos ni el CSV de vigencias traen.
+     * archivo pero que el catálogo de requerimientos ni el CSV de vigencias traen. También acepta
+     * abreviaturas pasadas por --alias (ej. "SV1" para "SAN VALENTIN 1") cuando el nombre del
+     * archivo no trae el nombre completo del activo.
+     *
+     * @param  array<int, string>  $assetAliases
      */
-    private function stripAssetSuffix(string $baseName, Asset $asset): string
+    private function stripAssetSuffix(string $baseName, Asset $asset, array $assetAliases = []): string
     {
         // Busca el último "-" seguido de espacio(s): tolera que el proveedor no deje espacio
         // antes del guión (p. ej. "...Petrolíferos 2024- ES Dr. Arroyo"), a diferencia de un
@@ -350,8 +361,16 @@ class ImportRequirementDocuments extends Command
         $suffix = $this->normalizeForSuffixMatch($m[2]);
 
         $candidates = [$this->normalizeForSuffixMatch($asset->name)];
-        if ($typeName = $asset->assetType?->name) {
+        $typeName = $asset->assetType?->name;
+        if ($typeName) {
             $candidates[] = $this->normalizeForSuffixMatch($typeName . ' ' . $asset->name);
+        }
+
+        foreach ($assetAliases as $alias) {
+            $candidates[] = $this->normalizeForSuffixMatch($alias);
+            if ($typeName) {
+                $candidates[] = $this->normalizeForSuffixMatch($typeName . ' ' . $alias);
+            }
         }
 
         // Tolera singular/plural entre el nombre del activo y el que trae el archivo
