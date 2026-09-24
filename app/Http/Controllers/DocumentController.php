@@ -55,10 +55,6 @@ class DocumentController extends Controller
             $documentsQuery->where('document_type', $documentType);
         }
 
-        if ($request->filled('is_required')) {
-            $documentsQuery->where('is_required', $request->boolean('is_required'));
-        }
-
         $vigencia = in_array($request->vigencia, ['vigente', 'por_vencer', 'vencido', 'sin_vencimiento'], true)
             ? $request->vigencia
             : null;
@@ -129,7 +125,7 @@ class DocumentController extends Controller
             'bodega'                  => $data['bodega'] ?? null,
             'document_type'           => $data['document_type'],
             'responsible_name'        => $data['responsible_name'] ?? null,
-            'is_required'             => ! empty($data['is_required']),
+            'is_required'             => true,
             'is_active'               => true,
             'uploaded_by'             => $user->id,
         ]);
@@ -162,7 +158,7 @@ class DocumentController extends Controller
             'bodega'           => $data['bodega'] ?? null,
             'document_type'    => $data['document_type'],
             'responsible_name' => $data['responsible_name'] ?? null,
-            'is_required'      => ! empty($data['is_required']),
+            'is_required'      => true,
         ]);
 
         $document->authorizedUsers()->sync($data['authorized_user_ids'] ?? []);
@@ -183,7 +179,6 @@ class DocumentController extends Controller
             'responsible_name'        => ['nullable', 'string', 'max:255'],
             'authorized_user_ids'     => ['nullable', 'array'],
             'authorized_user_ids.*'   => ['integer', 'exists:users,id'],
-            'is_required'             => ['nullable', 'boolean'],
         ];
     }
 

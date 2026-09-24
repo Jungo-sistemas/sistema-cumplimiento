@@ -81,15 +81,6 @@
             </select>
         </div>
 
-        <div class="min-w-[160px]">
-            <label class="block text-xs text-gray-500 mb-1">Requerido</label>
-            <select name="is_required" class="w-full rounded-md border-gray-300 text-sm">
-                <option value="">Todos</option>
-                <option value="1" @selected(request('is_required') === '1')>Sí</option>
-                <option value="0" @selected(request('is_required') === '0')>No</option>
-            </select>
-        </div>
-
         <div class="flex-1 min-w-[200px] max-w-sm">
             <label class="block text-xs text-gray-500 mb-1">Buscar</label>
             <input type="text"
@@ -152,11 +143,6 @@
                             {{-- Nombre --}}
                             <td class="px-4 py-3">
                                 <div class="font-medium text-gray-900">{{ $document->name }}</div>
-                                @if($document->is_required)
-                                    <span class="inline-flex items-center mt-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-                                        Requerido
-                                    </span>
-                                @endif
                             </td>
 
                             {{-- Empresa --}}
@@ -391,19 +377,6 @@
                                 </option>
                             @endforeach
                         </select>
-                    </div>
-
-                    {{-- ¿Requerido? --}}
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox"
-                               name="is_required"
-                               id="is_required_modal"
-                               value="1"
-                               {{ old('is_required') ? 'checked' : '' }}
-                               class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]">
-                        <label for="is_required_modal" class="text-sm text-gray-700">
-                            Documento requerido
-                        </label>
                     </div>
 
                 </div>

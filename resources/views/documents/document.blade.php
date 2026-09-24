@@ -29,12 +29,6 @@
                         </span>
                     @endif
 
-                    @if($document->is_required)
-                        <span class="inline-flex items-center text-xs px-3 py-1 rounded border bg-blue-50 text-blue-700 border-blue-200">
-                            Requerido
-                        </span>
-                    @endif
-
                     @if($document->reference)
                         <span class="inline-flex items-center text-xs px-3 py-1 rounded border bg-gray-50 text-gray-600 border-gray-200">
                             Ref: {{ $document->reference }}
@@ -577,19 +571,6 @@
                                 </option>
                             @endforeach
                         </select>
-                    </div>
-
-                    {{-- ¿Requerido? --}}
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox"
-                               name="is_required"
-                               id="is_required_edit"
-                               value="1"
-                               {{ old('is_required', $document->is_required) ? 'checked' : '' }}
-                               class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]">
-                        <label for="is_required_edit" class="text-sm text-gray-700">
-                            Documento requerido
-                        </label>
                     </div>
 
                 </div>
