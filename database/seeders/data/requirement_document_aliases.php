@@ -142,10 +142,22 @@ return [
     ],
 
     'EC' => [
-        // Mismo alias ya confirmado para ES (ver arriba): el catálogo de EC tiene el mismo
-        // nombre completo de requerimiento, pero el Excel de vigencias trae la forma abreviada
-        // (EC Almaguer).
+        // Mismas variantes ya confirmadas para ES (ver arriba): el catálogo de EC tiene el mismo
+        // nombre completo de requerimiento, y el Excel/archivos de vigencias traen las mismas
+        // formas abreviadas (EC Almaguer, EC Almaguer (Alamo)).
+        'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto'
+            => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
+        'Resolutivo de Evaluación de Impacto Social'
+            => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
+        'Resolutivo de Evaluación de Impacto Social, EVIS'
+            => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
+        'Evaluación de Impacto Social, EVIS'
+            => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
+        'Evaluación de Impacto Social'
+            => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
         'Resolutivo de Evaluación de Impacto Social EVIS'
+            => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
+        'Evaluación de Impacto Social EVIS'
             => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
     ],
 ];

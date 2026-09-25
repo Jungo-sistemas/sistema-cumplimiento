@@ -313,8 +313,11 @@ class ImportRequirementDocuments extends Command
     /** @param  array<int, string>  $assetAliases */
     private function matchFile(string $baseName, array $catalog, Asset $asset, array $assetAliases = []): ?array
     {
-        $baseName = trim(preg_replace(self::PAREN_SUFFIX_PATTERN, '', $baseName));
+        // El sufijo del activo se quita primero: si el nombre del activo trae paréntesis (p. ej.
+        // "ALMAGUER (ALAMO)"), quitar antes cualquier "(...)" final del archivo se comería ese
+        // paréntesis y stripAssetSuffix ya no podría reconocer "EC Almaguer (Alamo)" como sufijo.
         $baseName = $this->stripAssetSuffix($baseName, $asset, $assetAliases);
+        $baseName = trim(preg_replace(self::PAREN_SUFFIX_PATTERN, '', $baseName));
 
         $normalizedFull = $this->normalize($baseName);
         if (isset($catalog[$normalizedFull])) {
