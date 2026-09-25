@@ -44,24 +44,38 @@ class FixNomRequirementNames extends Command
         $dryRun = (bool) $this->option('dry-run');
 
         foreach (self::NAME_FIXES as $oldName => $newName) {
-            $template = RequirementTemplate::where('name', $oldName)->first();
+            // El nombre no es único globalmente: la restricción real es (name, asset_type_id,
+            // category), así que el mismo nombre recortado puede repetirse en más de un tipo de
+            // activo (p. ej. ES y EC comparten el texto de varias normas NOM) y hay que corregir
+            // cada fila, no solo la primera que aparezca.
+            $templates = RequirementTemplate::where('name', $oldName)->get();
 
-            if (! $template) {
+            if ($templates->isEmpty()) {
                 $this->line("Sin cambios (no existe): \"{$oldName}\"");
 
                 continue;
             }
 
-            if (RequirementTemplate::where('name', $newName)->where('id', '!=', $template->id)->exists()) {
-                $this->error("Omitido: ya existe otro requerimiento con el nombre \"{$newName}\", revisar manualmente.");
+            foreach ($templates as $template) {
+                $assetTypeName = $template->assetType?->name ?? "tipo #{$template->asset_type_id}";
 
-                continue;
-            }
+                $collision = RequirementTemplate::where('name', $newName)
+                    ->where('asset_type_id', $template->asset_type_id)
+                    ->where('category', $template->category)
+                    ->where('id', '!=', $template->id)
+                    ->exists();
 
-            $this->info(($dryRun ? '[dry-run] ' : '')."\"{$oldName}\" -> \"{$newName}\"");
+                if ($collision) {
+                    $this->error("Omitido ({$assetTypeName}): ya existe otro requerimiento con el nombre \"{$newName}\" en ese mismo tipo de activo y categoría, revisar manualmente.");
 
-            if (! $dryRun) {
-                $template->update(['name' => $newName]);
+                    continue;
+                }
+
+                $this->info(($dryRun ? '[dry-run] ' : '')."[{$assetTypeName}] \"{$oldName}\" -> \"{$newName}\"");
+
+                if (! $dryRun) {
+                    $template->update(['name' => $newName]);
+                }
             }
         }
 
