@@ -607,7 +607,12 @@ class ImportRequirementDocuments extends Command
     {
         // Str::ascii quita acentos (Análisis -> Analisis) — el catálogo y los nombres
         // entregados no siempre coinciden en acentuación, y no queremos que eso rompa el match.
-        return Str::lower(trim(preg_replace('/\s+/u', ' ', Str::ascii($value))));
+        // El "+" tampoco es confiable entre proveedores: aparece pegado ("RCA+ Determinación"),
+        // con espacio ("RCA + Determinación") o directamente omitido ("RCA Determinación"), así
+        // que se trata como espacio para que las tres formas normalicen igual.
+        $value = str_replace('+', ' ', Str::ascii($value));
+
+        return Str::lower(trim(preg_replace('/\s+/u', ' ', $value)));
     }
 
     private function normalizeForMatching(string $value): string
