@@ -168,5 +168,9 @@ return [
         // vigencias ("PC" = Protección Civil, "factibilidad de inicio de operaciones" = Vo.Bo.
         // de Inicio de Operaciones) (EC Altamira).
         'Dictamen PC factibilidad de inicio de operaciones' => 'Vobo de Inicio de Operaciones Protección Civil',
+
+        // Confirmado con negocio: mismo requerimiento, "IP" es "Informe Preventivo" (EC America
+        // Española).
+        'Resolutivo IP' => 'Manifiesto de Impacto Ambiental / Informe Preventivo',
     ],
 ];
