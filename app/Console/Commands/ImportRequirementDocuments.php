@@ -317,8 +317,18 @@ class ImportRequirementDocuments extends Command
         // "ALMAGUER (ALAMO)"), quitar antes cualquier "(...)" final del archivo se comería ese
         // paréntesis y stripAssetSuffix ya no podría reconocer "EC Almaguer (Alamo)" como sufijo.
         $baseName = $this->stripAssetSuffix($baseName, $asset, $assetAliases);
-        $baseName = trim(preg_replace(self::PAREN_SUFFIX_PATTERN, '', $baseName));
 
+        // Primero se intenta el match con el paréntesis final tal cual viene, porque a veces SÍ
+        // es parte del nombre oficial del requerimiento (p. ej. "NOM-003-SEDG-2004 Dictamen de
+        // Construcción (EC)"). Solo si eso falla se reintenta quitándolo, para el caso contrario
+        // donde es una anotación aparte que el catálogo no lleva (p. ej. "... EVIS (EVIS)").
+        return $this->tryMatch($baseName, $catalog)
+            ?? $this->tryMatch(trim(preg_replace(self::PAREN_SUFFIX_PATTERN, '', $baseName)), $catalog);
+    }
+
+    /** @param  array<string, RequirementTemplate>  $catalog */
+    private function tryMatch(string $baseName, array $catalog): ?array
+    {
         $normalizedFull = $this->normalize($baseName);
         if (isset($catalog[$normalizedFull])) {
             return ['template' => $catalog[$normalizedFull], 'year' => null, 'semester' => null];

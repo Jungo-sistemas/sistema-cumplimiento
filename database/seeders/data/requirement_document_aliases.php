@@ -159,5 +159,14 @@ return [
             => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
         'Evaluación de Impacto Social EVIS'
             => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
+
+        // Confirmado con negocio: mismo requerimiento, el Excel de vigencias no lleva los
+        // paréntesis alrededor de "EC" que sí trae el nombre oficial (EC Altamira).
+        'NOM-003-SEDG-2004 Dictamen de Construcción EC' => 'NOM-003-SEDG-2004 Dictamen de Construcción (EC)',
+
+        // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de
+        // vigencias ("PC" = Protección Civil, "factibilidad de inicio de operaciones" = Vo.Bo.
+        // de Inicio de Operaciones) (EC Altamira).
+        'Dictamen PC factibilidad de inicio de operaciones' => 'Vobo de Inicio de Operaciones Protección Civil',
     ],
 ];
