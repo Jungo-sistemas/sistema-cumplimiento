@@ -140,4 +140,12 @@ return [
         // vigencias (ES Allende-Cadereyta).
         'Planos Oficiales Aprobados' => 'Planos Oficiales aprobados por Municipio y tercero autorizado',
     ],
+
+    'EC' => [
+        // Mismo alias ya confirmado para ES (ver arriba): el catálogo de EC tiene el mismo
+        // nombre completo de requerimiento, pero el Excel de vigencias trae la forma abreviada
+        // (EC Almaguer).
+        'Resolutivo de Evaluación de Impacto Social EVIS'
+            => 'Resolutivo del Manifestación de Impacto Social en el Sector Energético, MISSE o Evaluación de Impacto Social, EVIS',
+    ],
 ];
