@@ -16,7 +16,12 @@
 function paginateDocument() {
     var PAGE_WIDTH = 816;
     var PAGE_HEIGHT = 1056;
-    var PAD_TOP = 56, PAD_RIGHT = 72, PAD_BOTTOM = 56, PAD_LEFT = 72;
+    // PAD_LEFT/PAD_RIGHT = 96px (1in @ 96dpi) para que coincidan con los márgenes reales del
+    // .docx (marginLeft/marginRight = 1440 twips = 1in, ver RegulationController::storeCargar
+    // y RegulationVersionController) — si no coinciden, el ancho de contenido de esta vista
+    // previa queda más ancho que el real y las imágenes de ancho fijo (como el diagrama de
+    // flujo, insertado a 624px = 6.5in de contenido real) se ven estiradas de más aquí.
+    var PAD_TOP = 56, PAD_RIGHT = 96, PAD_BOTTOM = 56, PAD_LEFT = 96;
     var contentWidth = PAGE_WIDTH - PAD_LEFT - PAD_RIGHT;
 
     var source = document.getElementById('doc-source');
