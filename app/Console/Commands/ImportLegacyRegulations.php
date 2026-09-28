@@ -7,6 +7,7 @@ use App\Models\ProcessType;
 use App\Models\Regulation;
 use App\Models\RegulationVersion;
 use App\Models\User;
+use App\Services\ApprovalFlowService;
 use Illuminate\Console\Command;
 use Illuminate\Http\File as HttpFile;
 use Illuminate\Support\Carbon;
@@ -18,8 +19,11 @@ use Illuminate\Support\Str;
 /**
  * Carga masiva de procedimientos antiguos (documentos ya existentes de antes de este sistema,
  * identificados en el inventario de origen por llevar "REG" en el código) hacia Procesos. Cada
- * fila del CSV se registra como un Regulation con is_legacy=true — visible pero no editable hasta
- * que alguien lo actualice con el wizard o subiendo una versión nueva (ver Regulation::isEditableBy
+ * fila del CSV se registra como un Regulation con is_legacy=true y entra en revisión real
+ * (approval_status=pending_review, con su flujo de aprobación ya armado vía
+ * ApprovalFlowService::initFlow(), pero sin mandar los correos de "tienes que aprobar esto" —
+ * $notify=false) — visible pero no editable hasta que se resuelva esa revisión o alguien lo
+ * actualice con el wizard o subiendo una versión nueva (ver Regulation::isEditableBy
  * / RegulationController::confirmEditDraft / RegulationVersionController::store).
  *
  * El CSV es un maestro con TODAS las empresas mezcladas (no viene pre-filtrado) — el filtro real
@@ -181,6 +185,11 @@ class ImportLegacyRegulations extends Command
         }
 
         $impactLevel = $this->matchImpact($row[self::COL_IMPACTO] ?? '');
+        if (! $impactLevel) {
+            $problems[] = "Línea {$lineNo} [{$code}]: \"IMPACTO\" = \"{$row[self::COL_IMPACTO]}\" no coincide con ningún nivel válido (Alto/Medio Alto/Medio/Bajo) — sin esto no se puede armar el flujo de aprobación, se omite.";
+            return;
+        }
+
         $elaboraPor = trim($row[self::COL_ELABORADO_POR] ?? '') ?: null;
         $apruebaPor = trim($row[self::COL_APROBADO_POR] ?? '') ?: null;
         $issuedAt = $this->parseDate($row[self::COL_FECHA_EMISION] ?? null);
@@ -209,10 +218,16 @@ class ImportLegacyRegulations extends Command
             'is_active' => true,
             'created_by' => $uploader->id,
             'impact_level' => $impactLevel,
-            // Sin flujo interno — mismo criterio que un documento "cargado con aprobación previa"
-            // (ver RegulationController::storeCargar): ya viene aprobado del sistema anterior.
-            'approval_status' => 'approved',
+            // A diferencia de un documento "cargado con aprobación previa" (ver
+            // RegulationController::storeCargar), estos SÍ deben pasar por el flujo de revisión
+            // real, no entrar directo como aprobados — initFlow() más abajo crea los registros de
+            // aprobación reales (con $notify=false para no mandar un correo de "tienes que
+            // aprobar esto" a cada líder/jefe/gerente por cada documento histórico importado).
+            'approval_status' => 'pending_review',
+            'flow_locked' => true,
         ]);
+
+        app(ApprovalFlowService::class)->initFlow($regulation, [], false);
 
         $directory = "regulations/{$company->id}/{$regulation->id}/versions";
         $storedName = 'v1_' . Str::slug(pathinfo($match['file'], PATHINFO_FILENAME)) . '.' . pathinfo($match['file'], PATHINFO_EXTENSION);

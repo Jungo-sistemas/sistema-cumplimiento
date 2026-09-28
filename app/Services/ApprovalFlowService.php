@@ -62,13 +62,23 @@ class ApprovalFlowService
 
     /**
      * Inicializa el flujo de aprobación al crear un reglamento.
+     *
+     * $notify en false crea los mismos registros de aprobación (el estado sigue siendo
+     * "en revisión" real y accionable) pero sin mandar los correos de "tienes que aprobar esto" —
+     * lo usa la carga masiva de documentos legado (ImportLegacyRegulations) para no
+     * bombardear a todos los líderes/jefes/gerentes con un correo por cada documento histórico
+     * que se importa de golpe.
      */
-    public function initFlow(Regulation $regulation, array $userMap = []): void
+    public function initFlow(Regulation $regulation, array $userMap = [], bool $notify = true): void
     {
-        DB::transaction(function () use ($regulation, $userMap) {
+        DB::transaction(function () use ($regulation, $userMap, $notify) {
             $regulation->approvals()->delete();
-            $this->createStepRecords($regulation, 1, $userMap);
+            $this->createStepRecords($regulation, 1, $userMap, $notify);
         });
+
+        if (! $notify) {
+            return;
+        }
 
         $this->notifyPendingApprovers($regulation, 1);
         $this->notifyFutureFlowMembers($regulation, $userMap);
@@ -264,7 +274,7 @@ class ApprovalFlowService
     // Private helpers
     // -------------------------------------------------------------------------
 
-    private function createStepRecords(Regulation $regulation, int $step, array $userMap = []): void
+    private function createStepRecords(Regulation $regulation, int $step, array $userMap = [], bool $notify = true): void
     {
         $flow = self::FLOWS[$regulation->impact_level] ?? [];
         $stepDef = $flow[$step] ?? null;
@@ -279,7 +289,7 @@ class ApprovalFlowService
         // no existen/no están activos) — sin este aviso el reglamento queda en
         // "pending_authorization" para siempre, sin ninguna fila "pending" sobre la cual nadie
         // (ni siquiera el recordatorio automático) pueda actuar. Ver ApprovalStepUnassignedNotification.
-        if ($users->isEmpty()) {
+        if ($users->isEmpty() && $notify) {
             $this->notifyStepUnassigned($regulation, $step, $stepDef['positions']);
         }
 
