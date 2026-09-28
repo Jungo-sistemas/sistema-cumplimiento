@@ -539,7 +539,14 @@ class RegulationVersionController extends Controller
         // exacto usado para compilar el .docx (body_html) — usarlo evita reconvertir el .docx con
         // PhpWord y arriesgar diferencias entre "Ver" y "Descargar". Solo se reconvierte para
         // versiones subidas manualmente (sin body_html).
-        if ($ext === 'docx') {
+        //
+        // Los reglamentos legado (is_legacy) quedan fuera de este camino a propósito: son
+        // documentos de antes de este sistema, con su propio encabezado/formato ya definido en el
+        // archivo original — inyectarles encima el encabezado nuevo (el bloque de abajo) los haría
+        // ver como si fueran de la plantilla estándar cuando no lo son. Para esos, "Ver" cae al
+        // mismo camino que .doc/.pdf (más abajo): convertir el archivo real tal cual con
+        // LibreOffice, igual que ya hace "Descargar".
+        if ($ext === 'docx' && ! $version->regulation->is_legacy) {
             $bodyHtml = $version->body_html ?: $this->docxToHtml(Storage::disk('private')->path($version->file_path))['html'];
             $name     = $version->original_name ?? basename($version->file_path);
 
