@@ -10,13 +10,13 @@ use App\Services\AiProcedureGenerationService;
 use App\Services\ApprovalFlowService;
 use App\Services\OfficeDocumentConverter;
 use App\Services\RegulationChangeTableService;
+use App\Services\RegulationDocxBodyBuilder;
 use App\Services\RegulationDocxHeaderBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
-use PhpOffice\PhpWord\Shared\Html as WordHtml;
 
 class RegulationVersionController extends Controller
 {
@@ -427,7 +427,7 @@ class RegulationVersionController extends Controller
             'quien_aprueba'  => $details['quien_aprueba'] ?? null,
             'fecha_vigencia' => $details['fecha_vigencia'] ?? null,
         ]);
-        WordHtml::addHtml($section, $html, false, false);
+        app(RegulationDocxBodyBuilder::class)->apply($section, $html);
 
         $tmp = tempnam(sys_get_temp_dir(), 'edited_docx_');
         IOFactory::createWriter($phpWord, 'Word2007')->save($tmp);

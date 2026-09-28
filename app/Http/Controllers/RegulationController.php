@@ -11,6 +11,7 @@ use App\Models\RegulationVersion;
 use App\Models\User;
 use App\Services\AiProcedureGenerationService;
 use App\Services\ApprovalFlowService;
+use App\Services\RegulationDocxBodyBuilder;
 use App\Services\RegulationDocxHeaderBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
-use PhpOffice\PhpWord\Shared\Html as WordHtml;
 
 class RegulationController extends Controller
 {
@@ -711,7 +711,7 @@ class RegulationController extends Controller
             'headerHeight' => 1300,
         ]);
         app(RegulationDocxHeaderBuilder::class)->apply($section, $headerMeta);
-        WordHtml::addHtml($section, $html, false, false);
+        app(RegulationDocxBodyBuilder::class)->apply($section, $html);
 
         $tmp = tempnam(sys_get_temp_dir(), 'ai_procedure_docx_');
         IOFactory::createWriter($phpWord, 'Word2007')->save($tmp);
