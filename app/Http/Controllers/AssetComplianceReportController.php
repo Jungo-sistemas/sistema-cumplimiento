@@ -37,7 +37,11 @@ class AssetComplianceReportController extends Controller
     public function export(Request $request): StreamedResponse
     {
         $user = $request->user();
-        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+
+        // Por ahora, solo administradores — a diferencia del resto de reportes del módulo
+        // (Procesos sí deja entrar a operativos), este se restringe más mientras se valida
+        // con el cliente quién más debería tener acceso.
+        abort_unless($user->isAdmin(), 403);
 
         $ids = array_filter(array_map('intval', $request->input('asset_ids', [])));
         abort_if(empty($ids), 422, 'Selecciona al menos un activo.');

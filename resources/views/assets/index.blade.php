@@ -174,54 +174,59 @@
 
     <div x-data="reportTable({{ Js::from($assets->pluck('id')->values()) }})">
 
-        {{-- Barra de exportación — visible al seleccionar --}}
-        <div x-show="selected.length > 0"
-             x-transition:enter="transition ease-out duration-150"
-             x-transition:enter-start="opacity-0 -translate-y-1"
-             x-transition:enter-end="opacity-100 translate-y-0"
-             class="mt-4 flex items-center gap-3 rounded-lg border border-[#1A428A] bg-blue-50 px-4 py-2.5"
-             style="display:none;">
-            <span class="text-sm font-semibold text-[#1A428A]">
-                <span x-text="selected.length"></span> seleccionado<span x-show="selected.length !== 1">s</span>
-            </span>
-            <button type="button"
-                    @click="submitReport()"
-                    class="ml-auto flex items-center gap-1.5 rounded-md bg-[#1A428A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#15356d]">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
-                     viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                </svg>
-                Descargar Excel
-            </button>
-            <button type="button"
-                    @click="selected = []"
-                    class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">
-                Limpiar selección
-            </button>
-        </div>
+        @if($user->isAdmin())
+            {{-- Barra de exportación — visible al seleccionar. Reporte de Excel limitado a
+                 administradores por ahora (ver AssetComplianceReportController::export). --}}
+            <div x-show="selected.length > 0"
+                 x-transition:enter="transition ease-out duration-150"
+                 x-transition:enter-start="opacity-0 -translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 class="mt-4 flex items-center gap-3 rounded-lg border border-[#1A428A] bg-blue-50 px-4 py-2.5"
+                 style="display:none;">
+                <span class="text-sm font-semibold text-[#1A428A]">
+                    <span x-text="selected.length"></span> seleccionado<span x-show="selected.length !== 1">s</span>
+                </span>
+                <button type="button"
+                        @click="submitReport()"
+                        class="ml-auto flex items-center gap-1.5 rounded-md bg-[#1A428A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#15356d]">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
+                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Descargar Excel
+                </button>
+                <button type="button"
+                        @click="selected = []"
+                        class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">
+                    Limpiar selección
+                </button>
+            </div>
 
-        {{-- Formulario oculto para POST de exportación --}}
-        <form x-ref="reportForm" method="POST" action="{{ route('assets.report') }}" class="hidden">
-            @csrf
-            <template x-for="id in selected" :key="id">
-                <input type="hidden" name="asset_ids[]" :value="id">
-            </template>
-        </form>
+            {{-- Formulario oculto para POST de exportación --}}
+            <form x-ref="reportForm" method="POST" action="{{ route('assets.report') }}" class="hidden">
+                @csrf
+                <template x-for="id in selected" :key="id">
+                    <input type="hidden" name="asset_ids[]" :value="id">
+                </template>
+            </form>
+        @endif
 
         <div class="mt-4 bg-white border rounded-lg shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-gray-600">
                     <tr>
-                        <th class="px-3 py-3 w-10">
-                            <input type="checkbox"
-                                   class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A] cursor-pointer"
-                                   :checked="allSelected"
-                                   :indeterminate.prop="selected.length > 0 && !allSelected"
-                                   @change="toggleAll()"
-                                   title="Seleccionar todo (esta página)">
-                        </th>
+                        @if($user->isAdmin())
+                            <th class="px-3 py-3 w-10">
+                                <input type="checkbox"
+                                       class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A] cursor-pointer"
+                                       :checked="allSelected"
+                                       :indeterminate.prop="selected.length > 0 && !allSelected"
+                                       @change="toggleAll()"
+                                       title="Seleccionar todo (esta página)">
+                            </th>
+                        @endif
                         <th class="text-left px-6 py-3 font-semibold">Nombre</th>
 
                         @if($showCompanyColumn)
@@ -239,12 +244,14 @@
                 <tbody>
                     @forelse($assets as $asset)
                         <tr class="border-t hover:bg-gray-50" :class="selected.includes({{ $asset->id }}) ? 'bg-blue-50' : ''">
-                            <td class="px-3 py-3">
-                                <input type="checkbox"
-                                       class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A] cursor-pointer"
-                                       :checked="selected.includes({{ $asset->id }})"
-                                       @change="toggle({{ $asset->id }})">
-                            </td>
+                            @if($user->isAdmin())
+                                <td class="px-3 py-3">
+                                    <input type="checkbox"
+                                           class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A] cursor-pointer"
+                                           :checked="selected.includes({{ $asset->id }})"
+                                           @change="toggle({{ $asset->id }})">
+                                </td>
+                            @endif
                             <td class="px-6 py-3">
                                 <div class="font-semibold text-gray-800">{{ $asset->display_name }}</div>
                                 <div class="text-xs text-gray-500">
@@ -287,7 +294,10 @@
                         </tr>
                     @empty
                         <tr class="border-t">
-                            <td colspan="{{ $showCompanyColumn ? 9 : 8 }}" class="px-6 py-6 text-center text-gray-500">
+                            @php
+                                $colspan = ($user->isAdmin() ? 1 : 0) + ($showCompanyColumn ? 8 : 7);
+                            @endphp
+                            <td colspan="{{ $colspan }}" class="px-6 py-6 text-center text-gray-500">
                                 No hay activos para este filtro.
                             </td>
                         </tr>
