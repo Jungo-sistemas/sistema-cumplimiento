@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AssetController;
+use App\Http\Controllers\AssetComplianceReportController;
 use App\Http\Controllers\AssetRequirementController;
 use App\Http\Controllers\RequirementTaskController;
 use App\Http\Controllers\TaskDocumentController;
@@ -294,6 +295,9 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
 
     // Assets CRUD
     Route::resource('assets', AssetController::class);
+
+    // Reporte de cumplimiento en Excel para los activos seleccionados
+    Route::post('assets/report', [AssetComplianceReportController::class, 'export'])->name('assets.report');
 
     // Asset activation
     Route::patch('assets/{asset}/deactivate', [AssetController::class, 'deactivate'])->name('assets.deactivate');
