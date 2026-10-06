@@ -192,6 +192,12 @@ class UserController extends Controller
             return back()->with('error', 'No puedes cambiar tu propio rol.');
         }
 
+        // Mismo criterio que destroy(): un admin no puede tocar a otro admin (ni al
+        // superadmin) — solo el superadministrador puede editar administradores.
+        if ($user->isAdmin() && ! $authUser->isSuperAdmin()) {
+            return back()->with('error', 'Solo el superadministrador puede editar a otros administradores.');
+        }
+
         $request->validate([
             'role_id'          => ['required', 'exists:roles,id'],
             'company_id'       => ['nullable', 'exists:companies,id'],

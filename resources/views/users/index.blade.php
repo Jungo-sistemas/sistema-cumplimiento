@@ -257,11 +257,13 @@
                                 <td class="px-4 py-3 text-right">
                                     @if($user->id !== auth()->id())
                                         <div class="inline-flex gap-2">
+                                            @if(!$user->isAdmin() || auth()->user()->isSuperAdmin())
                                             <button type="button"
                                                 @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', '{{ $user->company_id ?? '' }}', '{{ $user->module_access ?? 'all' }}', @json($user->jobPositions->pluck('id')))"
                                                 class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
                                                 Editar
                                             </button>
+                                            @endif
                                             @if(!$user->isAdmin() || auth()->user()->isSuperAdmin())
                                             <form method="POST"
                                                   action="{{ route('users.destroy', $user) }}"
