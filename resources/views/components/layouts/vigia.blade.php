@@ -79,7 +79,12 @@
                         </svg>
                     </button>
 
-                    <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
+                    {{-- El logo es el "inicio", pero "inicio" depende de en qué módulo ya estás —
+                         antes mandaba siempre a Cumplimiento (route('dashboard') fijo), así que
+                         alguien navegando en Procesos que le diera clic terminaba en el tablero de
+                         Cumplimiento sin razón aparente. --}}
+                    <a href="{{ route($user?->isSuperAdmin() ? 'superadmin.dashboard' : ($modules[$currentModule]['route'] ?? 'dashboard')) }}"
+                       class="flex items-center gap-3">
                         <img src="{{ asset('images/vigia.svg') }}" alt="VIGIA" class="h-8 w-auto">
                     </a>
 
