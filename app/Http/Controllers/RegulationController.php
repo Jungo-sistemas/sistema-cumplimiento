@@ -760,13 +760,20 @@ class RegulationController extends Controller
             // "extensions" valida solo la extensión del archivo, que es justo lo que el usuario ve.
             'file'             => ['required', 'file', 'max:10240', 'extensions:pdf,doc,docx,xls,xlsx,ppt,pptx'],
             'issued_at'        => ['nullable', 'date'],
-            'valid_until'      => ['required', 'date', 'after_or_equal:issued_at'],
+            // Un documento que entra a flujo de aprobación todavía no tiene vigencia real — se le
+            // asigna hasta que se apruebe (ver ApprovalFlowService::processApproval()), igual que
+            // cualquier otro reglamento nuevo. Solo es obligatoria si ya viene aprobado.
+            'approval_mode'    => ['required', 'in:approved,flow'],
+            'valid_until'      => ['required_if:approval_mode,approved', 'nullable', 'date', 'after_or_equal:issued_at'],
+            'impact_level'     => ['required_if:approval_mode,flow', 'nullable', 'in:' . implode(',', array_keys(Regulation::IMPACT_LEVELS))],
         ]);
 
         $company = Company::findOrFail($data['company_id']);
         abort_unless($user->canAccessCompany($company), 403);
 
-        $regulation = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $request, $company, $user) {
+        $sendToFlow = $data['approval_mode'] === 'flow';
+
+        $regulation = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $request, $company, $user, $sendToFlow) {
             $details = [
                 'quien_elabora' => $data['quien_elabora'],
                 'quien_aprueba' => $data['quien_aprueba'],
@@ -784,9 +791,9 @@ class RegulationController extends Controller
                 'details'         => $details,
                 'is_active'       => true,
                 'created_by'      => $user->id,
-                'impact_level'    => null,
-                'approval_status' => 'approved',
-                'flow_locked'     => false,
+                'impact_level'    => $sendToFlow ? $data['impact_level'] : null,
+                'approval_status' => $sendToFlow ? 'pending_review' : 'approved',
+                'flow_locked'     => $sendToFlow,
             ]);
 
             $regulation->responsables()->attach($user->id);
@@ -817,9 +824,19 @@ class RegulationController extends Controller
             return $regulation;
         });
 
+        if ($sendToFlow) {
+            // Mismo patrón que setFlow() para una acción en vivo de un solo documento (a
+            // diferencia de ImportLegacyRegulations, que usa $notify=false para no bombardear
+            // correos en una carga masiva histórica) — aquí sí se notifica normalmente a los
+            // aprobadores del primer paso.
+            $this->flowService->initFlow($regulation, []);
+        }
+
         return redirect()
             ->route('processes.show', $regulation)
-            ->with('success', 'Reglamento cargado correctamente y marcado como aprobado.');
+            ->with('success', $sendToFlow
+                ? 'Reglamento cargado correctamente y enviado a flujo de aprobación.'
+                : 'Reglamento cargado correctamente y marcado como aprobado.');
     }
 
     public function edit(Regulation $regulation)

@@ -12,14 +12,14 @@
         <span class="text-gray-700 font-medium">Cargar Proceso</span>
     </x-slot>
 
-    <div x-data="{ fileName: '' }">
+    <div x-data="{ fileName: '', approvalMode: '{{ old('approval_mode', 'approved') }}' }">
 
         {{-- ENCABEZADO --}}
         <div class="mb-6">
             <h1 class="text-2xl font-semibold text-[#1A428A]">Cargar proceso existente</h1>
             <p class="text-sm text-gray-500 mt-1">
-                Para documentos que ya fueron aprobados fuera del sistema. Se registrarán directamente como
-                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-xs font-medium">aprobados</span>.
+                Para documentos ya redactados fuera del sistema — indica abajo si ya fue aprobado antes de
+                subirlo, o si necesita pasar por el flujo de aprobación de aquí.
             </p>
         </div>
 
@@ -37,6 +37,58 @@
               action="{{ route('processes.storeCargar') }}"
               enctype="multipart/form-data">
             @csrf
+
+            {{-- ── ESTADO DE APROBACIÓN ── --}}
+            <div class="bg-white border rounded-xl shadow-sm overflow-hidden mb-6">
+                <div class="px-5 py-3.5 border-b bg-[#1A428A]">
+                    <h2 class="text-sm font-semibold text-white">Estado de aprobación</h2>
+                </div>
+                <div class="p-5 space-y-3">
+                    <label class="flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition"
+                           :class="approvalMode === 'approved' ? 'border-[#1A428A] bg-blue-50' : 'border-gray-200 hover:bg-gray-50'">
+                        <input type="radio" name="approval_mode" value="approved" x-model="approvalMode"
+                               class="mt-0.5 text-[#1A428A] focus:ring-[#1A428A]">
+                        <span>
+                            <span class="block text-sm font-semibold text-gray-800">Ya está aprobado</span>
+                            <span class="block text-xs text-gray-500 mt-0.5">
+                                El documento ya fue aprobado fuera del sistema — se registra directamente como
+                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-xs font-medium">aprobado</span>.
+                            </span>
+                        </span>
+                    </label>
+
+                    <label class="flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition"
+                           :class="approvalMode === 'flow' ? 'border-[#1A428A] bg-blue-50' : 'border-gray-200 hover:bg-gray-50'">
+                        <input type="radio" name="approval_mode" value="flow" x-model="approvalMode"
+                               class="mt-0.5 text-[#1A428A] focus:ring-[#1A428A]">
+                        <span>
+                            <span class="block text-sm font-semibold text-gray-800">Necesita flujo de aprobación</span>
+                            <span class="block text-xs text-gray-500 mt-0.5">
+                                El documento todavía no está aprobado — se envía a
+                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 text-xs font-medium">en revisión</span>
+                                y se notifica a los aprobadores del primer paso según el nivel de impacto que elijas.
+                            </span>
+                        </span>
+                    </label>
+
+                    <div x-show="approvalMode === 'flow'" class="pt-1">
+                        <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                            Nivel de impacto <span class="text-red-500">*</span>
+                        </label>
+                        <select name="impact_level"
+                                class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('impact_level') border-red-400 @enderror">
+                            <option value="">— Seleccionar —</option>
+                            @foreach(\App\Models\Regulation::IMPACT_LEVELS as $lvlKey => $lvlLabel)
+                                <option value="{{ $lvlKey }}" {{ old('impact_level') === $lvlKey ? 'selected' : '' }}>{{ $lvlLabel }}</option>
+                            @endforeach
+                        </select>
+                        @error('impact_level')
+                            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
+                        <p class="text-xs text-gray-400 mt-1">Define quién tiene que aprobarlo primero (líder, jefe, gerente, dirección).</p>
+                    </div>
+                </div>
+            </div>
 
             {{-- DOS COLUMNAS --}}
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -242,15 +294,20 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                                    Fecha de vencimiento <span class="text-red-500">*</span>
+                                    Fecha de vencimiento
+                                    <span x-show="approvalMode === 'approved'" class="text-red-500">*</span>
                                 </label>
                                 <input type="date"
                                        name="valid_until"
                                        value="{{ old('valid_until') }}"
+                                       :required="approvalMode === 'approved'"
                                        class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('valid_until') border-red-400 @enderror">
                                 @error('valid_until')
                                     <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                                 @enderror
+                                <p x-show="approvalMode === 'flow'" class="text-xs text-gray-400 mt-1">
+                                    Se asignará automáticamente cuando se apruebe.
+                                </p>
                             </div>
                         </div>
 
@@ -261,7 +318,8 @@
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                       d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
-                            <span>El documento quedará registrado como <strong>versión 1</strong> y se marcará como vigente de forma inmediata.</span>
+                            <span x-show="approvalMode === 'approved'">El documento quedará registrado como <strong>versión 1</strong> y se marcará como vigente de forma inmediata.</span>
+                            <span x-show="approvalMode === 'flow'">El documento quedará registrado como <strong>versión 1</strong>, en revisión — se notificará a los aprobadores del primer paso según el nivel de impacto elegido.</span>
                         </div>
 
                     </div>
