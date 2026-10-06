@@ -39,39 +39,34 @@
             @csrf
 
             {{-- ── ESTADO DE APROBACIÓN ── --}}
-            <div class="bg-white border rounded-xl shadow-sm overflow-hidden mb-6">
-                <div class="px-5 py-3.5 border-b bg-[#1A428A]">
-                    <h2 class="text-sm font-semibold text-white">Estado de aprobación</h2>
+            <div class="bg-white border rounded-xl shadow-sm p-5 mb-6">
+                <label class="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
+                    Estado de aprobación <span class="text-red-500">*</span>
+                </label>
+
+                <div class="inline-flex rounded-lg border border-gray-300 p-1 gap-1">
+                    <label class="flex items-center px-4 py-2 rounded-md text-sm font-semibold cursor-pointer transition"
+                           :class="approvalMode === 'approved' ? 'bg-[#1A428A] text-white' : 'text-gray-600 hover:bg-gray-50'">
+                        <input type="radio" name="approval_mode" value="approved" x-model="approvalMode" class="sr-only">
+                        Ya está aprobado
+                    </label>
+                    <label class="flex items-center px-4 py-2 rounded-md text-sm font-semibold cursor-pointer transition"
+                           :class="approvalMode === 'flow' ? 'bg-[#1A428A] text-white' : 'text-gray-600 hover:bg-gray-50'">
+                        <input type="radio" name="approval_mode" value="flow" x-model="approvalMode" class="sr-only">
+                        Enviar a flujo de aprobación
+                    </label>
                 </div>
-                <div class="p-5 space-y-3">
-                    <label class="flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition"
-                           :class="approvalMode === 'approved' ? 'border-[#1A428A] bg-blue-50' : 'border-gray-200 hover:bg-gray-50'">
-                        <input type="radio" name="approval_mode" value="approved" x-model="approvalMode"
-                               class="mt-0.5 text-[#1A428A] focus:ring-[#1A428A]">
-                        <span>
-                            <span class="block text-sm font-semibold text-gray-800">Ya está aprobado</span>
-                            <span class="block text-xs text-gray-500 mt-0.5">
-                                El documento ya fue aprobado fuera del sistema — se registra directamente como
-                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-xs font-medium">aprobado</span>.
-                            </span>
-                        </span>
-                    </label>
 
-                    <label class="flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition"
-                           :class="approvalMode === 'flow' ? 'border-[#1A428A] bg-blue-50' : 'border-gray-200 hover:bg-gray-50'">
-                        <input type="radio" name="approval_mode" value="flow" x-model="approvalMode"
-                               class="mt-0.5 text-[#1A428A] focus:ring-[#1A428A]">
-                        <span>
-                            <span class="block text-sm font-semibold text-gray-800">Necesita flujo de aprobación</span>
-                            <span class="block text-xs text-gray-500 mt-0.5">
-                                El documento todavía no está aprobado — se envía a
-                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 text-xs font-medium">en revisión</span>
-                                y se notifica a los aprobadores del primer paso según el nivel de impacto que elijas.
-                            </span>
-                        </span>
-                    </label>
+                <p x-show="approvalMode === 'approved'" class="text-xs text-gray-500 mt-2">
+                    El documento se registra directamente como
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-xs font-medium">aprobado</span>.
+                </p>
 
-                    <div x-show="approvalMode === 'flow'" class="pt-1">
+                {{-- Lo principal de este modo es elegir el nivel de impacto (define quién aprueba) —
+                     "en revisión" es solo la consecuencia, no el punto central, así que va como nota
+                     secundaria debajo del select, no como el mensaje protagonista. --}}
+                <div x-show="approvalMode === 'flow'" class="mt-3 flex flex-wrap items-end gap-3">
+                    <div class="w-full sm:w-56">
                         <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
                             Nivel de impacto <span class="text-red-500">*</span>
                         </label>
@@ -85,8 +80,12 @@
                         @error('impact_level')
                             <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                         @enderror
-                        <p class="text-xs text-gray-400 mt-1">Define quién tiene que aprobarlo primero (líder, jefe, gerente, dirección).</p>
                     </div>
+                    <p class="text-xs text-gray-500 pb-1.5">
+                        Define quién aprueba primero (líder, jefe, gerente, dirección). El documento queda
+                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 text-xs font-medium">en revisión</span>
+                        y se notifica de inmediato a los aprobadores del primer paso.
+                    </p>
                 </div>
             </div>
 
