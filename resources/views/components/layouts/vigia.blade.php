@@ -29,11 +29,17 @@
         : 0;
 
     // Vistas "minimal" (por ahora solo el perfil del usuario) no muestran el menú lateral
-    // contextual — en su lugar, un solo botón de regreso. Si el usuario tiene acceso a ambos
-    // módulos, Cumplimiento es el principal (de ahí puede moverse a Procesos); si solo tiene
-    // uno de los dos, regresa a ese.
-    $homeModuleKey = isset($modules['cumplimiento']) ? 'cumplimiento' : array_key_first($modules);
-    $homeModule = $modules[$homeModuleKey] ?? $allModules['cumplimiento'];
+    // contextual — en su lugar, un solo botón de regreso. El superadmin no vive en
+    // Cumplimiento/Procesos (esos son los módulos de cliente) — su "inicio" real es el panel de
+    // Sistema, igual que ya es el primer bloque del menú lateral para ese rol. Para los demás: si
+    // el usuario tiene acceso a ambos módulos, Cumplimiento es el principal (de ahí puede moverse
+    // a Procesos); si solo tiene uno de los dos, regresa a ese.
+    if ($user?->isSuperAdmin()) {
+        $homeModule = ['label' => 'Panel general', 'route' => 'superadmin.dashboard'];
+    } else {
+        $homeModuleKey = isset($modules['cumplimiento']) ? 'cumplimiento' : array_key_first($modules);
+        $homeModule = $modules[$homeModuleKey] ?? $allModules['cumplimiento'];
+    }
 @endphp
 
 <!DOCTYPE html>
