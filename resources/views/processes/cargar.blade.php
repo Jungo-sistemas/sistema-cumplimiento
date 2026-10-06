@@ -62,31 +62,14 @@
                     <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-xs font-medium">aprobado</span>.
                 </p>
 
-                {{-- Lo principal de este modo es elegir el nivel de impacto (define quién aprueba) —
-                     "en revisión" es solo la consecuencia, no el punto central, así que va como nota
-                     secundaria debajo del select, no como el mensaje protagonista. --}}
-                <div x-show="approvalMode === 'flow'" class="mt-3 flex flex-wrap items-end gap-3">
-                    <div class="w-full sm:w-56">
-                        <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                            Nivel de impacto <span class="text-red-500">*</span>
-                        </label>
-                        <select name="impact_level"
-                                class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('impact_level') border-red-400 @enderror">
-                            <option value="">— Seleccionar —</option>
-                            @foreach(\App\Models\Regulation::IMPACT_LEVELS as $lvlKey => $lvlLabel)
-                                <option value="{{ $lvlKey }}" {{ old('impact_level') === $lvlKey ? 'selected' : '' }}>{{ $lvlLabel }}</option>
-                            @endforeach
-                        </select>
-                        @error('impact_level')
-                            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <p class="text-xs text-gray-500 pb-1.5">
-                        Define quién aprueba primero (líder, jefe, gerente, dirección). El documento queda
-                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 text-xs font-medium">en revisión</span>
-                        y se notifica de inmediato a los aprobadores del primer paso.
-                    </p>
-                </div>
+                {{-- El nivel de impacto no se pide aquí para no agregar un paso extra a la carga —
+                     se elige después desde "Asignar flujo" en la tabla de procedimientos, igual
+                     que cualquier reglamento nuevo creado con el wizard de IA. --}}
+                <p x-show="approvalMode === 'flow'" class="text-xs text-gray-500 mt-2">
+                    El documento queda
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 text-xs font-medium">sin flujo asignado</span>
+                    — podrás elegir el nivel de impacto y a los aprobadores desde "Asignar flujo" en la tabla de procedimientos.
+                </p>
             </div>
 
             {{-- DOS COLUMNAS --}}
@@ -318,7 +301,7 @@
                                       d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                             <span x-show="approvalMode === 'approved'">El documento quedará registrado como <strong>versión 1</strong> y se marcará como vigente de forma inmediata.</span>
-                            <span x-show="approvalMode === 'flow'">El documento quedará registrado como <strong>versión 1</strong>, en revisión — se notificará a los aprobadores del primer paso según el nivel de impacto elegido.</span>
+                            <span x-show="approvalMode === 'flow'">El documento quedará registrado como <strong>versión 1</strong>, sin flujo asignado — asígnalo desde la tabla de procedimientos para que entre en revisión.</span>
                         </div>
 
                     </div>

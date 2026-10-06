@@ -765,7 +765,6 @@ class RegulationController extends Controller
             // cualquier otro reglamento nuevo. Solo es obligatoria si ya viene aprobado.
             'approval_mode'    => ['required', 'in:approved,flow'],
             'valid_until'      => ['required_if:approval_mode,approved', 'nullable', 'date', 'after_or_equal:issued_at'],
-            'impact_level'     => ['required_if:approval_mode,flow', 'nullable', 'in:' . implode(',', array_keys(Regulation::IMPACT_LEVELS))],
         ]);
 
         $company = Company::findOrFail($data['company_id']);
@@ -773,13 +772,17 @@ class RegulationController extends Controller
 
         $sendToFlow = $data['approval_mode'] === 'flow';
 
-        $regulation = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $request, $company, $user, $sendToFlow) {
+        $regulation = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $request, $company, $user) {
             $details = [
                 'quien_elabora' => $data['quien_elabora'],
                 'quien_aprueba' => $data['quien_aprueba'],
                 'fecha_vigencia' => $data['valid_until'] ?? null,
             ];
 
+            // Mismo estado "sin flujo" con el que confirmCreateDraft() crea cualquier reglamento
+            // nuevo del wizard: sin elegir nivel de impacto aquí (para no agregarle un paso extra
+            // a la carga), queda pendiente de asignar flujo desde la tabla de procedimientos —
+            // mismo botón "Asignar flujo" que ya usan los reglamentos creados con IA.
             $regulation = Regulation::create([
                 'group_id'        => $user->group_id,
                 'company_id'      => $company->id,
@@ -791,9 +794,8 @@ class RegulationController extends Controller
                 'details'         => $details,
                 'is_active'       => true,
                 'created_by'      => $user->id,
-                'impact_level'    => $sendToFlow ? $data['impact_level'] : null,
-                'approval_status' => $sendToFlow ? 'pending_review' : 'approved',
-                'flow_locked'     => $sendToFlow,
+                'impact_level'    => null,
+                'approval_status' => $data['approval_mode'] === 'approved' ? 'approved' : null,
             ]);
 
             $regulation->responsables()->attach($user->id);
@@ -824,18 +826,10 @@ class RegulationController extends Controller
             return $regulation;
         });
 
-        if ($sendToFlow) {
-            // Mismo patrón que setFlow() para una acción en vivo de un solo documento (a
-            // diferencia de ImportLegacyRegulations, que usa $notify=false para no bombardear
-            // correos en una carga masiva histórica) — aquí sí se notifica normalmente a los
-            // aprobadores del primer paso.
-            $this->flowService->initFlow($regulation, []);
-        }
-
         return redirect()
             ->route('processes.show', $regulation)
             ->with('success', $sendToFlow
-                ? 'Reglamento cargado correctamente y enviado a flujo de aprobación.'
+                ? 'Reglamento cargado correctamente. Asigna el flujo de aprobación desde la tabla de documentos.'
                 : 'Reglamento cargado correctamente y marcado como aprobado.');
     }
 
