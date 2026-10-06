@@ -117,15 +117,19 @@
                         {{-- Puestos --}}
                         <div x-show="!isAdminEdit">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Puestos</label>
-                            <select name="job_position_id[]" x-model="editPositionIds" multiple size="4"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                            <div class="w-full rounded-lg border border-gray-300 divide-y divide-gray-100 max-h-44 overflow-y-auto">
                                 <template x-for="pos in availablePositions" :key="pos.id">
-                                    <option :value="pos.id" x-text="pos.name"></option>
+                                    <label class="flex items-center gap-2 px-3 py-2.5 text-sm cursor-pointer hover:bg-gray-50">
+                                        <input type="checkbox" name="job_position_id[]" :value="pos.id" x-model="editPositionIds"
+                                            class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]/40 cursor-pointer">
+                                        <span x-text="pos.name" class="text-gray-700"></span>
+                                    </label>
                                 </template>
-                            </select>
-                            <p class="mt-1 text-xs text-gray-400">Ctrl/Cmd + clic para elegir varios.</p>
+                            </div>
                             <p x-show="availablePositions.length === 0"
-                               class="mt-1 text-xs text-gray-400">Sin puestos disponibles para este usuario.</p>
+                               class="mt-1 text-xs text-gray-400 border border-gray-200 rounded-lg px-3 py-2.5">
+                                Sin puestos disponibles para este usuario.
+                            </p>
                         </div>
 
                         {{-- Vista predeterminada / Módulos --}}
