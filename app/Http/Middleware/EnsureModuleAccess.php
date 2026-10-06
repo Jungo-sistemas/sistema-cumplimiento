@@ -19,11 +19,6 @@ class EnsureModuleAccess
             'procesos.*',
             'my-approvals.*',
             'regulation-versions.*',
-            // Faltaba: sin esto, una empresa/grupo sin licencia de Procesos podía seguir
-            // entrando a Puestos (/settings/positions/*) sin que el candado de licencia aplicara —
-            // detectModule() regresaba null para estas rutas y se trataban como "ruta compartida,
-            // sin restricción".
-            'job-positions.*',
         ],
         'cumplimiento' => [
             'assets.*',

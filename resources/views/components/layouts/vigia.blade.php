@@ -15,7 +15,7 @@
 
 @php
     $user = auth()->user();
-    $currentModule = request()->routeIs('processes.*', 'job-positions.*', 'my-approvals.*', 'regulation-versions.*') ? 'procesos' : 'cumplimiento';
+    $currentModule = request()->routeIs('processes.*', 'my-approvals.*', 'regulation-versions.*') ? 'procesos' : 'cumplimiento';
     $allModules = [
         'cumplimiento' => ['label' => 'Cumplimiento', 'route' => 'dashboard'],
         'procesos'     => ['label' => 'Procesos',     'route' => 'processes.dashboard'],
