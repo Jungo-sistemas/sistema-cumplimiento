@@ -2,6 +2,8 @@
 @props([
     'title' => null,
     'minimal' => false,
+    'backRoute' => null,
+    'backLabel' => null,
     'navContext' => [
         'asset' => null,
         'requirement' => null,
@@ -28,15 +30,21 @@
         ? \App\Models\RegulationApproval::where('user_id', $user->id)->where('status', 'pending')->count()
         : 0;
 
-    // Vistas "minimal" (por ahora solo el perfil del usuario) no muestran el menú lateral
-    // contextual — en su lugar, un solo botón de regreso. El superadmin no vive en
-    // Cumplimiento/Procesos (esos son los módulos de cliente) — su "inicio" real es el panel de
-    // Sistema, igual que ya es el primer bloque del menú lateral para ese rol. Para los demás: si
-    // el usuario tiene acceso a ambos módulos, Cumplimiento es el principal (de ahí puede moverse
-    // a Procesos); si solo tiene uno de los dos, regresa a ese.
-    if ($user?->isSuperAdmin()) {
+    // Vistas "minimal" no muestran el menú lateral contextual — en su lugar, un solo botón de
+    // regreso. Por defecto regresa al módulo "de casa" del usuario (ver abajo), pero una página
+    // que sea un sub-paso dentro de otra sección (p. ej. "Agregar usuario" dentro de Usuarios)
+    // puede pasar backRoute/backLabel para regresar a esa sección en concreto en vez de saltarse
+    // directo al módulo.
+    if ($backRoute) {
+        $homeModule = ['label' => $backLabel ?? $title, 'route' => $backRoute];
+    } elseif ($user?->isSuperAdmin()) {
+        // El superadmin no vive en Cumplimiento/Procesos (esos son los módulos de cliente) — su
+        // "inicio" real es el panel de Sistema, igual que ya es el primer bloque del menú lateral
+        // para ese rol.
         $homeModule = ['label' => 'Panel general', 'route' => 'superadmin.dashboard'];
     } else {
+        // Si el usuario tiene acceso a ambos módulos, Cumplimiento es el principal (de ahí puede
+        // moverse a Procesos); si solo tiene uno de los dos, regresa a ese.
         $homeModuleKey = isset($modules['cumplimiento']) ? 'cumplimiento' : array_key_first($modules);
         $homeModule = $modules[$homeModuleKey] ?? $allModules['cumplimiento'];
     }
