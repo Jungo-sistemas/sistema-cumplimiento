@@ -43,8 +43,8 @@
                 <div class="px-5 py-3.5 border-b bg-[#1A428A]">
                     <h2 class="text-sm font-semibold text-white">Estado de aprobación</h2>
                 </div>
-                <div class="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div class="inline-flex rounded-lg border border-gray-300 p-1 gap-1 shrink-0">
+                <div class="p-5 space-y-3">
+                    <div class="inline-flex rounded-lg border border-gray-300 p-1 gap-1">
                         <label class="flex items-center px-4 py-2 rounded-md text-sm font-semibold cursor-pointer transition"
                                :class="approvalMode === 'approved' ? 'bg-[#1A428A] text-white' : 'text-gray-600 hover:bg-gray-50'">
                             <input type="radio" name="approval_mode" value="approved" x-model="approvalMode" class="sr-only">
@@ -74,10 +74,10 @@
                 </div>
             </div>
 
-            {{-- DOS COLUMNAS --}}
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            {{-- UNA SOLA COLUMNA: Identificación arriba, Archivo y vigencia debajo --}}
+            <div class="space-y-6">
 
-                {{-- ── COLUMNA IZQUIERDA: Identificación ── --}}
+                {{-- ── Identificación ── --}}
                 <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
                     <div class="px-5 py-3.5 border-b bg-[#1A428A]">
                         <h2 class="text-sm font-semibold text-white">Identificación del documento</h2>
@@ -214,7 +214,7 @@
                     </div>
                 </div>
 
-                {{-- ── COLUMNA DERECHA: Archivo y vigencia ── --}}
+                {{-- ── Archivo y vigencia ── --}}
                 <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
                     <div class="px-5 py-3.5 border-b bg-[#1A428A]">
                         <h2 class="text-sm font-semibold text-white">Archivo y vigencia</h2>
@@ -309,7 +309,7 @@
                     </div>
                 </div>
 
-            </div>{{-- fin grid --}}
+            </div>{{-- fin columna única --}}
 
             {{-- ── ACCIONES ── --}}
             <div class="mt-6 flex items-center justify-end gap-3">
