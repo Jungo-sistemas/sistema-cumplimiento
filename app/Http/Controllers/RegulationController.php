@@ -580,18 +580,6 @@ class RegulationController extends Controller
         $oldDetails = $draft['old_details'] ?? [];
         $newDetails = $this->mergeWizardMetaIntoDetails($ai['details'], $data);
 
-        // Detectar cambios en cualquier campo (details O columnas directas) — igual que el update() anterior.
-        $sortedOld = $oldDetails;
-        ksort($sortedOld);
-        $sortedNew = $newDetails;
-        ksort($sortedNew);
-
-        $detailsChanged = $sortedOld !== $sortedNew
-            || ($draft['old_process_type_id'] ?? null) !== (int) $data['process_type_id']
-            || ($draft['old_document_type'] ?? '') !== ($data['document_type'] ?? '')
-            || ($draft['old_name'] ?? '') !== Str::upper($data['nombre'])
-            || ($draft['old_code'] ?? '') !== ($data['codigo'] ? Str::upper($data['codigo']) : '');
-
         // Se vuelve a sanear aunque generate() ya lo haga: protege borradores que quedaron en
         // sesión desde antes de un ajuste al saneador (como este documento pendiente de confirmar).
         // El documento se guarda tal cual lo entregó la IA — el "qué cambió" para quien aprueba se
@@ -664,10 +652,15 @@ class RegulationController extends Controller
             $this->flowService->resubmit($regulation);
         }
 
-        if ($detailsChanged && ($draft['old_flow_locked'] ?? false) && $user->isAdmin()) {
+        // Antes esto solo se activaba si $detailsChanged (comparaba nada más los campos de
+        // metadatos del wizard) — una reescritura completa del contenido por la IA podía no tocar
+        // ninguno de esos campos y el admin nunca se enteraba de que el flujo se había reiniciado.
+        // Ahora se activa exactamente cuando sí se reinició el flujo (ver resubmit() arriba), igual
+        // que saveEdit() y store() — mismo criterio en los tres caminos de edición.
+        if ($wasApproved && $user->isAdmin()) {
             return redirect()
                 ->route('processes.show', ['regulation' => $regulation->id, 'review_flow' => 1])
-                ->with('success', 'Documento actualizado y redactado con IA. Los cambios están resaltados en la vista de impresión.');
+                ->with('success', 'Documento actualizado y redactado con IA. El documento vuelve a estar en revisión.');
         }
 
         return redirect()

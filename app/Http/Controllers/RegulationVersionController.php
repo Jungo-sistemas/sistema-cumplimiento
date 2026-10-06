@@ -31,6 +31,7 @@ class RegulationVersionController extends Controller
         abort_unless(! $regulation->hasActiveApprovalFlow(), 403, 'No se puede subir una nueva versión mientras el documento está en proceso de aprobación.');
 
         $wasApproved = $regulation->approval_status === 'approved';
+        $previousValidUntil = $regulation->currentVersion?->valid_until;
 
         $data = $request->validate([
             // Ver comentario en RegulationController::storeCargar() — "mimes" rechaza .docx/.xlsx/.pptx
@@ -41,7 +42,7 @@ class RegulationVersionController extends Controller
             'responsible_name'   => ['nullable', 'string', 'max:255'],
         ]);
 
-        DB::transaction(function () use ($data, $request, $regulation, $user) {
+        DB::transaction(function () use ($data, $request, $regulation, $user, $previousValidUntil) {
             // Mark previous current version as not current
             $regulation->versions()->where('is_current', true)->update(['is_current' => false]);
 
@@ -70,16 +71,31 @@ class RegulationVersionController extends Controller
                 'disk'               => 'private',
                 'mime_type'          => $file->getMimeType(),
                 'issued_at'          => now()->toDateString(),
-                'valid_until'        => now()->addYear()->toDateString(),
+                // Se conserva la vigencia de la versión que se reemplaza — igual que saveEdit() y
+                // confirmEditDraft(): si esto dispara un nuevo ciclo de aprobación (ver abajo), no
+                // tiene caso stampar "vigente por un año" sobre un documento que todavía no ha sido
+                // revisado; ApprovalFlowService::processApproval() la reasigna en cuanto se apruebe.
+                'valid_until'        => $previousValidUntil,
                 'is_current'         => true,
                 'uploaded_by'        => $user->id,
             ]);
         });
 
+        // Si el archivo subido reemplaza un documento rechazado, esta carga es (se asume) la
+        // corrección — avisar a los admins que ya pueden reiniciar el flujo, igual que saveEdit()
+        // y confirmEditDraft().
+        app(ApprovalFlowService::class)->notifyIfCorrectedAfterRejection($regulation);
+
         // Si el archivo subido reemplaza un documento ya aprobado, ese contenido nuevo no ha sido
         // revisado por nadie — no puede seguir mostrándose como "aprobado".
         if ($wasApproved) {
             app(ApprovalFlowService::class)->resubmit($regulation);
+
+            if ($user->isAdmin()) {
+                return redirect()
+                    ->route('processes.show', ['regulation' => $regulation->id, 'review_flow' => 1])
+                    ->with('success', 'Nueva versión subida correctamente. El documento vuelve a estar en revisión.');
+            }
         }
 
         return redirect()
@@ -479,6 +495,16 @@ class RegulationVersionController extends Controller
         // consideraba definitivo — no puede seguir "aprobado" sin que alguien lo revise de nuevo.
         if ($wasApproved) {
             app(ApprovalFlowService::class)->resubmit($regulation);
+
+            // Igual que confirmEditDraft(): ya que el flujo se reinició, se le da al admin la
+            // oportunidad de reconsiderar el nivel de impacto (y por lo tanto el flujo de
+            // aprobadores) en el mismo momento, en vez de que tenga que acordarse de entrar
+            // aparte a "Editar flujo".
+            if ($user->isAdmin()) {
+                return redirect()
+                    ->route('processes.show', ['regulation' => $regulation->id, 'review_flow' => 1])
+                    ->with('success', 'Documento editado y guardado como nueva versión. El documento vuelve a estar en revisión.');
+            }
         }
 
         return redirect()
