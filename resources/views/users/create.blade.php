@@ -1,4 +1,4 @@
-<x-layouts.vigia :title="'Agregar usuario'">
+<x-layouts.vigia :title="'Agregar usuario'" :minimal="true">
     <x-slot name="breadcrumb">
         <a href="{{ route('users.index') }}" class="text-gray-600 hover:underline">
             Usuarios
