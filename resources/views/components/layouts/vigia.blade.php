@@ -1,6 +1,7 @@
 {{-- resources/views/components/layouts/vigia.blade.php --}}
 @props([
     'title' => null,
+    'minimal' => false,
     'navContext' => [
         'asset' => null,
         'requirement' => null,
@@ -26,6 +27,13 @@
     $pendingApprovalsCount = $user && !$user->isSuperAdmin()
         ? \App\Models\RegulationApproval::where('user_id', $user->id)->where('status', 'pending')->count()
         : 0;
+
+    // Vistas "minimal" (por ahora solo el perfil del usuario) no muestran el menú lateral
+    // contextual — en su lugar, un solo botón de regreso. Si el usuario tiene acceso a ambos
+    // módulos, Cumplimiento es el principal (de ahí puede moverse a Procesos); si solo tiene
+    // uno de los dos, regresa a ese.
+    $homeModuleKey = isset($modules['cumplimiento']) ? 'cumplimiento' : array_key_first($modules);
+    $homeModule = $modules[$homeModuleKey] ?? $allModules['cumplimiento'];
 @endphp
 
 <!DOCTYPE html>
@@ -125,9 +133,10 @@
                         </a>
                     @endif
 
-                    <div class="hidden text-sm opacity-90 sm:block">
+                    <a href="{{ route('profile.edit') }}"
+                       class="hidden text-sm opacity-90 hover:opacity-100 hover:underline sm:block">
                         {{ $user?->name }}
-                    </div>
+                    </a>
 
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
@@ -181,7 +190,15 @@
 
                 <div class="min-h-0 flex-1 overflow-y-auto p-4">
                     <nav class="space-y-1 text-sm">
-                        @if($user?->isSuperAdmin())
+                        @if($minimal)
+                            <a href="{{ route($homeModule['route']) }}" @click="mobileMenuOpen = false"
+                               class="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 font-semibold text-[#1A428A]">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                                </svg>
+                                Volver a {{ $homeModule['label'] }}
+                            </a>
+                        @elseif($user?->isSuperAdmin())
                             <p class="mb-1 px-3 text-xs font-bold uppercase tracking-wider text-gray-400">Sistema</p>
                             <a href="{{ route('superadmin.dashboard') }}" @click="mobileMenuOpen = false"
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Panel general</a>
@@ -276,7 +293,7 @@
                             </div>
                         @endif
 
-                        @if(!$user?->isSuperAdmin() && $user?->isAdmin())
+                        @if(!$minimal && !$user?->isSuperAdmin() && $user?->isAdmin())
                             <hr class="my-2 border-gray-100">
                             <a href="{{ route('users.index') }}" @click="mobileMenuOpen = false"
                                class="flex items-center gap-2 rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
@@ -300,7 +317,15 @@
                     </div>
 
                     <nav class="space-y-1 text-sm">
-                        @if($user?->isSuperAdmin())
+                        @if($minimal)
+                            <a href="{{ route($homeModule['route']) }}"
+                               class="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 font-semibold text-[#1A428A]">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                                </svg>
+                                Volver a {{ $homeModule['label'] }}
+                            </a>
+                        @elseif($user?->isSuperAdmin())
                             <p class="mb-1 px-3 text-xs font-bold uppercase tracking-wider text-gray-400">Sistema</p>
                             <a href="{{ route('superadmin.dashboard') }}"
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Panel general</a>
