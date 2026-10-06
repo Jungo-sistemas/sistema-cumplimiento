@@ -88,6 +88,13 @@ class CheckProcessesRequirements extends Command
             $this->newLine();
             $this->components->info('Pruebas reales (--deep)');
 
+            $apiKeyResult = $aiService->testApiKey();
+            $failures += $this->check(
+                'ANTHROPIC_API_KEY autentica contra la API real',
+                fn () => $apiKeyResult['ok'],
+                $apiKeyResult['error'] ?? ''
+            );
+
             $diagramResult = $aiService->testDiagramPipeline();
             $failures += $this->check(
                 'Render de diagrama de flujo de prueba (layout propio + Puppeteer)',

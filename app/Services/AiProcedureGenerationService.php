@@ -341,6 +341,37 @@ class AiProcedureGenerationService
     }
 
     /**
+     * Prueba real contra la API de Anthropic (no solo que ANTHROPIC_API_KEY no esté vacía) —
+     * manda un mensaje mínimo a cada modelo configurado (el de generación y el de detección de
+     * cambios, que pueden tener permisos distintos en el workspace) y confirma que la llave
+     * autentica de verdad. Pensada para diagnóstico (processes:check-requirements --deep),
+     * sobre todo después de rotar la llave.
+     *
+     * @return array{ok: bool, error: ?string}
+     */
+    public function testApiKey(): array
+    {
+        $client = new Client(apiKey: config('services.anthropic.key'));
+
+        foreach (array_unique(array_filter([
+            config('services.anthropic.model'),
+            config('services.anthropic.change_model'),
+        ])) as $model) {
+            try {
+                $client->messages->create(
+                    model: $model,
+                    maxTokens: 8,
+                    messages: [['role' => 'user', 'content' => 'OK']],
+                );
+            } catch (\Throwable $e) {
+                return ['ok' => false, 'error' => "Modelo {$model}: {$e->getMessage()}"];
+            }
+        }
+
+        return ['ok' => true, 'error' => null];
+    }
+
+    /**
      * Prueba real de todo el pipeline (layout propio → SVG → Puppeteer → PNG), reusando
      * exactamente el mismo camino que usa insertFlowDiagram() en producción — a diferencia de un
      * chequeo con exec()/Process, esto detecta con certeza si el render de verdad funciona en
