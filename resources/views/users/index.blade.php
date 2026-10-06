@@ -1,4 +1,4 @@
-<x-layouts.vigia :title="'Usuarios'">
+<x-layouts.vigia :title="'Usuarios'" :minimal="true">
     <x-slot name="breadcrumb">
         <span class="text-gray-700 font-medium">Usuarios</span>
     </x-slot>
