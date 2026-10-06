@@ -11,24 +11,31 @@
             editUserName: '',
             editRole: '',
             editGroup: '',
+            editCompany: '',
             editModuleAccess: 'all',
-            editPosition: '',
+            editPositionIds: [],
             adminRoleId: '{{ $adminRoleId ?? '' }}',
             auditorRoleId: '{{ $roles->where('slug', 'auditor')->first()?->id ?? '' }}',
             positionsByGroup: @json($positionsByGroup),
+            companiesByGroup: @json($companiesByGroup),
             get isAdminEdit() { return this.editRole === this.adminRoleId; },
             get isAuditorEdit() { return this.editRole === this.auditorRoleId; },
-            get editPositions() {
+            get availablePositions() {
                 if (!this.editGroup) return [];
                 return this.positionsByGroup[this.editGroup] ?? [];
             },
-            openEdit(id, name, roleId, groupId, moduleAccess, positionId) {
+            get availableCompanies() {
+                if (!this.editGroup) return [];
+                return this.companiesByGroup[this.editGroup] ?? [];
+            },
+            openEdit(id, name, roleId, groupId, companyId, moduleAccess, positionIds) {
                 this.editUserId = id;
                 this.editUserName = name;
                 this.editRole = String(roleId ?? '');
                 this.editGroup = String(groupId ?? '');
+                this.editCompany = String(companyId ?? '');
                 this.editModuleAccess = moduleAccess || 'all';
-                this.editPosition = String(positionId ?? '');
+                this.editPositionIds = (positionIds ?? []).map(String);
                 this.editOpen = true;
             }
         };
@@ -90,17 +97,34 @@
                             </select>
                         </div>
 
-                        {{-- Puesto --}}
+                        {{-- Empresa --}}
                         <div x-show="!isAdminEdit">
-                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Puesto</label>
-                            <select name="job_position_id" x-model="editPosition"
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Empresa</label>
+                            <select name="company_id" x-model="editCompany" :required="!isAdminEdit"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
-                                <option value="">— Sin asignar —</option>
-                                <template x-for="pos in editPositions" :key="pos.id">
-                                    <option :value="pos.id" x-text="pos.name" :selected="editPosition == pos.id"></option>
+                                <option value="" disabled>Seleccionar empresa…</option>
+                                <template x-for="company in availableCompanies" :key="company.id">
+                                    <option :value="company.id" x-text="company.name" :selected="editCompany == company.id"></option>
                                 </template>
                             </select>
-                            <p x-show="editPositions.length === 0"
+                            <p class="mt-1 text-xs text-gray-400">
+                                Quitarle la empresa a un usuario lo deja sin empresa asignada (alcance de grupo), y
+                                solo un administrador con alcance global podría volver a editarlo después — por eso
+                                aquí siempre debe quedar una empresa seleccionada.
+                            </p>
+                        </div>
+
+                        {{-- Puestos --}}
+                        <div x-show="!isAdminEdit">
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Puestos</label>
+                            <select name="job_position_id[]" x-model="editPositionIds" multiple size="4"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                <template x-for="pos in availablePositions" :key="pos.id">
+                                    <option :value="pos.id" x-text="pos.name"></option>
+                                </template>
+                            </select>
+                            <p class="mt-1 text-xs text-gray-400">Ctrl/Cmd + clic para elegir varios.</p>
+                            <p x-show="availablePositions.length === 0"
                                class="mt-1 text-xs text-gray-400">Sin puestos disponibles para este usuario.</p>
                         </div>
 
@@ -234,7 +258,7 @@
                                     @if($user->id !== auth()->id())
                                         <div class="inline-flex gap-2">
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', '{{ $user->module_access ?? 'all' }}', '{{ $user->jobPositions->first()?->id ?? '' }}')"
+                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', '{{ $user->company_id ?? '' }}', '{{ $user->module_access ?? 'all' }}', @json($user->jobPositions->pluck('id')))"
                                                 class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
                                                 Editar
                                             </button>

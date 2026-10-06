@@ -48,7 +48,21 @@ class UserController extends Controller
             ->groupBy('group_id')
             ->map->values();
 
-        return view('users.index', compact('users', 'roles', 'adminRoleId', 'positionsByGroup'));
+        // Mismo criterio de alcance que create(): un admin de grupo ve todas las empresas de su
+        // grupo, uno de empresa única solo la suya — agrupado por group_id igual que
+        // positionsByGroup, para que el modal de edición pueda reaccionar al grupo del usuario
+        // que se esté editando en cada momento (un admin con alcance global puede estar editando
+        // usuarios de distintos grupos en la misma tabla).
+        $companiesByGroup = Company::query()
+            ->when($authUser->hasGroupScope(), fn ($q) => $q->where('group_id', $authUser->group_id))
+            ->when(! $authUser->hasGroupScope() && ! $authUser->isGlobalScope(),
+                fn ($q) => $q->where('id', $authUser->company_id))
+            ->orderBy('name')
+            ->get(['id', 'group_id', 'name'])
+            ->groupBy('group_id')
+            ->map->values();
+
+        return view('users.index', compact('users', 'roles', 'adminRoleId', 'positionsByGroup', 'companiesByGroup'));
     }
 
     public function create()
@@ -179,8 +193,11 @@ class UserController extends Controller
         }
 
         $request->validate([
-            'role_id'       => ['required', 'exists:roles,id'],
-            'module_access' => ['nullable', 'in:all,cumplimiento,procesos'],
+            'role_id'          => ['required', 'exists:roles,id'],
+            'company_id'       => ['nullable', 'exists:companies,id'],
+            'module_access'    => ['nullable', 'in:all,cumplimiento,procesos'],
+            'job_position_id'  => ['nullable', 'array'],
+            'job_position_id.*' => ['exists:job_positions,id'],
         ]);
 
         $role = Role::findOrFail($request->role_id);
@@ -188,7 +205,28 @@ class UserController extends Controller
         abort_if($role->slug === 'superadmin', 403);
         abort_if($role->slug === 'admin' && ! $authUser->hasGroupScope() && ! $authUser->isGlobalScope(), 403);
 
-        $scopeLevel   = ($role->slug === 'admin') ? 'group' : ($user->company_id ? 'company' : 'group');
+        // Mismo criterio que store(): un admin no pertenece a una empresa en particular (vive a
+        // nivel de grupo); cualquier otro rol sí puede tener una empresa, y si se le asigna una
+        // distinta a la que ya tenía, el grupo se recalcula a partir de esa empresa (no se deja
+        // elegir grupo aparte en este modal).
+        if ($role->slug === 'admin') {
+            $companyId  = null;
+            $groupId    = $user->group_id;
+            $scopeLevel = 'group';
+        } elseif ($request->filled('company_id')) {
+            $company = Company::findOrFail($request->company_id);
+            if (! $authUser->isGlobalScope() && ! $authUser->canAccessCompany($company)) {
+                abort(403);
+            }
+            $companyId  = $company->id;
+            $groupId    = $company->group_id;
+            $scopeLevel = 'company';
+        } else {
+            $companyId  = null;
+            $groupId    = $user->group_id;
+            $scopeLevel = 'group';
+        }
+
         $moduleAccess = $role->slug === 'auditor'
             ? 'procesos'
             : (in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
@@ -197,15 +235,13 @@ class UserController extends Controller
 
         $user->update([
             'role_id'       => $role->id,
+            'company_id'    => $companyId,
+            'group_id'      => $groupId,
             'scope_level'   => $scopeLevel,
             'module_access' => $moduleAccess,
         ]);
 
-        if ($request->filled('job_position_id')) {
-            $user->jobPositions()->sync([$request->job_position_id]);
-        } else {
-            $user->jobPositions()->detach();
-        }
+        $user->jobPositions()->sync($request->input('job_position_id', []));
 
         return redirect()
             ->route('users.index')
