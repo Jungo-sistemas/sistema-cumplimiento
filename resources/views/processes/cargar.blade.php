@@ -38,46 +38,46 @@
               enctype="multipart/form-data">
             @csrf
 
-            {{-- TRES COLUMNAS --}}
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-
-                {{-- ── COLUMNA 1: Estado de aprobación ── --}}
-                <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
-                    <div class="px-5 py-3.5 border-b bg-[#1A428A]">
-                        <h2 class="text-sm font-semibold text-white">Estado de aprobación</h2>
-                    </div>
-                    <div class="p-5 space-y-3">
-                        <div class="flex flex-col gap-1 rounded-lg border border-gray-300 p-1">
-                            <label class="flex items-center px-3 py-2 rounded-md text-sm font-semibold cursor-pointer transition"
-                                   :class="approvalMode === 'approved' ? 'bg-[#1A428A] text-white' : 'text-gray-600 hover:bg-gray-50'">
-                                <input type="radio" name="approval_mode" value="approved" x-model="approvalMode" class="sr-only">
-                                Ya está aprobado
-                            </label>
-                            <label class="flex items-center px-3 py-2 rounded-md text-sm font-semibold cursor-pointer transition"
-                                   :class="approvalMode === 'flow' ? 'bg-[#1A428A] text-white' : 'text-gray-600 hover:bg-gray-50'">
-                                <input type="radio" name="approval_mode" value="flow" x-model="approvalMode" class="sr-only">
-                                Enviar a flujo de aprobación
-                            </label>
-                        </div>
-
-                        <p x-show="approvalMode === 'approved'" class="text-xs text-gray-500">
-                            El documento se registra directamente como
-                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-xs font-medium">aprobado</span>.
-                        </p>
-
-                        {{-- El nivel de impacto no se pide aquí para no agregar un paso extra a la
-                             carga — se elige después desde "Asignar flujo" en la tabla de
-                             procedimientos, igual que cualquier reglamento nuevo creado con el
-                             wizard de IA. --}}
-                        <p x-show="approvalMode === 'flow'" class="text-xs text-gray-500">
-                            El documento queda
-                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 text-xs font-medium">sin flujo asignado</span>
-                            — podrás elegir el nivel de impacto y a los aprobadores desde "Asignar flujo" en la tabla de procedimientos.
-                        </p>
-                    </div>
+            {{-- ── ESTADO DE APROBACIÓN (ancho completo, mismo estilo que las otras tarjetas) ── --}}
+            <div class="bg-white border rounded-xl shadow-sm overflow-hidden mb-6">
+                <div class="px-5 py-3.5 border-b bg-[#1A428A]">
+                    <h2 class="text-sm font-semibold text-white">Estado de aprobación</h2>
                 </div>
+                <div class="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div class="inline-flex rounded-lg border border-gray-300 p-1 gap-1 shrink-0">
+                        <label class="flex items-center px-4 py-2 rounded-md text-sm font-semibold cursor-pointer transition"
+                               :class="approvalMode === 'approved' ? 'bg-[#1A428A] text-white' : 'text-gray-600 hover:bg-gray-50'">
+                            <input type="radio" name="approval_mode" value="approved" x-model="approvalMode" class="sr-only">
+                            Ya está aprobado
+                        </label>
+                        <label class="flex items-center px-4 py-2 rounded-md text-sm font-semibold cursor-pointer transition"
+                               :class="approvalMode === 'flow' ? 'bg-[#1A428A] text-white' : 'text-gray-600 hover:bg-gray-50'">
+                            <input type="radio" name="approval_mode" value="flow" x-model="approvalMode" class="sr-only">
+                            Enviar a flujo de aprobación
+                        </label>
+                    </div>
 
-                {{-- ── COLUMNA 2: Identificación ── --}}
+                    <p x-show="approvalMode === 'approved'" class="text-xs text-gray-500">
+                        El documento se registra directamente como
+                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-xs font-medium">aprobado</span>.
+                    </p>
+
+                    {{-- El nivel de impacto no se pide aquí para no agregar un paso extra a la
+                         carga — se elige después desde "Asignar flujo" en la tabla de
+                         procedimientos, igual que cualquier reglamento nuevo creado con el
+                         wizard de IA. --}}
+                    <p x-show="approvalMode === 'flow'" class="text-xs text-gray-500">
+                        El documento queda
+                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 text-xs font-medium">sin flujo asignado</span>
+                        — podrás elegir el nivel de impacto y a los aprobadores desde "Asignar flujo" en la tabla de procedimientos.
+                    </p>
+                </div>
+            </div>
+
+            {{-- DOS COLUMNAS --}}
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+
+                {{-- ── COLUMNA IZQUIERDA: Identificación ── --}}
                 <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
                     <div class="px-5 py-3.5 border-b bg-[#1A428A]">
                         <h2 class="text-sm font-semibold text-white">Identificación del documento</h2>
@@ -214,7 +214,7 @@
                     </div>
                 </div>
 
-                {{-- ── COLUMNA 3: Archivo y vigencia ── --}}
+                {{-- ── COLUMNA DERECHA: Archivo y vigencia ── --}}
                 <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
                     <div class="px-5 py-3.5 border-b bg-[#1A428A]">
                         <h2 class="text-sm font-semibold text-white">Archivo y vigencia</h2>
