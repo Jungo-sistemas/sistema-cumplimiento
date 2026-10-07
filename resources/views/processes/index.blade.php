@@ -41,6 +41,16 @@
                     </svg>
                     Obsoleto
                 </a>
+
+                <a href="{{ route('processes.trash.index') }}"
+                   class="flex items-center gap-1.5 px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-600 font-semibold text-sm hover:bg-gray-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none"
+                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    Papelera
+                </a>
             @endif
 
             @if($cardView)
@@ -297,6 +307,18 @@
                 </svg>
                 Descargar Excel
             </button>
+            @if($user->isAdmin())
+                <button type="button"
+                        @click="trashConfirmOpen = true"
+                        class="flex items-center gap-1.5 rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
+                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    Enviar a papelera
+                </button>
+            @endif
             <button type="button"
                     @click="selected = []"
                     class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">
@@ -311,6 +333,47 @@
                 <input type="hidden" name="regulation_ids[]" :value="id">
             </template>
         </form>
+
+        {{-- Formulario oculto para enviar a la papelera --}}
+        @if($user->isAdmin())
+            <form x-ref="trashForm" method="POST" action="{{ route('processes.trash.move') }}" class="hidden">
+                @csrf
+                <template x-for="id in selected" :key="id">
+                    <input type="hidden" name="regulation_ids[]" :value="id">
+                </template>
+            </form>
+
+            {{-- Modal: confirmar envío a la papelera --}}
+            <div x-show="trashConfirmOpen"
+                 x-transition.opacity
+                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+                 style="display:none;">
+                <div @click.outside="trashConfirmOpen = false"
+                     class="w-full max-w-md rounded-xl bg-white shadow-2xl">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-bold text-gray-900">Enviar a la papelera</h3>
+                        <p class="mt-2 text-sm text-gray-600">
+                            ¿Seguro que quieres enviar
+                            <span class="font-semibold" x-text="selected.length"></span>
+                            <span x-text="selected.length === 1 ? 'procedimiento' : 'procedimientos'"></span>
+                            a la papelera? Podrás restaurarlo<span x-show="selected.length !== 1">s</span> desde ahí cuando quieras.
+                        </p>
+                    </div>
+                    <div class="p-6 pt-4 flex items-center justify-end gap-3">
+                        <button type="button"
+                                @click="trashConfirmOpen = false"
+                                class="px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 font-semibold text-sm hover:bg-gray-50">
+                            Cancelar
+                        </button>
+                        <button type="button"
+                                @click="confirmTrash()"
+                                class="px-4 py-2 rounded-md bg-[#DB0000] text-white font-semibold text-sm hover:bg-red-700">
+                            Sí, enviar a papelera
+                        </button>
+                    </div>
+                </div>
+            </div>
+        @endif
 
         @if($globalSearch)
             <div class="mt-4 flex items-center gap-2 text-sm text-gray-500">
@@ -889,6 +952,7 @@ function reportTable(allIds) {
     return {
         selected: [],
         allIds: allIds,
+        trashConfirmOpen: false,
 
         get allSelected() {
             return this.allIds.length > 0 &&
@@ -907,6 +971,11 @@ function reportTable(allIds) {
 
         submitReport() {
             this.$refs.reportForm.submit();
+        },
+
+        confirmTrash() {
+            this.trashConfirmOpen = false;
+            this.$refs.trashForm.submit();
         },
     };
 }

@@ -22,6 +22,7 @@ use App\Http\Controllers\InvestmentRequestController;
 use App\Http\Controllers\RegulationController;
 use App\Http\Controllers\RegulationVersionController;
 use App\Http\Controllers\RegulationApprovalController;
+use App\Http\Controllers\RegulationTrashController;
 use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\SuperAdminController;
 use App\Http\Controllers\ProcessesDashboardController;
@@ -178,6 +179,19 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
 
     Route::get('/processes/search-annexes', [RegulationController::class, 'searchAnnexes'])
         ->name('processes.searchAnnexes');
+
+    // Papelera (admin only) — debe registrarse antes del wildcard {regulation} de abajo
+    Route::post('/processes/trash', [RegulationController::class, 'archive'])
+        ->name('processes.trash.move');
+
+    Route::get('/processes/trash', [RegulationTrashController::class, 'index'])
+        ->name('processes.trash.index');
+
+    Route::post('/processes/trash/{id}/restore', [RegulationTrashController::class, 'restore'])
+        ->name('processes.trash.restore');
+
+    Route::delete('/processes/trash/{id}', [RegulationTrashController::class, 'forceDestroy'])
+        ->name('processes.trash.force-destroy');
 
     Route::post('/processes/preview', [RegulationController::class, 'previewGenerate'])
         ->name('processes.preview.generate');

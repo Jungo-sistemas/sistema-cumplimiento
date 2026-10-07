@@ -51,14 +51,17 @@ class Regulation extends Model
         'flow_locked',
         'flow_user_map',
         'public_share_token',
+        'deleted_by',
+        'permanently_delete_at',
     ];
 
     protected $casts = [
-        'details'          => 'array',
-        'previous_details' => 'array',
-        'flow_user_map'    => 'array',
-        'is_annex'         => 'boolean',
-        'is_legacy'        => 'boolean',
+        'details'                => 'array',
+        'previous_details'       => 'array',
+        'flow_user_map'          => 'array',
+        'is_annex'               => 'boolean',
+        'is_legacy'              => 'boolean',
+        'permanently_delete_at'  => 'datetime',
     ];
 
     /*
@@ -85,6 +88,11 @@ class Regulation extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function deletedBy()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 
     public function responsables()

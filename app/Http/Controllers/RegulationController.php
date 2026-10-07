@@ -984,6 +984,37 @@ class RegulationController extends Controller
         return back()->with('success', $message);
     }
 
+    public function archive(Request $request)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin(), 403);
+
+        $ids = array_filter(array_map('intval', $request->input('regulation_ids', [])));
+        abort_if(empty($ids), 422, 'Selecciona al menos un procedimiento.');
+
+        $query = Regulation::whereIn('id', $ids)
+            ->where('group_id', $user->group_id)
+            ->where('is_active', true);
+
+        if ($user->hasCompanyScope()) {
+            $query->where('company_id', $user->company_id);
+        }
+
+        $regulations = $query->get();
+
+        foreach ($regulations as $regulation) {
+            $regulation->update([
+                'deleted_by'            => $user->id,
+                'permanently_delete_at' => now()->addMonths(2),
+            ]);
+            $regulation->delete();
+        }
+
+        $count = $regulations->count();
+
+        return back()->with('success', $count . ' ' . \Illuminate\Support\Str::plural('procedimiento', $count) . ' enviado' . ($count === 1 ? '' : 's') . ' a la papelera.');
+    }
+
     public function obsoleto(Request $request)
     {
         $user = auth()->user();
