@@ -1032,6 +1032,15 @@ class RegulationController extends Controller
                 ->get()
             : collect();
 
+        $processTypes = ProcessType::where('group_id', $user->group_id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        $search = trim((string) $request->q);
+        $selectedProcessTypeId = $request->filled('process_type_id') ? (int) $request->process_type_id : null;
+
         // Regulaciones vencidas: versión actual con valid_until en el pasado
         $expiredQuery = Regulation::with(['currentVersion', 'company:id,name', 'processType:id,name'])
             ->where('group_id', $user->group_id)
@@ -1044,30 +1053,27 @@ class RegulationController extends Controller
             $expiredQuery->where('company_id', $user->company_id);
         }
 
-        $expiredRegulations = $expiredQuery->orderBy('name')->get();
-
-        // Versiones anteriores reemplazadas (is_current = false)
-        $oldVersionsQuery = \App\Models\RegulationVersion::with([
-                'regulation.company:id,name',
-                'regulation.processType:id,name',
-                'uploader:id,name',
-            ])
-            ->where('is_current', false)
-            ->whereHas('regulation', fn ($q) => $q->where('group_id', $user->group_id)->where('is_active', true));
-
-        if ($selectedCompanyId) {
-            $oldVersionsQuery->whereHas('regulation', fn ($q) => $q->where('company_id', $selectedCompanyId));
-        } elseif (! $user->hasGroupScope() && $user->company_id) {
-            $oldVersionsQuery->whereHas('regulation', fn ($q) => $q->where('company_id', $user->company_id));
+        if ($selectedProcessTypeId) {
+            $expiredQuery->where('process_type_id', $selectedProcessTypeId);
         }
 
-        $oldVersions = $oldVersionsQuery->orderBy('created_at', 'desc')->get();
+        if ($search !== '') {
+            $like = '%' . Str::upper($search) . '%';
+            $expiredQuery->where(function ($q) use ($like) {
+                $q->where('name', 'like', $like)
+                  ->orWhere('code', 'like', $like);
+            });
+        }
+
+        $expiredRegulations = $expiredQuery->orderBy('name')->get();
 
         return view('processes.obsoleto', [
-            'companies'          => $companies,
-            'selectedCompanyId'  => $selectedCompanyId,
-            'expiredRegulations' => $expiredRegulations,
-            'oldVersions'        => $oldVersions,
+            'companies'             => $companies,
+            'processTypes'          => $processTypes,
+            'selectedCompanyId'     => $selectedCompanyId,
+            'selectedProcessTypeId' => $selectedProcessTypeId,
+            'search'                => $search,
+            'expiredRegulations'    => $expiredRegulations,
         ]);
     }
 
