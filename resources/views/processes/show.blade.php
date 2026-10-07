@@ -797,9 +797,10 @@
                         <div class="w-36 shrink-0 text-xs font-semibold text-gray-400 uppercase tracking-wide px-4">Acciones</div>
                     </div>
 
-                    <div class="space-y-3">
+                    <div class="space-y-3" x-data="{ page: 1, perPage: 5, total: {{ $versionHistory->count() }} }">
                         @foreach($versionHistory as $v)
-                            <div class="border rounded-xl overflow-hidden flex items-stretch">
+                            <div x-show="page === Math.ceil(({{ $loop->index }} + 1) / perPage)"
+                                 class="border rounded-xl overflow-hidden flex items-stretch">
 
                                 {{-- Info principal del documento --}}
                                 <div class="flex-1 p-4 min-w-0">
@@ -867,6 +868,28 @@
                                 </div>
                             </div>
                         @endforeach
+
+                        @if($versionHistory->count() > 5)
+                            <div class="flex items-center justify-between pt-3 mt-1 border-t border-gray-100">
+                                <button type="button"
+                                        @click="page = Math.max(1, page - 1)"
+                                        :disabled="page === 1"
+                                        :class="page === 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50'"
+                                        class="px-3 py-1.5 rounded-md border border-gray-300 text-xs font-semibold text-gray-600">
+                                    Anterior
+                                </button>
+                                <span class="text-xs text-gray-500">
+                                    Página <span x-text="page"></span> de <span x-text="Math.ceil(total / perPage)"></span>
+                                </span>
+                                <button type="button"
+                                        @click="page = Math.min(Math.ceil(total / perPage), page + 1)"
+                                        :disabled="page >= Math.ceil(total / perPage)"
+                                        :class="page >= Math.ceil(total / perPage) ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50'"
+                                        class="px-3 py-1.5 rounded-md border border-gray-300 text-xs font-semibold text-gray-600">
+                                    Siguiente
+                                </button>
+                            </div>
+                        @endif
                     </div>
                 @else
                     <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-700 text-sm">
