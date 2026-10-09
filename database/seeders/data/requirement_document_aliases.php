@@ -178,5 +178,9 @@ return [
         // Mismo caso ya confirmado para ES/EC (ver arriba): el Excel de vigencias trae el nombre
         // abreviado del requerimiento, sin "y RCA+ Determinación de los Límites" (PLA Abasolo).
         'Pólizas de seguros RC' => 'Pólizas de seguros RC y RCA+ Determinación de los Límites',
+        // El catálogo de Plantas usa el nombre corto "Resolutivo del MISSE o EVIS" (distinto al
+        // nombre largo de ES/EC), y el archivo/Excel de vigencias solo trae "Resolutivo EVIS"
+        // (PLA Alamo).
+        'Resolutivo EVIS' => 'Resolutivo del MISSE o EVIS',
     ],
 ];
