@@ -18,8 +18,10 @@
         return {
             selectedRole: '{{ old('role_id', '') }}',
             selectedGroup: '{{ old('group_id', $singleCompany?->group_id ?? '') }}',
-            selectedCompanyIds: {!! json_encode(old('company_id', $singleCompany ? [$singleCompany->id] : [])) !!},
+            selectedCompanyIds: {!! json_encode(array_map('strval', old('company_id', $singleCompany ? [$singleCompany->id] : []))) !!},
             selectedPosition: '{{ old('job_position_id', '') }}',
+            companySearch: '',
+            companySearchOpen: false,
             adminRoleId: '{{ $adminRoleId }}',
             auditorRoleId: '{{ $auditorRoleId }}',
             companiesByGroup: @json($companiesByGroup),
@@ -34,6 +36,24 @@
             get availablePositions() {
                 if (!this.selectedGroup) return [];
                 return this.positionsByGroup[this.selectedGroup] ?? [];
+            },
+            get companySearchResults() {
+                const q = this.companySearch.trim().toLowerCase();
+                return this.availableCompanies
+                    .filter(c => !this.selectedCompanyIds.includes(String(c.id)))
+                    .filter(c => !q || c.name.toLowerCase().includes(q));
+            },
+            companyName(id) {
+                return this.availableCompanies.find(c => String(c.id) === String(id))?.name ?? '—';
+            },
+            addCompany(id) {
+                id = String(id);
+                if (!this.selectedCompanyIds.includes(id)) this.selectedCompanyIds.push(id);
+                this.companySearch = '';
+                this.companySearchOpen = false;
+            },
+            removeCompany(id) {
+                this.selectedCompanyIds = this.selectedCompanyIds.filter(x => x !== String(id));
             }
         };
     }
@@ -211,17 +231,52 @@
                     {{-- Empresas (solo para operativo y solo lectura) --}}
                     <div x-show="needsCompany && selectedGroup !== ''" x-transition>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Empresas</label>
-                        <div class="w-full rounded-md border border-gray-300 divide-y divide-gray-100 max-h-44 overflow-y-auto">
-                            <template x-for="company in availableCompanies" :key="company.id">
-                                <label class="flex items-center gap-2 px-3 py-2.5 text-sm cursor-pointer hover:bg-gray-50">
-                                    <input type="checkbox" name="company_id[]" :value="company.id" x-model="selectedCompanyIds"
-                                        class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]/40 cursor-pointer">
-                                    <span x-text="company.name" class="text-gray-700"></span>
-                                </label>
+
+                        {{-- Seleccionadas --}}
+                        <div class="flex flex-wrap gap-1.5 mb-2" x-show="selectedCompanyIds.length > 0">
+                            <template x-for="id in selectedCompanyIds" :key="id">
+                                <span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50 text-[#1A428A] text-xs font-medium border border-blue-200">
+                                    <span x-text="companyName(id)"></span>
+                                    <button type="button" @click="removeCompany(id)" class="rounded-full hover:bg-blue-100 p-0.5">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
+                                </span>
                             </template>
                         </div>
+
+                        {{-- Buscador --}}
+                        <div class="relative" @click.outside="companySearchOpen = false">
+                            <input type="text"
+                                x-model="companySearch"
+                                @focus="companySearchOpen = true"
+                                placeholder="Buscar empresa para agregar…"
+                                autocomplete="off"
+                                class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
+
+                            <div x-show="companySearchOpen && companySearchResults.length > 0"
+                                 class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto"
+                                 style="display:none;">
+                                <template x-for="company in companySearchResults" :key="company.id">
+                                    <div @click="addCompany(company.id)"
+                                         class="px-3 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50"
+                                         x-text="company.name"></div>
+                                </template>
+                            </div>
+
+                            <p x-show="companySearchOpen && companySearch.trim() !== '' && companySearchResults.length === 0"
+                               class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg px-3 py-2 text-sm text-gray-400">
+                                Sin resultados.
+                            </p>
+                        </div>
+
+                        <template x-for="id in selectedCompanyIds" :key="id">
+                            <input type="hidden" name="company_id[]" :value="id">
+                        </template>
+
                         <p class="mt-1 text-xs text-gray-400">
-                            Ninguna seleccionada: el usuario verá todas las empresas del grupo. Varias: acceso solo
+                            Ninguna agregada: el usuario verá todas las empresas del grupo. Varias: acceso solo
                             a esas empresas (útil para quien administra más de una).
                         </p>
                         <p x-show="selectedGroup !== '' && availableCompanies.length === 0"

@@ -14,6 +14,8 @@
             editCompanyIds: [],
             editModuleAccess: 'all',
             editPositionIds: [],
+            companySearch: '',
+            companySearchOpen: false,
             adminRoleId: '{{ $adminRoleId ?? '' }}',
             auditorRoleId: '{{ $roles->where('slug', 'auditor')->first()?->id ?? '' }}',
             positionsByGroup: @json($positionsByGroup),
@@ -27,6 +29,24 @@
             get availableCompanies() {
                 if (!this.editGroup) return [];
                 return this.companiesByGroup[this.editGroup] ?? [];
+            },
+            get companySearchResults() {
+                const q = this.companySearch.trim().toLowerCase();
+                return this.availableCompanies
+                    .filter(c => !this.editCompanyIds.includes(String(c.id)))
+                    .filter(c => !q || c.name.toLowerCase().includes(q));
+            },
+            companyName(id) {
+                return this.availableCompanies.find(c => String(c.id) === String(id))?.name ?? '—';
+            },
+            addCompany(id) {
+                id = String(id);
+                if (!this.editCompanyIds.includes(id)) this.editCompanyIds.push(id);
+                this.companySearch = '';
+                this.companySearchOpen = false;
+            },
+            removeCompany(id) {
+                this.editCompanyIds = this.editCompanyIds.filter(x => x !== String(id));
             },
             openEdit(id, name, roleId, groupId, companyIds, moduleAccess, positionIds) {
                 this.editUserId = id;
@@ -100,21 +120,56 @@
                         {{-- Empresa --}}
                         <div x-show="!isAdminEdit">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Empresas</label>
-                            <div class="w-full rounded-lg border border-gray-300 divide-y divide-gray-100 max-h-44 overflow-y-auto">
-                                <template x-for="company in availableCompanies" :key="company.id">
-                                    <label class="flex items-center gap-2 px-3 py-2.5 text-sm cursor-pointer hover:bg-gray-50">
-                                        <input type="checkbox" name="company_id[]" :value="company.id" x-model="editCompanyIds"
-                                            class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]/40 cursor-pointer">
-                                        <span x-text="company.name" class="text-gray-700"></span>
-                                    </label>
+
+                            {{-- Seleccionadas --}}
+                            <div class="flex flex-wrap gap-1.5 mb-2" x-show="editCompanyIds.length > 0">
+                                <template x-for="id in editCompanyIds" :key="id">
+                                    <span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50 text-[#1A428A] text-xs font-medium border border-blue-200">
+                                        <span x-text="companyName(id)"></span>
+                                        <button type="button" @click="removeCompany(id)" class="rounded-full hover:bg-blue-100 p-0.5">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                            </svg>
+                                        </button>
+                                    </span>
                                 </template>
                             </div>
+
+                            {{-- Buscador --}}
+                            <div class="relative" @click.outside="companySearchOpen = false">
+                                <input type="text"
+                                    x-model="companySearch"
+                                    @focus="companySearchOpen = true"
+                                    placeholder="Buscar empresa para agregar…"
+                                    autocomplete="off"
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+
+                                <div x-show="companySearchOpen && companySearchResults.length > 0"
+                                     class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto"
+                                     style="display:none;">
+                                    <template x-for="company in companySearchResults" :key="company.id">
+                                        <div @click="addCompany(company.id)"
+                                             class="px-3 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50"
+                                             x-text="company.name"></div>
+                                    </template>
+                                </div>
+
+                                <p x-show="companySearchOpen && companySearch.trim() !== '' && companySearchResults.length === 0"
+                                   class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg px-3 py-2 text-sm text-gray-400">
+                                    Sin resultados.
+                                </p>
+                            </div>
+
+                            <template x-for="id in editCompanyIds" :key="id">
+                                <input type="hidden" name="company_id[]" :value="id">
+                            </template>
+
                             <p x-show="availableCompanies.length === 0"
                                class="mt-1 text-xs text-gray-400 border border-gray-200 rounded-lg px-3 py-2.5">
                                 Este grupo no tiene empresas registradas.
                             </p>
                             <p class="mt-1 text-xs text-gray-400">
-                                Ninguna seleccionada: acceso a todo el grupo. Una: acceso a esa empresa. Varias:
+                                Ninguna agregada: acceso a todo el grupo. Una: acceso a esa empresa. Varias:
                                 acceso solo a esas empresas (útil para quien administra más de una).
                             </p>
                         </div>

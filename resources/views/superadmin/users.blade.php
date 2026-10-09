@@ -21,6 +21,10 @@
             editCompanyIds: [],
             editModuleAccess: 'all',
             editPositionIds: [],
+            createCompanySearch: '',
+            createCompanySearchOpen: false,
+            editCompanySearch: '',
+            editCompanySearchOpen: false,
             get isSuperadminCreate() { return this.selectedRole === this.superadminId; },
             get isAdminCreate() { return this.selectedRole === this.adminId; },
             get createPositions() {
@@ -41,20 +45,46 @@
                 if (!this.editGroup) return [];
                 return this.allCompanies[this.editGroup] ?? [];
             },
+            get createCompanySearchResults() {
+                const q = this.createCompanySearch.trim().toLowerCase();
+                return this.createCompanies
+                    .filter(c => !this.selectedCompanies.includes(String(c.id)))
+                    .filter(c => !q || c.name.toLowerCase().includes(q));
+            },
+            get editCompanySearchResults() {
+                const q = this.editCompanySearch.trim().toLowerCase();
+                return this.editCompanies
+                    .filter(c => !this.editCompanyIds.includes(String(c.id)))
+                    .filter(c => !q || c.name.toLowerCase().includes(q));
+            },
+            createCompanyName(id) {
+                return this.createCompanies.find(c => String(c.id) === String(id))?.name ?? '—';
+            },
+            editCompanyName(id) {
+                return this.editCompanies.find(c => String(c.id) === String(id))?.name ?? '—';
+            },
+            addCreateCompany(id) {
+                id = String(id);
+                if (!this.selectedCompanies.includes(id)) this.selectedCompanies.push(id);
+                this.createCompanySearch = '';
+                this.createCompanySearchOpen = false;
+            },
+            removeCreateCompany(id) {
+                this.selectedCompanies = this.selectedCompanies.filter(x => x !== String(id));
+            },
+            addEditCompany(id) {
+                id = String(id);
+                if (!this.editCompanyIds.includes(id)) this.editCompanyIds.push(id);
+                this.editCompanySearch = '';
+                this.editCompanySearchOpen = false;
+            },
+            removeEditCompany(id) {
+                this.editCompanyIds = this.editCompanyIds.filter(x => x !== String(id));
+            },
             toggleCreatePos(id) {
                 const idx = this.selectedPositions.indexOf(id);
                 if (idx === -1) this.selectedPositions.push(id);
                 else this.selectedPositions.splice(idx, 1);
-            },
-            toggleCreateCompany(id) {
-                const idx = this.selectedCompanies.indexOf(id);
-                if (idx === -1) this.selectedCompanies.push(id);
-                else this.selectedCompanies.splice(idx, 1);
-            },
-            toggleEditCompany(id) {
-                const idx = this.editCompanyIds.indexOf(id);
-                if (idx === -1) this.editCompanyIds.push(id);
-                else this.editCompanyIds.splice(idx, 1);
             },
             toggleEditPos(id) {
                 const idx = this.editPositionIds.indexOf(id);
@@ -195,20 +225,44 @@
                     {{-- Empresas (hidden when superadmin) --}}
                     <div x-show="!isSuperadminCreate">
                         <label class="mb-1 block text-sm font-medium text-gray-700">Empresas</label>
-                        <div class="flex flex-wrap gap-2 mt-1">
-                            <template x-for="c in createCompanies" :key="c.id">
-                                <label class="inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded-lg border text-sm transition"
-                                       :class="selectedCompanies.includes(String(c.id))
-                                           ? 'border-[#1A428A] bg-blue-50 text-[#1A428A] font-medium'
-                                           : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'">
-                                    <input type="checkbox" class="sr-only"
-                                           :value="c.id"
-                                           :checked="selectedCompanies.includes(String(c.id))"
-                                           @change="toggleCreateCompany(String(c.id))">
-                                    <span x-text="c.name"></span>
-                                </label>
+
+                        <div class="flex flex-wrap gap-1.5 mb-2" x-show="selectedCompanies.length > 0">
+                            <template x-for="id in selectedCompanies" :key="id">
+                                <span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50 text-[#1A428A] text-xs font-medium border border-blue-200">
+                                    <span x-text="createCompanyName(id)"></span>
+                                    <button type="button" @click="removeCreateCompany(id)" class="rounded-full hover:bg-blue-100 p-0.5">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
+                                </span>
                             </template>
                         </div>
+
+                        <div class="relative" @click.outside="createCompanySearchOpen = false">
+                            <input type="text"
+                                x-model="createCompanySearch"
+                                @focus="createCompanySearchOpen = true"
+                                placeholder="Buscar empresa para agregar…"
+                                autocomplete="off"
+                                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+
+                            <div x-show="createCompanySearchOpen && createCompanySearchResults.length > 0"
+                                 class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto"
+                                 style="display:none;">
+                                <template x-for="c in createCompanySearchResults" :key="c.id">
+                                    <div @click="addCreateCompany(c.id)"
+                                         class="px-3 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50"
+                                         x-text="c.name"></div>
+                                </template>
+                            </div>
+
+                            <p x-show="createCompanySearchOpen && createCompanySearch.trim() !== '' && createCompanySearchResults.length === 0"
+                               class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg px-3 py-2 text-sm text-gray-400">
+                                Sin resultados.
+                            </p>
+                        </div>
+
                         <template x-for="cid in selectedCompanies" :key="cid">
                             <input type="hidden" name="company_id[]" :value="cid">
                         </template>
@@ -368,20 +422,44 @@
                                  x-transition:enter-start="opacity-0 -translate-y-1"
                                  x-transition:enter-end="opacity-100 translate-y-0">
                                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Empresas</label>
-                                <div class="flex flex-wrap gap-2">
-                                    <template x-for="c in editCompanies" :key="c.id">
-                                        <label class="inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded-lg border text-sm transition"
-                                               :class="editCompanyIds.includes(String(c.id))
-                                                   ? 'border-[#1A428A] bg-blue-50 text-[#1A428A] font-medium'
-                                                   : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'">
-                                            <input type="checkbox" class="sr-only"
-                                                   :value="c.id"
-                                                   :checked="editCompanyIds.includes(String(c.id))"
-                                                   @change="toggleEditCompany(String(c.id))">
-                                            <span x-text="c.name"></span>
-                                        </label>
+
+                                <div class="flex flex-wrap gap-1.5 mb-2" x-show="editCompanyIds.length > 0">
+                                    <template x-for="id in editCompanyIds" :key="id">
+                                        <span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50 text-[#1A428A] text-xs font-medium border border-blue-200">
+                                            <span x-text="editCompanyName(id)"></span>
+                                            <button type="button" @click="removeEditCompany(id)" class="rounded-full hover:bg-blue-100 p-0.5">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                            </button>
+                                        </span>
                                     </template>
                                 </div>
+
+                                <div class="relative" @click.outside="editCompanySearchOpen = false">
+                                    <input type="text"
+                                        x-model="editCompanySearch"
+                                        @focus="editCompanySearchOpen = true"
+                                        placeholder="Buscar empresa para agregar…"
+                                        autocomplete="off"
+                                        class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+
+                                    <div x-show="editCompanySearchOpen && editCompanySearchResults.length > 0"
+                                         class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto"
+                                         style="display:none;">
+                                        <template x-for="c in editCompanySearchResults" :key="c.id">
+                                            <div @click="addEditCompany(c.id)"
+                                                 class="px-3 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50"
+                                                 x-text="c.name"></div>
+                                        </template>
+                                    </div>
+
+                                    <p x-show="editCompanySearchOpen && editCompanySearch.trim() !== '' && editCompanySearchResults.length === 0"
+                                       class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg px-3 py-2 text-sm text-gray-400">
+                                        Sin resultados.
+                                    </p>
+                                </div>
+
                                 <template x-for="cid in editCompanyIds" :key="cid">
                                     <input type="hidden" name="company_id[]" :value="cid">
                                 </template>
