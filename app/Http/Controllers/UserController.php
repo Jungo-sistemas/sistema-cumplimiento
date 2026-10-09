@@ -184,7 +184,15 @@ class UserController extends Controller
 
         $authUser = auth()->user();
 
-        if (! $authUser->isGlobalScope() && ! $authUser->canAccessCompany($user->company)) {
+        // Un usuario sin empresa (alcance de grupo) no tiene "empresa" que comparar —
+        // canAccessCompany(null) siempre da false, así que en ese caso el acceso se valida
+        // por grupo en vez de por empresa (si no, ningún admin de grupo podría volver a
+        // editar a alguien al que le quitó la empresa).
+        $canManageTarget = $user->company
+            ? $authUser->canAccessCompany($user->company)
+            : $authUser->canAccessGroup($user->group);
+
+        if (! $authUser->isGlobalScope() && ! $canManageTarget) {
             abort(403);
         }
 
@@ -260,7 +268,13 @@ class UserController extends Controller
 
         $authUser = auth()->user();
 
-        if (! $authUser->isGlobalScope() && (! $user->company || ! $authUser->canAccessCompany($user->company))) {
+        // Mismo criterio que update(): un usuario sin empresa (alcance de grupo) se valida
+        // por grupo, no por empresa (canAccessCompany(null) siempre da false).
+        $canManageTarget = $user->company
+            ? $authUser->canAccessCompany($user->company)
+            : $authUser->canAccessGroup($user->group);
+
+        if (! $authUser->isGlobalScope() && ! $canManageTarget) {
             abort(403);
         }
 

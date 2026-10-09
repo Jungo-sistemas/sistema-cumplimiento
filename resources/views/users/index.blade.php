@@ -100,17 +100,16 @@
                         {{-- Empresa --}}
                         <div x-show="!isAdminEdit">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Empresa</label>
-                            <select name="company_id" x-model="editCompany" :required="!isAdminEdit"
+                            <select name="company_id" x-model="editCompany"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
-                                <option value="" disabled>Seleccionar empresa…</option>
+                                <option value="">— Sin empresa (acceso a todo el grupo) —</option>
                                 <template x-for="company in availableCompanies" :key="company.id">
                                     <option :value="company.id" x-text="company.name" :selected="editCompany == company.id"></option>
                                 </template>
                             </select>
                             <p class="mt-1 text-xs text-gray-400">
-                                Quitarle la empresa a un usuario lo deja sin empresa asignada (alcance de grupo), y
-                                solo un administrador con alcance global podría volver a editarlo después — por eso
-                                aquí siempre debe quedar una empresa seleccionada.
+                                Sin empresa: el usuario verá todas las empresas del grupo (útil para puestos de
+                                Dirección que supervisan varias empresas).
                             </p>
                         </div>
 
