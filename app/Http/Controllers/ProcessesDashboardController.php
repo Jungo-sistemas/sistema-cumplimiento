@@ -11,15 +11,20 @@ use Illuminate\Support\Facades\DB;
 
 class ProcessesDashboardController extends Controller
 {
+    // Prefijo del caché de este tablero — RegulationObserver lo reusa para poder invalidarlo
+    // al guardar/archivar/restaurar/eliminar un Regulation. Si se vuelve a subir la versión
+    // (v5 -> v6, por el motivo que sea), basta con cambiar esta constante: el observer
+    // automáticamente apunta a la misma clave, sin quedar desincronizado otra vez.
+    public const CACHE_PREFIX = 'dashboard:processes:v5:';
+
     public function index(Request $request)
     {
         $user = $request->user();
 
         $scopeKey = $user->hasCompanyScope() ? "c{$user->company_id}" : "g{$user->group_id}";
 
-        // v5 — excluye anexos de los conteos y gráficas
         [$stats, $recent, $chartData] = Cache::remember(
-            "dashboard:processes:v5:{$scopeKey}",
+            self::CACHE_PREFIX . $scopeKey,
             now()->addMinutes(15),
             function () use ($user) {
                 $query = Regulation::query()
