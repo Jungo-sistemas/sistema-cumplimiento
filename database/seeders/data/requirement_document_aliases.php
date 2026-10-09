@@ -182,5 +182,7 @@ return [
         // nombre largo de ES/EC), y el archivo/Excel de vigencias solo trae "Resolutivo EVIS"
         // (PLA Alamo).
         'Resolutivo EVIS' => 'Resolutivo del MISSE o EVIS',
+        // Misma variante, con "de" (PLA Altamira).
+        'Resolutivo de EVIS' => 'Resolutivo del MISSE o EVIS',
     ],
 ];
