@@ -173,4 +173,10 @@ return [
         // Española).
         'Resolutivo IP' => 'Manifiesto de Impacto Ambiental / Informe Preventivo',
     ],
+
+    'Plantas' => [
+        // Mismo caso ya confirmado para ES/EC (ver arriba): el Excel de vigencias trae el nombre
+        // abreviado del requerimiento, sin "y RCA+ Determinación de los Límites" (PLA Abasolo).
+        'Pólizas de seguros RC' => 'Pólizas de seguros RC y RCA+ Determinación de los Límites',
+    ],
 ];

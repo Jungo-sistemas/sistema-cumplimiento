@@ -608,10 +608,17 @@ class ImportRequirementDocuments extends Command
         try {
             return Carbon::createFromFormat('d-m-Y', $value)->startOfDay();
         } catch (\Exception) {
+            // Mismo criterio día/mes/año que el formato con guiones, pero con "/" — el proveedor
+            // a veces mezcla ambos separadores en el mismo CSV. Sin esto, Carbon::parse() de abajo
+            // interpreta "08/09/2026" al estilo estadounidense (mes/día) en vez de día/mes.
             try {
-                return Carbon::parse($value)->startOfDay();
+                return Carbon::createFromFormat('d/m/Y', $value)->startOfDay();
             } catch (\Exception) {
-                return null;
+                try {
+                    return Carbon::parse($value)->startOfDay();
+                } catch (\Exception) {
+                    return null;
+                }
             }
         }
     }
