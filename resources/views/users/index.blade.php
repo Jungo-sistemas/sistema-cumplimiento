@@ -118,7 +118,7 @@
                         </div>
 
                         {{-- Empresa --}}
-                        <div x-show="!isAdminEdit">
+                        <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Empresas</label>
 
                             {{-- Seleccionadas --}}

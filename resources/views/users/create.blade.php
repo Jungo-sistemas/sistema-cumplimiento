@@ -28,7 +28,7 @@
             positionsByGroup: @json($positionsByGroup),
             get isAdmin() { return this.selectedRole === this.adminRoleId; },
             get isAuditor() { return this.selectedRole === this.auditorRoleId; },
-            get needsCompany() { return this.selectedRole !== '' && !this.isAdmin; },
+            get needsCompany() { return this.selectedRole !== ''; },
             get availableCompanies() {
                 if (!this.selectedGroup) return [];
                 return this.companiesByGroup[this.selectedGroup] ?? [];
@@ -228,7 +228,7 @@
                         @endif
                     </div>
 
-                    {{-- Empresas (solo para operativo y solo lectura) --}}
+                    {{-- Empresas --}}
                     <div x-show="needsCompany && selectedGroup !== ''" x-transition>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Empresas</label>
 
@@ -285,14 +285,6 @@
                         </p>
                     </div>
 
-                    {{-- Nota para rol admin --}}
-                    <div x-show="isAdmin && selectedGroup !== ''" x-transition
-                         class="flex items-start gap-2 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
-                        <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        <p class="text-sm text-blue-700">El administrador tendrá acceso a todas las empresas del grupo seleccionado.</p>
-                    </div>
                 </div>
 
             @endif

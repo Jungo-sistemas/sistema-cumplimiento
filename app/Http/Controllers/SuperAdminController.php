@@ -256,14 +256,9 @@ class SuperAdminController extends Controller
             $groupId         = null;
             $moduleAccess    = 'all';
             $companiesToSync = [];
-        } elseif ($role->slug === 'admin') {
-            $scopeLevel      = 'group';
-            $companyId       = null;
-            $groupId         = $request->group_id;
-            $moduleAccess    = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
-                ? $request->module_access : 'all';
-            $companiesToSync = [];
         } else {
+            // Un admin puede quedarse con alcance de grupo completo (igual que antes, dejando las
+            // empresas sin seleccionar) o reducirse a una/varias empresas específicas.
             [$companyId, $resolvedGroupId, $scopeLevel, $companiesToSync] = $this->resolveSuperAdminCompanyScope(
                 $request->input('company_id', []),
                 $request->group_id,
@@ -323,13 +318,6 @@ class SuperAdminController extends Controller
             $companyId       = null;
             $groupId         = null;
             $moduleAccess    = 'all';
-            $companiesToSync = [];
-        } elseif ($role->slug === 'admin') {
-            $scopeLevel      = 'group';
-            $companyId       = null;
-            $groupId         = $request->group_id;
-            $moduleAccess    = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
-                ? $request->module_access : 'all';
             $companiesToSync = [];
         } else {
             [$companyId, $resolvedGroupId, $scopeLevel, $companiesToSync] = $this->resolveSuperAdminCompanyScope(
