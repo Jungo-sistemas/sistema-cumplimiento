@@ -254,15 +254,28 @@ class AiProcedureGenerationService
             try {
                 [$exitCode, $stdout, $stderr] = $this->runDiagramRenderer($input, $output);
 
-                if ($exitCode === 0 && is_file($output)) {
-                    return file_get_contents($output);
-                }
+                if ($exitCode === 0 && is_file($output) && filesize($output) > 0) {
+                    $png = file_get_contents($output);
 
-                Log::warning('AiProcedureGenerationService: no se pudo rasterizar el diagrama de flujo', [
-                    'attempt' => $attempt,
-                    'exit_code' => $exitCode,
-                    'output' => $stderr ?: $stdout,
-                ]);
+                    // proc_open puede salir con código 0 y dejar un PNG truncado/corrupto (p. ej.
+                    // si el proceso se cierra antes de que el archivo termine de escribirse a disco)
+                    // — sin esta validación, ese PNG se insertaba tal cual en el documento, dando el
+                    // diagrama "deformado"/destruido que se ve a veces en Procesos.
+                    if (@getimagesizefromstring($png) !== false) {
+                        return $png;
+                    }
+
+                    Log::warning('AiProcedureGenerationService: el diagrama se renderizó pero el PNG resultó inválido', [
+                        'attempt' => $attempt,
+                        'size' => strlen($png),
+                    ]);
+                } else {
+                    Log::warning('AiProcedureGenerationService: no se pudo rasterizar el diagrama de flujo', [
+                        'attempt' => $attempt,
+                        'exit_code' => $exitCode,
+                        'output' => $stderr ?: $stdout,
+                    ]);
+                }
             } catch (\Throwable $e) {
                 Log::warning('AiProcedureGenerationService: fallo al rasterizar el diagrama de flujo', [
                     'attempt' => $attempt,
