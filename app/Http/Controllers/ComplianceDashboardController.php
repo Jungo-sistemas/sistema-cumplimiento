@@ -28,6 +28,8 @@ class ComplianceDashboardController extends Controller
             }, function ($query) use ($user) {
                 if ($user->hasGroupScope()) {
                     $query->where('group_id', $user->group_id);
+                } elseif ($user->hasMultipleCompanies()) {
+                    $query->whereIn('id', $user->accessibleCompanyIds());
                 } else {
                     $query->where('id', $user->company_id);
                 }

@@ -5,7 +5,7 @@
 
     @php
         $user = auth()->user();
-        $showCompanyColumn = $user->hasGroupScope();
+        $showCompanyColumn = ($user->hasGroupScope() || $user->hasMultipleCompanies());
         $filtersGridClass = $showCompanyColumn ? 'md:grid-cols-7' : 'md:grid-cols-6';
     @endphp
 

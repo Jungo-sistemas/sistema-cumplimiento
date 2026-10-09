@@ -14,58 +14,46 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
-        $cacheKey = $user->hasGroupScope()
-            ? "dashboard:group:{$user->group_id}"
-            : "dashboard:company:{$user->company_id}";
+        $cacheKey = match (true) {
+            $user->hasGroupScope() => "dashboard:group:{$user->group_id}",
+            $user->hasMultipleCompanies() => 'dashboard:companies:' . implode(',', $user->accessibleCompanyIds()),
+            default => "dashboard:company:{$user->company_id}",
+        };
 
         [$stats, $dueSoon] = Cache::remember($cacheKey, now()->addSeconds(60), function () use ($user) {
             $today = Carbon::today();
             $soonLimit = $today->copy()->addDays(30);
 
-            $assetsCount = Asset::query()
-                ->when($user->hasGroupScope(), function ($query) use ($user) {
+            $scopeCompanyQuery = function ($query) use ($user) {
+                if ($user->hasGroupScope()) {
                     $query->whereHas('company', function ($subQuery) use ($user) {
                         $subQuery->where('group_id', $user->group_id);
                     });
-                }, function ($query) use ($user) {
+                } elseif ($user->hasMultipleCompanies()) {
+                    $query->whereIn('company_id', $user->accessibleCompanyIds());
+                } else {
                     $query->where('company_id', $user->company_id);
-                })
+                }
+            };
+
+            $assetsCount = Asset::query()
+                ->tap($scopeCompanyQuery)
                 ->count();
 
             $pendingTasksCount = Task::query()
                 ->where('status', 'pending')
-                ->whereHas('requirement', function ($query) use ($user) {
-                    $query->when($user->hasGroupScope(), function ($subQuery) use ($user) {
-                        $subQuery->whereHas('company', function ($companyQuery) use ($user) {
-                            $companyQuery->where('group_id', $user->group_id);
-                        });
-                    }, function ($subQuery) use ($user) {
-                        $subQuery->where('company_id', $user->company_id);
-                    });
-                })
+                ->whereHas('requirement', $scopeCompanyQuery)
                 ->count();
 
             $dueSoonCount = AssetRequirement::query()
-                ->when($user->hasGroupScope(), function ($query) use ($user) {
-                    $query->whereHas('company', function ($subQuery) use ($user) {
-                        $subQuery->where('group_id', $user->group_id);
-                    });
-                }, function ($query) use ($user) {
-                    $query->where('company_id', $user->company_id);
-                })
+                ->tap($scopeCompanyQuery)
                 ->where('status', '!=', 'completed')
                 ->whereNotNull('due_date')
                 ->whereBetween('due_date', [$today, $soonLimit])
                 ->count();
 
             $overdueCount = AssetRequirement::query()
-                ->when($user->hasGroupScope(), function ($query) use ($user) {
-                    $query->whereHas('company', function ($subQuery) use ($user) {
-                        $subQuery->where('group_id', $user->group_id);
-                    });
-                }, function ($query) use ($user) {
-                    $query->where('company_id', $user->company_id);
-                })
+                ->tap($scopeCompanyQuery)
                 ->where('status', '!=', 'completed')
                 ->whereNotNull('due_date')
                 ->where('due_date', '<', $today)
@@ -77,13 +65,7 @@ class DashboardController extends Controller
                     'template:id,name',
                     'company:id,name,group_id',
                 ])
-                ->when($user->hasGroupScope(), function ($query) use ($user) {
-                    $query->whereHas('company', function ($subQuery) use ($user) {
-                        $subQuery->where('group_id', $user->group_id);
-                    });
-                }, function ($query) use ($user) {
-                    $query->where('company_id', $user->company_id);
-                })
+                ->tap($scopeCompanyQuery)
                 ->where('status', '!=', 'completed')
                 ->whereNotNull('due_date')
                 ->whereBetween('due_date', [$today, $soonLimit])
@@ -95,7 +77,7 @@ class DashboardController extends Controller
                         'title' => $requirement->template?->name ?? $requirement->type,
                         'asset_name' => $requirement->asset?->name,
                         'asset_code' => $requirement->asset?->code,
-                        'company_name' => $user->hasGroupScope() ? $requirement->company?->name : null,
+                        'company_name' => ($user->hasGroupScope() || $user->hasMultipleCompanies()) ? $requirement->company?->name : null,
                         'due_date' => optional($requirement->due_date)->format('Y-m-d'),
                         'risk' => $requirement->risk_level ?? null,
                     ];

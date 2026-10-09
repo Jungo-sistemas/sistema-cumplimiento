@@ -64,7 +64,7 @@
                         {{ $requirement->template?->name ?? $requirement->type }}
                     </x-truncate>
 
-                    @if(auth()->user()->hasGroupScope() && $asset->company)
+                    @if((auth()->user()->hasGroupScope() || auth()->user()->hasMultipleCompanies()) && $asset->company)
                         · Empresa:
                         <span class="font-semibold text-gray-700">
                             {{ $asset->company->name }}

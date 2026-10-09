@@ -19,13 +19,17 @@ class StoreAssetRequest extends FormRequest
 
         $companyId = $this->filled('company_id')
             ? (int) $this->input('company_id')
-            : (int) $user->company_id;
+            : (int) ($user->hasMultipleCompanies() ? ($user->accessibleCompanyIds()[0] ?? 0) : $user->company_id);
 
         $companyRule = Rule::exists('companies', 'id');
 
         if ($user->hasGroupScope()) {
             $companyRule = $companyRule->where(function ($query) use ($user) {
                 $query->where('group_id', $user->group_id);
+            });
+        } elseif ($user->hasMultipleCompanies()) {
+            $companyRule = $companyRule->where(function ($query) use ($user) {
+                $query->whereIn('id', $user->accessibleCompanyIds());
             });
         } else {
             $companyRule = $companyRule->where(function ($query) use ($user) {
@@ -90,6 +94,8 @@ class StoreAssetRequest extends FormRequest
                     if ($user->hasGroupScope()) {
                         $groupId = \App\Models\Company::find($companyId)?->group_id ?? $user->group_id;
                         $query->where('group_id', $groupId);
+                    } elseif ($user->hasMultipleCompanies()) {
+                        $query->where('company_id', $companyId);
                     } else {
                         $query->where('company_id', $user->company_id);
                     }
@@ -120,7 +126,8 @@ class StoreAssetRequest extends FormRequest
         }
 
         if (! $this->filled('company_id') && $this->user()) {
-            $data['company_id'] = (int) $this->user()->company_id;
+            $user = $this->user();
+            $data['company_id'] = (int) ($user->hasMultipleCompanies() ? ($user->accessibleCompanyIds()[0] ?? 0) : $user->company_id);
         }
 
         if ($data !== []) {

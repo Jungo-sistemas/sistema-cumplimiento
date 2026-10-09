@@ -22,7 +22,7 @@
     </div>
 
     {{-- FILTROS --}}
-    @if($user->hasGroupScope())
+    @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
         <form method="GET" action="{{ route('investment-requests.index') }}"
               class="mt-4 flex flex-wrap items-end gap-3">
             <div class="min-w-[180px]">
@@ -65,7 +65,7 @@
                 <thead class="bg-gray-50 border-b border-gray-200">
                     <tr class="text-xs font-semibold uppercase tracking-wide text-gray-500">
                         <th class="text-left px-4 py-3">Concepto</th>
-                        @if($user->hasGroupScope())
+                        @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
                             <th class="text-left px-4 py-3">Empresa</th>
                         @endif
                         <th class="text-left px-4 py-3">Monto</th>
@@ -88,7 +88,7 @@
                             </td>
 
                             {{-- Empresa --}}
-                            @if($user->hasGroupScope())
+                            @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
                                 <td class="px-4 py-3">
                                     {{ $investmentRequest->company?->name ?? '—' }}
                                 </td>
@@ -140,7 +140,7 @@
                         </tr>
                     @empty
                         <tr class="border-t">
-                            <td colspan="{{ $user->hasGroupScope() ? 8 : 7 }}"
+                            <td colspan="{{ ($user->hasGroupScope() || $user->hasMultipleCompanies()) ? 8 : 7 }}"
                                 class="px-6 py-6 text-center text-gray-500">
                                 No hay solicitudes de inversión registradas.
                             </td>
@@ -174,7 +174,7 @@
                 <div class="space-y-4">
 
                     {{-- Empresa --}}
-                    @if($user->hasGroupScope() && $companies->isNotEmpty())
+                    @if(($user->hasGroupScope() || $user->hasMultipleCompanies()) && $companies->isNotEmpty())
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">
                                 Empresa <span class="text-red-500">*</span>

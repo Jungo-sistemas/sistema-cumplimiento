@@ -60,7 +60,7 @@
                     </x-truncate>
                 </h1>
 
-                @if(auth()->user()->hasGroupScope() && $asset->company)
+                @if((auth()->user()->hasGroupScope() || auth()->user()->hasMultipleCompanies()) && $asset->company)
                     <div class="text-sm text-gray-500">
                         Empresa:
                         <span class="font-semibold text-gray-700">{{ $asset->company->name }}</span>
@@ -172,7 +172,7 @@
                     <div><strong>Progreso:</strong> {{ $requirement->progress }}%</div>
                     <div><strong>Tareas:</strong> {{ $doneNonRenewalTasks }}/{{ $totalNonRenewalTasks }}</div>
 
-                    @if(auth()->user()->hasGroupScope() && $asset->company)
+                    @if((auth()->user()->hasGroupScope() || auth()->user()->hasMultipleCompanies()) && $asset->company)
                         <div><strong>Empresa:</strong> {{ $asset->company->name }}</div>
                     @endif
                 </div>

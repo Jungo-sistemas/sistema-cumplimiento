@@ -21,7 +21,11 @@ class ProcessesDashboardController extends Controller
     {
         $user = $request->user();
 
-        $scopeKey = $user->hasCompanyScope() ? "c{$user->company_id}" : "g{$user->group_id}";
+        $scopeKey = match (true) {
+            $user->hasCompanyScope() => "c{$user->company_id}",
+            $user->hasMultipleCompanies() => 'm' . implode('-', $user->accessibleCompanyIds()),
+            default => "g{$user->group_id}",
+        };
 
         [$stats, $recent, $chartData] = Cache::remember(
             self::CACHE_PREFIX . $scopeKey,
@@ -34,6 +38,8 @@ class ProcessesDashboardController extends Controller
 
                 if ($user->hasCompanyScope()) {
                     $query->where('company_id', $user->company_id);
+                } elseif ($user->hasMultipleCompanies()) {
+                    $query->whereIn('company_id', $user->accessibleCompanyIds());
                 }
 
                 $stats = [

@@ -56,7 +56,7 @@
                     @if($regulation->document_type)
                         <span>Tipo: <span class="font-semibold text-gray-700">{{ $regulation->document_type }}</span></span>
                     @endif
-                    @if(auth()->user()->hasGroupScope() && $regulation->company)
+                    @if((auth()->user()->hasGroupScope() || auth()->user()->hasMultipleCompanies()) && $regulation->company)
                         <span>Empresa: <span class="font-semibold text-gray-700">{{ $regulation->company->name }}</span></span>
                     @endif
                 </div>

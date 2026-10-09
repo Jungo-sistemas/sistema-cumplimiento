@@ -32,6 +32,8 @@ class StoreTaskRequest extends FormRequest
                 Rule::exists('users', 'id')->where(function ($query) use ($user) {
                     if ($user->hasGroupScope()) {
                         $query->where('group_id', $user->group_id);
+                    } elseif ($user->hasMultipleCompanies()) {
+                        $query->where('company_id', $this->route('requirement')?->company_id);
                     } else {
                         $query->where('company_id', $user->company_id);
                     }

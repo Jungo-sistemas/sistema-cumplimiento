@@ -75,11 +75,9 @@ class AssetController extends Controller
             ->get(['id', 'name']);
 
         $allCompanies = Company::query()
-            ->when($user->hasGroupScope(), function ($query) use ($user) {
-                $query->where('group_id', $user->group_id);
-            }, function ($query) use ($user) {
-                $query->where('id', $user->company_id);
-            })
+            ->when($user->hasGroupScope(), fn ($q) => $q->where('group_id', $user->group_id))
+            ->when($user->hasMultipleCompanies(), fn ($q) => $q->whereIn('id', $user->accessibleCompanyIds()))
+            ->when(! $user->hasGroupScope() && ! $user->hasMultipleCompanies(), fn ($q) => $q->where('id', $user->company_id))
             ->orderBy('name')
             ->get(['id', 'name', 'otras']);
 
@@ -112,7 +110,11 @@ class AssetController extends Controller
                 $query->whereHas('company', function ($subQuery) use ($user) {
                     $subQuery->where('group_id', $user->group_id);
                 });
-            }, function ($query) use ($user) {
+            })
+            ->when($user->hasMultipleCompanies(), function ($query) use ($user) {
+                $query->whereIn('company_id', $user->accessibleCompanyIds());
+            })
+            ->when(! $user->hasGroupScope() && ! $user->hasMultipleCompanies(), function ($query) use ($user) {
                 $query->where('company_id', $user->company_id);
             });
 
@@ -147,7 +149,11 @@ class AssetController extends Controller
                 $query->whereHas('company', function ($subQuery) use ($user) {
                     $subQuery->where('group_id', $user->group_id);
                 });
-            }, function ($query) use ($user) {
+            })
+            ->when($user->hasMultipleCompanies(), function ($query) use ($user) {
+                $query->whereIn('company_id', $user->accessibleCompanyIds());
+            })
+            ->when(! $user->hasGroupScope() && ! $user->hasMultipleCompanies(), function ($query) use ($user) {
                 $query->where('company_id', $user->company_id);
             });
 
@@ -184,7 +190,7 @@ class AssetController extends Controller
         // License info for the current context
         $licenseCompany = $selectedCompanyId
             ? Company::find($selectedCompanyId)
-            : ($user->hasGroupScope() ? null : Company::find($user->company_id));
+            : (($user->hasGroupScope() || $user->hasMultipleCompanies()) ? null : Company::find($user->company_id));
 
         $licenseInfo = $licenseCompany ? $this->licenseService->info($licenseCompany) : null;
 
@@ -255,17 +261,15 @@ class AssetController extends Controller
             ->get(['id', 'name']);
 
         $companies = Company::query()
-            ->when($user->hasGroupScope(), function ($query) use ($user) {
-                $query->where('group_id', $user->group_id);
-            }, function ($query) use ($user) {
-                $query->where('id', $user->company_id);
-            })
+            ->when($user->hasGroupScope(), fn ($q) => $q->where('group_id', $user->group_id))
+            ->when($user->hasMultipleCompanies(), fn ($q) => $q->whereIn('id', $user->accessibleCompanyIds()))
+            ->when(! $user->hasGroupScope() && ! $user->hasMultipleCompanies(), fn ($q) => $q->where('id', $user->company_id))
             ->orderBy('name')
             ->get(['id', 'name']);
 
         $selectedCompanyId = $request->filled('company_id')
             ? (int) $request->company_id
-            : (int) $user->company_id;
+            : (int) ($user->hasMultipleCompanies() ? ($user->accessibleCompanyIds()[0] ?? 0) : $user->company_id);
 
         $selectedCompany = Company::findOrFail($selectedCompanyId);
 
@@ -658,7 +662,10 @@ class AssetController extends Controller
                 if ($user->hasGroupScope()) {
                     $q->where('group_id', $groupId ?? $user->group_id);
                 } else {
-                    $q->where('company_id', $user->company_id);
+                    // Candidatos de la MISMA empresa del activo, no la del usuario que edita —
+                    // un usuario con alcance de "varias empresas" puede estar editando un activo
+                    // de cualquiera de ellas, y $user->company_id ni siquiera existe en ese caso.
+                    $q->where('company_id', $asset->company_id);
                 }
             })
             ->orderBy('name')
@@ -666,7 +673,8 @@ class AssetController extends Controller
 
         $companies = Company::query()
             ->when($user->hasGroupScope(), fn ($q) => $q->where('group_id', $user->group_id))
-            ->when(! $user->hasGroupScope() && ! $user->isGlobalScope(), fn ($q) => $q->where('id', $user->company_id))
+            ->when($user->hasMultipleCompanies(), fn ($q) => $q->whereIn('id', $user->accessibleCompanyIds()))
+            ->when(! $user->hasGroupScope() && ! $user->hasMultipleCompanies() && ! $user->isGlobalScope(), fn ($q) => $q->where('id', $user->company_id))
             ->orderBy('name')
             ->get(['id', 'name']);
 

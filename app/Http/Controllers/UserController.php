@@ -20,7 +20,7 @@ class UserController extends Controller
 
         $authUser = auth()->user();
 
-        $users = User::with(['role', 'company', 'group', 'jobPositions'])
+        $users = User::with(['role', 'company', 'group', 'jobPositions', 'companies'])
             ->when($authUser->isGlobalScope(), function ($query) {
                 // global-scope admins see all users except superadmins
                 $query->whereHas('role', fn ($q) => $q->where('slug', '!=', 'superadmin'));
@@ -124,32 +124,26 @@ class UserController extends Controller
         abort_if($role->slug === 'admin' && ! $authUser->hasGroupScope() && ! $authUser->isGlobalScope(), 403);
 
         if ($role->slug === 'admin') {
-            $groupId      = $request->group_id ?? $authUser->group_id;
-            $companyId    = null;
-            $scopeLevel   = 'group';
-            $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
+            $groupId         = $request->group_id ?? $authUser->group_id;
+            $companyId       = null;
+            $scopeLevel      = 'group';
+            $companiesToSync = [];
+            $moduleAccess    = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
                 ? $request->module_access
                 : 'all';
         } else {
             $request->validate([
-                'company_id'    => ['nullable', 'exists:companies,id'],
+                'company_id'    => ['nullable', 'array'],
+                'company_id.*'  => ['exists:companies,id'],
                 'module_access' => ['required', 'in:all,cumplimiento,procesos'],
             ]);
             $moduleAccess = $role->slug === 'auditor' ? 'procesos' : $request->module_access;
 
-            if ($request->filled('company_id')) {
-                $company = Company::findOrFail($request->company_id);
-                if (! $authUser->isGlobalScope() && ! $authUser->canAccessCompany($company)) {
-                    abort(403);
-                }
-                $companyId  = $company->id;
-                $groupId    = $request->group_id ?? $company->group_id;
-                $scopeLevel = 'company';
-            } else {
-                $companyId  = null;
-                $groupId    = $request->group_id ?? $authUser->group_id;
-                $scopeLevel = 'group';
-            }
+            [$companyId, $groupId, $scopeLevel, $companiesToSync] = $this->resolveCompanyScope(
+                $authUser,
+                $request->input('company_id', []),
+                $request->group_id ?? $authUser->group_id,
+            );
         }
 
         $user = User::create([
@@ -167,6 +161,10 @@ class UserController extends Controller
             'invited_by'        => $authUser->id,
         ]);
 
+        if (! empty($companiesToSync)) {
+            $user->companies()->sync($companiesToSync);
+        }
+
         if ($request->filled('job_position_id')) {
             $user->jobPositions()->attach($request->job_position_id);
         }
@@ -176,6 +174,46 @@ class UserController extends Controller
         return redirect()
             ->route('users.index')
             ->with('success', 'Invitación enviada correctamente.');
+    }
+
+    /**
+     * Resuelve company_id/group_id/scope_level a partir de los ids de empresa seleccionados en
+     * el formulario (checkboxes) — sin depender de rol ni puesto: 0 seleccionadas = alcance de
+     * grupo, 1 = alcance de empresa (como siempre), 2+ = alcance de "varias empresas"
+     * (scope_level 'companies', sincronizadas en user_companies). Usado por store() y update().
+     *
+     * @param  array<int, mixed>  $companyIds
+     * @return array{0: ?int, 1: ?int, 2: string, 3: array<int, int>} [companyId, groupId, scopeLevel, companiesToSync]
+     */
+    private function resolveCompanyScope(User $authUser, array $companyIds, ?int $fallbackGroupId): array
+    {
+        $ids = collect($companyIds)->filter()->map(fn ($id) => (int) $id)->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return [null, $fallbackGroupId, 'group', []];
+        }
+
+        $companies = Company::whereIn('id', $ids)->get();
+
+        abort_if($companies->count() !== $ids->count(), 422, 'Una o más empresas seleccionadas no existen.');
+
+        foreach ($companies as $company) {
+            if (! $authUser->isGlobalScope() && ! $authUser->canAccessCompany($company)) {
+                abort(403);
+            }
+        }
+
+        if ($companies->count() === 1) {
+            $company = $companies->first();
+
+            return [$company->id, $company->group_id, 'company', []];
+        }
+
+        // Confirmado con negocio: un usuario con varias empresas siempre las tiene dentro del
+        // mismo grupo (nunca mezcladas entre distintos clientes/grupos).
+        abort_if($companies->pluck('group_id')->unique()->count() > 1, 422, 'Las empresas seleccionadas deben pertenecer al mismo grupo.');
+
+        return [null, $companies->first()->group_id, 'companies', $ids->all()];
     }
 
     public function update(Request $request, User $user)
@@ -208,7 +246,8 @@ class UserController extends Controller
 
         $request->validate([
             'role_id'          => ['required', 'exists:roles,id'],
-            'company_id'       => ['nullable', 'exists:companies,id'],
+            'company_id'       => ['nullable', 'array'],
+            'company_id.*'     => ['exists:companies,id'],
             'module_access'    => ['nullable', 'in:all,cumplimiento,procesos'],
             'job_position_id'  => ['nullable', 'array'],
             'job_position_id.*' => ['exists:job_positions,id'],
@@ -220,25 +259,20 @@ class UserController extends Controller
         abort_if($role->slug === 'admin' && ! $authUser->hasGroupScope() && ! $authUser->isGlobalScope(), 403);
 
         // Mismo criterio que store(): un admin no pertenece a una empresa en particular (vive a
-        // nivel de grupo); cualquier otro rol sí puede tener una empresa, y si se le asigna una
-        // distinta a la que ya tenía, el grupo se recalcula a partir de esa empresa (no se deja
-        // elegir grupo aparte en este modal).
+        // nivel de grupo); cualquier otro rol sí puede tener una o varias empresas (ver
+        // resolveCompanyScope()), y si se le asigna alguna distinta a la que ya tenía, el grupo
+        // se recalcula a partir de esa empresa (no se deja elegir grupo aparte en este modal).
         if ($role->slug === 'admin') {
-            $companyId  = null;
-            $groupId    = $user->group_id;
-            $scopeLevel = 'group';
-        } elseif ($request->filled('company_id')) {
-            $company = Company::findOrFail($request->company_id);
-            if (! $authUser->isGlobalScope() && ! $authUser->canAccessCompany($company)) {
-                abort(403);
-            }
-            $companyId  = $company->id;
-            $groupId    = $company->group_id;
-            $scopeLevel = 'company';
+            $companyId       = null;
+            $groupId         = $user->group_id;
+            $scopeLevel      = 'group';
+            $companiesToSync = [];
         } else {
-            $companyId  = null;
-            $groupId    = $user->group_id;
-            $scopeLevel = 'group';
+            [$companyId, $groupId, $scopeLevel, $companiesToSync] = $this->resolveCompanyScope(
+                $authUser,
+                $request->input('company_id', []),
+                $user->group_id,
+            );
         }
 
         $moduleAccess = $role->slug === 'auditor'
@@ -254,6 +288,8 @@ class UserController extends Controller
             'scope_level'   => $scopeLevel,
             'module_access' => $moduleAccess,
         ]);
+
+        $user->companies()->sync($companiesToSync);
 
         $user->jobPositions()->sync($request->input('job_position_id', []));
 

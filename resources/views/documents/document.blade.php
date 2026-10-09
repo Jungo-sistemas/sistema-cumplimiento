@@ -15,7 +15,7 @@
                     {{ $document->name }}
                 </h1>
 
-                @if(auth()->user()->hasGroupScope() && $document->company)
+                @if((auth()->user()->hasGroupScope() || auth()->user()->hasMultipleCompanies()) && $document->company)
                     <div class="text-sm text-gray-500">
                         Empresa:
                         <span class="font-semibold text-gray-700">{{ $document->company->name }}</span>
@@ -459,7 +459,7 @@
                 <div class="space-y-4">
 
                     {{-- Empresa --}}
-                    @if(auth()->user()->hasGroupScope() && $companies->isNotEmpty())
+                    @if((auth()->user()->hasGroupScope() || auth()->user()->hasMultipleCompanies()) && $companies->isNotEmpty())
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">
                                 Empresa <span class="text-red-500">*</span>

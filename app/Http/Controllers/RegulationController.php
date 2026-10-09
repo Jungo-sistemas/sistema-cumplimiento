@@ -28,17 +28,22 @@ class RegulationController extends Controller
     {
         $user = auth()->user();
 
-        $selectedCompanyId = $user->hasGroupScope()
+        $selectedCompanyId = ($user->hasGroupScope() || $user->hasMultipleCompanies())
             ? ($request->filled('company_id') ? (int) $request->company_id : null)
             : (int) $user->company_id;
 
         $companies = $user->hasGroupScope()
             ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
-            : collect();
+            : ($user->hasMultipleCompanies()
+                ? Company::whereIn('id', $user->accessibleCompanyIds())->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
+                : collect());
 
-        // Group user with no company selected AND no search AND not in report mode → company card grid
-        if ($user->hasGroupScope() && ! $selectedCompanyId && ! $request->filled('q') && ! $request->boolean('report')) {
-            $companiesQuery = Company::where('group_id', $user->group_id)
+        // Group/multi-company user with no company selected AND no search AND not in report mode
+        // → company card grid
+        if (($user->hasGroupScope() || $user->hasMultipleCompanies()) && ! $selectedCompanyId && ! $request->filled('q') && ! $request->boolean('report')) {
+            $companiesQuery = Company::query()
+                ->when($user->hasGroupScope(), fn ($q) => $q->where('group_id', $user->group_id))
+                ->when($user->hasMultipleCompanies(), fn ($q) => $q->whereIn('id', $user->accessibleCompanyIds()))
                 ->where('show_in_processes', true)
                 ->where('otras', false)
                 ->withCount(['regulations' => fn ($q) => $q->where('is_active', true)->where('is_annex', false)]);
@@ -80,6 +85,8 @@ class RegulationController extends Controller
 
         if ($selectedCompanyId) {
             $query->where('company_id', $selectedCompanyId);
+        } elseif ($user->hasMultipleCompanies()) {
+            $query->whereIn('company_id', $user->accessibleCompanyIds());
         } elseif (! $user->hasGroupScope()) {
             $query->where('company_id', $user->company_id);
         }
@@ -100,8 +107,9 @@ class RegulationController extends Controller
             });
         }
 
-        // Búsqueda global: sin empresa seleccionada + búsqueda, o modo reporte (todas las empresas)
-        $globalSearch = $user->hasGroupScope() && ! $selectedCompanyId
+        // Búsqueda global: sin empresa seleccionada + búsqueda, o modo reporte (todas las empresas
+        // del grupo, o todas las del usuario si tiene varias empresas específicas)
+        $globalSearch = ($user->hasGroupScope() || $user->hasMultipleCompanies()) && ! $selectedCompanyId
             && ($request->filled('q') || $request->boolean('report'));
 
         $query->orderBy('code')->orderBy('name');
@@ -162,13 +170,15 @@ class RegulationController extends Controller
 
         session()->forget(self::AI_DRAFT_SESSION_KEY); // empezar limpio; evita confusión con una vista previa abandonada
 
-        $selectedCompanyId = $user->hasGroupScope()
+        $selectedCompanyId = ($user->hasGroupScope() || $user->hasMultipleCompanies())
             ? ($request->filled('company_id') ? (int) $request->company_id : null)
             : (int) $user->company_id;
 
         $companies = $user->hasGroupScope()
             ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
-            : collect();
+            : ($user->hasMultipleCompanies()
+                ? Company::whereIn('id', $user->accessibleCompanyIds())->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
+                : collect());
 
         $processTypes = ProcessType::where('group_id', $user->group_id)
             ->where('is_active', true)
@@ -718,13 +728,15 @@ class RegulationController extends Controller
         // Cargar un documento por archivo — solo admins; crear vía wizard de IA sigue abierto a operativos.
         abort_unless($user->isAdmin(), 403);
 
-        $selectedCompanyId = $user->hasGroupScope()
+        $selectedCompanyId = ($user->hasGroupScope() || $user->hasMultipleCompanies())
             ? ($request->filled('company_id') ? (int) $request->company_id : null)
             : (int) $user->company_id;
 
         $companies = $user->hasGroupScope()
             ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
-            : collect();
+            : ($user->hasMultipleCompanies()
+                ? Company::whereIn('id', $user->accessibleCompanyIds())->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
+                : collect());
 
         $processTypes = ProcessType::where('group_id', $user->group_id)
             ->where('is_active', true)
@@ -998,6 +1010,8 @@ class RegulationController extends Controller
 
         if ($user->hasCompanyScope()) {
             $query->where('company_id', $user->company_id);
+        } elseif ($user->hasMultipleCompanies()) {
+            $query->whereIn('company_id', $user->accessibleCompanyIds());
         }
 
         $regulations = $query->get();
@@ -1020,7 +1034,7 @@ class RegulationController extends Controller
         $user = auth()->user();
         abort_unless($user->isAdmin(), 403);
 
-        $selectedCompanyId = $user->hasGroupScope()
+        $selectedCompanyId = ($user->hasGroupScope() || $user->hasMultipleCompanies())
             ? ($request->filled('company_id') ? (int) $request->company_id : null)
             : (int) $user->company_id;
 
@@ -1030,7 +1044,13 @@ class RegulationController extends Controller
                 ->where('otras', false)
                 ->orderBy('name')
                 ->get()
-            : collect();
+            : ($user->hasMultipleCompanies()
+                ? Company::whereIn('id', $user->accessibleCompanyIds())
+                    ->where('show_in_processes', true)
+                    ->where('otras', false)
+                    ->orderBy('name')
+                    ->get()
+                : collect());
 
         $processTypes = ProcessType::where('group_id', $user->group_id)
             ->where('is_active', true)
@@ -1049,6 +1069,8 @@ class RegulationController extends Controller
 
         if ($selectedCompanyId) {
             $expiredQuery->where('company_id', $selectedCompanyId);
+        } elseif ($user->hasMultipleCompanies()) {
+            $expiredQuery->whereIn('company_id', $user->accessibleCompanyIds());
         } elseif (! $user->hasGroupScope() && $user->company_id) {
             $expiredQuery->where('company_id', $user->company_id);
         }

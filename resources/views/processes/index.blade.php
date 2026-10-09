@@ -3,7 +3,7 @@
     @php $user = auth()->user(); @endphp
 
     <x-slot name="breadcrumb">
-        @if(! $cardView && $user->hasGroupScope())
+        @if(! $cardView && ($user->hasGroupScope() || $user->hasMultipleCompanies()))
             <a href="{{ route('processes.index') }}" class="text-blue-600 hover:underline">Procesos</a>
             <span class="mx-2 text-gray-400">/</span>
             @if($globalSearch)
@@ -65,7 +65,7 @@
                     Generar reporte
                 </a>
             @else
-                @if($user->hasGroupScope())
+                @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
                     <a href="{{ route('processes.index') }}"
                        class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50">
                         Volver
@@ -119,7 +119,7 @@
             <input type="hidden" name="anexos" value="1">
         @endif
 
-        @if($cardView || ($user->hasGroupScope() && !$selectedCompanyId))
+        @if($cardView || (($user->hasGroupScope() || $user->hasMultipleCompanies()) && !$selectedCompanyId))
             <div class="min-w-[200px]">
                 <label class="block text-xs text-gray-500 mb-1">Empresa</label>
                 <select name="company_id"

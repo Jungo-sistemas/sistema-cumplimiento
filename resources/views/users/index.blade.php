@@ -11,7 +11,7 @@
             editUserName: '',
             editRole: '',
             editGroup: '',
-            editCompany: '',
+            editCompanyIds: [],
             editModuleAccess: 'all',
             editPositionIds: [],
             adminRoleId: '{{ $adminRoleId ?? '' }}',
@@ -28,12 +28,12 @@
                 if (!this.editGroup) return [];
                 return this.companiesByGroup[this.editGroup] ?? [];
             },
-            openEdit(id, name, roleId, groupId, companyId, moduleAccess, positionIds) {
+            openEdit(id, name, roleId, groupId, companyIds, moduleAccess, positionIds) {
                 this.editUserId = id;
                 this.editUserName = name;
                 this.editRole = String(roleId ?? '');
                 this.editGroup = String(groupId ?? '');
-                this.editCompany = String(companyId ?? '');
+                this.editCompanyIds = (companyIds ?? []).map(String);
                 this.editModuleAccess = moduleAccess || 'all';
                 this.editPositionIds = (positionIds ?? []).map(String);
                 this.editOpen = true;
@@ -99,17 +99,23 @@
 
                         {{-- Empresa --}}
                         <div x-show="!isAdminEdit">
-                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Empresa</label>
-                            <select name="company_id" x-model="editCompany"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
-                                <option value="">— Sin empresa (acceso a todo el grupo) —</option>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Empresas</label>
+                            <div class="w-full rounded-lg border border-gray-300 divide-y divide-gray-100 max-h-44 overflow-y-auto">
                                 <template x-for="company in availableCompanies" :key="company.id">
-                                    <option :value="company.id" x-text="company.name" :selected="editCompany == company.id"></option>
+                                    <label class="flex items-center gap-2 px-3 py-2.5 text-sm cursor-pointer hover:bg-gray-50">
+                                        <input type="checkbox" name="company_id[]" :value="company.id" x-model="editCompanyIds"
+                                            class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]/40 cursor-pointer">
+                                        <span x-text="company.name" class="text-gray-700"></span>
+                                    </label>
                                 </template>
-                            </select>
+                            </div>
+                            <p x-show="availableCompanies.length === 0"
+                               class="mt-1 text-xs text-gray-400 border border-gray-200 rounded-lg px-3 py-2.5">
+                                Este grupo no tiene empresas registradas.
+                            </p>
                             <p class="mt-1 text-xs text-gray-400">
-                                Sin empresa: el usuario verá todas las empresas del grupo (útil para puestos de
-                                Dirección que supervisan varias empresas).
+                                Ninguna seleccionada: acceso a todo el grupo. Una: acceso a esa empresa. Varias:
+                                acceso solo a esas empresas (útil para quien administra más de una).
                             </p>
                         </div>
 
@@ -225,13 +231,23 @@
                         <tr>
                             <td class="px-4 py-3">{{ $user->name }}</td>
                             <td class="px-4 py-3">{{ $user->email }}</td>
-                            <td class="px-4 py-3">{{ $user->company->name ?? '-' }}</td>
+                            <td class="px-4 py-3">
+                                @if($user->hasMultipleCompanies())
+                                    {{ $user->companies->pluck('name')->join(', ') }}
+                                @else
+                                    {{ $user->company->name ?? '-' }}
+                                @endif
+                            </td>
                             <td class="px-4 py-3">{{ $user->role->name ?? '-' }}</td>
 
                             <td class="px-4 py-3">
                                 @if($user->scope_level === 'group')
                                     <span class="text-xs px-3 py-1 rounded border bg-blue-50 text-blue-700 border-blue-200">
                                         Grupo
+                                    </span>
+                                @elseif($user->hasMultipleCompanies())
+                                    <span class="text-xs px-3 py-1 rounded border bg-purple-50 text-purple-700 border-purple-200">
+                                        Varias empresas
                                     </span>
                                 @else
                                     <span class="text-xs px-3 py-1 rounded border bg-gray-50 text-gray-700 border-gray-200">
@@ -262,7 +278,7 @@
                                         <div class="inline-flex gap-2">
                                             @if(!$user->isAdmin() || auth()->user()->isSuperAdmin())
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', '{{ $user->company_id ?? '' }}', '{{ $user->module_access ?? 'all' }}', @json($user->jobPositions->pluck('id')))"
+                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', @json($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])), '{{ $user->module_access ?? 'all' }}', @json($user->jobPositions->pluck('id')))"
                                                 class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
                                                 Editar
                                             </button>

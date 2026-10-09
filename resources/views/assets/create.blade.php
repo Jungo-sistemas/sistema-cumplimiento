@@ -11,7 +11,7 @@
     @php
         $selectClass = "mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm";
         $user = auth()->user();
-        $nameFieldClass = $user->hasGroupScope() ? '' : 'md:col-span-2';
+        $nameFieldClass = ($user->hasGroupScope() || $user->hasMultipleCompanies()) ? '' : 'md:col-span-2';
     @endphp
 
     {{-- Select2 CSS --}}
@@ -55,7 +55,7 @@
                     @endphp
 
                     {{-- Empresa --}}
-                    @if($user->hasGroupScope())
+                    @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700">
                                 Empresa

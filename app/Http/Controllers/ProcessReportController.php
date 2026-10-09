@@ -23,6 +23,8 @@ class ProcessReportController extends Controller
 
         if ($user->hasCompanyScope()) {
             $query->where('company_id', $user->company_id);
+        } elseif ($user->hasMultipleCompanies()) {
+            $query->whereIn('company_id', $user->accessibleCompanyIds());
         }
 
         $regulations = $query

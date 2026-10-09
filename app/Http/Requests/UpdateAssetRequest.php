@@ -26,6 +26,8 @@ class UpdateAssetRequest extends FormRequest
         $companyRule = Rule::exists('companies', 'id');
         if ($user->hasGroupScope()) {
             $companyRule = $companyRule->where('group_id', $user->group_id);
+        } elseif ($user->hasMultipleCompanies()) {
+            $companyRule = $companyRule->whereIn('id', $user->accessibleCompanyIds());
         } elseif (! $user->isGlobalScope()) {
             $companyRule = $companyRule->where('id', $user->company_id);
         }
@@ -90,6 +92,9 @@ class UpdateAssetRequest extends FormRequest
                         $query->where(function ($q) use ($groupId) {
                             $q->where('group_id', $groupId);
                         });
+                    } elseif ($user->hasMultipleCompanies()) {
+                        // Usuario con varias empresas: solo usuarios de la empresa específica del activo
+                        $query->where('company_id', $companyId);
                     } else {
                         // Operativo: solo usuarios de su empresa
                         $query->where('company_id', $user->company_id);

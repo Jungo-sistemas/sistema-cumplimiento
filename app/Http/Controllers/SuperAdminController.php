@@ -218,7 +218,7 @@ class SuperAdminController extends Controller
     {
         abort_unless(auth()->user()->isSuperAdmin(), 403);
 
-        $users = User::with(['role', 'company', 'group', 'jobPositions'])
+        $users = User::with(['role', 'company', 'group', 'jobPositions', 'companies'])
             ->orderBy('name')
             ->paginate(25);
 
@@ -242,7 +242,8 @@ class SuperAdminController extends Controller
             'name'          => ['required', 'string', 'max:255'],
             'email'         => ['required', 'email', 'max:255', 'unique:users,email'],
             'role_id'       => ['required', 'exists:roles,id'],
-            'company_id'    => ['nullable', 'exists:companies,id'],
+            'company_id'    => ['nullable', 'array'],
+            'company_id.*'  => ['exists:companies,id'],
             'group_id'      => ['nullable', 'exists:groups,id'],
             'module_access' => ['nullable', 'in:all,cumplimiento,procesos'],
         ]);
@@ -250,20 +251,24 @@ class SuperAdminController extends Controller
         $role = Role::findOrFail($request->role_id);
 
         if ($role->slug === 'superadmin') {
-            $scopeLevel   = 'global';
-            $companyId    = null;
-            $groupId      = null;
-            $moduleAccess = 'all';
+            $scopeLevel      = 'global';
+            $companyId       = null;
+            $groupId         = null;
+            $moduleAccess    = 'all';
+            $companiesToSync = [];
         } elseif ($role->slug === 'admin') {
-            $scopeLevel   = 'group';
-            $companyId    = $request->company_id;
-            $groupId      = $request->group_id;
-            $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
+            $scopeLevel      = 'group';
+            $companyId       = null;
+            $groupId         = $request->group_id;
+            $moduleAccess    = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
                 ? $request->module_access : 'all';
+            $companiesToSync = [];
         } else {
-            $scopeLevel   = $request->filled('company_id') ? 'company' : 'group';
-            $companyId    = $request->filled('company_id') ? $request->company_id : null;
-            $groupId      = $request->group_id;
+            [$companyId, $resolvedGroupId, $scopeLevel, $companiesToSync] = $this->resolveSuperAdminCompanyScope(
+                $request->input('company_id', []),
+                $request->group_id,
+            );
+            $groupId      = $resolvedGroupId ?? $request->group_id;
             $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
                 ? $request->module_access : 'all';
         }
@@ -283,6 +288,10 @@ class SuperAdminController extends Controller
             'invited_by'        => auth()->id(),
         ]);
 
+        if (! empty($companiesToSync)) {
+            $user->companies()->sync($companiesToSync);
+        }
+
         $positionIds = array_filter((array) $request->input('job_position_ids', []));
         if (!empty($positionIds)) {
             $user->jobPositions()->attach($positionIds);
@@ -301,7 +310,8 @@ class SuperAdminController extends Controller
 
         $request->validate([
             'role_id'       => ['required', 'exists:roles,id'],
-            'company_id'    => ['nullable', 'exists:companies,id'],
+            'company_id'    => ['nullable', 'array'],
+            'company_id.*'  => ['exists:companies,id'],
             'group_id'      => ['nullable', 'exists:groups,id'],
             'module_access' => ['nullable', 'in:all,cumplimiento,procesos'],
         ]);
@@ -309,20 +319,24 @@ class SuperAdminController extends Controller
         $role = Role::findOrFail($request->role_id);
 
         if ($role->slug === 'superadmin') {
-            $scopeLevel   = 'global';
-            $companyId    = null;
-            $groupId      = null;
-            $moduleAccess = 'all';
+            $scopeLevel      = 'global';
+            $companyId       = null;
+            $groupId         = null;
+            $moduleAccess    = 'all';
+            $companiesToSync = [];
         } elseif ($role->slug === 'admin') {
-            $scopeLevel   = 'group';
-            $companyId    = $request->company_id;
-            $groupId      = $request->group_id;
-            $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
+            $scopeLevel      = 'group';
+            $companyId       = null;
+            $groupId         = $request->group_id;
+            $moduleAccess    = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
                 ? $request->module_access : 'all';
+            $companiesToSync = [];
         } else {
-            $scopeLevel   = $request->filled('company_id') ? 'company' : 'group';
-            $companyId    = $request->filled('company_id') ? $request->company_id : null;
-            $groupId      = $request->group_id;
+            [$companyId, $resolvedGroupId, $scopeLevel, $companiesToSync] = $this->resolveSuperAdminCompanyScope(
+                $request->input('company_id', []),
+                $request->group_id,
+            );
+            $groupId      = $resolvedGroupId ?? $request->group_id;
             $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
                 ? $request->module_access : 'all';
         }
@@ -335,12 +349,44 @@ class SuperAdminController extends Controller
             'module_access' => $moduleAccess,
         ]);
 
+        $user->companies()->sync($companiesToSync);
+
         $positionIds = array_filter((array) $request->input('job_position_ids', []));
         $user->jobPositions()->sync($positionIds);
 
         return redirect()
             ->route('superadmin.users')
             ->with('success', "Usuario «{$user->name}» actualizado correctamente.");
+    }
+
+    /**
+     * Mismo criterio que UserController::resolveCompanyScope(), sin el chequeo de
+     * canAccessCompany() — el superadmin no tiene restricción de qué empresas puede asignar.
+     *
+     * @param  array<int, mixed>  $companyIds
+     * @return array{0: ?int, 1: ?int, 2: string, 3: array<int, int>} [companyId, groupId, scopeLevel, companiesToSync]
+     */
+    private function resolveSuperAdminCompanyScope(array $companyIds, ?int $fallbackGroupId): array
+    {
+        $ids = collect($companyIds)->filter()->map(fn ($id) => (int) $id)->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return [null, $fallbackGroupId, 'group', []];
+        }
+
+        $companies = Company::whereIn('id', $ids)->get();
+
+        abort_if($companies->count() !== $ids->count(), 422, 'Una o más empresas seleccionadas no existen.');
+
+        if ($companies->count() === 1) {
+            $company = $companies->first();
+
+            return [$company->id, $company->group_id, 'company', []];
+        }
+
+        abort_if($companies->pluck('group_id')->unique()->count() > 1, 422, 'Las empresas seleccionadas deben pertenecer al mismo grupo.');
+
+        return [null, $companies->first()->group_id, 'companies', $ids->all()];
     }
 
     public function destroyUser(User $user)

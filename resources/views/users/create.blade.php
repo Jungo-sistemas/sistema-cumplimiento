@@ -18,7 +18,7 @@
         return {
             selectedRole: '{{ old('role_id', '') }}',
             selectedGroup: '{{ old('group_id', $singleCompany?->group_id ?? '') }}',
-            selectedCompany: '{{ old('company_id', $singleCompany?->id ?? '') }}',
+            selectedCompanyIds: {!! json_encode(old('company_id', $singleCompany ? [$singleCompany->id] : [])) !!},
             selectedPosition: '{{ old('job_position_id', '') }}',
             adminRoleId: '{{ $adminRoleId }}',
             auditorRoleId: '{{ $auditorRoleId }}',
@@ -208,19 +208,21 @@
                         @endif
                     </div>
 
-                    {{-- Empresa (solo para operativo y solo lectura) --}}
+                    {{-- Empresas (solo para operativo y solo lectura) --}}
                     <div x-show="needsCompany && selectedGroup !== ''" x-transition>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
-                        <select name="company_id" x-model="selectedCompany"
-                            class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
-                            <option value="">— Sin empresa (acceso a todo el grupo) —</option>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Empresas</label>
+                        <div class="w-full rounded-md border border-gray-300 divide-y divide-gray-100 max-h-44 overflow-y-auto">
                             <template x-for="company in availableCompanies" :key="company.id">
-                                <option :value="company.id" x-text="company.name"
-                                    :selected="selectedCompany == company.id"></option>
+                                <label class="flex items-center gap-2 px-3 py-2.5 text-sm cursor-pointer hover:bg-gray-50">
+                                    <input type="checkbox" name="company_id[]" :value="company.id" x-model="selectedCompanyIds"
+                                        class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]/40 cursor-pointer">
+                                    <span x-text="company.name" class="text-gray-700"></span>
+                                </label>
                             </template>
-                        </select>
+                        </div>
                         <p class="mt-1 text-xs text-gray-400">
-                            Sin empresa: el usuario verá todas las empresas del grupo.
+                            Ninguna seleccionada: el usuario verá todas las empresas del grupo. Varias: acceso solo
+                            a esas empresas (útil para quien administra más de una).
                         </p>
                         <p x-show="selectedGroup !== '' && availableCompanies.length === 0"
                            class="mt-1 text-xs text-yellow-600">

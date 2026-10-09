@@ -45,7 +45,7 @@
     <form method="GET" action="{{ route('documents.index') }}"
           class="mt-4 flex flex-wrap items-end gap-3">
 
-        @if($user->hasGroupScope())
+        @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
             <div class="min-w-[180px]">
                 <label class="block text-xs text-gray-500 mb-1">Empresa</label>
                 <select name="company_id" class="w-full rounded-md border-gray-300 text-sm">
@@ -116,7 +116,7 @@
                 <thead class="bg-gray-50 border-b border-gray-200">
                     <tr class="text-xs font-semibold uppercase tracking-wide text-gray-500">
                         <th class="text-left px-4 py-3">Nombre del Documento</th>
-                        @if($user->hasGroupScope())
+                        @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
                             <th class="text-left px-4 py-3">Empresa</th>
                         @endif
                         <th class="text-left px-4 py-3">Referencia / Oficio</th>
@@ -146,7 +146,7 @@
                             </td>
 
                             {{-- Empresa --}}
-                            @if($user->hasGroupScope())
+                            @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
                                 <td class="px-4 py-3">
                                     {{ $document->company?->name ?? '—' }}
                                 </td>
@@ -230,7 +230,7 @@
                         </tr>
                     @empty
                         <tr class="border-t">
-                            <td colspan="{{ $user->hasGroupScope() ? 9 : 8 }}"
+                            <td colspan="{{ ($user->hasGroupScope() || $user->hasMultipleCompanies()) ? 9 : 8 }}"
                                 class="px-6 py-6 text-center text-gray-500">
                                 No se encontraron documentos con los filtros seleccionados.
                             </td>
@@ -266,7 +266,7 @@
                 <div class="space-y-4">
 
                     {{-- Empresa --}}
-                    @if($user->hasGroupScope() && $companies->isNotEmpty())
+                    @if(($user->hasGroupScope() || $user->hasMultipleCompanies()) && $companies->isNotEmpty())
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">
                                 Empresa <span class="text-red-500">*</span>

@@ -81,6 +81,11 @@ class User extends Authenticatable
         return $this->belongsToMany(JobPosition::class, 'user_job_positions');
     }
 
+    public function companies()
+    {
+        return $this->belongsToMany(Company::class, 'user_companies');
+    }
+
     public function isAdmin(): bool
     {
         return in_array($this->role?->slug, ['admin', 'superadmin']);
@@ -131,6 +136,31 @@ class User extends Authenticatable
         return $this->scope_level === 'company';
     }
 
+    public function hasMultipleCompanies(): bool
+    {
+        return $this->scope_level === 'companies';
+    }
+
+    /**
+     * IDs de las empresas que este usuario puede tocar, SIN el caso de alcance global (que
+     * significa "todas, sin filtrar" y se resuelve aparte en cada sitio que lo usa) — pensado
+     * para los lugares que hoy filtran `where('company_id', $user->company_id)` y necesitan
+     * volverse `whereIn('company_id', $user->accessibleCompanyIds())` para también cubrir el
+     * caso de varias empresas específicas.
+     */
+    public function accessibleCompanyIds(): array
+    {
+        if ($this->hasGroupScope()) {
+            return Company::where('group_id', $this->group_id)->pluck('id')->all();
+        }
+
+        if ($this->hasMultipleCompanies()) {
+            return $this->companies->pluck('id')->all();
+        }
+
+        return $this->company_id ? [$this->company_id] : [];
+    }
+
     public function canAccessCompany(?Company $company): bool
     {
         if (! $company) {
@@ -143,6 +173,10 @@ class User extends Authenticatable
 
         if ($this->hasGroupScope()) {
             return $this->group_id === $company->group_id;
+        }
+
+        if ($this->hasMultipleCompanies()) {
+            return $this->companies->contains('id', $company->id);
         }
 
         return $this->company_id === $company->id;

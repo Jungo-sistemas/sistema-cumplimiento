@@ -40,7 +40,13 @@ class DocumentVersionController extends Controller
                 ->where('otras', false)
                 ->orderBy('name')
                 ->get()
-            : collect();
+            : ($user->hasMultipleCompanies()
+                ? Company::query()
+                    ->whereIn('id', $user->accessibleCompanyIds())
+                    ->where('otras', false)
+                    ->orderBy('name')
+                    ->get()
+                : collect());
 
         $groupUsers = User::query()
             ->where('group_id', $user->group_id)

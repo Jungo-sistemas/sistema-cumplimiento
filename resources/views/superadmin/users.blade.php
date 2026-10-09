@@ -6,7 +6,7 @@
             showForm: {{ old('role_id') ? 'true' : 'false' }},
             selectedRole: '{{ old('role_id', '') }}',
             selectedGroup: '{{ old('group_id', '') }}',
-            selectedCompany: '{{ old('company_id', '') }}',
+            selectedCompanies: @json(array_map('strval', (array) old('company_id', []))),
             selectedModuleAccess: '{{ old('module_access', 'all') }}',
             selectedPositions: @json(array_map('strval', (array) old('job_position_ids', []))),
             superadminId: '{{ $roles->where('slug', 'superadmin')->first()?->id }}',
@@ -18,7 +18,7 @@
             editUserName: '',
             editRole: '',
             editGroup: '',
-            editCompany: '',
+            editCompanyIds: [],
             editModuleAccess: 'all',
             editPositionIds: [],
             get isSuperadminCreate() { return this.selectedRole === this.superadminId; },
@@ -46,18 +46,28 @@
                 if (idx === -1) this.selectedPositions.push(id);
                 else this.selectedPositions.splice(idx, 1);
             },
+            toggleCreateCompany(id) {
+                const idx = this.selectedCompanies.indexOf(id);
+                if (idx === -1) this.selectedCompanies.push(id);
+                else this.selectedCompanies.splice(idx, 1);
+            },
+            toggleEditCompany(id) {
+                const idx = this.editCompanyIds.indexOf(id);
+                if (idx === -1) this.editCompanyIds.push(id);
+                else this.editCompanyIds.splice(idx, 1);
+            },
             toggleEditPos(id) {
                 const idx = this.editPositionIds.indexOf(id);
                 if (idx === -1) this.editPositionIds.push(id);
                 else this.editPositionIds.splice(idx, 1);
             },
             hasEditPos(id) { return this.editPositionIds.includes(id); },
-            openEdit(id, name, roleId, groupId, companyId, moduleAccess, positionIds) {
+            openEdit(id, name, roleId, groupId, companyIds, moduleAccess, positionIds) {
                 this.editUserId = id;
                 this.editUserName = name;
                 this.editRole = String(roleId ?? '');
                 this.editGroup = String(groupId ?? '');
-                this.editCompany = String(companyId ?? '');
+                this.editCompanyIds = (companyIds || []).map(String);
                 this.editModuleAccess = moduleAccess || 'all';
                 this.editPositionIds = (positionIds || []).map(String);
                 this.editOpen = true;
@@ -167,7 +177,7 @@
                             id="user_group_id"
                             name="group_id"
                             x-model="selectedGroup"
-                            @change="selectedCompany = ''; selectedPositions = []"
+                            @change="selectedCompanies = []; selectedPositions = []"
                             class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]"
                         >
                             <option value="">Seleccionar grupo…</option>
@@ -182,24 +192,32 @@
                         @enderror
                     </div>
 
-                    {{-- Empresa (hidden when superadmin) --}}
+                    {{-- Empresas (hidden when superadmin) --}}
                     <div x-show="!isSuperadminCreate">
-                        <label class="mb-1 block text-sm font-medium text-gray-700" for="user_company_id">
-                            Empresa
-                        </label>
-                        <select
-                            id="user_company_id"
-                            name="company_id"
-                            x-model="selectedCompany"
-                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]"
-                        >
-                            <option value="">Seleccionar empresa…</option>
+                        <label class="mb-1 block text-sm font-medium text-gray-700">Empresas</label>
+                        <div class="flex flex-wrap gap-2 mt-1">
                             <template x-for="c in createCompanies" :key="c.id">
-                                <option :value="c.id" x-text="c.name" :selected="selectedCompany == c.id"></option>
+                                <label class="inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded-lg border text-sm transition"
+                                       :class="selectedCompanies.includes(String(c.id))
+                                           ? 'border-[#1A428A] bg-blue-50 text-[#1A428A] font-medium'
+                                           : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'">
+                                    <input type="checkbox" class="sr-only"
+                                           :value="c.id"
+                                           :checked="selectedCompanies.includes(String(c.id))"
+                                           @change="toggleCreateCompany(String(c.id))">
+                                    <span x-text="c.name"></span>
+                                </label>
                             </template>
-                        </select>
+                        </div>
+                        <template x-for="cid in selectedCompanies" :key="cid">
+                            <input type="hidden" name="company_id[]" :value="cid">
+                        </template>
                         <p x-show="!selectedGroup && !isSuperadminCreate" class="mt-1 text-xs text-yellow-600">
                             Selecciona un grupo para ver las empresas.
+                        </p>
+                        <p x-show="selectedGroup && !isSuperadminCreate" class="mt-1 text-xs text-gray-400">
+                            Ninguna seleccionada: acceso a todo el grupo. Una: acceso a esa empresa. Varias: acceso
+                            solo a esas empresas.
                         </p>
                         @error('company_id')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
@@ -328,36 +346,50 @@
                                 </select>
                             </div>
 
-                            {{-- Grupo + Empresa (ocultos para superadmin) --}}
+                            {{-- Grupo (oculto para superadmin) --}}
                             <div x-show="!isSuperadminEdit"
                                  x-transition:enter="transition ease-out duration-150"
                                  x-transition:enter-start="opacity-0 -translate-y-1"
-                                 x-transition:enter-end="opacity-100 translate-y-0"
-                                 class="grid grid-cols-2 gap-3">
+                                 x-transition:enter-end="opacity-100 translate-y-0">
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Grupo</label>
+                                <select name="group_id" x-model="editGroup"
+                                    @change="editCompanyIds = []; editPositionIds = []"
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                    <option value="">Sin grupo</option>
+                                    @foreach($groups as $group)
+                                        <option value="{{ $group->id }}">{{ $group->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Grupo</label>
-                                    <select name="group_id" x-model="editGroup"
-                                        @change="editCompany = ''; editPositionIds = []"
-                                        class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
-                                        <option value="">Sin grupo</option>
-                                        @foreach($groups as $group)
-                                            <option value="{{ $group->id }}">{{ $group->name }}</option>
-                                        @endforeach
-                                    </select>
+                            {{-- Empresas (ocultas para superadmin) --}}
+                            <div x-show="!isSuperadminEdit"
+                                 x-transition:enter="transition ease-out duration-150"
+                                 x-transition:enter-start="opacity-0 -translate-y-1"
+                                 x-transition:enter-end="opacity-100 translate-y-0">
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Empresas</label>
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="c in editCompanies" :key="c.id">
+                                        <label class="inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded-lg border text-sm transition"
+                                               :class="editCompanyIds.includes(String(c.id))
+                                                   ? 'border-[#1A428A] bg-blue-50 text-[#1A428A] font-medium'
+                                                   : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'">
+                                            <input type="checkbox" class="sr-only"
+                                                   :value="c.id"
+                                                   :checked="editCompanyIds.includes(String(c.id))"
+                                                   @change="toggleEditCompany(String(c.id))">
+                                            <span x-text="c.name"></span>
+                                        </label>
+                                    </template>
                                 </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Empresa</label>
-                                    <select name="company_id" x-model="editCompany"
-                                        class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
-                                        <option value="">Sin empresa</option>
-                                        <template x-for="c in editCompanies" :key="c.id">
-                                            <option :value="c.id" x-text="c.name" :selected="editCompany == c.id"></option>
-                                        </template>
-                                    </select>
-                                    <p x-show="!editGroup" class="mt-1 text-xs text-yellow-600">Selecciona un grupo para ver las empresas.</p>
-                                </div>
+                                <template x-for="cid in editCompanyIds" :key="cid">
+                                    <input type="hidden" name="company_id[]" :value="cid">
+                                </template>
+                                <p x-show="!editGroup" class="mt-1 text-xs text-yellow-600">Selecciona un grupo para ver las empresas.</p>
+                                <p x-show="editGroup" class="mt-1 text-xs text-gray-400">
+                                    Ninguna seleccionada: acceso a todo el grupo. Una: acceso a esa empresa. Varias:
+                                    acceso solo a esas empresas.
+                                </p>
                             </div>
 
                             {{-- Puesto (oculto para superadmin) --}}
@@ -470,7 +502,13 @@
                                         <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{{ $user->role?->name ?? '—' }}</span>
                                     @endif
                                 </td>
-                                <td class="px-5 py-3 text-gray-600">{{ $user->company?->name ?? '—' }}</td>
+                                <td class="px-5 py-3 text-gray-600">
+                                    @if($user->hasMultipleCompanies())
+                                        {{ $user->companies->pluck('name')->join(', ') }}
+                                    @else
+                                        {{ $user->company?->name ?? '—' }}
+                                    @endif
+                                </td>
                                 <td class="px-5 py-3 text-gray-600">{{ $user->group?->name ?? '—' }}</td>
                                 <td class="px-5 py-3 text-gray-500 font-mono text-xs">{{ $user->scope_level }}</td>
                                 <td class="px-5 py-3 text-center">
@@ -486,7 +524,7 @@
                                     @if($user->id !== auth()->id())
                                         <div class="inline-flex gap-2">
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', '{{ $user->company_id ?? '' }}', '{{ $user->module_access ?? 'all' }}', {{ Js::from($user->jobPositions->pluck('id')) }})"
+                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', {{ Js::from($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])) }}, '{{ $user->module_access ?? 'all' }}', {{ Js::from($user->jobPositions->pluck('id')) }})"
                                                 class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
                                                 Editar
                                             </button>

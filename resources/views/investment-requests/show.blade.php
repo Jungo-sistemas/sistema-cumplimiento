@@ -15,7 +15,7 @@
                     {{ $investmentRequest->concept }}
                 </h1>
 
-                @if(auth()->user()->hasGroupScope() && $investmentRequest->company)
+                @if((auth()->user()->hasGroupScope() || auth()->user()->hasMultipleCompanies()) && $investmentRequest->company)
                     <div class="text-sm text-gray-500">
                         Empresa:
                         <span class="font-semibold text-gray-700">{{ $investmentRequest->company->name }}</span>

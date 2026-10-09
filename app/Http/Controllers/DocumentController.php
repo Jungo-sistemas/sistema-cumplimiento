@@ -15,7 +15,7 @@ class DocumentController extends Controller
     {
         $user = auth()->user();
 
-        $selectedCompanyId = $user->hasGroupScope()
+        $selectedCompanyId = ($user->hasGroupScope() || $user->hasMultipleCompanies())
             ? ($request->filled('company_id') ? (int) $request->company_id : null)
             : (int) $user->company_id;
 
@@ -26,7 +26,13 @@ class DocumentController extends Controller
                 ->where('otras', false)
                 ->orderBy('name')
                 ->get()
-            : collect();
+            : ($user->hasMultipleCompanies()
+                ? Company::query()
+                    ->whereIn('id', $user->accessibleCompanyIds())
+                    ->where('otras', false)
+                    ->orderBy('name')
+                    ->get()
+                : collect());
 
         $documentsQuery = Document::query()
             ->with(['currentVersion', 'company:id,name'])
@@ -35,6 +41,8 @@ class DocumentController extends Controller
 
         if ($selectedCompanyId) {
             $documentsQuery->where('company_id', $selectedCompanyId);
+        } elseif ($user->hasMultipleCompanies()) {
+            $documentsQuery->whereIn('company_id', $user->accessibleCompanyIds());
         } elseif (! $user->hasGroupScope() && $user->company_id) {
             $documentsQuery->where('company_id', $user->company_id);
         }
@@ -111,9 +119,9 @@ class DocumentController extends Controller
         $data = $request->validateWithBag('createDocument', $this->documentValidationRules());
 
         $companyId = $data['company_id']
-            ?? (! $user->hasGroupScope() ? $user->company_id : null);
+            ?? ((! $user->hasGroupScope() && ! $user->hasMultipleCompanies()) ? $user->company_id : null);
 
-        abort_if($user->hasGroupScope() && ! $companyId, 422, 'Debes seleccionar una empresa.');
+        abort_if(($user->hasGroupScope() || $user->hasMultipleCompanies()) && ! $companyId, 422, 'Debes seleccionar una empresa.');
         abort_unless($user->canAccessCompany(Company::find($companyId)), 403);
 
         $document = Document::create([
@@ -146,9 +154,9 @@ class DocumentController extends Controller
         $data = $request->validateWithBag('editDocument', $this->documentValidationRules());
 
         $companyId = $data['company_id']
-            ?? (! $user->hasGroupScope() ? $user->company_id : null);
+            ?? ((! $user->hasGroupScope() && ! $user->hasMultipleCompanies()) ? $user->company_id : null);
 
-        abort_if($user->hasGroupScope() && ! $companyId, 422, 'Debes seleccionar una empresa.');
+        abort_if(($user->hasGroupScope() || $user->hasMultipleCompanies()) && ! $companyId, 422, 'Debes seleccionar una empresa.');
         abort_unless($user->canAccessCompany(Company::find($companyId)), 403);
 
         $document->update([

@@ -28,7 +28,9 @@ class DocumentReportController extends Controller
             ->where('document_versions.created_at', '>=', $since)
             ->whereHas('document', function ($q) use ($user) {
                 $q->where('group_id', $user->group_id);
-                if (! $user->hasGroupScope() && $user->company_id) {
+                if ($user->hasMultipleCompanies()) {
+                    $q->whereIn('company_id', $user->accessibleCompanyIds());
+                } elseif (! $user->hasGroupScope() && $user->company_id) {
                     $q->where('company_id', $user->company_id);
                 }
             })
@@ -74,7 +76,9 @@ class DocumentReportController extends Controller
             ->where('asset_requirement_documents.created_at', '>=', $since)
             ->whereHas('requirement.asset.company', function ($q) use ($user) {
                 $q->where('group_id', $user->group_id);
-                if (! $user->hasGroupScope() && $user->company_id) {
+                if ($user->hasMultipleCompanies()) {
+                    $q->whereIn('id', $user->accessibleCompanyIds());
+                } elseif (! $user->hasGroupScope() && $user->company_id) {
                     $q->where('id', $user->company_id);
                 }
             })
@@ -110,7 +114,9 @@ class DocumentReportController extends Controller
             ->where('task_documents.created_at', '>=', $since)
             ->whereHas('task.requirement.asset.company', function ($q) use ($user) {
                 $q->where('group_id', $user->group_id);
-                if (! $user->hasGroupScope() && $user->company_id) {
+                if ($user->hasMultipleCompanies()) {
+                    $q->whereIn('id', $user->accessibleCompanyIds());
+                } elseif (! $user->hasGroupScope() && $user->company_id) {
                     $q->where('id', $user->company_id);
                 }
             })

@@ -19,6 +19,8 @@ class RegulationTrashController extends Controller
 
         if ($user->hasCompanyScope()) {
             $query->where('company_id', $user->company_id);
+        } elseif ($user->hasMultipleCompanies()) {
+            $query->whereIn('company_id', $user->accessibleCompanyIds());
         }
 
         $regulations = $query->orderByDesc('deleted_at')->get();
@@ -69,6 +71,8 @@ class RegulationTrashController extends Controller
 
         if ($user->hasCompanyScope()) {
             $query->where('company_id', $user->company_id);
+        } elseif ($user->hasMultipleCompanies()) {
+            $query->whereIn('company_id', $user->accessibleCompanyIds());
         }
 
         return $query;

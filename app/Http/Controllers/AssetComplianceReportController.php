@@ -52,6 +52,8 @@ class AssetComplianceReportController extends Controller
 
         if ($user->hasGroupScope()) {
             $assetsQuery->whereHas('company', fn ($q) => $q->where('group_id', $user->group_id));
+        } elseif ($user->hasMultipleCompanies()) {
+            $assetsQuery->whereIn('company_id', $user->accessibleCompanyIds());
         } else {
             $assetsQuery->where('company_id', $user->company_id);
         }

@@ -26,7 +26,7 @@
             <div>
                 <h1 class="text-2xl font-semibold text-[#1A428A]">Editar activo</h1>
 
-                @if($user->hasGroupScope() && $asset->company)
+                @if(($user->hasGroupScope() || $user->hasMultipleCompanies()) && $asset->company)
                     <p class="mt-1 text-sm text-gray-500">
                         Empresa actual: <span class="font-medium text-gray-700">{{ $asset->company->name }}</span>
                     </p>
@@ -64,7 +64,7 @@
             @csrf
             @method('PUT')
 
-            @if($user->hasGroupScope())
+            @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
                 <div class="mb-6">
                     <label for="company_id" class="block text-sm font-semibold text-gray-700">Empresa</label>
                     <select

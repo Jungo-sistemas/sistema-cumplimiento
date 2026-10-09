@@ -26,7 +26,9 @@ class ComplianceReportController extends Controller
             ->where('asset_requirement_documents.created_at', '>=', $since)
             ->whereHas('requirement.asset.company', function ($q) use ($user) {
                 $q->where('group_id', $user->group_id);
-                if (! $user->hasGroupScope() && $user->company_id) {
+                if ($user->hasMultipleCompanies()) {
+                    $q->whereIn('id', $user->accessibleCompanyIds());
+                } elseif (! $user->hasGroupScope() && $user->company_id) {
                     $q->where('id', $user->company_id);
                 }
             })
@@ -60,7 +62,9 @@ class ComplianceReportController extends Controller
             ->where('task_documents.created_at', '>=', $since)
             ->whereHas('task.requirement.asset.company', function ($q) use ($user) {
                 $q->where('group_id', $user->group_id);
-                if (! $user->hasGroupScope() && $user->company_id) {
+                if ($user->hasMultipleCompanies()) {
+                    $q->whereIn('id', $user->accessibleCompanyIds());
+                } elseif (! $user->hasGroupScope() && $user->company_id) {
                     $q->where('id', $user->company_id);
                 }
             })
