@@ -175,7 +175,40 @@ class RegulationVersionController extends Controller
         $rebuilt  = ['tables' => substr_count($html, '<table'), 'images' => substr_count($html, '<img')];
         $lostContent = $rebuilt['tables'] < $original['tables'] || $rebuilt['images'] < $original['images'];
 
+        // El conteo de arriba nunca detecta diagramas armados con "Formas" de Word (círculos,
+        // flechas, cuadros de texto conectados, normalmente agrupados) — el lector de PhpWord ni
+        // siquiera los reconoce como imagen (solo entiende una imagen insertada como tal), así que
+        // ni el conteo original ni el reconstruido los cuentan nunca y la comparación de arriba
+        // nunca baja. El resultado real: el texto de cada forma queda apilado y encimado en vez de
+        // verse como el diagrama. Se detecta aparte, leyendo el XML crudo del documento.
+        if ($this->hasUnsupportedDrawingShapes($filePath)) {
+            $lostContent = true;
+        }
+
         return ['html' => $html, 'lostContent' => $lostContent];
+    }
+
+    /**
+     * Formas de Word agrupadas o sueltas (wpg:wgp, wps:wsp — el "lienzo de dibujo" que arma
+     * diagramas de flujo con círculos/flechas/cuadros conectados) o el formato VML más antiguo
+     * (v:shape fuera de un v:imagedata, que sí es una imagen simple). PhpWord no reconstruye
+     * ninguna de estas en el HTML del editor — ver docxToHtml().
+     */
+    private function hasUnsupportedDrawingShapes(string $filePath): bool
+    {
+        $zip = new \ZipArchive();
+        if ($zip->open($filePath) !== true) {
+            return false;
+        }
+
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+
+        if ($xml === false) {
+            return false;
+        }
+
+        return (bool) preg_match('/<(wps:wsp|wpg:wgp)\b/', $xml);
     }
 
     /** @return array{tables: int, images: int} */
