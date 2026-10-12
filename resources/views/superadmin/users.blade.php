@@ -606,6 +606,16 @@
                                                 class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
                                                 Editar
                                             </button>
+                                            @if($user->status === 'invited')
+                                            <form method="POST" action="{{ route('superadmin.users.resend-invitation', $user) }}" class="inline"
+                                                onsubmit="return confirm('¿Reenviar la invitación a {{ addslashes($user->email) }}?');">
+                                                @csrf
+                                                <button type="submit"
+                                                    class="px-3 py-1.5 rounded-md border border-[#1A428A] bg-white text-[#1A428A] text-sm font-semibold hover:bg-blue-50">
+                                                    Reenviar invitación
+                                                </button>
+                                            </form>
+                                            @endif
                                             <form method="POST" action="{{ route('superadmin.users.destroy', $user) }}" class="inline"
                                                 onsubmit="return confirm('¿Eliminar al usuario «{{ $user->name }}»?')">
                                                 @csrf

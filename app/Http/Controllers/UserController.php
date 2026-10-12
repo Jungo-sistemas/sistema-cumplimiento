@@ -326,4 +326,37 @@ class UserController extends Controller
             ->route('users.index')
             ->with('success', 'Usuario eliminado correctamente.');
     }
+
+    /**
+     * Genera un token nuevo (el anterior, si seguía sin usarse, queda invalidado) y reenvía el
+     * correo de invitación — para cuando el enlace original se perdió, venció (3 días) o nunca
+     * llegó, sin tener que borrar y volver a crear al usuario.
+     */
+    public function resendInvitation(User $user)
+    {
+        abort_unless(auth()->user()->isAdmin(), 403);
+
+        $authUser = auth()->user();
+
+        $canManageTarget = $user->company
+            ? $authUser->canAccessCompany($user->company)
+            : $authUser->canAccessGroup($user->group);
+
+        if (! $authUser->isGlobalScope() && ! $canManageTarget) {
+            abort(403);
+        }
+
+        if ($user->status !== 'invited') {
+            return back()->with('error', 'Este usuario ya activó su cuenta — no aplica reenviar invitación.');
+        }
+
+        $user->update([
+            'invite_token'      => Str::random(64),
+            'invite_expires_at' => now()->addDays(3),
+        ]);
+
+        Mail::to($user->email)->send(new UserInvitationMail($user));
+
+        return back()->with('success', "Invitación reenviada a {$user->email}.");
+    }
 }

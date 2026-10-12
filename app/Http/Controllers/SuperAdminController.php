@@ -392,4 +392,25 @@ class SuperAdminController extends Controller
             ->with('success', 'Usuario eliminado correctamente.');
     }
 
+    /**
+     * Mismo criterio que UserController::resendInvitation() — regenera el token/vigencia y
+     * reenvía el correo, para cuando el enlace original se perdió, venció (3 días) o nunca llegó.
+     */
+    public function resendInvitationUser(User $user)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        if ($user->status !== 'invited') {
+            return back()->with('error', 'Este usuario ya activó su cuenta — no aplica reenviar invitación.');
+        }
+
+        $user->update([
+            'invite_token'      => Str::random(64),
+            'invite_expires_at' => now()->addDays(3),
+        ]);
+
+        Mail::to($user->email)->send(new UserInvitationMail($user));
+
+        return back()->with('success', "Invitación reenviada a {$user->email}.");
+    }
 }

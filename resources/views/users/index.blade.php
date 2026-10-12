@@ -338,6 +338,17 @@
                                                 Editar
                                             </button>
                                             @endif
+                                            @if($user->status === 'invited' && (!$user->isAdmin() || auth()->user()->isSuperAdmin()))
+                                            <form method="POST"
+                                                  action="{{ route('users.resend-invitation', $user) }}"
+                                                  onsubmit="return confirm('¿Reenviar la invitación a {{ addslashes($user->email) }}?');">
+                                                @csrf
+                                                <button type="submit"
+                                                    class="px-3 py-1.5 rounded-md border border-[#1A428A] bg-white text-[#1A428A] text-sm font-semibold hover:bg-blue-50">
+                                                    Reenviar invitación
+                                                </button>
+                                            </form>
+                                            @endif
                                             @if(!$user->isAdmin() || auth()->user()->isSuperAdmin())
                                             <form method="POST"
                                                   action="{{ route('users.destroy', $user) }}"

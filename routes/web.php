@@ -73,6 +73,7 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
         Route::post('/users', [SuperAdminController::class, 'storeUser'])->name('users.store');
         Route::patch('/users/{user}', [SuperAdminController::class, 'updateUser'])->name('users.update');
         Route::delete('/users/{user}', [SuperAdminController::class, 'destroyUser'])->name('users.destroy');
+        Route::post('/users/{user}/resend-invitation', [SuperAdminController::class, 'resendInvitationUser'])->name('users.resend-invitation');
 
         // API Tokens
         Route::get('/api-tokens', [ApiTokenController::class, 'index'])->name('api-tokens.index');
@@ -297,6 +298,7 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
     Route::patch('/users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+    Route::post('/users/{user}/resend-invitation', [UserController::class, 'resendInvitation'])->name('users.resend-invitation');
 
     // Assets CRUD
     Route::resource('assets', AssetController::class);
