@@ -30,6 +30,14 @@ class ImportRequirementDocuments extends Command
 
     private const YEAR_PATTERN = '/\s+((?:19|20)\d{2})\s*$/u';
 
+    // Año seguido de un número de entrega dentro del mismo año (p. ej. "2024-1"/"2024-2" cuando
+    // hay más de un dictamen/documento del mismo tipo entregado el mismo año — construcción por
+    // etapas, revisiones semestrales sin la palabra "sem.", etc.). El número de entrega no se usa
+    // para ordenar (no hay forma confiable de saber cuál es más reciente solo por el dígito), así
+    // que ambas quedan con el mismo año y se desempatan por fecha de modificación del archivo,
+    // igual que ya pasa entre archivos sin período detectado.
+    private const YEAR_SEQUENCE_PATTERN = '/\s+((?:19|20)\d{2})-\d{1,2}\s*$/u';
+
     private const PAREN_SUFFIX_PATTERN = '/\s*\([^)]*\)\s*$/u';
 
     public function handle(): int
@@ -339,6 +347,14 @@ class ImportRequirementDocuments extends Command
             $normalizedStripped = $this->normalize($stripped);
             if (isset($catalog[$normalizedStripped])) {
                 return ['template' => $catalog[$normalizedStripped], 'year' => (int) $m[2], 'semester' => (int) $m[1]];
+            }
+        }
+
+        if (preg_match(self::YEAR_SEQUENCE_PATTERN, $baseName, $m)) {
+            $stripped = trim(preg_replace(self::YEAR_SEQUENCE_PATTERN, '', $baseName, 1));
+            $normalizedStripped = $this->normalize($stripped);
+            if (isset($catalog[$normalizedStripped])) {
+                return ['template' => $catalog[$normalizedStripped], 'year' => (int) $m[1], 'semester' => null];
             }
         }
 
