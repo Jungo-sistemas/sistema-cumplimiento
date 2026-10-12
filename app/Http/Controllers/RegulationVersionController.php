@@ -435,14 +435,18 @@ class RegulationVersionController extends Controller
             'marginRight'  => 1440,
             'headerHeight' => 1300,
         ]);
-        app(RegulationDocxHeaderBuilder::class)->apply($section, [
-            'nombre'         => $regulation->name,
-            'codigo'         => $regulation->code,
-            'version'        => sprintf('%02d', $next),
-            'quien_elabora'  => $details['quien_elabora'] ?? null,
-            'quien_aprueba'  => $details['quien_aprueba'] ?? null,
-            'fecha_vigencia' => $details['fecha_vigencia'] ?? null,
-        ]);
+        // Un anexo no es un procedimiento en sí — no lleva la tabla de encabezado formal
+        // "PROCEDIMIENTO / CÓDIGO / VERSIÓN", que es para reglamentos/procesos reales.
+        if (! $regulation->is_annex) {
+            app(RegulationDocxHeaderBuilder::class)->apply($section, [
+                'nombre'         => $regulation->name,
+                'codigo'         => $regulation->code,
+                'version'        => sprintf('%02d', $next),
+                'quien_elabora'  => $details['quien_elabora'] ?? null,
+                'quien_aprueba'  => $details['quien_aprueba'] ?? null,
+                'fecha_vigencia' => $details['fecha_vigencia'] ?? null,
+            ]);
+        }
         app(RegulationDocxBodyBuilder::class)->apply($section, $html);
 
         $tmp = tempnam(sys_get_temp_dir(), 'edited_docx_');

@@ -547,7 +547,7 @@ class RegulationController extends Controller
                 'quien_elabora'  => $data['quien_elabora'],
                 'quien_aprueba'  => $data['quien_aprueba'],
                 'fecha_vigencia' => $data['fecha_vigencia'],
-            ]);
+            ], $data['is_annex'] ?? false);
             $storagePath = "regulations/{$company->id}/{$regulation->id}/versions/procedimiento_v1.docx";
             Storage::disk('private')->put($storagePath, file_get_contents($tmpDocx));
             @unlink($tmpDocx);
@@ -629,7 +629,7 @@ class RegulationController extends Controller
                 'quien_elabora'  => $data['quien_elabora'],
                 'quien_aprueba'  => $data['quien_aprueba'],
                 'fecha_vigencia' => $data['fecha_vigencia'],
-            ]);
+            ], $data['is_annex'] ?? false);
             $storagePath = "regulations/{$regulation->company_id}/{$regulation->id}/versions/procedimiento_v{$next}.docx";
             Storage::disk('private')->put($storagePath, file_get_contents($tmpDocx));
             @unlink($tmpDocx);
@@ -696,7 +696,7 @@ class RegulationController extends Controller
     /**
      * @param  array{nombre: string, codigo: ?string, version: int|string, quien_elabora: ?string, quien_aprueba: ?string, fecha_vigencia: ?string}  $headerMeta
      */
-    private function renderHtmlToDocx(string $html, array $headerMeta): string
+    private function renderHtmlToDocx(string $html, array $headerMeta, bool $isAnnex = false): string
     {
         // Fijo en código, igual que el encabezado: la tipografía base del documento no debe
         // depender de que la IA la respete siempre — el estilo inline que sí ponga la IA
@@ -713,7 +713,11 @@ class RegulationController extends Controller
             'marginRight'  => 1440,
             'headerHeight' => 1300,
         ]);
-        app(RegulationDocxHeaderBuilder::class)->apply($section, $headerMeta);
+        // Un anexo no es un procedimiento en sí — no lleva la tabla de encabezado formal
+        // "PROCEDIMIENTO / CÓDIGO / VERSIÓN", que es para reglamentos/procesos reales.
+        if (! $isAnnex) {
+            app(RegulationDocxHeaderBuilder::class)->apply($section, $headerMeta);
+        }
         app(RegulationDocxBodyBuilder::class)->apply($section, $html);
 
         $tmp = tempnam(sys_get_temp_dir(), 'ai_procedure_docx_');
