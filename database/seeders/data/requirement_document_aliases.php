@@ -184,5 +184,7 @@ return [
         'Resolutivo EVIS' => 'Resolutivo del MISSE o EVIS',
         // Misma variante, con "de" (PLA Altamira).
         'Resolutivo de EVIS' => 'Resolutivo del MISSE o EVIS',
+        // El archivo/Excel de vigencias trae el nombre abreviado, sin "Licencia de" (PLA Dr Arroyo).
+        'Uso de suelo' => 'Licencia de Uso de Suelo',
     ],
 ];
