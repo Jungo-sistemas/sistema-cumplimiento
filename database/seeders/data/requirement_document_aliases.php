@@ -186,5 +186,8 @@ return [
         'Resolutivo de EVIS' => 'Resolutivo del MISSE o EVIS',
         // El archivo/Excel de vigencias trae el nombre abreviado, sin "Licencia de" (PLA Dr Arroyo).
         'Uso de suelo' => 'Licencia de Uso de Suelo',
+        // El catálogo junta "MIA / IP" (Manifiesto de Impacto Ambiental / Informe Preventivo) en un
+        // solo requerimiento, y el archivo/Excel de vigencias solo trae "MIA" (PLA Linares).
+        'MIA' => 'MIA / IP',
     ],
 ];
