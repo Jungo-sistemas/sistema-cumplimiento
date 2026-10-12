@@ -567,17 +567,18 @@ class RegulationVersionController extends Controller
 
         // .docx → render in browser. Si el sistema generó/editó esta versión, ya tenemos el HTML
         // exacto usado para compilar el .docx (body_html) — usarlo evita reconvertir el .docx con
-        // PhpWord y arriesgar diferencias entre "Ver" y "Descargar". Solo se reconvierte para
-        // versiones subidas manualmente (sin body_html).
+        // PhpWord y arriesgar diferencias entre "Ver" y "Descargar".
         //
-        // Los reglamentos legado (is_legacy) quedan fuera de este camino a propósito: son
-        // documentos de antes de este sistema, con su propio encabezado/formato ya definido en el
-        // archivo original — inyectarles encima el encabezado nuevo (el bloque de abajo) los haría
-        // ver como si fueran de la plantilla estándar cuando no lo son. Para esos, "Ver" cae al
-        // mismo camino que .doc/.pdf (más abajo): convertir el archivo real tal cual con
-        // LibreOffice, igual que ya hace "Descargar".
-        if ($ext === 'docx' && ! $version->regulation->is_legacy) {
-            $bodyHtml = $version->body_html ?: $this->docxToHtml(Storage::disk('private')->path($version->file_path))['html'];
+        // A propósito esto SOLO se usa cuando body_html existe. Para una versión subida
+        // manualmente (sin body_html) reconvertir el .docx con PhpWord (docxToHtml) es lo que
+        // deformaba diagramas/formas complejas armadas directo en Word — PhpWord no las
+        // reconstruye bien a HTML, aunque el archivo original y su descarga (convertida a PDF con
+        // LibreOffice, un motor de render de verdad) se vean perfectos. Igual que los reglamentos
+        // legado (is_legacy, documentos de antes de este sistema con su propio formato ya
+        // definido), esos casos caen al mismo camino que .doc/.pdf (más abajo): convertir el
+        // archivo real tal cual con LibreOffice, igual que ya hace "Descargar".
+        if ($ext === 'docx' && $version->body_html) {
+            $bodyHtml = $version->body_html;
             $name     = $version->original_name ?? basename($version->file_path);
 
             // Auto-detect any regulation code from the same company in the document text
