@@ -73,8 +73,11 @@
 
     <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl print:shadow-none print:my-0 print:max-w-none doc-page">
 
-        {{-- Encabezado — mismo contenido/colores que RegulationDocxHeaderBuilder (el que arma el .docx) --}}
-        @include('processes.partials.header-table', ['meta' => $headerMeta])
+        {{-- Encabezado — mismo contenido/colores que RegulationDocxHeaderBuilder (el que arma el .docx).
+             Un anexo no es un procedimiento en sí, así que no lleva esta tabla formal. --}}
+        @unless($regulation->is_annex)
+            @include('processes.partials.header-table', ['meta' => $headerMeta])
+        @endunless
 
         @if($currentVersion?->body_html)
             {{-- Documento generado/editado dentro del sistema: mismo HTML exacto usado para el .docx — "Ver" y "Descargar" quedan idénticos. --}}

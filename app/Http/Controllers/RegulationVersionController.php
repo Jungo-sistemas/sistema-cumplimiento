@@ -615,8 +615,11 @@ class RegulationVersionController extends Controller
             // guardada (la pantalla que de verdad usa alguien para revisar el documento después)
             // nunca lo mostraba, así que el formato ya autorizado con el cliente parecía "perdido"
             // en pantalla aunque el .docx real sí lo trae siempre (RegulationDocxHeaderBuilder).
+            // Un anexo (formato, tabulador, etc.) no es un procedimiento en sí — no debe verse con
+            // la tabla de encabezado formal "PROCEDIMIENTO / CÓDIGO / VERSIÓN", que es para
+            // reglamentos/procesos reales.
             $details = $regulation->details ?? [];
-            $headerTableHtml = view('processes.partials.header-table', ['meta' => [
+            $headerTableHtml = $regulation->is_annex ? '' : view('processes.partials.header-table', ['meta' => [
                 'nombre'                   => $regulation->name,
                 'codigo'                   => $regulation->code ? \Illuminate\Support\Str::upper($regulation->code) : null,
                 'version'                  => sprintf('%02d', $version->version_number),
