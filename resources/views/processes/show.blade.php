@@ -672,7 +672,7 @@
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    Cambio / Modificación
+                                    Objetivo
                                 </label>
                                 <textarea name="change_description"
                                           rows="2"
