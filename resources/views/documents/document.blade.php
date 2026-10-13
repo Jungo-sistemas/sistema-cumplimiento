@@ -24,29 +24,36 @@
 
                 <div class="flex flex-wrap items-center gap-2 mt-2">
                     @if($document->document_type)
-                        <span class="inline-flex items-center text-xs px-3 py-1 rounded border bg-gray-50 text-gray-700 border-gray-200">
+                        <span class="inline-flex items-center text-sm px-3.5 py-1.5 rounded bg-[#1A428A] text-white font-medium">
                             {{ $document->document_type }}
                         </span>
                     @endif
 
                     @if($document->reference)
-                        <span class="inline-flex items-center text-xs px-3 py-1 rounded border bg-gray-50 text-gray-600 border-gray-200">
+                        <span class="inline-flex items-center text-sm px-3.5 py-1.5 rounded bg-[#1A428A] text-white font-medium">
                             Ref: {{ $document->reference }}
                         </span>
                     @endif
 
                     @if($document->bodega)
-                        <span class="inline-flex items-center text-xs px-3 py-1 rounded border bg-gray-50 text-gray-600 border-gray-200">
+                        <span class="inline-flex items-center text-sm px-3.5 py-1.5 rounded bg-[#1A428A] text-white font-medium">
                             Bodega: {{ $document->bodega }}
                         </span>
                     @endif
 
                     @if($document->authorizedUsers->isNotEmpty())
-                        <span class="inline-flex items-center text-xs px-3 py-1 rounded border bg-gray-50 text-gray-600 border-gray-200">
+                        <span class="inline-flex items-center text-sm px-3.5 py-1.5 rounded bg-[#1A428A] text-white font-medium">
                             Accesos: {{ $document->authorizedUsers->pluck('name')->join(', ') }}
                         </span>
                     @endif
                 </div>
+
+                @if($document->description)
+                    <div class="mt-3">
+                        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Descripción</div>
+                        <p class="mt-1 text-sm text-gray-600 whitespace-pre-line">{{ $document->description }}</p>
+                    </div>
+                @endif
             </div>
 
             <a href="{{ route('documents.index') }}"
@@ -73,15 +80,22 @@
         {{-- Columnas: subir + versión actual --}}
         <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            {{-- Subir / Reemplazar --}}
+            {{-- Subir / Agregar --}}
+            @php
+                $primaryVersion = $currentVersions->first();
+            @endphp
             <div class="bg-white border rounded-xl overflow-hidden">
                 <div class="p-5 border-b flex items-start justify-between gap-3">
                     <div>
                         <div class="font-semibold text-[#1A428A]">
-                            {{ $currentVersion ? 'Subir nueva versión' : 'Subir documento' }}
+                            {{ $currentVersions->isNotEmpty() ? 'Agregar otro archivo' : 'Subir documento' }}
                         </div>
                         <div class="text-sm text-gray-500">
-                            Sube un archivo. Quedará registrado como una nueva versión y el histórico se conserva.
+                            @if($currentVersions->isNotEmpty())
+                                Sube un archivo. Se agrega junto a los que ya están vigentes, sin reemplazarlos.
+                            @else
+                                Sube un archivo. Quedará registrado como vigente y el histórico se conserva.
+                            @endif
                         </div>
                     </div>
                     @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
@@ -101,9 +115,9 @@
                         </div>
                     @else
                         @php
-                            $defaultMode = $currentVersion?->valid_until
+                            $defaultMode = $primaryVersion?->valid_until
                                 ? 'renewal'
-                                : ($currentVersion?->issued_at ? 'no_renewal' : 'no_dates');
+                                : ($primaryVersion?->issued_at ? 'no_renewal' : 'no_dates');
                         @endphp
                         <form method="POST"
                               action="{{ route('documents.versions.store', $document) }}"
@@ -168,7 +182,7 @@
                                     </label>
                                     <input type="date"
                                            name="issued_at"
-                                           value="{{ old('issued_at', $currentVersion?->issued_at?->format('Y-m-d')) }}"
+                                           value="{{ old('issued_at', $primaryVersion?->issued_at?->format('Y-m-d')) }}"
                                            class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
                                     @error('issued_at')
                                         <div class="text-sm text-red-600 mt-1">{{ $message }}</div>
@@ -184,7 +198,7 @@
                                     </label>
                                     <input type="date"
                                            name="valid_until"
-                                           value="{{ old('valid_until', $currentVersion?->valid_until?->format('Y-m-d')) }}"
+                                           value="{{ old('valid_until', $primaryVersion?->valid_until?->format('Y-m-d')) }}"
                                            :required="mode === 'renewal'"
                                            class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
                                     @error('valid_until')
@@ -195,7 +209,7 @@
 
                             <button type="submit"
                                     class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
-                                {{ $currentVersion ? 'Subir nueva versión' : 'Subir documento' }}
+                                {{ $currentVersions->isNotEmpty() ? 'Agregar otro archivo' : 'Subir documento' }}
                             </button>
                         </form>
                     @endif
@@ -205,59 +219,68 @@
             {{-- Versión actual --}}
             <div class="bg-white border rounded-xl overflow-hidden">
                 <div class="p-5 border-b">
-                    <div class="font-semibold text-[#1A428A]">Versión actual</div>
+                    <div class="font-semibold text-[#1A428A]">
+                        Versión actual
+                        @if($currentVersions->count() > 1)
+                            <span class="text-sm font-normal text-gray-500">({{ $currentVersions->count() }} archivos)</span>
+                        @endif
+                    </div>
                     <div class="text-sm text-gray-500">
-                        La versión vigente del documento. Las anteriores permanecen en el historial.
+                        Los archivos vigentes del documento. Puede haber más de uno a la vez (ej. el documento y un anexo). Los anteriores permanecen en el historial.
                     </div>
                 </div>
 
                 <div class="p-5">
-                    @if($currentVersion)
-                        <div class="border rounded-xl p-4 flex items-start justify-between gap-4">
-                            <div class="min-w-0">
-                                <div class="font-semibold text-gray-900 truncate">
-                                    {{ $currentVersion->original_name ?? basename($currentVersion->file_path) }}
-                                </div>
-                                <div class="text-sm text-gray-500 mt-1">
-                                    <span class="block">Subido por: {{ $currentVersion->uploader?->name ?? '—' }}</span>
-                                    <span class="block">{{ $currentVersion->created_at?->format('d/m/Y H:i') }}</span>
-                                    @if($currentVersion->issued_at)
-                                        <span class="block">Emisión: {{ $currentVersion->issued_at->format('d/m/Y') }}</span>
-                                    @endif
-                                    @if($currentVersion->valid_until)
-                                        <span class="block {{ $currentVersion->isExpired() ? 'text-red-600 font-medium' : ($currentVersion->isNearExpiration() ? 'text-yellow-600 font-medium' : '') }}">
-                                            Vigente hasta: {{ $currentVersion->valid_until->format('d/m/Y') }}
-                                            @if($currentVersion->isExpired()) <span class="text-xs">(Vencido)</span>
-                                            @elseif($currentVersion->isNearExpiration()) <span class="text-xs">(Por vencer)</span>
+                    @if($currentVersions->isNotEmpty())
+                        <div class="space-y-3">
+                            @foreach($currentVersions as $cv)
+                                <div class="border rounded-xl p-4 flex items-start justify-between gap-4">
+                                    <div class="min-w-0">
+                                        <div class="font-semibold text-gray-900 truncate">
+                                            {{ $cv->original_name ?? basename($cv->file_path) }}
+                                        </div>
+                                        <div class="text-sm text-gray-500 mt-1">
+                                            <span class="block">Subido por: {{ $cv->uploader?->name ?? '—' }}</span>
+                                            <span class="block">{{ $cv->created_at?->format('d/m/Y H:i') }}</span>
+                                            @if($cv->issued_at)
+                                                <span class="block">Emisión: {{ $cv->issued_at->format('d/m/Y') }}</span>
                                             @endif
-                                        </span>
-                                    @endif
-                                    <span class="block">Versión: {{ $currentVersion->version_number }} · <span class="text-green-700 font-medium">Actual</span></span>
-                                </div>
-                            </div>
+                                            @if($cv->valid_until)
+                                                <span class="block {{ $cv->isExpired() ? 'text-red-600 font-medium' : ($cv->isNearExpiration() ? 'text-yellow-600 font-medium' : '') }}">
+                                                    Vigente hasta: {{ $cv->valid_until->format('d/m/Y') }}
+                                                    @if($cv->isExpired()) <span class="text-xs">(Vencido)</span>
+                                                    @elseif($cv->isNearExpiration()) <span class="text-xs">(Por vencer)</span>
+                                                    @endif
+                                                </span>
+                                            @endif
+                                            <span class="block">Versión: {{ $cv->version_number }} · <span class="text-green-700 font-medium">Actual</span></span>
+                                        </div>
+                                    </div>
 
-                            <div class="flex items-center gap-2 shrink-0">
-                                <a href="{{ route('document-versions.preview', $currentVersion) }}"
-                                   target="_blank"
-                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
-                                    Ver
-                                </a>
-                                <a href="{{ route('document-versions.download', $currentVersion) }}"
-                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
-                                    Descargar
-                                </a>
-                                @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
-                                    <button type="button"
-                                            onclick="openDeleteModal(
-                                                '{{ route('document-versions.destroy', [$document, $currentVersion]) }}',
-                                                @js($currentVersion->original_name ?? basename($currentVersion->file_path)),
-                                                '{{ $currentVersion->version_number }}'
-                                            )"
-                                            class="px-3 py-2 rounded-md font-semibold text-sm bg-[#DB0000] text-white hover:bg-red-700">
-                                        Eliminar
-                                    </button>
-                                @endif
-                            </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <a href="{{ route('document-versions.preview', $cv) }}"
+                                           target="_blank"
+                                           class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                            Ver
+                                        </a>
+                                        <a href="{{ route('document-versions.download', $cv) }}"
+                                           class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                            Descargar
+                                        </a>
+                                        @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
+                                            <button type="button"
+                                                    onclick="openDeleteModal(
+                                                        '{{ route('document-versions.destroy', [$document, $cv]) }}',
+                                                        @js($cv->original_name ?? basename($cv->file_path)),
+                                                        '{{ $cv->version_number }}'
+                                                    )"
+                                                    class="px-3 py-2 rounded-md font-semibold text-sm bg-[#DB0000] text-white hover:bg-red-700">
+                                                Eliminar
+                                            </button>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
                     @else
                         <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-700 text-sm">
@@ -274,7 +297,7 @@
             <div class="p-5 border-b">
                 <div class="font-semibold text-[#1A428A]">Histórico documental</div>
                 <div class="text-sm text-gray-500">
-                    Se conservan todas las versiones del documento registradas.
+                    Archivos que ya fueron reemplazados. Se conservan solo como referencia.
                 </div>
             </div>
 
@@ -291,11 +314,7 @@
                                         <span class="block">
                                             Versión: {{ $v->version_number }}
                                             ·
-                                            @if($v->is_current)
-                                                <span class="text-green-700 font-medium">Actual</span>
-                                            @else
-                                                <span class="font-medium">{{ ucfirst($v->status ?? 'Reemplazada') }}</span>
-                                            @endif
+                                            <span class="font-medium">Reemplazada</span>
                                         </span>
                                         <span class="block">Subido por: {{ $v->uploader?->name ?? '—' }}</span>
                                         <span class="block">Fecha de carga: {{ $v->created_at?->format('d/m/Y H:i') }}</span>
@@ -492,6 +511,20 @@
                                class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
                         @if($errors->editDocument->has('name'))
                             <p class="text-sm text-red-600 mt-1">{{ $errors->editDocument->first('name') }}</p>
+                        @endif
+                    </div>
+
+                    {{-- Descripción --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Descripción
+                        </label>
+                        <textarea name="description"
+                                  rows="2"
+                                  placeholder="Detalle o texto largo del documento (opcional)"
+                                  class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">{{ old('description', $document->description) }}</textarea>
+                        @if($errors->editDocument->has('description'))
+                            <p class="text-sm text-red-600 mt-1">{{ $errors->editDocument->first('description') }}</p>
                         @endif
                     </div>
 

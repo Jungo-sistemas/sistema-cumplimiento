@@ -132,7 +132,11 @@
                 <tbody>
                     @forelse($documents as $document)
                         @php
-                            $version = $document->currentVersion;
+                            // Un documento puede tener varios archivos vigentes a la vez; la fila
+                            // muestra el más reciente como referencia y el badge de Archivo avisa
+                            // si hay más de uno.
+                            $currentVersions = $document->currentVersions;
+                            $version = $currentVersions->first();
                             $isExpired = $document->isExpired();
                             $isNearExpiration = !$isExpired && $document->isNearExpiration();
                         @endphp
@@ -194,9 +198,9 @@
 
                             {{-- Archivo --}}
                             <td class="px-4 py-3">
-                                @if($version && $version->file_path)
+                                @if($currentVersions->isNotEmpty())
                                     <span class="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                                        ✓ Disponible
+                                        Disponible{{ $currentVersions->count() > 1 ? ' (' . $currentVersions->count() . ')' : '' }}
                                     </span>
                                 @else
                                     <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
@@ -299,6 +303,20 @@
                                class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
                         @if($errors->createDocument->has('name'))
                             <p class="text-sm text-red-600 mt-1">{{ $errors->createDocument->first('name') }}</p>
+                        @endif
+                    </div>
+
+                    {{-- Descripción --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Descripción
+                        </label>
+                        <textarea name="description"
+                                  rows="2"
+                                  placeholder="Detalle o texto largo del documento (opcional)"
+                                  class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">{{ old('description') }}</textarea>
+                        @if($errors->createDocument->has('description'))
+                            <p class="text-sm text-red-600 mt-1">{{ $errors->createDocument->first('description') }}</p>
                         @endif
                     </div>
 

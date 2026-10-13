@@ -35,7 +35,7 @@ class DocumentController extends Controller
                 : collect());
 
         $documentsQuery = Document::query()
-            ->with(['currentVersion', 'company:id,name'])
+            ->with(['currentVersions', 'company:id,name'])
             ->where('group_id', $user->group_id)
             ->where('is_active', true);
 
@@ -70,23 +70,25 @@ class DocumentController extends Controller
         $today        = now()->toDateString();
         $nearHorizon  = now()->addDays(60)->toDateString();
 
+        // Un documento puede tener varios archivos vigentes a la vez, así que su estado de
+        // vigencia es el peor caso entre todos ellos (si cualquiera está vencido, el documento
+        // cuenta como vencido) — el mismo criterio que Document::vigenciaStatus().
         match ($vigencia) {
             'vencido' => $documentsQuery->whereHas(
-                'currentVersion',
+                'currentVersions',
                 fn ($q) => $q->whereNotNull('valid_until')->where('valid_until', '<', $today)
             ),
-            'por_vencer' => $documentsQuery->whereHas(
-                'currentVersion',
-                fn ($q) => $q->whereNotNull('valid_until')->whereBetween('valid_until', [$today, $nearHorizon])
+            'por_vencer' => $documentsQuery
+                ->whereDoesntHave('currentVersions', fn ($q) => $q->whereNotNull('valid_until')->where('valid_until', '<', $today))
+                ->whereHas('currentVersions', fn ($q) => $q->whereNotNull('valid_until')->whereBetween('valid_until', [$today, $nearHorizon])),
+            'vigente' => $documentsQuery
+                ->whereDoesntHave('currentVersions', fn ($q) => $q->whereNotNull('valid_until')->where('valid_until', '<', $today))
+                ->whereDoesntHave('currentVersions', fn ($q) => $q->whereNotNull('valid_until')->whereBetween('valid_until', [$today, $nearHorizon]))
+                ->whereHas('currentVersions', fn ($q) => $q->where('valid_until', '>', $nearHorizon)),
+            'sin_vencimiento' => $documentsQuery->whereDoesntHave(
+                'currentVersions',
+                fn ($q) => $q->whereNotNull('valid_until')
             ),
-            'vigente' => $documentsQuery->whereHas(
-                'currentVersion',
-                fn ($q) => $q->whereNotNull('valid_until')->where('valid_until', '>', $nearHorizon)
-            ),
-            'sin_vencimiento' => $documentsQuery->where(function ($query) {
-                $query->whereDoesntHave('currentVersion')
-                    ->orWhereHas('currentVersion', fn ($q) => $q->whereNull('valid_until'));
-            }),
             default => null,
         };
 
@@ -129,6 +131,7 @@ class DocumentController extends Controller
             'company_id'              => $companyId,
             'document_folder_id'      => null,
             'name'                    => Str::upper($data['name']),
+            'description'             => $data['description'] ?? null,
             'reference'               => $data['reference'] ?? null,
             'bodega'                  => $data['bodega'] ?? null,
             'document_type'           => $data['document_type'],
@@ -162,6 +165,7 @@ class DocumentController extends Controller
         $document->update([
             'company_id'       => $companyId,
             'name'             => Str::upper($data['name']),
+            'description'      => $data['description'] ?? null,
             'reference'        => $data['reference'] ?? null,
             'bodega'           => $data['bodega'] ?? null,
             'document_type'    => $data['document_type'],
@@ -180,6 +184,7 @@ class DocumentController extends Controller
     {
         return [
             'name'                    => ['required', 'string', 'max:255'],
+            'description'             => ['nullable', 'string'],
             'company_id'              => ['nullable', 'exists:companies,id'],
             'reference'               => ['nullable', 'string', 'max:255'],
             'bodega'                  => ['nullable', 'string', 'max:255'],

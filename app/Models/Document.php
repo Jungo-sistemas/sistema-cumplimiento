@@ -29,6 +29,7 @@ class Document extends Model
         'company_id',
         'document_folder_id',
         'name',
+        'description',
         'document_type',
         'reference',
         'bodega',
@@ -61,11 +62,11 @@ class Document extends Model
             ->orderByDesc('version_number');
     }
 
-    public function currentVersion()
+    public function currentVersions()
     {
-        return $this->hasOne(DocumentVersion::class)
+        return $this->hasMany(DocumentVersion::class)
             ->where('is_current', true)
-            ->latestOfMany();
+            ->orderByDesc('version_number');
     }
 
     public function uploader()
@@ -102,31 +103,27 @@ class Document extends Model
 
     public function hasFile(): bool
     {
-        return $this->currentVersion()->exists();
+        return $this->currentVersions()->exists();
     }
 
+    /**
+     * Un documento puede tener varios archivos vigentes a la vez (ej. la escritura y su anexo),
+     * así que "vencido"/"por vencer" se evalúa sobre el conjunto: si CUALQUIERA de los archivos
+     * vigentes está vencido o por vencer, el documento completo se marca así (para no esconder
+     * que algo necesita atención).
+     */
     public function isExpired(): bool
     {
-        $version = $this->currentVersion;
-
-        return $version?->valid_until && $version->valid_until->isPast();
+        return $this->currentVersions->contains(fn (DocumentVersion $v) => $v->isExpired());
     }
 
     public function isNearExpiration(int $days = 60): bool
     {
-        $version = $this->currentVersion;
-
-        return $version?->valid_until
-            && $version->valid_until->lte(now()->addDays($days))
-            && !$version->valid_until->isPast();
+        return $this->currentVersions->contains(fn (DocumentVersion $v) => $v->isNearExpiration($days));
     }
 
     public function vigenciaStatus(): string
     {
-        if (! $this->currentVersion?->valid_until) {
-            return 'sin_vencimiento';
-        }
-
         if ($this->isExpired()) {
             return 'vencido';
         }
@@ -135,6 +132,10 @@ class Document extends Model
             return 'por_vencer';
         }
 
-        return 'vigente';
+        if ($this->currentVersions->contains(fn (DocumentVersion $v) => $v->valid_until)) {
+            return 'vigente';
+        }
+
+        return 'sin_vencimiento';
     }
 }

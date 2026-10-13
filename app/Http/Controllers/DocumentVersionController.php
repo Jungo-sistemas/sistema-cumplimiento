@@ -29,10 +29,10 @@ class DocumentVersionController extends Controller
             'authorizedUsers:id,name',
         ]);
 
-        $currentVersion = $document->versions->firstWhere('is_current', true)
-            ?? $document->versions->sortByDesc('version_number')->first();
-
-        $versionHistory = $document->versions->sortByDesc('version_number');
+        // Un documento puede tener varios archivos vigentes a la vez (ej. la escritura y su
+        // anexo) — todos se muestran juntos en "Versión actual"; el histórico son los demás.
+        $currentVersions = $document->versions->where('is_current', true)->values();
+        $versionHistory  = $document->versions->where('is_current', false)->values();
 
         $companies = $user->hasGroupScope()
             ? Company::query()
@@ -61,7 +61,7 @@ class DocumentVersionController extends Controller
 
         return view('documents.document', [
             'document'         => $document,
-            'currentVersion'   => $currentVersion,
+            'currentVersions'  => $currentVersions,
             'versionHistory'   => $versionHistory,
             'companies'        => $companies,
             'groupUsers'       => $groupUsers,
@@ -99,12 +99,8 @@ class DocumentVersionController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            // Mark existing current version as replaced
-            DocumentVersion::query()
-                ->where('document_id', $document->id)
-                ->where('is_current', true)
-                ->update(['is_current' => false]);
-
+            // Un documento puede tener varios archivos vigentes a la vez (ej. la escritura y su
+            // anexo) — subir uno nuevo se agrega como otro archivo vigente, no reemplaza al resto.
             $nextVersion = (int) DocumentVersion::query()
                 ->where('document_id', $document->id)
                 ->max('version_number');
@@ -129,7 +125,7 @@ class DocumentVersionController extends Controller
             ]);
         });
 
-        return back()->with('success', 'Versión subida correctamente. Se actualizó el historial del documento.');
+        return back()->with('success', 'Archivo agregado correctamente.');
     }
 
     public function preview(DocumentVersion $version)
@@ -195,7 +191,18 @@ class DocumentVersionController extends Controller
                 return;
             }
 
-            // Promote the most recent remaining version as current
+            // Si quedan otros archivos vigentes, no se toca nada. Solo si éste era el único
+            // vigente y ya no queda ninguno, se rescata el más reciente del histórico para que
+            // el documento no se quede sin archivo vigente teniendo uno disponible.
+            $stillHasCurrent = DocumentVersion::query()
+                ->where('document_id', $document->id)
+                ->where('is_current', true)
+                ->exists();
+
+            if ($stillHasCurrent) {
+                return;
+            }
+
             $replacement = DocumentVersion::query()
                 ->where('document_id', $document->id)
                 ->orderByDesc('version_number')
