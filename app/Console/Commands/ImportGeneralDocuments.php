@@ -55,22 +55,30 @@ class ImportGeneralDocuments extends Command
             return self::FAILURE;
         }
 
-        $csvFile = collect(File::files($folder))->first(fn ($f) => Str::lower($f->getExtension()) === 'csv');
+        // Se admite más de un .csv en la misma carpeta (un Excel con varias hojas/tablas —
+        // Escrituras, Poderes, Actas, etc. — exportado como un .csv por hoja): se juntan todas las
+        // filas de todos, y se emparejan contra el mismo conjunto de archivos de la carpeta.
+        $csvFiles = collect(File::files($folder))->filter(fn ($f) => Str::lower($f->getExtension()) === 'csv');
 
-        if (! $csvFile) {
+        if ($csvFiles->isEmpty()) {
             $this->error("No se encontró ningún archivo .csv directo en: {$folder}");
             return self::FAILURE;
         }
 
-        $rows = $this->readCsv($csvFile->getPathname());
+        $rows = [];
+        foreach ($csvFiles as $csvFile) {
+            $fileRows = $this->readCsv($csvFile->getPathname());
+            $this->line("  {$csvFile->getFilename()}: " . count($fileRows) . ' fila(s)');
+            $rows = array_merge($rows, $fileRows);
+        }
 
         if (empty($rows)) {
-            $this->error('El .csv no trae filas (o no se pudo leer).');
+            $this->error('Ninguno de los .csv trae filas (o no se pudieron leer).');
             return self::FAILURE;
         }
 
         $this->info('Grupo #' . $groupId . ($companyId ? " — empresa #{$companyId}" : ' — documentos generales (sin empresa específica)'));
-        $this->info('Filas en el CSV: ' . count($rows));
+        $this->info('Archivos .csv encontrados: ' . $csvFiles->count() . ' — total de filas: ' . count($rows));
 
         // Archivos reales de la carpeta (todo menos el propio .csv), agrupados por el código
         // detectado en el nombre del archivo.
