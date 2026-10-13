@@ -8,6 +8,7 @@
             selectedGroup: '{{ old('group_id', '') }}',
             selectedCompanies: @json(array_map('strval', (array) old('company_id', []))),
             selectedModuleAccess: '{{ old('module_access', 'all') }}',
+            selectedNotificationModules: '{{ old('notification_modules', 'all') }}',
             selectedPositions: @json(array_map('strval', (array) old('job_position_ids', []))),
             superadminId: '{{ $roles->where('slug', 'superadmin')->first()?->id }}',
             adminId: '{{ $roles->where('slug', 'admin')->first()?->id }}',
@@ -20,6 +21,7 @@
             editGroup: '',
             editCompanyIds: [],
             editModuleAccess: 'all',
+            editNotificationModules: 'all',
             editPositionIds: [],
             createCompanySearch: '',
             createCompanySearchOpen: false,
@@ -92,7 +94,7 @@
                 else this.editPositionIds.splice(idx, 1);
             },
             hasEditPos(id) { return this.editPositionIds.includes(id); },
-            openEdit(id, name, roleId, groupId, companyIds, moduleAccess, positionIds) {
+            openEdit(id, name, roleId, groupId, companyIds, moduleAccess, positionIds, notificationModules) {
                 this.editUserId = id;
                 this.editUserName = name;
                 this.editRole = String(roleId ?? '');
@@ -100,6 +102,7 @@
                 this.editCompanyIds = (companyIds || []).map(String);
                 this.editModuleAccess = moduleAccess || 'all';
                 this.editPositionIds = (positionIds || []).map(String);
+                this.editNotificationModules = notificationModules || 'all';
                 this.editOpen = true;
             }
         };
@@ -327,6 +330,18 @@
                         </p>
                     </div>
 
+                    {{-- Notificaciones (independiente de module_access: aplica también a superadmin) --}}
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-gray-700">Notificaciones</label>
+                        <select name="notification_modules" x-model="selectedNotificationModules"
+                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                            <option value="all">Ambas áreas</option>
+                            <option value="cumplimiento">Solo Cumplimiento</option>
+                            <option value="procesos">Solo Procesos</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-400">De qué área recibirá avisos (correos, recordatorios), sin importar a qué módulo tenga acceso.</p>
+                    </div>
+
                 </div>
 
                 <div class="mt-4 flex gap-2">
@@ -529,6 +544,18 @@
                                 <p class="text-sm text-purple-700">Acceso global — empresa, grupo y puesto se limpian automáticamente.</p>
                             </div>
 
+                            {{-- Notificaciones (independiente de module_access: aplica también a superadmin) --}}
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Notificaciones</label>
+                                <select name="notification_modules" x-model="editNotificationModules"
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                    <option value="all">Ambas áreas</option>
+                                    <option value="cumplimiento">Solo Cumplimiento</option>
+                                    <option value="procesos">Solo Procesos</option>
+                                </select>
+                                <p class="mt-1 text-xs text-gray-400">De qué área recibirá avisos (correos, recordatorios), sin importar a qué módulo tenga acceso.</p>
+                            </div>
+
                         </div>
 
                         {{-- Modal footer --}}
@@ -547,72 +574,109 @@
             </div>
         </div>
 
+        {{-- Filtros de búsqueda --}}
+        <form method="GET" action="{{ route('superadmin.users') }}" class="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div class="flex-1 min-w-[180px]">
+                <label class="mb-1 block text-xs font-medium text-gray-500">Buscar</label>
+                <input type="text" name="q" value="{{ $search }}" placeholder="Nombre o correo..."
+                    class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+            </div>
+            <div class="w-44">
+                <label class="mb-1 block text-xs font-medium text-gray-500">Grupo</label>
+                <select name="group_id" class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                    <option value="">Todos</option>
+                    @foreach($groups as $g)
+                        <option value="{{ $g->id }}" @selected((string) $groupId === (string) $g->id)>{{ $g->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="w-44">
+                <label class="mb-1 block text-xs font-medium text-gray-500">Empresa</label>
+                <select name="company_id" class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                    <option value="">Todas</option>
+                    @foreach($companies as $c)
+                        <option value="{{ $c->id }}" @selected((string) $companyId === (string) $c->id)>{{ $c->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="px-4 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                    Buscar
+                </button>
+                @if($search !== '' || $groupId || $companyId)
+                    <a href="{{ route('superadmin.users') }}" class="px-4 py-1.5 rounded-md border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50">
+                        Limpiar
+                    </a>
+                @endif
+            </div>
+        </form>
+
         {{-- Users table --}}
         <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <table class="w-full text-xs">
+                    <thead class="bg-gray-50 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                         <tr>
-                            <th class="px-5 py-3">Nombre</th>
-                            <th class="px-5 py-3">Correo</th>
-                            <th class="px-5 py-3">Rol</th>
-                            <th class="px-5 py-3">Empresa</th>
-                            <th class="px-5 py-3">Grupo</th>
-                            <th class="px-5 py-3">Alcance</th>
-                            <th class="px-5 py-3 text-center">Estado</th>
-                            <th class="px-5 py-3 text-right">Acciones</th>
+                            <th class="px-3 py-2">Nombre</th>
+                            <th class="px-3 py-2">Correo</th>
+                            <th class="px-3 py-2">Rol</th>
+                            <th class="px-3 py-2">Empresa</th>
+                            <th class="px-3 py-2">Grupo</th>
+                            <th class="px-3 py-2">Alcance</th>
+                            <th class="px-3 py-2 text-center">Estado</th>
+                            <th class="px-3 py-2 text-right">Acciones</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         @forelse($users as $user)
                             <tr class="border-t hover:bg-gray-50">
-                                <td class="px-5 py-3 font-medium text-gray-900">{{ $user->name }}</td>
-                                <td class="px-5 py-3 text-gray-600">{{ $user->email }}</td>
-                                <td class="px-5 py-3">
+                                <td class="px-3 py-2 font-medium text-gray-900">{{ $user->name }}</td>
+                                <td class="px-3 py-2 text-gray-600">{{ $user->email }}</td>
+                                <td class="px-3 py-2">
                                     @php $slug = $user->role?->slug; @endphp
                                     @if($slug === 'superadmin')
-                                        <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">{{ $user->role->name }}</span>
+                                        <span class="text-[11px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">{{ $user->role->name }}</span>
                                     @elseif($slug === 'admin')
-                                        <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{{ $user->role->name }}</span>
+                                        <span class="text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{{ $user->role->name }}</span>
                                     @elseif($slug === 'operative')
-                                        <span class="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">{{ $user->role->name }}</span>
+                                        <span class="text-[11px] px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">{{ $user->role->name }}</span>
                                     @else
-                                        <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{{ $user->role?->name ?? '—' }}</span>
+                                        <span class="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{{ $user->role?->name ?? '—' }}</span>
                                     @endif
                                 </td>
-                                <td class="px-5 py-3 text-gray-600">
+                                <td class="px-3 py-2 text-gray-600">
                                     @if($user->hasMultipleCompanies())
                                         {{ $user->companies->pluck('name')->join(', ') }}
                                     @else
                                         {{ $user->company?->name ?? '—' }}
                                     @endif
                                 </td>
-                                <td class="px-5 py-3 text-gray-600">{{ $user->group?->name ?? '—' }}</td>
-                                <td class="px-5 py-3 text-gray-500 font-mono text-xs">{{ $user->scope_level }}</td>
-                                <td class="px-5 py-3 text-center">
+                                <td class="px-3 py-2 text-gray-600">{{ $user->group?->name ?? '—' }}</td>
+                                <td class="px-3 py-2 text-gray-500 font-mono text-[11px]">{{ $user->scope_level }}</td>
+                                <td class="px-3 py-2 text-center">
                                     @if($user->status === 'active')
-                                        <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">Activo</span>
+                                        <span class="text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">Activo</span>
                                     @elseif($user->status === 'invited')
-                                        <span class="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Invitado</span>
+                                        <span class="text-[11px] px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Invitado</span>
                                     @else
-                                        <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{{ $user->status }}</span>
+                                        <span class="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{{ $user->status }}</span>
                                     @endif
                                 </td>
-                                <td class="px-5 py-3 text-right">
+                                <td class="px-3 py-2 text-right">
                                     @if($user->id !== auth()->id())
-                                        <div class="inline-flex gap-2">
+                                        <div class="inline-flex gap-1">
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', {{ Js::from($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])) }}, '{{ $user->module_access ?? 'all' }}', {{ Js::from($user->jobPositions->pluck('id')) }})"
-                                                class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', {{ Js::from($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])) }}, '{{ $user->module_access ?? 'all' }}', {{ Js::from($user->jobPositions->pluck('id')) }}, '{{ $user->notification_modules ?? 'all' }}')"
+                                                class="px-2 py-1 rounded-md bg-[#1A428A] text-white text-[11px] font-semibold hover:bg-[#15356d]">
                                                 Editar
                                             </button>
                                             @if($user->status === 'invited')
                                             <form method="POST" action="{{ route('superadmin.users.resend-invitation', $user) }}" class="inline"
                                                 onsubmit="return confirm('¿Reenviar la invitación a {{ addslashes($user->email) }}?');">
                                                 @csrf
-                                                <button type="submit"
-                                                    class="px-3 py-1.5 rounded-md border border-[#1A428A] bg-white text-[#1A428A] text-sm font-semibold hover:bg-blue-50">
-                                                    Reenviar invitación
+                                                <button type="submit" title="Reenviar invitación"
+                                                    class="px-2 py-1 rounded-md border border-[#1A428A] bg-white text-[#1A428A] text-[11px] font-semibold hover:bg-blue-50">
+                                                    Reenviar
                                                 </button>
                                             </form>
                                             @endif
@@ -621,19 +685,19 @@
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit"
-                                                    class="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
+                                                    class="px-2 py-1 rounded-md bg-red-600 text-white text-[11px] font-semibold hover:bg-red-700">
                                                     Eliminar
                                                 </button>
                                             </form>
                                         </div>
                                     @else
-                                        <span class="text-xs text-gray-400 italic">Tú</span>
+                                        <span class="text-[11px] text-gray-400 italic">Tú</span>
                                     @endif
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-5 py-6 text-center text-gray-400">No hay usuarios registrados.</td>
+                                <td colspan="8" class="px-3 py-5 text-center text-gray-400">No hay usuarios registrados.</td>
                             </tr>
                         @endforelse
                     </tbody>

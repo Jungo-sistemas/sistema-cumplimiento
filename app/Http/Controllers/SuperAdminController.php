@@ -214,13 +214,27 @@ class SuperAdminController extends Controller
             ->with('success', 'Empresa eliminada correctamente.');
     }
 
-    public function users()
+    public function users(Request $request)
     {
         abort_unless(auth()->user()->isSuperAdmin(), 403);
 
+        $search    = trim((string) $request->query('q', ''));
+        $groupId   = $request->query('group_id');
+        $companyId = $request->query('company_id');
+
         $users = User::with(['role', 'company', 'group', 'jobPositions', 'companies'])
+            ->when($search !== '', fn ($query) => $query->where(
+                fn ($q) => $q->where('name', 'ilike', "%{$search}%")
+                    ->orWhere('email', 'ilike', "%{$search}%")
+            ))
+            ->when($groupId, fn ($query) => $query->where('group_id', $groupId))
+            ->when($companyId, fn ($query) => $query->where(
+                fn ($q) => $q->where('company_id', $companyId)
+                    ->orWhereHas('companies', fn ($qc) => $qc->where('companies.id', $companyId))
+            ))
             ->orderBy('name')
-            ->paginate(25);
+            ->paginate(20)
+            ->withQueryString();
 
         $roles            = Role::orderBy('name')->get();
         $companies        = Company::orderBy('name')->get(['id', 'name', 'group_id']);
@@ -231,7 +245,7 @@ class SuperAdminController extends Controller
             ->orderBy('sort_order')
             ->get(['id', 'group_id', 'name']);
 
-        return view('superadmin.users', compact('users', 'roles', 'companies', 'companiesByGroup', 'groups', 'jobPositions'));
+        return view('superadmin.users', compact('users', 'roles', 'companies', 'companiesByGroup', 'groups', 'jobPositions', 'search', 'groupId', 'companyId'));
     }
 
     public function storeUser(Request $request)
@@ -246,6 +260,7 @@ class SuperAdminController extends Controller
             'company_id.*'  => ['exists:companies,id'],
             'group_id'      => ['nullable', 'exists:groups,id'],
             'module_access' => ['nullable', 'in:all,cumplimiento,procesos'],
+            'notification_modules' => ['nullable', 'in:all,cumplimiento,procesos'],
         ]);
 
         $role = Role::findOrFail($request->role_id);
@@ -268,6 +283,11 @@ class SuperAdminController extends Controller
                 ? $request->module_access : 'all';
         }
 
+        // A diferencia de module_access, esto no se fuerza a 'all' para superadmin: un superadmin
+        // también puede querer notificaciones de una sola área aunque tenga acceso a ambas.
+        $notificationModules = in_array($request->notification_modules, ['all', 'cumplimiento', 'procesos'])
+            ? $request->notification_modules : null;
+
         $user = User::create([
             'name'              => $request->name,
             'email'             => $request->email,
@@ -276,6 +296,7 @@ class SuperAdminController extends Controller
             'group_id'          => $groupId,
             'scope_level'       => $scopeLevel,
             'module_access'     => $moduleAccess,
+            'notification_modules' => $notificationModules,
             'password'          => null,
             'status'            => 'invited',
             'invite_token'      => Str::random(64),
@@ -309,6 +330,7 @@ class SuperAdminController extends Controller
             'company_id.*'  => ['exists:companies,id'],
             'group_id'      => ['nullable', 'exists:groups,id'],
             'module_access' => ['nullable', 'in:all,cumplimiento,procesos'],
+            'notification_modules' => ['nullable', 'in:all,cumplimiento,procesos'],
         ]);
 
         $role = Role::findOrFail($request->role_id);
@@ -329,12 +351,16 @@ class SuperAdminController extends Controller
                 ? $request->module_access : 'all';
         }
 
+        $notificationModules = in_array($request->notification_modules, ['all', 'cumplimiento', 'procesos'])
+            ? $request->notification_modules : null;
+
         $user->update([
             'role_id'       => $role->id,
             'company_id'    => $companyId,
             'group_id'      => $groupId,
             'scope_level'   => $scopeLevel,
             'module_access' => $moduleAccess,
+            'notification_modules' => $notificationModules,
         ]);
 
         $user->companies()->sync($companiesToSync);
