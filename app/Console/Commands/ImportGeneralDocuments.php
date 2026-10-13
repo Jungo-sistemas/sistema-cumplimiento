@@ -94,16 +94,21 @@ class ImportGeneralDocuments extends Command
         $this->info('Grupo #' . $groupId . ($companyId ? " — empresa #{$companyId}" : ' — documentos generales (sin empresa específica)'));
         $this->info('Archivos .csv encontrados: ' . $csvFiles->count() . ' — total de filas: ' . count($rows));
 
-        // Archivos reales de la carpeta (todo menos el propio .csv), agrupados por el código
-        // detectado en el nombre del archivo.
+        // Archivos reales de la carpeta (todo menos el propio .csv). $filesByCode agrupa los que
+        // sí traen un código de escritura detectable en el nombre (la vía normal de emparejar);
+        // $allFiles los junta TODOS (con o sin código) para la columna opcional "Archivo" — para
+        // documentos sin número de escritura (convenios, registros, permisos) que no tienen con
+        // qué emparejar más que el nombre del archivo tal cual.
         $filesByCode = [];
         $filesWithoutCode = [];
+        $allFiles = [];
 
         foreach (File::allFiles($folder) as $file) {
             if (str_starts_with($file->getFilename(), '.') || Str::lower($file->getExtension()) === 'csv') {
                 continue;
             }
 
+            $allFiles[] = $file;
             $code = $this->extractCode($file->getFilename());
 
             if ($code === null) {
@@ -119,11 +124,12 @@ class ImportGeneralDocuments extends Command
         $rowsWithoutFile = [];
         $accessWarnings = [];
         $typeWarnings = [];
-        $usedCodes = [];
+        $usedFilenames = [];
 
         DB::transaction(function () use (
             $rows,
             $filesByCode,
+            $allFiles,
             $groupId,
             $companyId,
             $uploader,
@@ -133,12 +139,13 @@ class ImportGeneralDocuments extends Command
             &$rowsWithoutFile,
             &$accessWarnings,
             &$typeWarnings,
-            &$usedCodes,
+            &$usedFilenames,
         ) {
             foreach ($rows as $row) {
                 $this->importRow(
                     $row,
                     $filesByCode,
+                    $allFiles,
                     $groupId,
                     $companyId,
                     $uploader,
@@ -148,20 +155,29 @@ class ImportGeneralDocuments extends Command
                     $rowsWithoutFile,
                     $accessWarnings,
                     $typeWarnings,
-                    $usedCodes,
+                    $usedFilenames,
                 );
             }
         });
 
-        $unusedFileCodes = array_diff(array_keys($filesByCode), $usedCodes);
+        // Lo que de verdad nunca se usó en ningún documento, filtrando los ya emparejados por la
+        // columna "Archivo" (que pueden venir tanto de $filesByCode como de $filesWithoutCode).
+        $filesWithoutCode = array_values(array_diff($filesWithoutCode, $usedFilenames));
+        $unusedFileCodes = [];
+        foreach ($filesByCode as $code => $files) {
+            $remaining = array_filter($files, fn ($f) => ! in_array($f->getFilename(), $usedFilenames, true));
+            if (! empty($remaining)) {
+                $unusedFileCodes[$code] = $remaining;
+            }
+        }
 
         $this->printSummary(
             $created,
             $skippedExisting,
             $rowsWithoutFile,
             $filesWithoutCode,
+            array_keys($unusedFileCodes),
             $unusedFileCodes,
-            $filesByCode,
             $accessWarnings,
             $typeWarnings,
             $dryRun,
@@ -173,10 +189,12 @@ class ImportGeneralDocuments extends Command
     /**
      * @param  array<string, string>  $row  fila ya normalizada (claves en minúsculas) del CSV
      * @param  array<string, array<int, \SplFileInfo>>  $filesByCode
+     * @param  array<int, \SplFileInfo>  $allFiles
      */
     private function importRow(
         array $row,
         array $filesByCode,
+        array $allFiles,
         int $groupId,
         ?int $companyId,
         User $uploader,
@@ -186,49 +204,65 @@ class ImportGeneralDocuments extends Command
         array &$rowsWithoutFile,
         array &$accessWarnings,
         array &$typeWarnings,
-        array &$usedCodes,
+        array &$usedFilenames,
     ): void {
-        $rawCode = $this->findColumn($row, 'escritura', 'codigo', 'código');
-        $name    = $this->findColumn($row, 'descripcion', 'descripción', 'nombre');
+        $rawCode     = $this->findColumn($row, 'escritura', 'codigo', 'código');
+        $name        = $this->findColumn($row, 'descripcion', 'descripción', 'nombre');
+        $archivoHint = $this->findColumn($row, 'archivo', 'documento');
 
-        if ($rawCode === '' || $name === '') {
+        if ($rawCode === '' && $name === '' && $archivoHint === '') {
             return;
         }
 
-        $code = $this->extractCode($rawCode) ?? $rawCode;
+        // La columna "Archivo" (si viene) manda sobre el código de escritura — está pensada para
+        // documentos SIN número de escritura (convenios, registros, permisos), donde no hay nada
+        // más con qué emparejar que el nombre del archivo mismo. Si no viene, se usa el código
+        // como siempre.
+        if ($archivoHint !== '') {
+            $files = $this->findFilesByHint($archivoHint, $allFiles, $usedFilenames);
+        } else {
+            $code  = $this->extractCode($rawCode) ?? $rawCode;
+            $files = $filesByCode[$code] ?? [];
+        }
 
-        $files = $filesByCode[$code] ?? [];
+        // La referencia que identifica al documento (y evita duplicarlo si se vuelve a correr el
+        // comando): el código de escritura si hay, si no el texto de "Archivo", si no un pedazo de
+        // la descripción — así hasta un documento sin escritura ni columna Archivo queda con algo
+        // estable para no crearse dos veces.
+        $reference = $rawCode !== '' ? $rawCode : ($archivoHint !== '' ? $archivoHint : Str::limit($name, 100, ''));
 
         if (empty($files)) {
-            $rowsWithoutFile[] = "{$rawCode} — {$name}";
+            $rowsWithoutFile[] = ($rawCode !== '' ? $rawCode : ($archivoHint !== '' ? "Archivo: {$archivoHint}" : '(sin escritura ni archivo)')) . " — {$name}";
             return;
         }
 
-        $usedCodes[] = $code;
+        foreach ($files as $f) {
+            $usedFilenames[] = $f->getFilename();
+        }
 
         // Ya existe un documento con esta misma referencia en esta empresa/grupo — no se duplica
         // (permite volver a correr el comando sin riesgo tras corregir el CSV o agregar archivos).
-        $existingQuery = Document::where('group_id', $groupId)->where('reference', $rawCode);
+        $existingQuery = Document::where('group_id', $groupId)->where('reference', $reference);
         $existingQuery = $companyId ? $existingQuery->where('company_id', $companyId) : $existingQuery->whereNull('company_id');
 
         if ($existingQuery->exists()) {
             $skippedExisting++;
             if ($dryRun) {
-                $this->line("  [existente] {$rawCode} — {$name}");
+                $this->line("  [existente] {$reference} — {$name}");
             }
             return;
         }
 
-        $documentType = $this->matchDocumentType($this->findColumn($row, 'tipo'), $rawCode, $typeWarnings);
+        $documentType = $this->matchDocumentType($this->findColumn($row, 'tipo'), $reference, $typeWarnings);
         $bodega       = $this->findColumn($row, 'bodega') ?: null;
         $responsable  = $this->findColumn($row, 'responsable') ?: null;
         $issuedAt     = $this->parseCsvDate($this->findColumn($row, 'fecha'));
 
-        $authorizedUserIds = $this->resolveAccessUserIds($this->findColumn($row, 'accesos', 'acceso'), $groupId, $rawCode, $accessWarnings);
+        $authorizedUserIds = $this->resolveAccessUserIds($this->findColumn($row, 'accesos', 'acceso'), $groupId, $reference, $accessWarnings);
 
         if ($dryRun) {
             $fileNames = collect($files)->map(fn ($f) => $f->getFilename())->implode(' | ');
-            $this->line("  [nuevo] {$rawCode} — {$name} (tipo: {$documentType}, " . count($files) . ' archivo(s): ' . $fileNames . ')');
+            $this->line("  [nuevo] {$reference} — {$name} (tipo: {$documentType}, " . count($files) . ' archivo(s): ' . $fileNames . ')');
             $created++;
             return;
         }
@@ -239,7 +273,7 @@ class ImportGeneralDocuments extends Command
             'document_folder_id' => null,
             'name'             => Str::upper($name),
             'document_type'    => $documentType,
-            'reference'        => $rawCode,
+            'reference'        => $reference,
             'bodega'           => $bodega,
             'responsible_name' => $responsable,
             'is_required'      => true,
@@ -277,6 +311,37 @@ class ImportGeneralDocuments extends Command
         }
 
         $created++;
+    }
+
+    /**
+     * Busca, entre TODOS los archivos de la carpeta, el (o los) que coincidan con lo que haya en
+     * la columna "Archivo" — pensada para filas sin número de escritura (convenios, registros,
+     * permisos), donde el único dato con el que emparejar es el nombre del archivo mismo. No hace
+     * falta el nombre completo ni exacto: basta con que el nombre del archivo CONTENGA el texto de
+     * la columna, o viceversa (sin importar mayúsculas/acentos), para tolerar que se haya escrito
+     * una versión abreviada.
+     *
+     * @param  array<int, \SplFileInfo>  $allFiles
+     * @param  array<int, string>  $usedFilenames
+     * @return array<int, \SplFileInfo>
+     */
+    private function findFilesByHint(string $hint, array $allFiles, array $usedFilenames): array
+    {
+        $normalizedHint = Str::of($hint)->ascii()->lower()->trim()->value();
+
+        if ($normalizedHint === '') {
+            return [];
+        }
+
+        return array_values(array_filter($allFiles, function ($file) use ($normalizedHint, $usedFilenames) {
+            if (in_array($file->getFilename(), $usedFilenames, true)) {
+                return false;
+            }
+
+            $normalizedName = Str::of(pathinfo($file->getFilename(), PATHINFO_FILENAME))->ascii()->lower()->value();
+
+            return str_contains($normalizedName, $normalizedHint) || str_contains($normalizedHint, $normalizedName);
+        }));
     }
 
     /**
