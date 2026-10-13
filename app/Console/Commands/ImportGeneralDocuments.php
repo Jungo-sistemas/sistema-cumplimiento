@@ -207,7 +207,10 @@ class ImportGeneralDocuments extends Command
         array &$usedFilenames,
     ): void {
         $rawCode     = $this->findColumn($row, 'escritura', 'codigo', 'código');
-        $name        = $this->findColumn($row, 'descripcion', 'descripción', 'nombre');
+        // 'escrituras' como último candidato tolera encabezados tipo "ESCRITURAS TERRENOS" o
+        // "ESCRITURAS CORPORATIVAS - DESCRIPCIÓN" (el título de la tabla original pegado al
+        // nombre de columna) cuando no traen literalmente "descripción" ni "nombre".
+        $name        = $this->findColumn($row, 'descripcion', 'descripción', 'nombre', 'escrituras');
         $archivoHint = $this->findColumn($row, 'archivo', 'documento');
 
         if ($rawCode === '' && $name === '' && $archivoHint === '') {
@@ -260,9 +263,15 @@ class ImportGeneralDocuments extends Command
 
         $authorizedUserIds = $this->resolveAccessUserIds($this->findColumn($row, 'accesos', 'acceso'), $groupId, $reference, $accessWarnings);
 
+        // El nombre del documento es el del archivo (sin extensión) y no la descripción larga del
+        // CSV — esa va aparte en "description" para no saturar la lista de documentos. Si hay
+        // varios archivos, se usa el más antiguo (el mismo que queda como primera versión).
+        $ordered = collect($files)->sortBy(fn ($f) => $f->getMTime())->values();
+        $shortName = pathinfo($ordered->first()->getFilename(), PATHINFO_FILENAME);
+
         if ($dryRun) {
             $fileNames = collect($files)->map(fn ($f) => $f->getFilename())->implode(' | ');
-            $this->line("  [nuevo] {$reference} — {$name} (tipo: {$documentType}, " . count($files) . ' archivo(s): ' . $fileNames . ')');
+            $this->line("  [nuevo] {$reference} — {$shortName} (tipo: {$documentType}, " . count($files) . ' archivo(s): ' . $fileNames . ')');
             $created++;
             return;
         }
@@ -271,7 +280,8 @@ class ImportGeneralDocuments extends Command
             'group_id'         => $groupId,
             'company_id'       => $companyId,
             'document_folder_id' => null,
-            'name'             => Str::upper($name),
+            'name'             => Str::upper($shortName),
+            'description'      => $name,
             'document_type'    => $documentType,
             'reference'        => $reference,
             'bodega'           => $bodega,
@@ -285,9 +295,6 @@ class ImportGeneralDocuments extends Command
             $document->authorizedUsers()->sync($authorizedUserIds);
         }
 
-        $ordered = collect($files)->sortBy(fn ($f) => $f->getMTime())->values();
-        $lastIndex = $ordered->count() - 1;
-
         foreach ($ordered as $index => $fileInfo) {
             $directory = "documents/{$document->company_id}/{$document->id}/versions";
             $storedName = now()->format('Ymd_His') . '_' . uniqid() . '_' . $fileInfo->getFilename();
@@ -300,7 +307,9 @@ class ImportGeneralDocuments extends Command
             DocumentVersion::create([
                 'document_id'    => $document->id,
                 'version_number' => $index + 1,
-                'is_current'     => $index === $lastIndex,
+                // Un documento puede tener varios archivos vigentes a la vez (ej. la escritura y
+                // su anexo), así que todos los que llegaron emparejados a esta fila quedan vigentes.
+                'is_current'     => true,
                 'file_path'      => $path,
                 'original_name'  => $fileInfo->getFilename(),
                 'mime_type'      => File::mimeType($fileInfo->getPathname()) ?: 'application/octet-stream',
@@ -398,6 +407,17 @@ class ImportGeneralDocuments extends Command
             if (array_intersect($rawVariants, $typeVariants)) {
                 return $type;
             }
+        }
+
+        // Alias para tipos del CSV que no coinciden textualmente con el catálogo pero se
+        // refieren al mismo concepto (ej. "Terreno" en el CSV vs "Escrituras de terrenos").
+        $aliases = [
+            'terreno'  => 'Escrituras de terrenos',
+            'terrenos' => 'Escrituras de terrenos',
+        ];
+
+        if (isset($aliases[Str::lower($raw)])) {
+            return $aliases[Str::lower($raw)];
         }
 
         $typeWarnings[] = "{$rawCode}: \"{$raw}\" no coincide con ningún tipo del catálogo — se guardó como \"Otros\".";
