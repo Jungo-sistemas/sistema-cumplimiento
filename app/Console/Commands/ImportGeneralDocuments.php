@@ -16,6 +16,7 @@ class ImportGeneralDocuments extends Command
 {
     protected $signature = 'documents:import-general
         {folder : Carpeta con el .csv y los archivos a importar (ruta absoluta o relativa al proyecto)}
+        {--csv= : Nombre del archivo .csv específico a usar, dentro de la carpeta (si se omite, se usan todos los .csv que haya ahí)}
         {--company= : ID de la empresa destino. Si se omite, los documentos quedan como "generales" del grupo (sin empresa específica) — en ese caso usa --group= para indicar el grupo.}
         {--group= : ID del grupo destino (solo necesario si se omite --company; con --company el grupo se deduce solo)}
         {--dry-run : Muestra lo que se haría sin escribir en base de datos ni copiar archivos}';
@@ -55,10 +56,23 @@ class ImportGeneralDocuments extends Command
             return self::FAILURE;
         }
 
-        // Se admite más de un .csv en la misma carpeta (un Excel con varias hojas/tablas —
-        // Escrituras, Poderes, Actas, etc. — exportado como un .csv por hoja): se juntan todas las
-        // filas de todos, y se emparejan contra el mismo conjunto de archivos de la carpeta.
-        $csvFiles = collect(File::files($folder))->filter(fn ($f) => Str::lower($f->getExtension()) === 'csv');
+        // --csv=archivo.csv usa SOLO ese archivo (más simple y predecible si vas subiendo las
+        // tablas una por una); sin esa opción, se admite más de un .csv en la misma carpeta — un
+        // Excel con varias hojas/tablas (Escrituras, Poderes, Actas, etc.) exportado como un .csv
+        // por hoja — y se juntan las filas de todos, emparejadas contra el mismo conjunto de
+        // archivos de la carpeta.
+        if ($csvName = $this->option('csv')) {
+            $csvPath = $folder . DIRECTORY_SEPARATOR . ltrim($csvName, '/\\');
+
+            if (! is_file($csvPath)) {
+                $this->error("No existe el archivo \"{$csvName}\" dentro de: {$folder}");
+                return self::FAILURE;
+            }
+
+            $csvFiles = collect([new \SplFileInfo($csvPath)]);
+        } else {
+            $csvFiles = collect(File::files($folder))->filter(fn ($f) => Str::lower($f->getExtension()) === 'csv');
+        }
 
         if ($csvFiles->isEmpty()) {
             $this->error("No se encontró ningún archivo .csv directo en: {$folder}");
