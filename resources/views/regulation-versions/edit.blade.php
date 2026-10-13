@@ -44,6 +44,14 @@
             contenido se reconstruyó automáticamente a partir del archivo .docx (se verificó que las
             tablas e imágenes originales se conservaron). Aun así, revisa el formato antes de
             guardar por si algo se ve distinto a lo esperado.
+            @if($hasUnsupportedShapes ?? false)
+                <br><br>
+                Este documento además tiene un diagrama hecho con Formas de Word (círculos, flechas,
+                cuadros conectados) — ese tipo de diagrama no se puede reconstruir aquí y se va a ver
+                deformado solo dentro de este editor. El archivo real, "Ver" y "Descargar" no se ven
+                afectados; puedes seguir editando el texto, etiquetando personas y anexos con
+                normalidad.
+            @endif
         </div>
     @endif
 

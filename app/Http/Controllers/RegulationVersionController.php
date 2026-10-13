@@ -180,12 +180,13 @@ class RegulationVersionController extends Controller
         // siquiera los reconoce como imagen (solo entiende una imagen insertada como tal), así que
         // ni el conteo original ni el reconstruido los cuentan nunca y la comparación de arriba
         // nunca baja. El resultado real: el texto de cada forma queda apilado y encimado en vez de
-        // verse como el diagrama. Se detecta aparte, leyendo el XML crudo del documento.
-        if ($this->hasUnsupportedDrawingShapes($filePath)) {
-            $lostContent = true;
-        }
+        // verse como el diagrama — pero a propósito esto NO bloquea la edición (se intentó, y
+        // generaba más problemas de los que resolvía: el editor es donde se etiquetan personas y
+        // anexos, algo que sí hay que poder seguir haciendo aunque el diagrama se vea mal aquí; el
+        // archivo real y "Ver"/"Descargar" no se ven afectados). Solo se avisa.
+        $hasUnsupportedShapes = $this->hasUnsupportedDrawingShapes($filePath);
 
-        return ['html' => $html, 'lostContent' => $lostContent];
+        return ['html' => $html, 'lostContent' => $lostContent, 'hasUnsupportedShapes' => $hasUnsupportedShapes];
     }
 
     /**
@@ -289,6 +290,8 @@ class RegulationVersionController extends Controller
         // para versiones sin body_html (subidas manualmente, de antes de esta columna).
         $reconstructedFromDocx = ! $hasDraft && ! $version->body_html;
 
+        $hasUnsupportedShapes = false;
+
         if ($reconstructedFromDocx) {
             // Guardar este HTML reconstruido lo deja como el nuevo body_html permanente — si para
             // ESTE documento en particular la reconstrucción perdió tablas o imágenes reales
@@ -310,6 +313,7 @@ class RegulationVersionController extends Controller
             }
 
             $bodyHtml = $reconstructed['html'];
+            $hasUnsupportedShapes = $reconstructed['hasUnsupportedShapes'];
         } else {
             $bodyHtml = $hasDraft ? $version->draft_html : $version->body_html;
         }
@@ -318,7 +322,7 @@ class RegulationVersionController extends Controller
 
         $rejectionComment = $regulation->isRejected() ? $regulation->latestRejectionComment() : null;
 
-        return view('regulation-versions.edit', compact('version', 'regulation', 'bodyHtml', 'hasDraft', 'rejectionComment', 'reconstructedFromDocx'));
+        return view('regulation-versions.edit', compact('version', 'regulation', 'bodyHtml', 'hasDraft', 'rejectionComment', 'reconstructedFromDocx', 'hasUnsupportedShapes'));
     }
 
     public function saveDraft(Request $request, RegulationVersion $version)
