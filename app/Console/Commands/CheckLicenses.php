@@ -54,7 +54,7 @@ class CheckLicenses extends Command
             $license->update(['status' => 'expired']);
             $license->licensable?->update(['is_active' => false]);
 
-            Notification::send($superadmins, new LicenseExpiredNotification($license));
+            Notification::send($this->licenseRecipients($superadmins, $license), new LicenseExpiredNotification($license));
             $this->info("Licencia vencida, acceso retirado: {$name}");
         }
     }
@@ -81,7 +81,7 @@ class CheckLicenses extends Command
                     continue;
                 }
 
-                Notification::send($superadmins, new LicenseExpiringNotification($license, $days));
+                Notification::send($this->licenseRecipients($superadmins, $license), new LicenseExpiringNotification($license, $days));
                 $license->update([$reminderColumn => now()]);
             }
 
@@ -89,5 +89,18 @@ class CheckLicenses extends Command
                 $this->info("Recordatorio {$days}d enviado: " . $licenses->count() . " licencia(s)");
             }
         }
+    }
+
+    /**
+     * Filtra los superadmins según su preferencia de notificación: siempre reciben los de
+     * 'cumplimiento' (toda licencia cubre ese módulo), y los de 'procesos' solo si la licencia
+     * en cuestión incluye ese módulo (includes_procesos).
+     */
+    private function licenseRecipients($superadmins, License $license)
+    {
+        return $superadmins->filter(
+            fn (User $u) => $u->wantsNotificationsFor('cumplimiento')
+                || ($license->includes_procesos && $u->wantsNotificationsFor('procesos'))
+        );
     }
 }

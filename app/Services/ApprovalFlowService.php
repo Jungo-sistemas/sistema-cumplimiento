@@ -205,7 +205,8 @@ class ApprovalFlowService
             ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
             ->get()
             ->filter(fn (User $u) => $u->canAccessCompany($regulation->company))
-            ->filter(fn (User $u) => $u->canAccessModule('procesos'));
+            ->filter(fn (User $u) => $u->canAccessModule('procesos'))
+            ->filter(fn (User $u) => $u->wantsNotificationsFor('procesos'));
 
         foreach ($admins as $admin) {
             $admin->notify(new RegulationReadyToResubmitNotification($regulation));
@@ -225,7 +226,8 @@ class ApprovalFlowService
             ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
             ->get()
             ->filter(fn (User $u) => $u->canAccessCompany($regulation->company))
-            ->filter(fn (User $u) => $u->canAccessModule('procesos'));
+            ->filter(fn (User $u) => $u->canAccessModule('procesos'))
+            ->filter(fn (User $u) => $u->wantsNotificationsFor('procesos'));
 
         foreach ($admins as $admin) {
             $admin->notify(new RegulationAccessRequestedNotification($regulation, $requester));
@@ -263,7 +265,8 @@ class ApprovalFlowService
             ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
             ->get()
             ->filter(fn (User $u) => $u->canAccessCompany($regulation->company))
-            ->filter(fn (User $u) => $u->canAccessModule('procesos'));
+            ->filter(fn (User $u) => $u->canAccessModule('procesos'))
+            ->filter(fn (User $u) => $u->wantsNotificationsFor('procesos'));
 
         foreach ($admins as $admin) {
             $admin->notify(new ApprovalStepUnassignedNotification($regulation, $step, $names ?: $positionSlugs));

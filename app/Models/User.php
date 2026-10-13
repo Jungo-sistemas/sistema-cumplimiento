@@ -21,6 +21,7 @@ class User extends Authenticatable
         'scope_level',
         'role_id',
         'module_access',
+        'notification_modules',
         'status',
         'invite_token',
         'invite_expires_at',
@@ -201,6 +202,16 @@ class User extends Authenticatable
     {
         $access = $this->module_access ?? 'all';
         return $access === 'all' ? ['cumplimiento', 'procesos'] : [$access];
+    }
+
+    /**
+     * Preferencia de notificaciones, independiente de module_access: un admin puede tener acceso
+     * a ambos módulos pero solo querer avisos de uno. null/'all' = recibe de ambas áreas.
+     */
+    public function wantsNotificationsFor(string $module): bool
+    {
+        $pref = $this->notification_modules ?? 'all';
+        return $pref === 'all' || $pref === $module;
     }
 
     public function sendPasswordResetNotification($token): void

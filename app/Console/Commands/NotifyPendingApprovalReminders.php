@@ -92,7 +92,8 @@ class NotifyPendingApprovalReminders extends Command
             ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
             ->get()
             ->filter(fn (User $u) => $u->canAccessCompany($regulation->company))
-            ->filter(fn (User $u) => $u->canAccessModule('procesos'));
+            ->filter(fn (User $u) => $u->canAccessModule('procesos'))
+            ->filter(fn (User $u) => $u->wantsNotificationsFor('procesos'));
 
         foreach ($admins as $admin) {
             $admin->notify(new ApprovalOverdueEscalationNotification($regulation, $approval->user, $daysOverdue));
