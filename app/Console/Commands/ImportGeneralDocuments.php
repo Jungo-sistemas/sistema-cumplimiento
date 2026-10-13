@@ -188,8 +188,8 @@ class ImportGeneralDocuments extends Command
         array &$typeWarnings,
         array &$usedCodes,
     ): void {
-        $rawCode = trim($row['escritura'] ?? $row['codigo'] ?? $row['código'] ?? '');
-        $name    = trim($row['descripcion'] ?? $row['descripción'] ?? $row['nombre'] ?? '');
+        $rawCode = $this->findColumn($row, 'escritura', 'codigo', 'código');
+        $name    = $this->findColumn($row, 'descripcion', 'descripción', 'nombre');
 
         if ($rawCode === '' || $name === '') {
             return;
@@ -219,12 +219,12 @@ class ImportGeneralDocuments extends Command
             return;
         }
 
-        $documentType = $this->matchDocumentType($row['tipo'] ?? '', $rawCode, $typeWarnings);
-        $bodega       = trim($row['bodega'] ?? '') ?: null;
-        $responsable  = trim($row['responsable'] ?? '') ?: null;
-        $issuedAt     = $this->parseCsvDate($row['fecha'] ?? null);
+        $documentType = $this->matchDocumentType($this->findColumn($row, 'tipo'), $rawCode, $typeWarnings);
+        $bodega       = $this->findColumn($row, 'bodega') ?: null;
+        $responsable  = $this->findColumn($row, 'responsable') ?: null;
+        $issuedAt     = $this->parseCsvDate($this->findColumn($row, 'fecha'));
 
-        $authorizedUserIds = $this->resolveAccessUserIds($row['accesos'] ?? '', $groupId, $rawCode, $accessWarnings);
+        $authorizedUserIds = $this->resolveAccessUserIds($this->findColumn($row, 'accesos', 'acceso'), $groupId, $rawCode, $accessWarnings);
 
         if ($dryRun) {
             $fileNames = collect($files)->map(fn ($f) => $f->getFilename())->implode(' | ');
@@ -279,6 +279,34 @@ class ImportGeneralDocuments extends Command
         $created++;
     }
 
+    /**
+     * Busca una columna por nombre tolerando que el encabezado real no sea exactamente el
+     * esperado — primero intenta coincidencia exacta con cada candidato, y si ninguna aparece tal
+     * cual (p. ej. el título de la tabla del Excel original quedó pegado al nombre de la columna,
+     * como "ESCRITURAS CORPORATIVAS - DESCRIPCIÓN" en vez de solo "DESCRIPCIÓN"), busca la primera
+     * columna cuyo nombre CONTENGA alguno de los candidatos.
+     *
+     * @param  array<string, string|null>  $row
+     */
+    private function findColumn(array $row, string ...$candidates): string
+    {
+        foreach ($candidates as $candidate) {
+            if (array_key_exists($candidate, $row)) {
+                return trim((string) $row[$candidate]);
+            }
+        }
+
+        foreach ($row as $key => $value) {
+            foreach ($candidates as $candidate) {
+                if (str_contains($key, $candidate)) {
+                    return trim((string) $value);
+                }
+            }
+        }
+
+        return '';
+    }
+
     /** @param  array<int, string>  &$typeWarnings */
     private function matchDocumentType(string $raw, string $rawCode, array &$typeWarnings): string
     {
@@ -290,6 +318,19 @@ class ImportGeneralDocuments extends Command
 
         foreach (Document::DOCUMENT_TYPES as $type) {
             if (Str::lower($type) === Str::lower($raw)) {
+                return $type;
+            }
+        }
+
+        // Tolera singular/plural entre el CSV y el catálogo (ej. "Poder" en el CSV vs "Poderes" en
+        // el catálogo) — en español el plural se forma con "-s" o con "-es" según la palabra, así
+        // que se comparan ambas variantes de cada lado en vez de solo quitar una "s" final.
+        $rawVariants = array_unique([Str::lower($raw), preg_replace('/(es|s)$/', '', Str::lower($raw))]);
+
+        foreach (Document::DOCUMENT_TYPES as $type) {
+            $typeVariants = array_unique([Str::lower($type), preg_replace('/(es|s)$/', '', Str::lower($type))]);
+
+            if (array_intersect($rawVariants, $typeVariants)) {
                 return $type;
             }
         }
