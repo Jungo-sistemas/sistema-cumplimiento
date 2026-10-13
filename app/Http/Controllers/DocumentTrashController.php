@@ -29,7 +29,7 @@ class DocumentTrashController extends Controller
             ])
             ->where('group_id', $user->group_id)
             ->orderByDesc('deleted_at')
-            ->get();
+            ->paginate(20);
 
         return view('documents.trash', compact('documents'));
     }

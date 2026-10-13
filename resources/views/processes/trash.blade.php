@@ -176,6 +176,11 @@
 
             </table>
         </div>
+        @if($regulations->hasPages())
+            <div class="border-t border-gray-100 px-5 py-3">
+                {{ $regulations->links() }}
+            </div>
+        @endif
     </div>
 
 </x-layouts.vigia>

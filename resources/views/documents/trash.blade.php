@@ -202,6 +202,11 @@
 
             </table>
         </div>
+        @if($documents->hasPages())
+            <div class="border-t border-gray-100 px-5 py-3">
+                {{ $documents->links() }}
+            </div>
+        @endif
     </div>
 
 </x-layouts.vigia>

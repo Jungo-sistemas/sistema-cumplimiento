@@ -23,7 +23,7 @@ class RegulationTrashController extends Controller
             $query->whereIn('company_id', $user->accessibleCompanyIds());
         }
 
-        $regulations = $query->orderByDesc('deleted_at')->get();
+        $regulations = $query->orderByDesc('deleted_at')->paginate(20);
 
         return view('processes.trash', compact('regulations'));
     }
