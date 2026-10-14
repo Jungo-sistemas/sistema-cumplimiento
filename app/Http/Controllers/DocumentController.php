@@ -94,7 +94,7 @@ class DocumentController extends Controller
 
         $documents = $documentsQuery
             ->orderBy('name')
-            ->paginate(20)
+            ->paginate(15)
             ->withQueryString();
 
         return view('documents.index', [
