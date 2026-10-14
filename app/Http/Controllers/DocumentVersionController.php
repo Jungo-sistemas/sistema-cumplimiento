@@ -51,13 +51,13 @@ class DocumentVersionController extends Controller
         $groupUsers = User::query()
             ->where('group_id', $user->group_id)
             ->orderBy('name')
-            ->get(['id', 'name', 'company_id']);
+            ->get(['id', 'name', 'company_id', 'role_id']);
 
         $responsibleUsers = User::query()
             ->where('group_id', $user->group_id)
             ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'operative']))
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'role_id']);
 
         return view('documents.document', [
             'document'         => $document,

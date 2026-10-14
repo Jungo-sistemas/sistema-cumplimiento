@@ -218,7 +218,7 @@
                             @foreach($candidateResponsables as $candidate)
                                 <option value="{{ $candidate->id }}"
                                     @selected(in_array($candidate->id, $selectedResponsables, true))>
-                                    {{ $candidate->name }}{{ $highlightUserId === $candidate->id ? ' (pidió acceso)' : '' }}
+                                    {{ $candidate->name }}{{ $candidate->role ? ' — ' . $candidate->role->name : '' }}{{ $highlightUserId === $candidate->id ? ' (pidió acceso)' : '' }}
                                 </option>
                             @endforeach
                         </select>

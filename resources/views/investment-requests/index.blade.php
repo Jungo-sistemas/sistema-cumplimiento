@@ -249,7 +249,7 @@
                             <option value="">— Seleccionar persona —</option>
                             @foreach($groupUsers as $u)
                                 <option value="{{ $u->id }}" @selected((int) old('requested_by') === $u->id)>
-                                    {{ $u->name }}
+                                    {{ $u->name }}{{ $u->role ? ' — ' . $u->role->name : '' }}
                                 </option>
                             @endforeach
                         </select>

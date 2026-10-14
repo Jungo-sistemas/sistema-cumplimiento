@@ -373,7 +373,7 @@
                             @foreach($users as $u)
                                 <option value="{{ $u->name }}"
                                         @selected(old('responsible_name') === $u->name)>
-                                    {{ $u->name }}
+                                    {{ $u->name }}{{ $u->role ? ' — ' . $u->role->name : '' }}
                                 </option>
                             @endforeach
                         </select>
@@ -385,13 +385,13 @@
                             Accesos Autorizados
                         </label>
                         <p class="text-xs text-gray-500 mb-2">
-                            Busca y agrega las personas que tienen acceso autorizado a este documento.
+                            Busca y agrega las personas que tienen acceso autorizado a este documento. También puedes buscar por tipo de rol.
                         </p>
                         <select name="authorized_user_ids[]" multiple x-ref="authorizedUsers">
                             @foreach($groupUsers as $u)
                                 <option value="{{ $u->id }}"
                                     @selected(in_array($u->id, old('authorized_user_ids', [])))>
-                                    {{ $u->name }}
+                                    {{ $u->name }}{{ $u->role ? ' — ' . $u->role->name : '' }}
                                 </option>
                             @endforeach
                         </select>

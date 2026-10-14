@@ -216,7 +216,7 @@ class RegulationController extends Controller
         $users = User::where('group_id', $regulation->group_id)
             ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'operative']))
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'role_id']);
 
         $positions = JobPosition::where('group_id', $regulation->group_id)
             ->where('is_active', true)

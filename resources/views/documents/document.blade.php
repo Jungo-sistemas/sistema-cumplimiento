@@ -581,7 +581,7 @@
                             @foreach($users as $u)
                                 <option value="{{ $u->name }}"
                                         @selected(old('responsible_name', $document->responsible_name) === $u->name)>
-                                    {{ $u->name }}
+                                    {{ $u->name }}{{ $u->role ? ' — ' . $u->role->name : '' }}
                                 </option>
                             @endforeach
                         </select>
@@ -600,7 +600,7 @@
                             @foreach($groupUsers as $u)
                                 <option value="{{ $u->id }}"
                                     @selected(in_array($u->id, $selectedAuthorizedIds))>
-                                    {{ $u->name }}
+                                    {{ $u->name }}{{ $u->role ? ' — ' . $u->role->name : '' }}
                                 </option>
                             @endforeach
                         </select>

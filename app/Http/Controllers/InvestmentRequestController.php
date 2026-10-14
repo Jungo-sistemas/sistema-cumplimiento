@@ -62,7 +62,7 @@ class InvestmentRequestController extends Controller
             'groupUsers'         => User::query()
                 ->where('group_id', $user->group_id)
                 ->orderBy('name')
-                ->get(['id', 'name']),
+                ->get(['id', 'name', 'role_id']),
         ]);
     }
 

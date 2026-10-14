@@ -689,7 +689,7 @@
                                     @foreach($users as $u)
                                         <option value="{{ $u->name }}"
                                                 @selected(old('responsible_name') === $u->name)>
-                                            {{ $u->name }}
+                                            {{ $u->name }}{{ $u->role ? ' — ' . $u->role->name : '' }}
                                         </option>
                                     @endforeach
                                 </select>
