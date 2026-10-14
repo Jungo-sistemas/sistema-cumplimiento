@@ -356,12 +356,26 @@ let lockExpiresAt     = Date.now() + 30 * 60 * 1000;
 // CADA llamada a items() resuelva (aunque sea con datos obsoletos) para llevar su
 // propio ciclo de vida onStart/onUpdate/onExit — un debounce que descarta timers
 // anteriores deja esas promesas colgadas para siempre y rompe ese ciclo.
+// Una búsqueda fallida (red caída, 403, 500) debe verse distinta de "no hay resultados" — si no,
+// un problema real (sesión expirada, etc.) se confunde con "ese documento no existe" en la UI.
+// Como TipTap espera que items() siempre resuelva en un array, el fallo se marca con una
+// propiedad extra sobre ese mismo array en vez de lanzar/devolver otra forma de dato.
+function markFailed(arr) {
+    arr.__failed = true;
+    return arr;
+}
+// .map() crea un array nuevo y no copia propiedades extra — esto reaplica la marca de fallo
+// sobre el array ya mapeado para que llegue hasta donde se dibuja el menú de sugerencias.
+function markFailedIf(arr, failed) {
+    if (failed) arr.__failed = true;
+    return arr;
+}
 async function fetchJson(url, query) {
     try {
         const res = await fetch(`${url}?q=${encodeURIComponent(query)}`, { headers: { Accept: 'application/json' } });
-        return res.ok ? await res.json() : [];
+        return res.ok ? await res.json() : markFailed([]);
     } catch {
-        return [];
+        return markFailed([]);
     }
 }
 const fetchUsers = (query) => fetchJson(MENTION_USERS_URL, query);
@@ -380,7 +394,7 @@ function makeSuggestionRenderer({ renderLabel, emptyText }) {
             if (items.length === 0) {
                 const empty = document.createElement('div');
                 empty.className = 'mention-suggestion-empty';
-                empty.textContent = emptyText;
+                empty.textContent = items.__failed ? 'No se pudo buscar — intenta de nuevo' : emptyText;
                 el.appendChild(empty);
                 return;
             }
@@ -450,7 +464,10 @@ const PersonMention = Mention.extend({
     suggestion: {
         char: '@',
         pluginKey: new PluginKey('personMention'),
-        items: async ({ query }) => (await fetchUsers(query)).map(u => ({ attrs: { id: u.id, label: u.name } })),
+        items: async ({ query }) => {
+            const users = await fetchUsers(query);
+            return markFailedIf(users.map(u => ({ attrs: { id: u.id, label: u.name } })), users.__failed);
+        },
         render: makeSuggestionRenderer({ renderLabel: item => item.attrs.label, emptyText: 'Sin personas encontradas' }),
         command: ({ editor, range, props }) => {
             editor.chain().focus().insertContentAt(range, [
@@ -486,8 +503,13 @@ const DocReference = Mention.extend({
     suggestion: {
         char: '#',
         pluginKey: new PluginKey('docReference'),
-        items: async ({ query }) => (await fetchDocs(query)).map(d => ({ attrs: { id: d.id, label: d.code, url: d.url }, code: d.code, name: d.name })),
-        render: makeSuggestionRenderer({ renderLabel: item => `${item.code} — ${item.name}`, emptyText: 'Sin documentos encontrados' }),
+        // El código es opcional en un reglamento — si no tiene, se usa el nombre como etiqueta
+        // en vez de mostrar "#null" o dejarlo fuera de la búsqueda por completo.
+        items: async ({ query }) => {
+            const docs = await fetchDocs(query);
+            return markFailedIf(docs.map(d => ({ attrs: { id: d.id, label: d.code || d.name, url: d.url }, code: d.code, name: d.name })), docs.__failed);
+        },
+        render: makeSuggestionRenderer({ renderLabel: item => item.code ? `${item.code} — ${item.name}` : item.name, emptyText: 'Sin documentos encontrados' }),
         command: ({ editor, range, props }) => {
             editor.chain().focus().insertContentAt(range, [
                 { type: 'docReference', attrs: props },

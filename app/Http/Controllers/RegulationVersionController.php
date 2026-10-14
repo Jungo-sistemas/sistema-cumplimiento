@@ -384,11 +384,17 @@ class RegulationVersionController extends Controller
         $q          = trim((string) $request->query('q', ''));
         $regulation = $version->regulation;
 
+        // Antes exigía código (whereNotNull('code')) — pero el código es opcional al crear/editar
+        // un reglamento, así que uno sin código quedaba imposible de etiquetar con "#" aunque sí
+        // tuviera nombre. Ahora se busca por código O nombre, y se descartan solo los que no
+        // tengan NINGUNO de los dos (lo cual no debería pasar, pero por si acaso).
         $docs = Regulation::where('company_id', $regulation->company_id)
             ->where('group_id', $regulation->group_id)
             ->where('is_active', true)
             ->where('id', '!=', $regulation->id)
-            ->whereNotNull('code')
+            ->where(function ($query) {
+                $query->whereNotNull('code')->orWhereNotNull('name');
+            })
             ->when($q !== '', function ($query) use ($q) {
                 $needle = '%' . mb_strtolower($q) . '%';
                 $query->where(function ($qq) use ($needle) {
@@ -396,7 +402,9 @@ class RegulationVersionController extends Controller
                        ->orWhereRaw('LOWER(name) LIKE ?', [$needle]);
                 });
             })
+            ->orderByRaw('code IS NULL')
             ->orderBy('code')
+            ->orderBy('name')
             ->limit(10)
             ->get(['id', 'code', 'name'])
             ->map(fn ($r) => [
