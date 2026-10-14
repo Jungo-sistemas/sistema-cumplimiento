@@ -66,35 +66,6 @@ class DocumentController extends Controller
             $documentsQuery->where('document_type', $documentType);
         }
 
-        $vigencia = in_array($request->vigencia, ['vigente', 'por_vencer', 'vencido', 'sin_vencimiento'], true)
-            ? $request->vigencia
-            : null;
-
-        $today        = now()->toDateString();
-        $nearHorizon  = now()->addDays(60)->toDateString();
-
-        // Un documento puede tener varios archivos vigentes a la vez, así que su estado de
-        // vigencia es el peor caso entre todos ellos (si cualquiera está vencido, el documento
-        // cuenta como vencido) — el mismo criterio que Document::vigenciaStatus().
-        match ($vigencia) {
-            'vencido' => $documentsQuery->whereHas(
-                'currentVersions',
-                fn ($q) => $q->whereNotNull('valid_until')->where('valid_until', '<', $today)
-            ),
-            'por_vencer' => $documentsQuery
-                ->whereDoesntHave('currentVersions', fn ($q) => $q->whereNotNull('valid_until')->where('valid_until', '<', $today))
-                ->whereHas('currentVersions', fn ($q) => $q->whereNotNull('valid_until')->whereBetween('valid_until', [$today, $nearHorizon])),
-            'vigente' => $documentsQuery
-                ->whereDoesntHave('currentVersions', fn ($q) => $q->whereNotNull('valid_until')->where('valid_until', '<', $today))
-                ->whereDoesntHave('currentVersions', fn ($q) => $q->whereNotNull('valid_until')->whereBetween('valid_until', [$today, $nearHorizon]))
-                ->whereHas('currentVersions', fn ($q) => $q->where('valid_until', '>', $nearHorizon)),
-            'sin_vencimiento' => $documentsQuery->whereDoesntHave(
-                'currentVersions',
-                fn ($q) => $q->whereNotNull('valid_until')
-            ),
-            default => null,
-        };
-
         $documents = $documentsQuery
             ->orderBy('name')
             ->paginate(15)
@@ -107,7 +78,6 @@ class DocumentController extends Controller
             'selectedCompanyId'  => $selectedCompanyId,
             'documentTypes'      => Document::DOCUMENT_TYPES,
             'selectedType'       => $documentType,
-            'selectedVigencia'   => $vigencia,
             'users'              => User::query()
                 ->where('group_id', $user->group_id)
                 ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'operative']))

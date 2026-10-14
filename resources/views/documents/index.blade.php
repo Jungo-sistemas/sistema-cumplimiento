@@ -80,17 +80,6 @@
             </select>
         </div>
 
-        <div class="min-w-[180px]">
-            <label class="block text-xs text-gray-500 mb-1">Vigencia</label>
-            <select name="vigencia" class="w-full rounded-md border-gray-300 text-sm">
-                <option value="">Todas</option>
-                <option value="vigente" @selected($selectedVigencia === 'vigente')>Vigente</option>
-                <option value="por_vencer" @selected($selectedVigencia === 'por_vencer')>Por vencer</option>
-                <option value="vencido" @selected($selectedVigencia === 'vencido')>Vencido</option>
-                <option value="sin_vencimiento" @selected($selectedVigencia === 'sin_vencimiento')>Sin vencimiento</option>
-            </select>
-        </div>
-
         <div class="flex-1 min-w-[200px] max-w-sm">
             <label class="block text-xs text-gray-500 mb-1">Buscar</label>
             <input type="text"
