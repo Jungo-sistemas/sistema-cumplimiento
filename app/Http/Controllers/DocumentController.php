@@ -19,20 +19,23 @@ class DocumentController extends Controller
             ? ($request->filled('company_id') ? (int) $request->company_id : null)
             : (int) $user->company_id;
 
-        // Excluir empresas "otras" del filtro de documentos
-        $companies = $user->hasGroupScope()
+        $allCompanies = $user->hasGroupScope()
             ? Company::query()
                 ->where('group_id', $user->group_id)
-                ->where('otras', false)
                 ->orderBy('name')
                 ->get()
             : ($user->hasMultipleCompanies()
                 ? Company::query()
                     ->whereIn('id', $user->accessibleCompanyIds())
-                    ->where('otras', false)
                     ->orderBy('name')
                     ->get()
                 : collect());
+
+        // Las empresas "otras" se muestran aparte (bajo "Otras empresas") en vez de excluirse del
+        // todo — existen y se les puede asignar un documento, solo no se mezclan con la lista
+        // principal para no saturarla.
+        $companies      = $allCompanies->where('otras', false)->values();
+        $otrasCompanies = $allCompanies->where('otras', true)->values();
 
         $documentsQuery = Document::query()
             ->with(['currentVersions', 'company:id,name'])
@@ -100,6 +103,7 @@ class DocumentController extends Controller
         return view('documents.index', [
             'documents'          => $documents,
             'companies'          => $companies,
+            'otrasCompanies'     => $otrasCompanies,
             'selectedCompanyId'  => $selectedCompanyId,
             'documentTypes'      => Document::DOCUMENT_TYPES,
             'selectedType'       => $documentType,

@@ -56,6 +56,16 @@
                             {{ $company->name }}
                         </option>
                     @endforeach
+                    @if($otrasCompanies->isNotEmpty())
+                        <optgroup label="Otras empresas">
+                            @foreach($otrasCompanies as $company)
+                                <option value="{{ $company->id }}"
+                                    @selected((string) request('company_id', $selectedCompanyId) === (string) $company->id)>
+                                    {{ $company->name }}
+                                </option>
+                            @endforeach
+                        </optgroup>
+                    @endif
                 </select>
             </div>
         @endif
@@ -270,7 +280,7 @@
                 <div class="space-y-4">
 
                     {{-- Empresa --}}
-                    @if(($user->hasGroupScope() || $user->hasMultipleCompanies()) && $companies->isNotEmpty())
+                    @if(($user->hasGroupScope() || $user->hasMultipleCompanies()) && ($companies->isNotEmpty() || $otrasCompanies->isNotEmpty()))
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">
                                 Empresa <span class="text-red-500">*</span>
@@ -284,6 +294,16 @@
                                         {{ $company->name }}
                                     </option>
                                 @endforeach
+                                @if($otrasCompanies->isNotEmpty())
+                                    <optgroup label="Otras empresas">
+                                        @foreach($otrasCompanies as $company)
+                                            <option value="{{ $company->id }}"
+                                                @selected(old('company_id', $selectedCompanyId) == $company->id)>
+                                                {{ $company->name }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
                             </select>
                             @if($errors->createDocument->has('company_id'))
                                 <p class="text-sm text-red-600 mt-1">{{ $errors->createDocument->first('company_id') }}</p>

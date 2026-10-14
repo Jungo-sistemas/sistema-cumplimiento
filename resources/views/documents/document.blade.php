@@ -22,27 +22,27 @@
                     </div>
                 @endif
 
-                <div class="flex flex-wrap items-center gap-2 mt-2">
+                <div class="flex flex-wrap items-center gap-3 mt-3">
                     @if($document->document_type)
-                        <span class="inline-flex items-center text-sm px-3.5 py-1.5 rounded bg-[#1A428A] text-white font-medium">
+                        <span class="inline-flex items-center text-sm px-5 py-2.5 rounded bg-[#1A428A] text-white font-medium">
                             {{ $document->document_type }}
                         </span>
                     @endif
 
                     @if($document->reference)
-                        <span class="inline-flex items-center text-sm px-3.5 py-1.5 rounded bg-[#1A428A] text-white font-medium">
+                        <span class="inline-flex items-center text-sm px-5 py-2.5 rounded bg-[#1A428A] text-white font-medium">
                             Ref: {{ $document->reference }}
                         </span>
                     @endif
 
                     @if($document->bodega)
-                        <span class="inline-flex items-center text-sm px-3.5 py-1.5 rounded bg-[#1A428A] text-white font-medium">
+                        <span class="inline-flex items-center text-sm px-5 py-2.5 rounded bg-[#1A428A] text-white font-medium">
                             Bodega: {{ $document->bodega }}
                         </span>
                     @endif
 
                     @if($document->authorizedUsers->isNotEmpty())
-                        <span class="inline-flex items-center text-sm px-3.5 py-1.5 rounded bg-[#1A428A] text-white font-medium">
+                        <span class="inline-flex items-center text-sm px-5 py-2.5 rounded bg-[#1A428A] text-white font-medium">
                             Accesos: {{ $document->authorizedUsers->pluck('name')->join(', ') }}
                         </span>
                     @endif
@@ -478,7 +478,7 @@
                 <div class="space-y-4">
 
                     {{-- Empresa --}}
-                    @if((auth()->user()->hasGroupScope() || auth()->user()->hasMultipleCompanies()) && $companies->isNotEmpty())
+                    @if((auth()->user()->hasGroupScope() || auth()->user()->hasMultipleCompanies()) && ($companies->isNotEmpty() || $otrasCompanies->isNotEmpty()))
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">
                                 Empresa <span class="text-red-500">*</span>
@@ -492,6 +492,16 @@
                                         {{ $company->name }}
                                     </option>
                                 @endforeach
+                                @if($otrasCompanies->isNotEmpty())
+                                    <optgroup label="Otras empresas">
+                                        @foreach($otrasCompanies as $company)
+                                            <option value="{{ $company->id }}"
+                                                @selected(old('company_id', $document->company_id) == $company->id)>
+                                                {{ $company->name }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
                             </select>
                             @if($errors->editDocument->has('company_id'))
                                 <p class="text-sm text-red-600 mt-1">{{ $errors->editDocument->first('company_id') }}</p>

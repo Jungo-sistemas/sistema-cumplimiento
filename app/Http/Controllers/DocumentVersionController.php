@@ -34,19 +34,21 @@ class DocumentVersionController extends Controller
         $currentVersions = $document->versions->where('is_current', true)->values();
         $versionHistory  = $document->versions->where('is_current', false)->values();
 
-        $companies = $user->hasGroupScope()
+        $allCompanies = $user->hasGroupScope()
             ? Company::query()
                 ->where('group_id', $user->group_id)
-                ->where('otras', false)
                 ->orderBy('name')
                 ->get()
             : ($user->hasMultipleCompanies()
                 ? Company::query()
                     ->whereIn('id', $user->accessibleCompanyIds())
-                    ->where('otras', false)
                     ->orderBy('name')
                     ->get()
                 : collect());
+
+        // Igual que en DocumentController::index(): las "otras" se muestran aparte, no se excluyen.
+        $companies      = $allCompanies->where('otras', false)->values();
+        $otrasCompanies = $allCompanies->where('otras', true)->values();
 
         $groupUsers = User::query()
             ->where('group_id', $user->group_id)
@@ -64,6 +66,7 @@ class DocumentVersionController extends Controller
             'currentVersions'  => $currentVersions,
             'versionHistory'   => $versionHistory,
             'companies'        => $companies,
+            'otrasCompanies'   => $otrasCompanies,
             'groupUsers'       => $groupUsers,
             'users'            => $responsibleUsers,
             'documentTypes'    => Document::DOCUMENT_TYPES,
