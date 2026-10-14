@@ -15,10 +15,11 @@ class CheckLicenses extends Command
     protected $signature = 'licenses:check
                             {--dry-run : Muestra qué pasaría sin enviar correos ni quitar accesos}';
 
-    protected $description = 'Manda recordatorios de vencimiento de licencia (7, 3 y 1 día) y quita el acceso a las que ya vencieron';
+    protected $description = 'Manda recordatorios de vencimiento de licencia (14, 7, 3 y 1 día) y quita el acceso a las que ya vencieron';
 
     // Días exactos en los que se dispara un recordatorio, y la columna que evita duplicarlo en el mismo ciclo.
     private const THRESHOLDS = [
+        14 => 'reminder_14_sent_at',
         7 => 'reminder_7_sent_at',
         3 => 'reminder_3_sent_at',
         1 => 'reminder_1_sent_at',
