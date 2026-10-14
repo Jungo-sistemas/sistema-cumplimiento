@@ -207,10 +207,16 @@ class ImportGeneralDocuments extends Command
         array &$usedFilenames,
     ): void {
         $rawCode     = $this->findColumn($row, 'escritura', 'codigo', 'código');
-        // 'escrituras' como último candidato tolera encabezados tipo "ESCRITURAS TERRENOS" o
+        // 'escrituras' como candidato tolera encabezados tipo "ESCRITURAS TERRENOS" o
         // "ESCRITURAS CORPORATIVAS - DESCRIPCIÓN" (el título de la tabla original pegado al
-        // nombre de columna) cuando no traen literalmente "descripción" ni "nombre".
-        $name        = $this->findColumn($row, 'descripcion', 'descripción', 'nombre', 'escrituras');
+        // nombre de columna) cuando no traen literalmente "descripción" ni "nombre". Cuando el
+        // título ni siquiera menciona "escrituras" (ej. "CONTRATOS, CONVENIOS Y ACUERDOS"), se usa
+        // como último recurso la columna que esté justo antes de "Fecha" — en todos los Excel de
+        // este origen la descripción larga siempre cae ahí, tenga o no columna Archivo antes.
+        $name = $this->findColumn($row, 'descripcion', 'descripción', 'nombre', 'escrituras');
+        if ($name === '') {
+            $name = $this->findColumnBeforeFecha($row);
+        }
         $archivoHint = $this->findColumn($row, 'archivo', 'documento');
 
         if ($rawCode === '' && $name === '' && $archivoHint === '') {
@@ -226,6 +232,13 @@ class ImportGeneralDocuments extends Command
         } else {
             $code  = $this->extractCode($rawCode) ?? $rawCode;
             $files = $filesByCode[$code] ?? [];
+
+            // Sin escritura y sin columna Archivo, la descripción es lo único que queda —  pasa
+            // muy seguido que el texto de la descripción ya es casi idéntico al nombre del
+            // archivo, así que se intenta emparejar con ella como último recurso.
+            if (empty($files) && $rawCode === '') {
+                $files = $this->findFilesByHint($name, $allFiles, $usedFilenames);
+            }
         }
 
         // La referencia que identifica al documento (y evita duplicarlo si se vuelve a correr el
@@ -379,6 +392,26 @@ class ImportGeneralDocuments extends Command
         }
 
         return '';
+    }
+
+    /**
+     * Último recurso para encontrar la columna de descripción cuando su encabezado no contiene
+     * ninguna palabra reconocible (ej. "CONTRATOS, CONVENIOS Y ACUERDOS"): toma la columna
+     * inmediatamente anterior a "Fecha", que en todos los Excel de este origen es siempre la
+     * descripción larga, exista o no una columna Archivo antes.
+     *
+     * @param  array<string, string|null>  $row
+     */
+    private function findColumnBeforeFecha(array $row): string
+    {
+        $keys = array_keys($row);
+        $fechaIndex = array_search('fecha', $keys, true);
+
+        if ($fechaIndex === null || $fechaIndex === false || $fechaIndex === 0) {
+            return '';
+        }
+
+        return trim((string) $row[$keys[$fechaIndex - 1]]);
     }
 
     /** @param  array<int, string>  &$typeWarnings */
