@@ -447,6 +447,8 @@ class ImportGeneralDocuments extends Command
         $aliases = [
             'terreno'  => 'Escrituras de terrenos',
             'terrenos' => 'Escrituras de terrenos',
+            'asamblea' => 'Acta de asamblea',
+            'asambleas' => 'Acta de asamblea',
         ];
 
         if (isset($aliases[Str::lower($raw)])) {

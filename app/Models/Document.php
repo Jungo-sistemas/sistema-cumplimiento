@@ -16,6 +16,8 @@ class Document extends Model
         'Acta constitutiva',
         'Acta de asamblea',
         'Contratos',
+        'Acuerdos',
+        'Convenios',
         'Libros sociales',
         'Libros de accionistas',
         'Constancias del IMPI',
