@@ -130,6 +130,7 @@ class ImportGeneralDocuments extends Command
             $rows,
             $filesByCode,
             $allFiles,
+            $folder,
             $groupId,
             $companyId,
             $uploader,
@@ -146,6 +147,7 @@ class ImportGeneralDocuments extends Command
                     $row,
                     $filesByCode,
                     $allFiles,
+                    $folder,
                     $groupId,
                     $companyId,
                     $uploader,
@@ -195,6 +197,7 @@ class ImportGeneralDocuments extends Command
         array $row,
         array $filesByCode,
         array $allFiles,
+        string $folder,
         int $groupId,
         ?int $companyId,
         User $uploader,
@@ -239,6 +242,15 @@ class ImportGeneralDocuments extends Command
             if (empty($files) && $rawCode === '') {
                 $files = $this->findFilesByHint($name, $allFiles, $usedFilenames);
             }
+        }
+
+        // Si el (o los) archivo(s) emparejados viven en su propia subcarpeta (en vez de sueltos
+        // junto al .csv), se asume que esa subcarpeta agrupa TODO lo de este documento a propósito
+        // (ej. el acta de una asamblea extraordinaria junto con los convenios que se firmaron en
+        // esa misma sesión) — aunque esos archivos adicionales no tengan nada en su nombre que
+        // coincida con la fila del CSV, se agregan igual como archivos vigentes del mismo documento.
+        if (! empty($files)) {
+            $files = $this->withSubfolderSiblings($files, $allFiles, $folder, $usedFilenames);
         }
 
         // La referencia que identifica al documento (y evita duplicarlo si se vuelve a correr el
@@ -333,6 +345,52 @@ class ImportGeneralDocuments extends Command
         }
 
         $created++;
+    }
+
+    /**
+     * Si alguno de los archivos ya emparejados está dentro de una subcarpeta (no suelto junto al
+     * .csv), se agregan también el resto de los archivos de esa misma subcarpeta — es la forma en
+     * que alguien arma a propósito "todo lo de este documento" cuando los nombres de los archivos
+     * no tienen nada en común entre sí (ej. el acta de una asamblea junto con los convenios que se
+     * firmaron en esa misma sesión, cada uno con su propio nombre).
+     *
+     * @param  array<int, \SplFileInfo>  $files
+     * @param  array<int, \SplFileInfo>  $allFiles
+     * @param  array<int, string>  $usedFilenames
+     * @return array<int, \SplFileInfo>
+     */
+    private function withSubfolderSiblings(array $files, array $allFiles, string $folder, array $usedFilenames): array
+    {
+        $rootPath = rtrim(str_replace('\\', '/', realpath($folder) ?: $folder), '/');
+        $byFilename = [];
+
+        foreach ($files as $f) {
+            $byFilename[$f->getFilename()] = $f;
+        }
+
+        foreach ($files as $f) {
+            $dir = rtrim(str_replace('\\', '/', $f->getPath()), '/');
+
+            if ($dir === $rootPath) {
+                continue;
+            }
+
+            foreach ($allFiles as $sibling) {
+                $siblingDir = rtrim(str_replace('\\', '/', $sibling->getPath()), '/');
+
+                if ($siblingDir !== $dir) {
+                    continue;
+                }
+
+                if (in_array($sibling->getFilename(), $usedFilenames, true)) {
+                    continue;
+                }
+
+                $byFilename[$sibling->getFilename()] = $sibling;
+            }
+        }
+
+        return array_values($byFilename);
     }
 
     /**
