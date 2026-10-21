@@ -3,6 +3,8 @@
 @tailwind components;
 @tailwind utilities;
 
+[x-cloak] { display: none !important; }
+
 .ts-control {
   border-radius: 0.375rem;
   border-color: #D1D5DB;

@@ -39,7 +39,7 @@
         ];
     @endphp
 
-    <div class="max-w-4xl mx-auto space-y-6">
+    <div class="max-w-4xl mx-auto space-y-6" data-tour="mis-aprobaciones-content">
 
         {{-- Header --}}
         <div class="flex items-center justify-between">

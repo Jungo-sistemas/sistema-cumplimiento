@@ -76,6 +76,22 @@ class TwoFactorController extends Controller
 
         Auth::loginUsingId($user->id);
 
+        $user->increment('login_count');
+        $user->update(['last_login_at' => now()]);
+
+        // La guía obligatoria (primera vez) ya se resuelve sola en cada carga de página de
+        // Procesos (ver User::needsProcesosGuide()); aquí solo se decide el recordatorio
+        // opcional de cada 5 conexiones, que debe aparecer una sola vez por este login, no en
+        // cada página — por eso se marca en sesión y se consume (pull) al mostrarse.
+        if (
+            $user->canAccessModule('procesos')
+            && ! is_null($user->procesos_guide_completed_at)
+            && $user->login_count > 0
+            && $user->login_count % 5 === 0
+        ) {
+            $request->session()->put('show_procesos_guide_reminder', true);
+        }
+
         if ($user->isSuperAdmin()) {
             return redirect()->route('superadmin.dashboard');
         }

@@ -23,6 +23,9 @@ class User extends Authenticatable
         'module_access',
         'notification_modules',
         'status',
+        'login_count',
+        'last_login_at',
+        'procesos_guide_completed_at',
         'invite_token',
         'invite_expires_at',
         'invitation_accepted_at',
@@ -48,6 +51,8 @@ class User extends Authenticatable
             'invite_expires_at'      => 'datetime',
             'invitation_accepted_at' => 'datetime',
             'two_factor_expires_at'  => 'datetime',
+            'last_login_at'          => 'datetime',
+            'procesos_guide_completed_at' => 'datetime',
             'password'               => 'hashed',
         ];
     }
@@ -212,6 +217,16 @@ class User extends Authenticatable
     {
         $pref = $this->notification_modules ?? 'all';
         return $pref === 'all' || $pref === $module;
+    }
+
+    /**
+     * La guía de Procesos es obligatoria hasta que se completa una vez (sin importar cuántos
+     * logins pasen mientras tanto) — por eso esto se recalcula en cada carga de página de Procesos
+     * en vez de depender de un conteo de logins, que se podría evadir cerrando la pestaña.
+     */
+    public function needsProcesosGuide(): bool
+    {
+        return $this->canAccessModule('procesos') && is_null($this->procesos_guide_completed_at);
     }
 
     public function sendPasswordResetNotification($token): void

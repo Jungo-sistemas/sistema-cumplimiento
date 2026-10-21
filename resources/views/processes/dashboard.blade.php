@@ -7,7 +7,7 @@
         <h1 class="text-2xl font-semibold text-[#1A428A]">Tablero de procesos</h1>
 
         {{-- Cards de resumen --}}
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" data-tour="dashboard-summary">
             <div class="bg-white border rounded-lg shadow-sm p-4">
                 <div class="text-sm font-semibold text-[#1A428A]">Total procedimientos</div>
                 <div class="mt-2 text-2xl font-bold text-gray-800">{{ $stats['total'] }}</div>

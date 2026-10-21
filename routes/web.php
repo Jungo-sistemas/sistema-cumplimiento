@@ -22,6 +22,7 @@ use App\Http\Controllers\InvestmentRequestController;
 use App\Http\Controllers\RegulationController;
 use App\Http\Controllers\RegulationVersionController;
 use App\Http\Controllers\RegulationApprovalController;
+use App\Http\Controllers\ProcessesGuideController;
 use App\Http\Controllers\RegulationTrashController;
 use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\SuperAdminController;
@@ -156,6 +157,12 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     */
     Route::get('/procesos', [ProcessesDashboardController::class, 'index'])
         ->name('processes.dashboard');
+
+    Route::post('/procesos/guide/complete', [ProcessesGuideController::class, 'complete'])
+        ->name('processes.guide.complete');
+
+    Route::get('/procesos/guia', [ProcessesGuideController::class, 'manual'])
+        ->name('processes.guide.manual');
 
     Route::get('/my-approvals', [MyApprovalsController::class, 'index'])
         ->name('my-approvals.index');

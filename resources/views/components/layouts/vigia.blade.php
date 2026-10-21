@@ -137,6 +137,12 @@
                                 @endforeach
                             </div>
                         </div>
+
+                        @if($currentModule === 'procesos')
+                            <a href="{{ route('processes.guide.manual') }}" target="_blank" rel="noopener"
+                               title="Guía de usuario de Procesos"
+                               class="hidden h-5 w-5 flex-none items-center justify-center rounded-full border border-white/40 text-[11px] font-bold text-white/80 hover:border-white hover:text-white sm:inline-flex">?</a>
+                        @endif
                     @endif
                 </div>
 
@@ -229,14 +235,14 @@
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.users') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
                         @elseif($currentModule === 'procesos')
                             {{-- ── MÓDULO: PROCESOS ── --}}
-                            <a href="{{ route('processes.dashboard') }}" @click="mobileMenuOpen = false"
+                            <a href="{{ route('processes.dashboard') }}" @click="mobileMenuOpen = false" data-tour="nav-tablero"
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
 
-                            <a href="{{ route('processes.index') }}" @click="mobileMenuOpen = false"
+                            <a href="{{ route('processes.index') }}" @click="mobileMenuOpen = false" data-tour="nav-procedimientos"
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Procedimientos</a>
 
                             @if($pendingApprovalsCount > 0 || request()->routeIs('my-approvals.*'))
-                                <a href="{{ route('my-approvals.index') }}" @click="mobileMenuOpen = false"
+                                <a href="{{ route('my-approvals.index') }}" @click="mobileMenuOpen = false" data-tour="nav-mis-aprobaciones"
                                    class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('my-approvals.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
                                     <span>Mis aprobaciones</span>
                                     @if($pendingApprovalsCount > 0)
@@ -356,14 +362,14 @@
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.users') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
                         @elseif($currentModule === 'procesos')
                             {{-- ── MÓDULO: PROCESOS ── --}}
-                            <a href="{{ route('processes.dashboard') }}"
+                            <a href="{{ route('processes.dashboard') }}" data-tour="nav-tablero"
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
 
-                            <a href="{{ route('processes.index') }}"
+                            <a href="{{ route('processes.index') }}" data-tour="nav-procedimientos"
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Procedimientos</a>
 
                             @if($pendingApprovalsCount > 0 || request()->routeIs('my-approvals.*'))
-                                <a href="{{ route('my-approvals.index') }}"
+                                <a href="{{ route('my-approvals.index') }}" data-tour="nav-mis-aprobaciones"
                                    class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('my-approvals.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
                                     <span>Mis aprobaciones</span>
                                     @if($pendingApprovalsCount > 0)
@@ -460,5 +466,13 @@
             </div>
         </div>
     </div>
+
+    @if($currentModule === 'procesos')
+        @if($user->needsProcesosGuide())
+            <x-processes-guide mode="mandatory" />
+        @elseif(session()->pull('show_procesos_guide_reminder'))
+            <x-processes-guide mode="reminder" />
+        @endif
+    @endif
 </body>
 </html>

@@ -274,6 +274,7 @@
                         <th class="text-left px-4 py-3 font-semibold">Rol</th>
                         <th class="text-left px-4 py-3 font-semibold">Alcance</th>
                         <th class="text-left px-4 py-3 font-semibold">Estado</th>
+                        <th class="text-center px-4 py-3 font-semibold">Conexiones</th>
 
                         @if(auth()->user()->isAdmin())
                             <th class="text-right px-4 py-3 font-semibold">Acciones</th>
@@ -327,6 +328,10 @@
                                 @endif
                             </td>
 
+                            <td class="px-4 py-3 text-center text-gray-600" title="{{ $user->last_login_at?->format('d/m/Y H:i') ?? 'Nunca ha entrado' }}">
+                                {{ $user->login_count }}
+                            </td>
+
                             @if(auth()->user()->isAdmin())
                                 <td class="px-4 py-3 text-right">
                                     @if($user->id !== auth()->id())
@@ -370,7 +375,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+                            <td colspan="8" class="px-4 py-8 text-center text-gray-500">
                                 No hay usuarios registrados todavía.
                             </td>
                         </tr>
