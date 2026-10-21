@@ -30,7 +30,10 @@ class RegulationVersionController extends Controller
         abort_unless($user->canAccessCompany($regulation->company), 403);
         abort_unless(! $regulation->hasActiveApprovalFlow(), 403, 'No se puede subir una nueva versión mientras el documento está en proceso de aprobación.');
 
-        $wasApproved = $regulation->approval_status === 'approved';
+        // "outdated" (documento viejo de referencia, sin flujo) cuenta igual que "approved": subir
+        // una versión nueva es justo la forma de reemplazarlo — a partir de ahí sí necesita su
+        // primera revisión real.
+        $wasApproved = in_array($regulation->approval_status, ['approved', 'outdated'], true);
         $previousValidUntil = $regulation->currentVersion?->valid_until;
 
         $data = $request->validate([
@@ -454,7 +457,8 @@ class RegulationVersionController extends Controller
         ]);
 
         $regulation = $version->regulation;
-        $wasApproved = $regulation->approval_status === 'approved';
+        // "outdated" cuenta igual que "approved" — ver RegulationController::confirmEditDraft().
+        $wasApproved = in_array($regulation->approval_status, ['approved', 'outdated'], true);
 
         $changeDescription = $data['change_description'] ?? null;
         $changeJustification = $data['change_justification'];

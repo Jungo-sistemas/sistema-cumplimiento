@@ -583,7 +583,10 @@ class RegulationController extends Controller
     {
         $regulation = Regulation::findOrFail($draft['regulation_id']);
         abort_unless($regulation->isEditableBy($user), 403);
-        $wasApproved = $regulation->approval_status === 'approved';
+        // "outdated" cuenta igual que "approved" aquí: el wizard es justo la forma de reemplazar un
+        // documento viejo de referencia por contenido real — en cuanto eso pasa, ya no tiene caso
+        // seguir sin flujo, necesita su primera revisión de verdad.
+        $wasApproved = in_array($regulation->approval_status, ['approved', 'outdated'], true);
 
         $data = $draft['meta'];
         $ai = $draft['ai'];

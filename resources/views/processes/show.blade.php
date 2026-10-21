@@ -594,12 +594,14 @@
                         {{ $apColor === 'green'  ? 'bg-green-50 text-green-700 border-green-200' : '' }}
                         {{ $apColor === 'yellow' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : '' }}
                         {{ $apColor === 'red'    ? 'bg-red-50 text-red-700 border-red-200' : '' }}
-                        {{ $apColor === 'blue'   ? 'bg-blue-50 text-blue-700 border-blue-200' : '' }}">
+                        {{ $apColor === 'blue'   ? 'bg-blue-50 text-blue-700 border-blue-200' : '' }}
+                        {{ $apColor === 'gray'   ? 'bg-gray-50 text-gray-600 border-gray-200' : '' }}">
                         <span class="h-2 w-2 rounded-full
                             {{ $apColor === 'green'  ? 'bg-green-500' : '' }}
                             {{ $apColor === 'yellow' ? 'bg-yellow-400' : '' }}
                             {{ $apColor === 'red'    ? 'bg-red-500' : '' }}
-                            {{ $apColor === 'blue'   ? 'bg-blue-500' : '' }}">
+                            {{ $apColor === 'blue'   ? 'bg-blue-500' : '' }}
+                            {{ $apColor === 'gray'   ? 'bg-gray-400' : '' }}">
                         </span>
                         {{ $regulation->approvalStatusLabel() }}
                     </span>
@@ -614,6 +616,12 @@
                     </svg>
                 </a>
             </div>
+
+            @if($regulation->approval_status === 'outdated')
+                <p class="mt-2 text-xs text-gray-400">
+                    Documento antiguo cargado de referencia — se reemplazará con una versión nueva más adelante. No tiene flujo de aprobación activo ni genera recordatorios.
+                </p>
+            @endif
         @elseif($regulation->approval_status === 'approved' && !$regulation->flow_locked)
             {{-- Documento cargado y aprobado externamente (sin flujo interno) --}}
             <div class="mt-8 flex items-start gap-4 rounded-xl border border-green-200 bg-green-50 px-5 py-4">

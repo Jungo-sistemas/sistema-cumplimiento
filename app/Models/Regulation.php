@@ -31,6 +31,11 @@ class Regulation extends Model
         'pending_authorization' => 'En autorización',
         'approved'              => 'Aprobado',
         'rejected'              => 'Rechazado',
+        // Documento antiguo cargado solo de referencia, que se reemplazará más adelante por una
+        // versión nueva — a propósito NO pasa por ningún flujo de aprobación (ver
+        // ImportLegacyRegulations) ni genera recordatorios, pero tampoco se muestra como "Aprobado"
+        // porque no lo está.
+        'outdated'              => 'Desactualizado',
     ];
 
     protected $fillable = [
@@ -131,6 +136,10 @@ class Regulation extends Model
         // Sin versión, o con versión pero sin vigencia asignada todavía (se asigna solo al
         // aprobarse — ver ApprovalFlowService::processApproval()): no se puede saber si está
         // vigente o no, así que nunca cae en "Vigente" (verde) por default.
+        if ($this->approval_status === 'outdated') {
+            return 'gray';
+        }
+
         if (! $version || ! $version->valid_until) {
             return $this->approval_status === 'approved' ? 'blue' : 'yellow';
         }
@@ -148,6 +157,10 @@ class Regulation extends Model
 
     public function statusLabel(): string
     {
+        if ($this->approval_status === 'outdated') {
+            return 'Desactualizado';
+        }
+
         $version = $this->currentVersion;
 
         if (! $version || ! $version->valid_until) {
@@ -249,6 +262,7 @@ class Regulation extends Model
             'approved'              => 'green',
             'rejected'              => 'red',
             'pending_authorization' => 'blue',
+            'outdated'              => 'gray',
             default                 => 'yellow',
         };
     }

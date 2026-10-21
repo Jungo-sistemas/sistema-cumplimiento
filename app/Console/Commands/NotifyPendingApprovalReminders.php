@@ -25,6 +25,10 @@ class NotifyPendingApprovalReminders extends Command
         $pending = RegulationApproval::where('status', 'pending')
             ->where('reminders_sent', '<', self::MAX_REMINDERS)
             ->whereNotNull('user_id')
+            // Un reglamento "outdated" (documento viejo de referencia, ImportLegacyRegulations) no
+            // debería tener filas de aprobación — esto es un resguardo extra, no la defensa
+            // principal, por si alguna vez queda una suelta (p. ej. por un cambio manual de estado).
+            ->whereHas('regulation', fn ($q) => $q->where('approval_status', '!=', 'outdated'))
             ->with(['user', 'regulation.company'])
             ->get();
 

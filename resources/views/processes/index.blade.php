@@ -34,7 +34,7 @@
 
         <div class="flex items-center gap-2">
             @if($user->isAdmin())
-                <a href="{{ route('processes.obsoleto') }}"
+                <a href="{{ route('processes.obsoleto') }}" data-tour="btn-obsoleto"
                    class="flex items-center gap-1.5 px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-600 font-semibold text-sm hover:bg-gray-50">
                     <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2L19 8M10 12v4M14 12v4"/>
@@ -42,7 +42,7 @@
                     Obsoleto
                 </a>
 
-                <a href="{{ route('processes.trash.index') }}"
+                <a href="{{ route('processes.trash.index') }}" data-tour="btn-papelera"
                    class="flex items-center gap-1.5 px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-600 font-semibold text-sm hover:bg-gray-50">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none"
                          viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -74,7 +74,7 @@
 
                 {{-- Cargar documento por archivo — solo admins --}}
                 @if($user->isAdmin())
-                    <a href="{{ route('processes.cargar', $selectedCompanyId ? ['company_id' => $selectedCompanyId] : []) }}"
+                    <a href="{{ route('processes.cargar', $selectedCompanyId ? ['company_id' => $selectedCompanyId] : []) }}" data-tour="btn-cargar"
                        class="flex items-center gap-1.5 px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold text-sm hover:bg-blue-50">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                              viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -85,7 +85,7 @@
                     </a>
                 @endif
                 @if($user->isAdmin() || $user->isOperative())
-                    <a href="{{ route('processes.create', $selectedCompanyId ? ['company_id' => $selectedCompanyId] : []) }}"
+                    <a href="{{ route('processes.create', $selectedCompanyId ? ['company_id' => $selectedCompanyId] : []) }}" data-tour="btn-nuevo-procedimiento"
                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
                         Nuevo procedimiento
                     </a>
@@ -397,7 +397,7 @@
         @endif
 
         {{-- VISTA DE TABLA --}}
-        <div class="mt-3 bg-white border rounded-lg shadow-sm overflow-hidden">
+        <div class="mt-3 bg-white border rounded-lg shadow-sm overflow-hidden" data-tour="processes-table">
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead class="bg-gray-50 text-gray-600">
@@ -600,10 +600,11 @@
                                                     {{ $color === 'green'  ? 'bg-green-500' : '' }}
                                                     {{ $color === 'yellow' ? 'bg-yellow-400' : '' }}
                                                     {{ $color === 'red'    ? 'bg-red-500'   : '' }}
-                                                    {{ $color === 'blue'   ? 'bg-[#1A428A]' : '' }}">
+                                                    {{ $color === 'blue'   ? 'bg-[#1A428A]' : '' }}
+                                                    {{ $color === 'gray'   ? 'bg-gray-400'  : '' }}">
                                                 </span>
                                                 <span class="text-xs {{ $color === 'red' ? 'text-red-600 font-medium' : ($color === 'yellow' ? 'text-yellow-600 font-medium' : 'text-gray-600') }}">
-                                                    {{ $version->valid_until->format('d/m/Y') }}
+                                                    {{ $color === 'gray' ? 'Desactualizado' : $version->valid_until->format('d/m/Y') }}
                                                 </span>
                                             </button>
                                             <div x-show="open"
@@ -615,6 +616,9 @@
                                                 @elseif($color === 'yellow')
                                                     <p class="font-semibold text-yellow-600">Por vencer</p>
                                                     @if($daysLeft !== null)<p class="mt-1">Vence en {{ $daysLeft }} día(s).</p>@endif
+                                                @elseif($color === 'gray')
+                                                    <p class="font-semibold text-gray-600">Desactualizado</p>
+                                                    <p class="mt-1">Documento antiguo, pendiente de reemplazo — no requiere aprobación.</p>
                                                 @else
                                                     <p class="font-semibold text-green-600">Vigente</p>
                                                     @if($daysLeft !== null)<p class="mt-1">Vence en {{ $daysLeft }} día(s).</p>@endif
@@ -630,9 +634,9 @@
                                     @else
                                         <span class="inline-flex items-center gap-1.5 text-xs text-gray-400">
                                             <span class="inline-block h-2 w-2 rounded-full shrink-0
-                                                {{ $color === 'blue' ? 'bg-[#1A428A]' : 'bg-yellow-400' }}">
+                                                {{ $color === 'blue' ? 'bg-[#1A428A]' : ($color === 'gray' ? 'bg-gray-400' : 'bg-yellow-400') }}">
                                             </span>
-                                            {{ $color === 'blue' ? 'Sin archivo' : 'Sin vigencia' }}
+                                            {{ $color === 'blue' ? 'Sin archivo' : ($color === 'gray' ? 'Desactualizado' : 'Sin vigencia') }}
                                         </span>
                                     @endif
                                 </td>

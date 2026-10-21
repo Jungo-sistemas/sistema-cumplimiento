@@ -7,7 +7,6 @@ use App\Models\ProcessType;
 use App\Models\Regulation;
 use App\Models\RegulationVersion;
 use App\Models\User;
-use App\Services\ApprovalFlowService;
 use Illuminate\Console\Command;
 use Illuminate\Http\File as HttpFile;
 use Illuminate\Support\Carbon;
@@ -19,12 +18,11 @@ use Illuminate\Support\Str;
 /**
  * Carga masiva de procedimientos antiguos (documentos ya existentes de antes de este sistema,
  * identificados en el inventario de origen por llevar "REG" en el código) hacia Procesos. Cada
- * fila del CSV se registra como un Regulation con is_legacy=true y entra en revisión real
- * (approval_status=pending_review, con su flujo de aprobación ya armado vía
- * ApprovalFlowService::initFlow(), pero sin mandar los correos de "tienes que aprobar esto" —
- * $notify=false) — visible pero no editable hasta que se resuelva esa revisión o alguien lo
- * actualice con el wizard o subiendo una versión nueva (ver Regulation::isEditableBy
- * / RegulationController::confirmEditDraft / RegulationVersionController::store).
+ * fila del CSV se registra como un Regulation con is_legacy=true y approval_status=outdated — sin
+ * ningún flujo de aprobación real ni recordatorios, porque es solo una referencia de lo que ya
+ * existía, que se reemplazará después con una versión nueva (actualizándolo con el wizard o
+ * subiendo una versión, ver Regulation::isEditableBy / RegulationController::confirmEditDraft /
+ * RegulationVersionController::store) — ese reemplazo es lo que arranca el primer flujo real.
  *
  * El CSV es un maestro con TODAS las empresas mezcladas (no viene pre-filtrado) — el filtro real
  * de empresa lo pone la carpeta: cada fila solo se importa si su CÓDIGO coincide con un archivo
@@ -218,16 +216,17 @@ class ImportLegacyRegulations extends Command
             'is_active' => true,
             'created_by' => $uploader->id,
             'impact_level' => $impactLevel,
-            // A diferencia de un documento "cargado con aprobación previa" (ver
-            // RegulationController::storeCargar), estos SÍ deben pasar por el flujo de revisión
-            // real, no entrar directo como aprobados — initFlow() más abajo crea los registros de
-            // aprobación reales (con $notify=false para no mandar un correo de "tienes que
-            // aprobar esto" a cada líder/jefe/gerente por cada documento histórico importado).
-            'approval_status' => 'pending_review',
-            'flow_locked' => true,
+            // Estos son documentos viejos cargados solo de referencia, que se van a reemplazar
+            // más adelante por una versión nueva (actualizándolos con el wizard o subiendo una
+            // versión, ver Regulation::isEditableBy) — no les corresponde ningún flujo de
+            // aprobación real todavía, y por lo tanto tampoco deben generar los recordatorios de
+            // ApprovalFlowReminders. 'outdated' es justo para eso: ni "aprobado" (no lo está) ni
+            // en revisión (nadie tiene que actuar sobre esto ahora). Antes esto entraba como
+            // pending_review con un flujo real armado vía initFlow() — eso fue lo que inundó de
+            // correos a un aprobador cuando un lote grande avanzó de golpe el mismo día.
+            'approval_status' => 'outdated',
+            'flow_locked' => false,
         ]);
-
-        app(ApprovalFlowService::class)->initFlow($regulation, [], false);
 
         $directory = "regulations/{$company->id}/{$regulation->id}/versions";
         $storedName = 'v1_' . Str::slug(pathinfo($match['file'], PATHINFO_FILENAME)) . '.' . pathinfo($match['file'], PATHINFO_EXTENSION);
