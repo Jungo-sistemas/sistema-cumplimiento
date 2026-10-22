@@ -102,8 +102,14 @@ class DocumentVersionController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            // Un documento puede tener varios archivos vigentes a la vez (ej. la escritura y su
-            // anexo) — subir uno nuevo se agrega como otro archivo vigente, no reemplaza al resto.
+            // Un documento tiene un solo archivo vigente: al subir uno nuevo, lo que estaba vigente
+            // pasa al histórico documental. (Los documentos importados que llegaron con varios
+            // archivos vigentes a la vez también pasan todos al histórico en la primera subida.)
+            DocumentVersion::query()
+                ->where('document_id', $document->id)
+                ->where('is_current', true)
+                ->update(['is_current' => false]);
+
             $nextVersion = (int) DocumentVersion::query()
                 ->where('document_id', $document->id)
                 ->max('version_number');
@@ -128,7 +134,7 @@ class DocumentVersionController extends Controller
             ]);
         });
 
-        return back()->with('success', 'Archivo agregado correctamente.');
+        return back()->with('success', 'Versión subida correctamente. La anterior quedó en el histórico documental.');
     }
 
     public function preview(DocumentVersion $version)

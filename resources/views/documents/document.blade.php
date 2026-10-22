@@ -88,11 +88,11 @@
                 <div class="p-5 border-b flex items-start justify-between gap-3">
                     <div>
                         <div class="font-semibold text-[#1A428A]">
-                            {{ $currentVersions->isNotEmpty() ? 'Agregar otro archivo' : 'Subir documento' }}
+                            {{ $currentVersions->isNotEmpty() ? 'Subir nueva versión' : 'Subir documento' }}
                         </div>
                         <div class="text-sm text-gray-500">
                             @if($currentVersions->isNotEmpty())
-                                Sube un archivo. Se agrega junto a los que ya están vigentes, sin reemplazarlos.
+                                Sube un archivo con su vigencia. Quedará como la versión actual y la anterior pasará al histórico documental.
                             @else
                                 Sube un archivo. Quedará registrado como vigente y el histórico se conserva.
                             @endif
@@ -209,7 +209,7 @@
 
                             <button type="submit"
                                     class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
-                                {{ $currentVersions->isNotEmpty() ? 'Agregar otro archivo' : 'Subir documento' }}
+                                {{ $currentVersions->isNotEmpty() ? 'Subir nueva versión' : 'Subir documento' }}
                             </button>
                         </form>
                     @endif
@@ -226,7 +226,7 @@
                         @endif
                     </div>
                     <div class="text-sm text-gray-500">
-                        Los archivos vigentes del documento. Puede haber más de uno a la vez (ej. el documento y un anexo). Los anteriores permanecen en el historial.
+                        El archivo vigente del documento. Las versiones anteriores permanecen en el histórico documental.
                     </div>
                 </div>
 
