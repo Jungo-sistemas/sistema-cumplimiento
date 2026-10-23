@@ -10,6 +10,12 @@
     @endphp
 
     {{-- License limit alert --}}
+    @if(session('error'))
+        <div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 text-sm">
+            {{ session('error') }}
+        </div>
+    @endif
+
     @if(session('license_limit'))
         <div class="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-4 flex items-start gap-3">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 text-orange-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

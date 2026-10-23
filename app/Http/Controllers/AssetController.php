@@ -267,9 +267,18 @@ class AssetController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        // Sin ?company_id= (p. ej. desde la lista con el filtro en "Todas"), un usuario de alcance
+        // de grupo no tiene company_id propio — antes eso terminaba en findOrFail(0) y un 404. Se
+        // usa la primera empresa a la que tiene acceso; en el formulario puede cambiarla.
         $selectedCompanyId = $request->filled('company_id')
             ? (int) $request->company_id
-            : (int) ($user->hasMultipleCompanies() ? ($user->accessibleCompanyIds()[0] ?? 0) : $user->company_id);
+            : (int) ($companies->firstWhere('id', $user->company_id)?->id ?? $companies->first()?->id);
+
+        if (! $selectedCompanyId) {
+            return redirect()
+                ->route('assets.index')
+                ->with('error', 'No tienes ninguna empresa asignada para registrar activos.');
+        }
 
         $selectedCompany = Company::findOrFail($selectedCompanyId);
 
