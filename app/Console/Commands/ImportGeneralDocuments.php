@@ -541,8 +541,28 @@ class ImportGeneralDocuments extends Command
         $groupUsers = User::where('group_id', $groupId)->get(['id', 'name', 'email']);
         $ids = [];
 
+        $words = fn (string $value) => preg_split('/\s+/', Str::lower(Str::ascii(trim($value))), -1, PREG_SPLIT_NO_EMPTY);
+
         foreach ($names as $name) {
             $match = $groupUsers->first(fn ($u) => Str::lower($u->name) === Str::lower($name) || Str::lower($u->email) === Str::lower($name));
+
+            // En el CSV es común escribir solo nombre y primer apellido ("Eduardo Caballero")
+            // cuando el usuario tiene el nombre completo ("Eduardo Caballero Guerrero"): si no hay
+            // coincidencia exacta, se acepta el usuario cuyo nombre contenga todas esas palabras,
+            // pero solo si es uno solo — con varios candidatos no se adivina.
+            if (! $match) {
+                $wanted     = $words($name);
+                $candidates = $groupUsers->filter(fn ($u) => empty(array_diff($wanted, $words($u->name))));
+
+                if ($candidates->count() === 1) {
+                    $match = $candidates->first();
+                } elseif ($candidates->count() > 1) {
+                    $accessWarnings[] = "{$rawCode}: \"{$name}\" coincide con varios usuarios ("
+                        . $candidates->pluck('name')->join(', ') . ") — no se asignó; escribe el nombre completo.";
+
+                    continue;
+                }
+            }
 
             if ($match) {
                 $ids[] = $match->id;
