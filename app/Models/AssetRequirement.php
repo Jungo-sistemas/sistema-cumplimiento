@@ -24,6 +24,7 @@ class AssetRequirement extends Model
         'completed_at',
         'issued_at',
         'expires_at',
+        'bodega',
         'current_document_id',
         'recurrence_interval',
         'recurrence_unit',

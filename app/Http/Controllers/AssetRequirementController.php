@@ -148,6 +148,7 @@ class AssetRequirementController extends Controller
             'recurrence_interval' => $requirement->recurrence_interval,
             'recurrence_unit' => $requirement->recurrence_unit,
             'recurrence_anchor' => $requirement->recurrence_anchor,
+            'bodega' => $requirement->bodega,
         ]);
     }
 
@@ -185,6 +186,30 @@ class AssetRequirementController extends Controller
         $requirement->update(['status' => RequirementStatus::IN_TRANSIT]);
 
         return back()->with('success', 'Requerimiento marcado como En trámite.');
+    }
+
+    // Ubicación física (bodega) del documento original del requerimiento — se edita en línea
+    // desde la ficha del requerimiento; vaciar el campo la quita.
+    public function updateBodega(Request $request, Asset $asset, AssetRequirement $requirement)
+    {
+        abort_unless((int) $requirement->asset_id === (int) $asset->id, 404);
+
+        $asset->loadMissing('company');
+
+        abort_unless(auth()->user()->canAccessCompany($asset->company), 403);
+        abort_unless(auth()->user()->isAdmin() || auth()->user()->isOperative(), 403);
+
+        $data = $request->validate([
+            'bodega' => ['nullable', 'string', 'max:255'],
+        ], [
+            'bodega.max' => 'La bodega no puede tener más de 255 caracteres.',
+        ]);
+
+        $bodega = trim((string) ($data['bodega'] ?? ''));
+
+        $requirement->update(['bodega' => $bodega === '' ? null : $bodega]);
+
+        return back()->with('success', $bodega === '' ? 'Bodega eliminada.' : 'Bodega actualizada.');
     }
 
     public function reopen(Asset $asset, AssetRequirement $requirement)

@@ -175,6 +175,61 @@
                     @if((auth()->user()->hasGroupScope() || auth()->user()->hasMultipleCompanies()) && $asset->company)
                         <div><strong>Empresa:</strong> {{ $asset->company->name }}</div>
                     @endif
+
+                    {{-- Bodega: ubicación física exacta del documento original, editable en línea. --}}
+                    @php $canEditBodega = auth()->user()->isAdmin() || auth()->user()->isOperative(); @endphp
+                    <div x-data="{ editing: {{ $errors->has('bodega') ? 'true' : 'false' }} }" class="pt-1">
+                        <div x-show="!editing" class="flex items-start gap-2 flex-wrap">
+                            <span>
+                                <strong>Bodega:</strong>
+                                @if($requirement->bodega)
+                                    <span class="break-words">{{ $requirement->bodega }}</span>
+                                @else
+                                    <span class="text-gray-400">No registrada</span>
+                                @endif
+                            </span>
+                            @if($canEditBodega)
+                                <button type="button"
+                                        @click="editing = true; $nextTick(() => $refs.bodegaInput.focus())"
+                                        class="text-xs font-semibold text-[#1A428A] hover:underline">
+                                    {{ $requirement->bodega ? 'Editar' : 'Agregar' }}
+                                </button>
+                            @endif
+                        </div>
+
+                        @if($canEditBodega)
+                            <form x-show="editing" x-cloak
+                                  method="POST"
+                                  action="{{ route('assets.requirements.bodega', [$asset, $requirement]) }}"
+                                  class="space-y-2">
+                                @csrf
+                                @method('PATCH')
+                                <label class="block font-semibold">Bodega</label>
+                                <input type="text"
+                                       name="bodega"
+                                       x-ref="bodegaInput"
+                                       maxlength="255"
+                                       value="{{ old('bodega', $requirement->bodega) }}"
+                                       placeholder="Ej. Bodega Ricardo Margain, estante 3, caja 12"
+                                       @keydown.escape="editing = false"
+                                       class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
+                                @error('bodega')
+                                    <p class="text-xs text-red-600">{{ $message }}</p>
+                                @enderror
+                                <div class="flex items-center gap-2">
+                                    <button type="submit"
+                                            class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d]">
+                                        Guardar
+                                    </button>
+                                    <button type="button"
+                                            @click="editing = false"
+                                            class="px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-700 text-xs font-semibold hover:bg-gray-50">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        @endif
+                    </div>
                 </div>
 
                 <div class="space-y-1">

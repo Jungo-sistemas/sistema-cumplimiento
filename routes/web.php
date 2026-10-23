@@ -347,6 +347,9 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::patch('assets/{asset}/requirements/{requirement}/reopen', [AssetRequirementController::class, 'reopen'])
         ->name('assets.requirements.reopen');
 
+    Route::patch('assets/{asset}/requirements/{requirement}/bodega', [AssetRequirementController::class, 'updateBodega'])
+        ->name('assets.requirements.bodega');
+
     // Requirement official documents
     Route::get('assets/{asset}/requirements/{requirement}/documents', [AssetRequirementDocumentController::class, 'index'])
         ->name('assets.requirements.documents.index');

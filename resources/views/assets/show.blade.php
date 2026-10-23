@@ -623,6 +623,9 @@
                                     @if($responsibleArea)
                                         <div class="text-xs font-normal text-gray-400">{{ $responsibleArea }}</div>
                                     @endif
+                                    @if($req->bodega)
+                                        <div class="text-xs font-normal text-gray-500">Bodega: {{ $req->bodega }}</div>
+                                    @endif
                                 </td>
 
                                 <td class="px-6 py-4 whitespace-nowrap">
