@@ -61,10 +61,13 @@
                                 Empresa
                             </label>
 
+                            {{-- Al cambiar de empresa se recarga el formulario: los activos padre,
+                                 los responsables y el límite de licencia dependen de la empresa. --}}
                             <select
                                 name="company_id"
                                 class="{{ $selectClass }}"
                                 required
+                                onchange="if (this.value) window.location.href = @js(route('assets.create')) + '?company_id=' + encodeURIComponent(this.value)"
                             >
                                 <option value="">Selecciona una empresa</option>
 
@@ -79,6 +82,7 @@
                             @error('company_id')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
+                            <p class="mt-1 text-xs text-gray-500">Si cambias la empresa, el formulario se vuelve a cargar con sus activos y responsables.</p>
                         </div>
                     @else
                         <input type="hidden" name="company_id" value="{{ $selectedCompanyId }}">

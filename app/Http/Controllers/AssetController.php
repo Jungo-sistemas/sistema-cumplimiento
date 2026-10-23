@@ -267,17 +267,24 @@ class AssetController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        // Sin ?company_id= (p. ej. desde la lista con el filtro en "Todas"), un usuario de alcance
-        // de grupo no tiene company_id propio — antes eso terminaba en findOrFail(0) y un 404. Se
-        // usa la primera empresa a la que tiene acceso; en el formulario puede cambiarla.
-        $selectedCompanyId = $request->filled('company_id')
-            ? (int) $request->company_id
-            : (int) ($companies->firstWhere('id', $user->company_id)?->id ?? $companies->first()?->id);
-
-        if (! $selectedCompanyId) {
+        if ($companies->isEmpty()) {
             return redirect()
                 ->route('assets.index')
                 ->with('error', 'No tienes ninguna empresa asignada para registrar activos.');
+        }
+
+        // Sin ?company_id= (p. ej. desde la lista con el filtro en "Todas"): si el usuario tiene
+        // una empresa propia a la que tiene acceso, se usa esa; si no (un administrador de grupo
+        // sin empresa asignada) y puede elegir entre varias, primero se le pregunta en qué empresa
+        // quiere crear el activo — los activos padre, responsables y la licencia dependen de ella.
+        if ($request->filled('company_id')) {
+            $selectedCompanyId = (int) $request->company_id;
+        } elseif ($own = $companies->firstWhere('id', $user->company_id)) {
+            $selectedCompanyId = $own->id;
+        } elseif ($companies->count() > 1) {
+            return view('assets.select-company', compact('companies'));
+        } else {
+            $selectedCompanyId = $companies->first()->id;
         }
 
         $selectedCompany = Company::findOrFail($selectedCompanyId);
