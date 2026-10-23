@@ -472,6 +472,15 @@ class ImportGeneralDocuments extends Command
         return trim((string) $row[$keys[$fechaIndex - 1]]);
     }
 
+    // Clave para comparar tipos: minúsculas, sin acentos y sin el plural ("-es"/"-s") de cada
+    // palabra — "Libros de accionistas" y "Libro de Accionistas" dan la misma clave.
+    private function typeKey(string $value): string
+    {
+        $words = preg_split('/\s+/', Str::lower(Str::ascii(trim($value))), -1, PREG_SPLIT_NO_EMPTY);
+
+        return implode(' ', array_map(fn ($word) => preg_replace('/(es|s)$/', '', $word), $words));
+    }
+
     /** @param  array<int, string>  &$typeWarnings */
     private function matchDocumentType(string $raw, string $rawCode, array &$typeWarnings): string
     {
@@ -487,15 +496,14 @@ class ImportGeneralDocuments extends Command
             }
         }
 
-        // Tolera singular/plural entre el CSV y el catálogo (ej. "Poder" en el CSV vs "Poderes" en
-        // el catálogo) — en español el plural se forma con "-s" o con "-es" según la palabra, así
-        // que se comparan ambas variantes de cada lado en vez de solo quitar una "s" final.
-        $rawVariants = array_unique([Str::lower($raw), preg_replace('/(es|s)$/', '', Str::lower($raw))]);
+        // Tolera singular/plural y acentos entre el CSV y el catálogo (ej. "Poder" vs "Poderes", o
+        // "Libro de Accionistas" vs "Libros de accionistas"). Se quita el plural de CADA palabra,
+        // no solo del final del texto: si no, un tipo de varias palabras cuyo plural está en la
+        // primera ("Libros de …") nunca coincidiría con su singular.
+        $rawKey = $this->typeKey($raw);
 
         foreach (Document::DOCUMENT_TYPES as $type) {
-            $typeVariants = array_unique([Str::lower($type), preg_replace('/(es|s)$/', '', Str::lower($type))]);
-
-            if (array_intersect($rawVariants, $typeVariants)) {
+            if ($this->typeKey($type) === $rawKey) {
                 return $type;
             }
         }
