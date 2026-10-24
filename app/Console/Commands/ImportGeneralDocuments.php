@@ -19,6 +19,7 @@ class ImportGeneralDocuments extends Command
         {--csv= : Nombre del archivo .csv específico a usar, dentro de la carpeta (si se omite, se usan todos los .csv que haya ahí)}
         {--company= : ID de la empresa destino. Si se omite, los documentos quedan como "generales" del grupo (sin empresa específica) — en ese caso usa --group= para indicar el grupo.}
         {--group= : ID del grupo destino (solo necesario si se omite --company; con --company el grupo se deduce solo)}
+        {--only-bodega : No importa nada: solo actualiza la Bodega de los documentos ya importados, usando la columna Bodega del .csv}
         {--dry-run : Muestra lo que se haría sin escribir en base de datos ni copiar archivos}';
 
     protected $description = 'Carga masiva de Documentos generales (escrituras, poderes, actas, etc.) a partir de un .csv '
@@ -93,6 +94,10 @@ class ImportGeneralDocuments extends Command
 
         $this->info('Grupo #' . $groupId . ($companyId ? " — empresa #{$companyId}" : ' — documentos generales (sin empresa específica)'));
         $this->info('Archivos .csv encontrados: ' . $csvFiles->count() . ' — total de filas: ' . count($rows));
+
+        if ($this->option('only-bodega')) {
+            return $this->updateBodegas($rows, $groupId, $companyId, $dryRun);
+        }
 
         // Archivos reales de la carpeta (todo menos el propio .csv). $filesByCode agrupa los que
         // sí traen un código de escritura detectable en el nombre (la vía normal de emparejar);
@@ -189,6 +194,117 @@ class ImportGeneralDocuments extends Command
     }
 
     /**
+     * Código, nombre, pista de archivo y la referencia con que se identifica al documento de una
+     * fila del CSV (null si la fila viene vacía). La usan tanto la importación normal como
+     * --only-bodega, para que ambas reconozcan exactamente el mismo documento.
+     *
+     * @param  array<string, string>  $row
+     * @return array{0: string, 1: string, 2: string, 3: string}|null
+     */
+    private function rowIdentity(array $row): ?array
+    {
+        $rawCode = $this->findColumn($row, 'escritura', 'codigo', 'código');
+        // 'escrituras' como candidato tolera encabezados tipo "ESCRITURAS TERRENOS" o
+        // "ESCRITURAS CORPORATIVAS - DESCRIPCIÓN" (el título de la tabla original pegado al
+        // nombre de columna) cuando no traen literalmente "descripción" ni "nombre". Cuando el
+        // título ni siquiera menciona "escrituras" (ej. "CONTRATOS, CONVENIOS Y ACUERDOS"), se usa
+        // como último recurso la columna que esté justo antes de "Fecha" — en todos los Excel de
+        // este origen la descripción larga siempre cae ahí, tenga o no columna Archivo antes.
+        $name = $this->findColumn($row, 'descripcion', 'descripción', 'nombre', 'escrituras');
+        if ($name === '') {
+            $name = $this->findColumnBeforeFecha($row);
+        }
+        $archivoHint = $this->findColumn($row, 'archivo', 'documento');
+
+        if ($rawCode === '' && $name === '' && $archivoHint === '') {
+            return null;
+        }
+
+        // La referencia que identifica al documento (y evita duplicarlo si se vuelve a correr el
+        // comando): el código de escritura si hay, si no el texto de "Archivo", si no un pedazo de
+        // la descripción — así hasta un documento sin escritura ni columna Archivo queda con algo
+        // estable para no crearse dos veces.
+        $reference = $rawCode !== '' ? $rawCode : ($archivoHint !== '' ? $archivoHint : Str::limit($name, 100, ''));
+
+        return [$rawCode, $name, $archivoHint, $reference];
+    }
+
+    /**
+     * --only-bodega: no crea nada ni toca archivos — solo actualiza la Bodega de los documentos
+     * que ya se importaron, reconociéndolos por la misma referencia que usó la importación.
+     * Una celda de Bodega vacía en el CSV no borra la bodega que ya tenga el documento.
+     *
+     * @param  array<int, array<string, string>>  $rows
+     */
+    private function updateBodegas(array $rows, int $groupId, ?int $companyId, bool $dryRun): int
+    {
+        $updated   = 0;
+        $unchanged = 0;
+        $notFound  = [];
+        $noBodega  = [];
+
+        DB::transaction(function () use ($rows, $groupId, $companyId, $dryRun, &$updated, &$unchanged, &$notFound, &$noBodega) {
+            foreach ($rows as $row) {
+                $identity = $this->rowIdentity($row);
+
+                if (! $identity) {
+                    continue;
+                }
+
+                [, $name, , $reference] = $identity;
+                $label  = "{$reference} — " . Str::limit($name, 90);
+                $bodega = trim($this->findColumn($row, 'bodega'));
+
+                $query    = Document::where('group_id', $groupId)->where('reference', $reference);
+                $query    = $companyId ? $query->where('company_id', $companyId) : $query->whereNull('company_id');
+                $document = $query->first();
+
+                if (! $document) {
+                    $notFound[] = $label;
+                    continue;
+                }
+
+                if ($bodega === '') {
+                    $noBodega[] = $label;
+                    continue;
+                }
+
+                if ($document->bodega === $bodega) {
+                    $unchanged++;
+                    continue;
+                }
+
+                $this->line(($dryRun ? '  [dry-run] ' : '  ') . "{$label}: \"" . ($document->bodega ?? '(vacía)') . "\" → \"{$bodega}\"");
+
+                if (! $dryRun) {
+                    $document->update(['bodega' => $bodega]);
+                }
+
+                $updated++;
+            }
+        });
+
+        $this->newLine();
+        $this->info(($dryRun ? '[DRY RUN] ' : '') . "Bodegas actualizadas: {$updated}. Ya tenían esa bodega: {$unchanged}.");
+
+        if (! empty($noBodega)) {
+            $this->warn('Filas con la columna Bodega vacía — se dejó la bodega que ya tenían:');
+            foreach ($noBodega as $line) {
+                $this->line("  - {$line}");
+            }
+        }
+
+        if (! empty($notFound)) {
+            $this->warn('No se encontró un documento ya importado con esta referencia en la empresa/grupo indicado (¿otra --company?):');
+            foreach ($notFound as $line) {
+                $this->line("  - {$line}");
+            }
+        }
+
+        return self::SUCCESS;
+    }
+
+    /**
      * @param  array<string, string>  $row  fila ya normalizada (claves en minúsculas) del CSV
      * @param  array<string, array<int, \SplFileInfo>>  $filesByCode
      * @param  array<int, \SplFileInfo>  $allFiles
@@ -209,22 +325,13 @@ class ImportGeneralDocuments extends Command
         array &$typeWarnings,
         array &$usedFilenames,
     ): void {
-        $rawCode     = $this->findColumn($row, 'escritura', 'codigo', 'código');
-        // 'escrituras' como candidato tolera encabezados tipo "ESCRITURAS TERRENOS" o
-        // "ESCRITURAS CORPORATIVAS - DESCRIPCIÓN" (el título de la tabla original pegado al
-        // nombre de columna) cuando no traen literalmente "descripción" ni "nombre". Cuando el
-        // título ni siquiera menciona "escrituras" (ej. "CONTRATOS, CONVENIOS Y ACUERDOS"), se usa
-        // como último recurso la columna que esté justo antes de "Fecha" — en todos los Excel de
-        // este origen la descripción larga siempre cae ahí, tenga o no columna Archivo antes.
-        $name = $this->findColumn($row, 'descripcion', 'descripción', 'nombre', 'escrituras');
-        if ($name === '') {
-            $name = $this->findColumnBeforeFecha($row);
-        }
-        $archivoHint = $this->findColumn($row, 'archivo', 'documento');
+        $identity = $this->rowIdentity($row);
 
-        if ($rawCode === '' && $name === '' && $archivoHint === '') {
+        if (! $identity) {
             return;
         }
+
+        [$rawCode, $name, $archivoHint, $reference] = $identity;
 
         // La columna "Archivo" (si viene) manda sobre el código de escritura — está pensada para
         // documentos SIN número de escritura (convenios, registros, permisos), donde no hay nada
@@ -252,12 +359,6 @@ class ImportGeneralDocuments extends Command
         if (! empty($files)) {
             $files = $this->withSubfolderSiblings($files, $allFiles, $folder, $usedFilenames);
         }
-
-        // La referencia que identifica al documento (y evita duplicarlo si se vuelve a correr el
-        // comando): el código de escritura si hay, si no el texto de "Archivo", si no un pedazo de
-        // la descripción — así hasta un documento sin escritura ni columna Archivo queda con algo
-        // estable para no crearse dos veces.
-        $reference = $rawCode !== '' ? $rawCode : ($archivoHint !== '' ? $archivoHint : Str::limit($name, 100, ''));
 
         if (empty($files)) {
             $rowsWithoutFile[] = ($rawCode !== '' ? $rawCode : ($archivoHint !== '' ? "Archivo: {$archivoHint}" : '(sin escritura ni archivo)')) . " — {$name}";
