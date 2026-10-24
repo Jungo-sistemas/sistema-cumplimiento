@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateAssetRequirementRequest;
 use App\Models\Asset;
 use App\Models\AssetRequirement;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -189,7 +190,7 @@ class AssetRequirementController extends Controller
     }
 
     // Ubicación física (bodega) del documento original del requerimiento — se edita en línea
-    // desde la ficha del requerimiento; vaciar el campo la quita.
+    // desde la ficha del requerimiento; vaciar el campo la quita. Solo administradores.
     public function updateBodega(Request $request, Asset $asset, AssetRequirement $requirement)
     {
         abort_unless((int) $requirement->asset_id === (int) $asset->id, 404);
@@ -197,7 +198,7 @@ class AssetRequirementController extends Controller
         $asset->loadMissing('company');
 
         abort_unless(auth()->user()->canAccessCompany($asset->company), 403);
-        abort_unless(auth()->user()->isAdmin() || auth()->user()->isOperative(), 403);
+        abort_unless(auth()->user()->isAdmin(), 403);
 
         $data = $request->validate([
             'bodega' => ['nullable', 'string', 'max:255'],
@@ -205,11 +206,36 @@ class AssetRequirementController extends Controller
             'bodega.max' => 'La bodega no puede tener más de 255 caracteres.',
         ]);
 
-        $bodega = trim((string) ($data['bodega'] ?? ''));
+        $before = $requirement->bodega;
+        $after  = trim((string) ($data['bodega'] ?? ''));
+        $after  = $after === '' ? null : $after;
 
-        $requirement->update(['bodega' => $bodega === '' ? null : $bodega]);
+        if ($before === $after) {
+            return back();
+        }
 
-        return back()->with('success', $bodega === '' ? 'Bodega eliminada.' : 'Bodega actualizada.');
+        DB::transaction(function () use ($requirement, $before, $after) {
+            $requirement->update(['bodega' => $after]);
+
+            // Queda en el historial del requerimiento: cuándo se registró la ubicación por
+            // primera vez, cada vez que se mueve de bodega (de → a) y cuándo se dejó en blanco.
+            AuditLogger::log(
+                match (true) {
+                    $before === null => 'requirement.bodega_added',
+                    $after === null  => 'requirement.bodega_removed',
+                    default          => 'requirement.bodega_changed',
+                },
+                $requirement,
+                [
+                    'company_id'     => $requirement->company_id,
+                    'asset_id'       => $requirement->asset_id,
+                    'requirement_id' => $requirement->id,
+                ],
+                ['from' => $before, 'to' => $after]
+            );
+        });
+
+        return back()->with('success', $after === null ? 'Bodega eliminada.' : 'Bodega actualizada.');
     }
 
     public function reopen(Asset $asset, AssetRequirement $requirement)

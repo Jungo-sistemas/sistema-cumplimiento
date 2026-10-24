@@ -38,6 +38,10 @@
                 'requirement.deactivated' => 'Carpeta desactivada',
                 'requirement.activated' => 'Carpeta activada',
 
+                'requirement.bodega_added' => 'Bodega registrada',
+                'requirement.bodega_changed' => 'Cambio de bodega',
+                'requirement.bodega_removed' => 'Bodega eliminada',
+
                 'document.uploaded' => 'Documento subido',
                 'document.deleted' => 'Documento eliminado',
 
@@ -91,6 +95,20 @@
                 case 'requirement.updated':
                     if (!empty($meta['name'])) $lines[] = ['label' => 'Carpeta', 'value' => $meta['name']];
                     if (!empty($meta['due_date'])) $lines[] = ['label' => 'Vence', 'value' => $fmtDate($meta['due_date'])];
+                    break;
+
+                case 'requirement.bodega_added':
+                    $lines[] = ['label' => 'Bodega', 'value' => $meta['to'] ?? '—'];
+                    break;
+
+                case 'requirement.bodega_changed':
+                    $lines[] = ['label' => 'Bodega anterior', 'value' => $meta['from'] ?? '—'];
+                    $lines[] = ['label' => 'Bodega nueva', 'value' => $meta['to'] ?? '—'];
+                    break;
+
+                case 'requirement.bodega_removed':
+                    $lines[] = ['label' => 'Bodega anterior', 'value' => $meta['from'] ?? '—'];
+                    $lines[] = ['label' => 'Bodega nueva', 'value' => 'En blanco'];
                     break;
 
                 default:

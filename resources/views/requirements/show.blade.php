@@ -177,7 +177,7 @@
                     @endif
 
                     {{-- Bodega: ubicación física exacta del documento original, editable en línea. --}}
-                    @php $canEditBodega = auth()->user()->isAdmin() || auth()->user()->isOperative(); @endphp
+                    @php $canEditBodega = auth()->user()->isAdmin(); @endphp
                     <div x-data="{ editing: {{ $errors->has('bodega') ? 'true' : 'false' }} }" class="pt-1">
                         <div x-show="!editing" class="flex items-start gap-2 flex-wrap">
                             <span>
