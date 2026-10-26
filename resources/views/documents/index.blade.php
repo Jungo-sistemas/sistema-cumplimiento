@@ -122,7 +122,7 @@
                         <th class="text-left px-4 py-3">Fecha</th>
                         <th class="text-left px-4 py-3">Vencimiento</th>
                         <th class="text-left px-4 py-3">Tipo</th>
-                        <th class="text-left px-4 py-3">Responsable</th>
+                        <th class="text-left px-4 py-3">Responsables</th>
                         <th class="text-left px-4 py-3">Archivo</th>
                         <th class="px-4 py-3"></th>
                     </tr>
@@ -190,9 +190,13 @@
                                 {{ $document->document_type ?? '—' }}
                             </td>
 
-                            {{-- Responsable --}}
+                            {{-- Responsables --}}
                             <td class="px-4 py-3">
-                                {{ $document->responsible_name ?? '—' }}
+                                @forelse($document->responsibleNames() as $responsible)
+                                    <div class="whitespace-nowrap">{{ $responsible }}</div>
+                                @empty
+                                    —
+                                @endforelse
                             </td>
 
                             {{-- Archivo --}}
@@ -258,7 +262,7 @@
                   action="{{ route('documents.store') }}"
                   x-data
                   x-init="$nextTick(() => {
-                      initPersonPicker($refs.responsibleUser, { multiple: false });
+                      initPersonPicker($refs.responsibleUser);
                       initPersonPicker($refs.authorizedUsers);
                   })"
                   class="p-6">
@@ -372,16 +376,15 @@
                         @endif
                     </div>
 
-                    {{-- Responsable --}}
+                    {{-- Responsables (uno o varios) --}}
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Responsable
+                            Responsables
                         </label>
-                        <select name="responsible_name" x-ref="responsibleUser">
-                            <option value="">— Seleccionar usuario —</option>
+                        <select name="responsible_names[]" multiple x-ref="responsibleUser">
                             @foreach($users as $u)
                                 <option value="{{ $u->name }}"
-                                        @selected(old('responsible_name') === $u->name)>
+                                        @selected(in_array($u->name, old('responsible_names', []), true))>
                                     {{ $u->name }}{{ $u->role ? ' — ' . $u->role->name : '' }}
                                 </option>
                             @endforeach

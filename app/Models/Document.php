@@ -126,6 +126,29 @@ class Document extends Model
         return $this->currentVersions->contains(fn (DocumentVersion $v) => $v->isNearExpiration($days));
     }
 
+    /**
+     * Los responsables se guardan como texto en responsible_name, separados por coma. Los que
+     * llegaron del importador pueden venir separados por "/" o ";" (ej. "Aurelia Cruz / Martha
+     * Lara"), así que se aceptan los tres separadores al leerlos.
+     *
+     * @return array<int, string>
+     */
+    public function responsibleNames(): array
+    {
+        return self::splitResponsibleNames($this->responsible_name);
+    }
+
+    /** @return array<int, string> */
+    public static function splitResponsibleNames(?string $value): array
+    {
+        return collect(preg_split('/[,;\/]/', (string) $value))
+            ->map(fn ($name) => trim($name))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     public function vigenciaStatus(): string
     {
         if ($this->isExpired()) {

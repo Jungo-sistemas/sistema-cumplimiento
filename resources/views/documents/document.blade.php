@@ -41,6 +41,12 @@
                         </span>
                     @endif
 
+                    @if($document->responsibleNames())
+                        <span class="inline-flex items-center text-sm px-5 py-2.5 rounded bg-[#1A428A] text-white font-medium">
+                            {{ count($document->responsibleNames()) > 1 ? 'Responsables' : 'Responsable' }}: {{ implode(', ', $document->responsibleNames()) }}
+                        </span>
+                    @endif
+
                     @if($document->authorizedUsers->isNotEmpty())
                         <span class="inline-flex items-center text-sm px-5 py-2.5 rounded bg-[#1A428A] text-white font-medium">
                             Accesos: {{ $document->authorizedUsers->pluck('name')->join(', ') }}
@@ -466,7 +472,7 @@
                   action="{{ route('documents.update', $document) }}"
                   x-data
                   x-init="$nextTick(() => {
-                      initPersonPicker($refs.responsibleUser, { multiple: false });
+                      initPersonPicker($refs.responsibleUser);
                       initPersonPicker($refs.authorizedUsers);
                   })"
                   class="p-6">
@@ -581,16 +587,24 @@
                         @endif
                     </div>
 
-                    {{-- Responsable --}}
+                    {{-- Responsables (uno o varios) --}}
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Responsable
+                            Responsables
                         </label>
-                        <select name="responsible_name" x-ref="responsibleUser">
-                            <option value="">— Seleccionar usuario —</option>
+                        @php
+                            $selectedResponsibles = old('responsible_names', $document->responsibleNames());
+                            // Nombres guardados que no son usuarios del sistema (p. ej. los que vinieron
+                            // del importador): se conservan como opción ya seleccionada para no perderlos.
+                            $extraResponsibles = array_diff($selectedResponsibles, $users->pluck('name')->all());
+                        @endphp
+                        <select name="responsible_names[]" multiple x-ref="responsibleUser">
+                            @foreach($extraResponsibles as $name)
+                                <option value="{{ $name }}" selected>{{ $name }}</option>
+                            @endforeach
                             @foreach($users as $u)
                                 <option value="{{ $u->name }}"
-                                        @selected(old('responsible_name', $document->responsible_name) === $u->name)>
+                                        @selected(in_array($u->name, $selectedResponsibles, true))>
                                     {{ $u->name }}{{ $u->role ? ' — ' . $u->role->name : '' }}
                                 </option>
                             @endforeach

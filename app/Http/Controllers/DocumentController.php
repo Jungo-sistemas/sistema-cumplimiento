@@ -109,7 +109,7 @@ class DocumentController extends Controller
             'reference'               => $data['reference'] ?? null,
             'bodega'                  => $data['bodega'] ?? null,
             'document_type'           => $data['document_type'],
-            'responsible_name'        => $data['responsible_name'] ?? null,
+            'responsible_name'        => $this->joinResponsibleNames($data['responsible_names'] ?? []),
             'is_required'             => true,
             'is_active'               => true,
             'uploaded_by'             => $user->id,
@@ -143,7 +143,7 @@ class DocumentController extends Controller
             'reference'        => $data['reference'] ?? null,
             'bodega'           => $data['bodega'] ?? null,
             'document_type'    => $data['document_type'],
-            'responsible_name' => $data['responsible_name'] ?? null,
+            'responsible_name' => $this->joinResponsibleNames($data['responsible_names'] ?? []),
             'is_required'      => true,
         ]);
 
@@ -163,10 +163,20 @@ class DocumentController extends Controller
             'reference'               => ['nullable', 'string', 'max:255'],
             'bodega'                  => ['nullable', 'string', 'max:255'],
             'document_type'           => ['required', 'string', Rule::in(Document::DOCUMENT_TYPES)],
-            'responsible_name'        => ['nullable', 'string', 'max:255'],
+            'responsible_names'       => ['nullable', 'array'],
+            'responsible_names.*'     => ['string', 'max:255'],
             'authorized_user_ids'     => ['nullable', 'array'],
             'authorized_user_ids.*'   => ['integer', 'exists:users,id'],
         ];
+    }
+
+    // Un documento puede tener varios responsables: se guardan como texto separado por coma
+    // (ver Document::responsibleNames()), sin repetidos ni vacíos.
+    private function joinResponsibleNames(array $names): ?string
+    {
+        $names = Document::splitResponsibleNames(implode(',', $names));
+
+        return $names ? implode(', ', $names) : null;
     }
 
     private function groupUsersForAccessPicker($user)
