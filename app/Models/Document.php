@@ -37,6 +37,7 @@ class Document extends Model
         'Nombramiento de consejo',
         'Objeto social',
         'Ratificación',
+        'Reducción de capital',
         'Reforma de estatutos',
         'Sesión',
         'Otros',
