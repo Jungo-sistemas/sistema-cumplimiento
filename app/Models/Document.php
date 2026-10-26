@@ -27,6 +27,7 @@ class Document extends Model
         'Registros de UMA',
         'Escrituras',
         'Cartas',
+        'Aportaciones',
         'Aumento de capital',
         'Cambio de consejo',
         'Cambio de razón social',
