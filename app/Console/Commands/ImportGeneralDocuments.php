@@ -20,6 +20,7 @@ class ImportGeneralDocuments extends Command
         {--company= : ID de la empresa destino. Si se omite, los documentos quedan como "generales" del grupo (sin empresa específica) — en ese caso usa --group= para indicar el grupo.}
         {--group= : ID del grupo destino (solo necesario si se omite --company; con --company el grupo se deduce solo)}
         {--only-bodega : No importa nada: solo actualiza la Bodega de los documentos ya importados, usando la columna Bodega del .csv}
+        {--only-tipo : No importa nada: solo reasigna el Tipo (columna Tipo del .csv) de los documentos ya importados que quedaron como "Otros"}
         {--dry-run : Muestra lo que se haría sin escribir en base de datos ni copiar archivos}';
 
     protected $description = 'Carga masiva de Documentos generales (escrituras, poderes, actas, etc.) a partir de un .csv '
@@ -97,6 +98,10 @@ class ImportGeneralDocuments extends Command
 
         if ($this->option('only-bodega')) {
             return $this->updateBodegas($rows, $groupId, $companyId, $dryRun);
+        }
+
+        if ($this->option('only-tipo')) {
+            return $this->updateTypes($rows, $groupId, $companyId, $dryRun);
         }
 
         // Archivos reales de la carpeta (todo menos el propio .csv). $filesByCode agrupa los que
@@ -290,6 +295,85 @@ class ImportGeneralDocuments extends Command
         if (! empty($noBodega)) {
             $this->warn('Filas con la columna Bodega vacía — se dejó la bodega que ya tenían:');
             foreach ($noBodega as $line) {
+                $this->line("  - {$line}");
+            }
+        }
+
+        if (! empty($notFound)) {
+            $this->warn('No se encontró un documento ya importado con esta referencia en la empresa/grupo indicado (¿otra --company?):');
+            foreach ($notFound as $line) {
+                $this->line("  - {$line}");
+            }
+        }
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * --only-tipo: no crea nada ni toca archivos — vuelve a leer la columna Tipo del CSV y la
+     * asigna a los documentos ya importados que quedaron como "Otros" porque en su momento ese
+     * tipo no existía en el catálogo. Solo toca los que siguen en "Otros": si alguien ya les
+     * cambió el tipo a mano desde la app, se respeta.
+     *
+     * @param  array<int, array<string, string>>  $rows
+     */
+    private function updateTypes(array $rows, int $groupId, ?int $companyId, bool $dryRun): int
+    {
+        $updated      = 0;
+        $alreadyTyped = 0;
+        $notFound     = [];
+        $stillOther   = [];
+
+        DB::transaction(function () use ($rows, $groupId, $companyId, $dryRun, &$updated, &$alreadyTyped, &$notFound, &$stillOther) {
+            foreach ($rows as $row) {
+                $identity = $this->rowIdentity($row);
+
+                if (! $identity) {
+                    continue;
+                }
+
+                [, $name, , $reference] = $identity;
+                $label = "{$reference} — " . Str::limit($name, 90);
+
+                $query    = Document::where('group_id', $groupId)->where('reference', $reference);
+                $query    = $companyId ? $query->where('company_id', $companyId) : $query->whereNull('company_id');
+                $document = $query->first();
+
+                if (! $document) {
+                    $notFound[] = $label;
+                    continue;
+                }
+
+                if ($document->document_type !== 'Otros') {
+                    $alreadyTyped++;
+                    continue;
+                }
+
+                $rawType  = $this->findColumn($row, 'tipo');
+                $warnings = [];
+                $newType  = $this->matchDocumentType($rawType, $reference, $warnings);
+
+                if ($newType === 'Otros') {
+                    $stillOther[] = "{$label} (Tipo en el CSV: \"{$rawType}\")";
+                    continue;
+                }
+
+                $this->line(($dryRun ? '  [dry-run] ' : '  ') . "{$label}: Otros → {$newType}");
+
+                if (! $dryRun) {
+                    $document->update(['document_type' => $newType]);
+                }
+
+                $updated++;
+            }
+        });
+
+        $this->newLine();
+        $this->info(($dryRun ? '[DRY RUN] ' : '') . "Tipos reasignados: {$updated}. Ya tenían un tipo distinto de \"Otros\" (no se tocaron): {$alreadyTyped}.");
+
+        if (! empty($stillOther)) {
+            $this->warn('Siguen como "Otros" — su Tipo del CSV no coincide con ningún tipo del catálogo:');
+            foreach ($stillOther as $line) {
                 $this->line("  - {$line}");
             }
         }
@@ -612,14 +696,15 @@ class ImportGeneralDocuments extends Command
         // Alias para tipos del CSV que no coinciden textualmente con el catálogo pero se
         // refieren al mismo concepto (ej. "Terreno" en el CSV vs "Escrituras de terrenos").
         $aliases = [
-            'terreno'  => 'Escrituras de terrenos',
-            'terrenos' => 'Escrituras de terrenos',
-            'asamblea' => 'Acta de asamblea',
-            'asambleas' => 'Acta de asamblea',
+            'terreno'             => 'Escrituras de terrenos',
+            'asamblea'            => 'Acta de asamblea',
+            'cambio razon social' => 'Cambio de razón social',
         ];
 
-        if (isset($aliases[Str::lower($raw)])) {
-            return $aliases[Str::lower($raw)];
+        foreach ($aliases as $alias => $type) {
+            if ($this->typeKey($alias) === $rawKey) {
+                return $type;
+            }
         }
 
         $typeWarnings[] = "{$rawCode}: \"{$raw}\" no coincide con ningún tipo del catálogo — se guardó como \"Otros\".";
