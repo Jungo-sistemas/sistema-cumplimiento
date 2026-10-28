@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
  *
  * El importador no guarda el tipo original del CSV, así que aquí se deduce por la primera
  * palabra del nombre del documento. Es conservador a propósito: solo cambia los que empiezan
- * con ACTA, CONVENIO o RECIBO; el resto se lista para revisarlo a mano desde "Editar", porque
+ * con ACTA, CONVENIO, RECIBO o PAGARÉ; el resto se lista para revisarlo a mano desde "Editar", porque
  * por ejemplo una escritura pública ("E.P. …") que protocoliza un acta de asamblea es una
  * decisión del usuario, no algo que se deba adivinar.
  *
@@ -25,7 +25,7 @@ class RetypeOtherGeneralDocuments extends Command
     protected $signature = 'documents:retype-otros
         {--dry-run : Muestra lo que se haría sin escribir en base de datos}';
 
-    protected $description = 'Reasigna a Actas / Convenios / Recibos los documentos generales que quedaron como "Otros".';
+    protected $description = 'Reasigna a Actas / Convenios / Recibos / Pagaré los documentos generales que quedaron como "Otros".';
 
     public function handle(): int
     {
@@ -98,6 +98,7 @@ class RetypeOtherGeneralDocuments extends Command
         return match ($firstWord) {
             'CONVENIO', 'CONVENIOS' => 'Convenios',
             'RECIBO', 'RECIBOS'     => 'Recibos',
+            'PAGARE', 'PAGARES'     => 'Pagaré',
             default                 => null,
         };
     }

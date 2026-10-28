@@ -698,7 +698,9 @@ class ImportGeneralDocuments extends Command
         $aliases = [
             'terreno'             => 'Escrituras de terrenos',
             'asamblea'            => 'Acta de asamblea',
-            'cambio razon social' => 'Cambio de razón social',
+            'cambio razon social'  => 'Cambio de razón social',
+            'cambio administrador' => 'Cambio de administración',
+            'pagares'              => 'Pagaré', // "Pagarés" pierde el "es" y quedaría "pagar"
         ];
 
         foreach ($aliases as $alias => $type) {
