@@ -22,9 +22,18 @@
     </div>
 
     {{-- FILTROS --}}
-    @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
-        <form method="GET" action="{{ route('investment-requests.index') }}"
-              class="mt-4 flex flex-wrap items-end gap-3">
+    <form method="GET" action="{{ route('investment-requests.index') }}"
+          class="mt-4 flex flex-wrap items-end gap-3">
+        <div class="flex-1 min-w-[220px]">
+            <label class="block text-xs text-gray-500 mb-1">Buscar</label>
+            <input type="text"
+                   name="q"
+                   value="{{ request('q') }}"
+                   placeholder="Nombre del Anexo 8 o solicitante"
+                   class="w-full rounded-md border-gray-300 text-sm">
+        </div>
+
+        @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
             <div class="min-w-[180px]">
                 <label class="block text-xs text-gray-500 mb-1">Empresa</label>
                 <select name="company_id" class="w-full rounded-md border-gray-300 text-sm">
@@ -37,18 +46,18 @@
                     @endforeach
                 </select>
             </div>
+        @endif
 
-            <button type="submit"
-                    class="px-5 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
-                Filtrar
-            </button>
+        <button type="submit"
+                class="px-5 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+            Filtrar
+        </button>
 
-            <a href="{{ route('investment-requests.index') }}"
-               class="px-5 py-2 rounded-md border border-gray-300 bg-white text-sm text-gray-700 font-semibold hover:bg-gray-50">
-                Limpiar
-            </a>
-        </form>
-    @endif
+        <a href="{{ route('investment-requests.index') }}"
+           class="px-5 py-2 rounded-md border border-gray-300 bg-white text-sm text-gray-700 font-semibold hover:bg-gray-50">
+            Limpiar
+        </a>
+    </form>
 
     {{-- Alerts --}}
     @if(session('success'))
@@ -96,7 +105,7 @@
 
                             {{-- Monto --}}
                             <td class="px-4 py-3 whitespace-nowrap">
-                                ${{ number_format($investmentRequest->amount, 2) }}
+                                ${{ number_format($investmentRequest->amount) }}
                             </td>
 
                             {{-- Solicitante --}}
@@ -111,9 +120,21 @@
 
                             {{-- Estado --}}
                             <td class="px-4 py-3">
-                                <span class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">
+                                <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium {{ $investmentRequest->status->badgeClasses() }}">
                                     {{ $investmentRequest->status->label() }}
                                 </span>
+                                @if($investmentRequest->approvals->isNotEmpty())
+                                    @php
+                                        $done = $investmentRequest->approvals->where('status', 'approved')->count();
+                                        $myTurn = $investmentRequest->approvals->contains(fn ($a) => $a->isPending() && $a->user_id === $user->id);
+                                    @endphp
+                                    <div class="text-xs text-gray-500 mt-1 whitespace-nowrap">
+                                        {{ $done }} de {{ $investmentRequest->approvals->count() }} aprobaciones
+                                    </div>
+                                    @if($myTurn)
+                                        <div class="text-xs font-semibold text-[#1A428A] mt-0.5 whitespace-nowrap">Es tu turno de aprobar</div>
+                                    @endif
+                                @endif
                             </td>
 
                             {{-- Archivo --}}
@@ -142,7 +163,7 @@
                         <tr class="border-t">
                             <td colspan="{{ ($user->hasGroupScope() || $user->hasMultipleCompanies()) ? 8 : 7 }}"
                                 class="px-6 py-6 text-center text-gray-500">
-                                No hay solicitudes de inversión registradas.
+                                {{ request()->filled('q') ? 'No hay solicitudes que coincidan con la búsqueda.' : 'No hay solicitudes de inversión registradas.' }}
                             </td>
                         </tr>
                     @endforelse
@@ -164,8 +185,21 @@
             <form method="POST"
                   action="{{ route('investment-requests.store') }}"
                   enctype="multipart/form-data"
-                  x-data
-                  x-init="$nextTick(() => initPersonPicker($refs.requester, { multiple: false }))"
+                  x-data="{
+                      approverCount: {{ max(1, min($maxApprovers, count(old('approver_ids', [])))) }},
+                      {{-- Los lugares que sobran se desactivan (TomSelect también desactiva el select original) para que no se envíen --}}
+                      syncApprovers() {
+                          this.$root.querySelectorAll('[data-approver-picker]').forEach((el, i) => {
+                              i < this.approverCount ? el.tomselect?.enable() : el.tomselect?.disable();
+                          });
+                      },
+                  }"
+                  x-init="$nextTick(() => {
+                      initPersonPicker($refs.requester, { multiple: false });
+                      $el.querySelectorAll('[data-approver-picker]').forEach(el => initPersonPicker(el, { multiple: false }));
+                      syncApprovers();
+                      $watch('approverCount', () => syncApprovers());
+                  })"
                   class="p-6">
                 @csrf
 
@@ -198,7 +232,7 @@
                     {{-- Concepto --}}
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Concepto / Motivo del gasto <span class="text-red-500">*</span>
+                            Motivo de inversión o de gasto <span class="text-red-500">*</span>
                         </label>
                         <textarea name="concept"
                                   rows="3"
@@ -209,18 +243,25 @@
                         @endif
                     </div>
 
-                    {{-- Monto --}}
-                    <div>
+                    {{-- Monto: se muestra como dinero sin centavos ("1,250,000"); el servidor quita las comas --}}
+                    <div x-data="{
+                            amount: @js(is_numeric(old('amount')) ? number_format((float) old('amount')) : ''),
+                            format() { const digits = this.amount.replace(/\D/g, ''); this.amount = digits ? Number(digits).toLocaleString('en-US') : ''; }
+                         }">
                         <label class="block text-sm font-medium text-gray-700 mb-1">
                             Monto solicitado <span class="text-red-500">*</span>
                         </label>
-                        <input type="number"
-                               name="amount"
-                               step="0.01"
-                               min="0"
-                               value="{{ old('amount') }}"
-                               required
-                               class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-gray-500">$</span>
+                            <input type="text"
+                                   name="amount"
+                                   inputmode="numeric"
+                                   x-model="amount"
+                                   @input="format()"
+                                   placeholder="0"
+                                   required
+                                   class="w-full rounded-md border-gray-300 pl-7 text-sm focus:border-blue-600 focus:ring-blue-600">
+                        </div>
                         @if($errors->createInvestmentRequest->has('amount'))
                             <p class="text-sm text-red-600 mt-1">{{ $errors->createInvestmentRequest->first('amount') }}</p>
                         @endif
@@ -255,6 +296,51 @@
                         </select>
                     </div>
 
+                    {{-- Flujo de aprobación: cuántas personas y quién va en cada lugar, en orden --}}
+                    <div class="rounded-lg border border-gray-200 p-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <label class="text-sm font-medium text-gray-700">
+                                Flujo de aprobación <span class="text-red-500">*</span>
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-gray-500">Número de personas</span>
+                                <select x-model.number="approverCount"
+                                        class="rounded-md border-gray-300 text-sm py-1 focus:border-blue-600 focus:ring-blue-600">
+                                    @for($n = 1; $n <= $maxApprovers; $n++)
+                                        <option value="{{ $n }}">{{ $n }}</option>
+                                    @endfor
+                                </select>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            Aprueban uno tras otro en este orden. A cada persona se le avisa por correo cuando es su turno.
+                        </p>
+
+                        <div class="mt-3 space-y-2">
+                            @for($i = 1; $i <= $maxApprovers; $i++)
+                                <div x-show="{{ $i }} <= approverCount" class="flex items-center gap-3">
+                                    <span class="h-6 w-6 shrink-0 rounded-full bg-[#1A428A] text-white text-xs font-semibold flex items-center justify-center">{{ $i }}</span>
+                                    <div class="flex-1 min-w-0">
+                                        <select name="approver_ids[]" data-approver-picker>
+                                            <option value="">— Persona {{ $i }} —</option>
+                                            @foreach($approverCandidates as $u)
+                                                <option value="{{ $u->id }}" @selected((int) (old('approver_ids')[$i - 1] ?? 0) === $u->id)>
+                                                    {{ $u->name }}{{ $u->role ? ' — ' . $u->role->name : '' }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                            @endfor
+                        </div>
+
+                        @foreach(['approver_ids', 'approver_ids.*'] as $key)
+                            @if($errors->createInvestmentRequest->has($key))
+                                <p class="text-sm text-red-600 mt-2">{{ $errors->createInvestmentRequest->first($key) }}</p>
+                            @endif
+                        @endforeach
+                    </div>
+
                     {{-- Anexo 8 --}}
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -263,11 +349,14 @@
                         <input type="file"
                                name="file"
                                required
+                               accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx"
                                class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
                         @if($errors->createInvestmentRequest->has('file'))
                             <p class="text-sm text-red-600 mt-1">{{ $errors->createInvestmentRequest->first('file') }}</p>
                         @endif
-                        <div class="text-xs text-gray-500 mt-1">PDF, JPG o PNG. Máximo 10 MB.</div>
+                        <div class="text-xs text-gray-500 mt-1">
+                            PDF, JPG, PNG o Excel. Máximo 10 MB. El nombre del archivo debe incluir "Anexo 8".
+                        </div>
                     </div>
 
                 </div>

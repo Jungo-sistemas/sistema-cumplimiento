@@ -150,6 +150,12 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::get('/investment-requests/{investmentRequest}/download', [InvestmentRequestController::class, 'download'])
         ->name('investment-requests.download');
 
+    Route::post('/investment-requests/{investmentRequest}/approve', [InvestmentRequestController::class, 'approve'])
+        ->name('investment-requests.approve');
+
+    Route::post('/investment-requests/{investmentRequest}/reject', [InvestmentRequestController::class, 'reject'])
+        ->name('investment-requests.reject');
+
     /*
     |--------------------------------------------------------------------------
     | Processes / Regulations

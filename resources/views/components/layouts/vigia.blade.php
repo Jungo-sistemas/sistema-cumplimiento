@@ -29,6 +29,9 @@
     $pendingApprovalsCount = $user && !$user->isSuperAdmin()
         ? \App\Models\RegulationApproval::where('user_id', $user->id)->where('status', 'pending')->count()
         : 0;
+    $pendingInvestmentApprovalsCount = $user
+        ? \App\Models\InvestmentRequestApproval::where('user_id', $user->id)->where('status', 'pending')->count()
+        : 0;
 
     // Vistas "minimal" no muestran el menú lateral contextual — en su lugar, un solo botón de
     // regreso. Por defecto regresa al módulo "de casa" del usuario (ver abajo), pero una página
@@ -259,7 +262,12 @@
                                 <a href="{{ route('documents.index') }}" @click="mobileMenuOpen = false"
                                    class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos generales</a>
                                 <a href="{{ route('investment-requests.index') }}" @click="mobileMenuOpen = false"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('investment-requests.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Solicitud de Inversiones</a>
+                                   class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('investment-requests.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                    <span>Solicitud de Inversiones</span>
+                                    @if($pendingInvestmentApprovalsCount > 0)
+                                        <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">{{ $pendingInvestmentApprovalsCount }}</span>
+                                    @endif
+                                </a>
                                 <a href="{{ route('processes.index') }}" @click="mobileMenuOpen = false"
                                    class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Procesos</a>
                             @endif
@@ -386,7 +394,12 @@
                                 <a href="{{ route('documents.index') }}"
                                    class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos generales</a>
                                 <a href="{{ route('investment-requests.index') }}"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('investment-requests.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Solicitud de Inversiones</a>
+                                   class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('investment-requests.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                    <span>Solicitud de Inversiones</span>
+                                    @if($pendingInvestmentApprovalsCount > 0)
+                                        <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">{{ $pendingInvestmentApprovalsCount }}</span>
+                                    @endif
+                                </a>
                             @endif
 
                             @php $inCumplimiento = request()->routeIs('assets.*') || !empty($navContext['asset']); @endphp

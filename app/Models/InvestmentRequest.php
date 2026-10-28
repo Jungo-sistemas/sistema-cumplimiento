@@ -10,6 +10,9 @@ class InvestmentRequest extends Model
 {
     use HasFactory;
 
+    // Los Excel no se pueden mostrar en el navegador; solo se descargan.
+    public const PREVIEWABLE_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+
     protected $fillable = [
         'group_id',
         'company_id',
@@ -57,6 +60,17 @@ class InvestmentRequest extends Model
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 
+    public function approvals()
+    {
+        return $this->hasMany(InvestmentRequestApproval::class)->orderBy('sequence_order');
+    }
+
+    // Quien tiene el turno ahora mismo (solo hay uno a la vez).
+    public function currentApproval()
+    {
+        return $this->hasOne(InvestmentRequestApproval::class)->where('status', 'pending');
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Helpers
@@ -66,5 +80,10 @@ class InvestmentRequest extends Model
     public function hasFile(): bool
     {
         return ! empty($this->file_path);
+    }
+
+    public function isPreviewable(): bool
+    {
+        return in_array($this->mime_type, self::PREVIEWABLE_MIME_TYPES, true);
     }
 }
