@@ -15,7 +15,7 @@ class SemirremolqueMigarSeeder extends Seeder
 {
     public function run(): void
     {
-        $company = Company::where('name', 'MIGAR')->firstOrFail();
+        $company = Company::where('name', 'MIGAR CAPITAL')->firstOrFail();
 
         $assetType = AssetType::where('name', 'Semirremolque')->firstOrFail();
 
@@ -101,7 +101,7 @@ class SemirremolqueMigarSeeder extends Seeder
 
         fclose($handle);
 
-        $this->command?->info("✓ Semirremolques MIGAR: {$count} activo(s) creado(s)/actualizado(s).");
+        $this->command?->info("✓ Semirremolques MIGAR CAPITAL: {$count} activo(s) creado(s)/actualizado(s).");
     }
 
     private function col(array $data, string ...$keys): string

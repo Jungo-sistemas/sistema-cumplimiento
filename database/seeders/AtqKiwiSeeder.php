@@ -15,7 +15,7 @@ class AtqKiwiSeeder extends Seeder
 {
     public function run(): void
     {
-        $company = Company::where('name', 'KIWI GAS')->firstOrFail();
+        $company = Company::where('name', 'VERITAS ENERGÍA (KIWI GAS)')->firstOrFail();
 
             $assetType = AssetType::where('name', 'ATQ')->firstOrFail();
 
@@ -129,7 +129,7 @@ class AtqKiwiSeeder extends Seeder
 
             fclose($handle);
 
-            $this->command?->info("✓ ATQ KIWI GAS: {$count} activos creados/actualizados.");
+            $this->command?->info("✓ ATQ VERITAS ENERGÍA (KIWI GAS): {$count} activos creados/actualizados.");
     }
 
     private function col(array $data, string ...$keys): string

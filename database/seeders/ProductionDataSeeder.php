@@ -40,7 +40,7 @@ class ProductionDataSeeder extends Seeder
 
         /*
          * ── Vehículos: ATQ ───────────────────────────────────────────────────
-         * CSV: database/seeders/examples/ATQ_KIWI.csv → KIWI GAS
+         * CSV: database/seeders/examples/ATQ_KIWI.csv → VERITAS ENERGÍA (KIWI GAS)
          * CSV: database/seeders/examples/ATQ_MDI.csv  → MDI (o la empresa que use)
          */
         $this->call(AtqKiwiSeeder::class);
@@ -48,7 +48,7 @@ class ProductionDataSeeder extends Seeder
 
         /*
          * ── Vehículos: Semirremolques ────────────────────────────────────────
-         * CSV: database/seeders/examples/Semirremolque_MIGAR.csv   → MIGAR
+         * CSV: database/seeders/examples/Semirremolque_MIGAR.csv   → MIGAR CAPITAL
          * CSV: database/seeders/examples/Semirremolque_Propane.csv → PROPANE SERVICES
          */
         $this->call(SemirremolqueMigarSeeder::class);
