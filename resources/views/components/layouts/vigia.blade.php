@@ -15,13 +15,23 @@
 
 @php
     $user = auth()->user();
-    $currentModule = request()->routeIs('processes.*', 'my-approvals.*', 'regulation-versions.*') ? 'procesos' : 'cumplimiento';
+    $currentModule = match (true) {
+        request()->routeIs('auditorias.*') => 'auditorias',
+        request()->routeIs('processes.*', 'my-approvals.*', 'regulation-versions.*') => 'procesos',
+        default => 'cumplimiento',
+    };
+
     $allModules = [
         'cumplimiento' => ['label' => 'Cumplimiento', 'route' => 'dashboard'],
         'procesos'     => ['label' => 'Procesos',     'route' => 'processes.dashboard'],
+        'auditorias'   => ['label' => 'Auditorías',   'route' => 'auditorias.home'],
     ];
     $modules = collect($allModules)
-        ->filter(fn ($_, $key) => $user?->canAccessModule($key) ?? true)
+        ->filter(fn ($_, $key) => match ($key) {
+            // Auditorías va con la licencia de Procesos y solo la usan auditores y administradores.
+            'auditorias' => ($user?->canAccessModule('procesos') ?? false) && ($user->isAuditor() || $user->isAdmin()),
+            default      => $user?->canAccessModule($key) ?? true,
+        })
         ->all();
     if (!isset($modules[$currentModule])) {
         $currentModule = array_key_first($modules) ?? 'cumplimiento';
@@ -236,6 +246,8 @@
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.companies') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Empresas</a>
                             <a href="{{ route('superadmin.users') }}" @click="mobileMenuOpen = false"
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.users') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
+                        @elseif($currentModule === 'auditorias')
+                            @include('auditorias.partials.nav', ['mobile' => true])
                         @elseif($currentModule === 'procesos')
                             {{-- ── MÓDULO: PROCESOS ── --}}
                             <a href="{{ route('processes.dashboard') }}" @click="mobileMenuOpen = false" data-tour="nav-tablero"
@@ -368,6 +380,8 @@
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.companies') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Empresas</a>
                             <a href="{{ route('superadmin.users') }}"
                                class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.users') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
+                        @elseif($currentModule === 'auditorias')
+                            @include('auditorias.partials.nav', ['mobile' => false])
                         @elseif($currentModule === 'procesos')
                             {{-- ── MÓDULO: PROCESOS ── --}}
                             <a href="{{ route('processes.dashboard') }}" data-tour="nav-tablero"
