@@ -17,6 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'module.access'  => \App\Http\Middleware\EnsureModuleAccess::class,
             'license.active' => \App\Http\Middleware\EnsureLicenseActive::class,
         ]);
+
+        $middleware->web(append: [
+            \App\Http\Middleware\PreventStalePageCache::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -71,6 +71,9 @@ class DocumentController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        // "Volver" desde el detalle regresa a la lista tal como se dejó (página, empresa, tipo, búsqueda).
+        session(['documents.index_url' => $request->fullUrl()]);
+
         return view('documents.index', [
             'documents'          => $documents,
             'companies'          => $companies,
