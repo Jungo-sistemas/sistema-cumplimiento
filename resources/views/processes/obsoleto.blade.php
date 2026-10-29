@@ -133,13 +133,15 @@
                                             </svg>
                                             Ver
                                         </a>
-                                        <a href="{{ route('regulation-versions.download', $cv) }}"
-                                           class="inline-flex items-center gap-1 whitespace-nowrap text-xs px-2.5 py-1.5 rounded-md border border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A] transition">
-                                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                            </svg>
-                                            Descargar
-                                        </a>
+                                        @if($reg->allowsDownload())
+                                            <a href="{{ route('regulation-versions.download', $cv) }}"
+                                               class="inline-flex items-center gap-1 whitespace-nowrap text-xs px-2.5 py-1.5 rounded-md border border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A] transition">
+                                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                                </svg>
+                                                Descargar
+                                            </a>
+                                        @endif
                                     @endif
                                     <a href="{{ route('processes.show', $reg) }}"
                                        class="inline-flex items-center gap-1 whitespace-nowrap text-xs px-2.5 py-1.5 rounded-md bg-[#1A428A] text-white hover:bg-[#15356d] transition">

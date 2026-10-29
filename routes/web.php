@@ -22,6 +22,7 @@ use App\Http\Controllers\InvestmentRequestController;
 use App\Http\Controllers\RegulationController;
 use App\Http\Controllers\RegulationVersionController;
 use App\Http\Controllers\RegulationApprovalController;
+use App\Http\Controllers\RegulationChangeSummaryController;
 use App\Http\Controllers\ProcessesGuideController;
 use App\Http\Controllers\RegulationTrashController;
 use App\Http\Controllers\ApiTokenController;
@@ -286,6 +287,11 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
         ->name('processes.reject');
     Route::post('/processes/{regulation}/resubmit', [RegulationApprovalController::class, 'resubmit'])
         ->name('processes.resubmit');
+
+    Route::post('/processes/{regulation}/change-summary', [RegulationChangeSummaryController::class, 'store'])
+        ->name('processes.changeSummary.store');
+    Route::get('/processes/{regulation}/change-summary', [RegulationChangeSummaryController::class, 'show'])
+        ->name('processes.changeSummary.show');
 
     Route::patch('/processes/{regulation}/annexes', [RegulationController::class, 'setAnnexes'])
         ->name('processes.setAnnexes');

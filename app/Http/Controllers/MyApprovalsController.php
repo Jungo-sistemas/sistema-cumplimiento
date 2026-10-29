@@ -16,7 +16,8 @@ class MyApprovalsController extends Controller
                 'regulation.company',
                 'regulation.processType',
                 'regulation.creator',
-                'regulation.currentVersion',
+                'regulation.currentVersion.uploader',
+                'regulation.changeSummaryUploader',
                 'jobPosition',
             ])
             ->orderBy('created_at')

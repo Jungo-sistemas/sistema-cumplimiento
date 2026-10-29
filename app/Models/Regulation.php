@@ -58,15 +58,21 @@ class Regulation extends Model
         'public_share_token',
         'deleted_by',
         'permanently_delete_at',
+        'change_summary_path',
+        'change_summary_original_name',
+        'change_summary_mime_type',
+        'change_summary_uploaded_by',
+        'change_summary_uploaded_at',
     ];
 
     protected $casts = [
-        'details'                => 'array',
-        'previous_details'       => 'array',
-        'flow_user_map'          => 'array',
-        'is_annex'               => 'boolean',
-        'is_legacy'              => 'boolean',
-        'permanently_delete_at'  => 'datetime',
+        'details'                     => 'array',
+        'previous_details'            => 'array',
+        'flow_user_map'               => 'array',
+        'is_annex'                    => 'boolean',
+        'is_legacy'                   => 'boolean',
+        'permanently_delete_at'       => 'datetime',
+        'change_summary_uploaded_at'  => 'datetime',
     ];
 
     /*
@@ -98,6 +104,11 @@ class Regulation extends Model
     public function deletedBy()
     {
         return $this->belongsTo(User::class, 'deleted_by');
+    }
+
+    public function changeSummaryUploader()
+    {
+        return $this->belongsTo(User::class, 'change_summary_uploaded_by');
     }
 
     public function responsables()
@@ -249,6 +260,30 @@ class Regulation extends Model
             ->latest('decided_at')
             ->first()
             ?->comments;
+    }
+
+    /**
+     * Etiqueta "Desactualizado": documento antiguo de referencia que todavía se tiene que
+     * actualizar. Solo se puede ver — nadie lo descarga (ni la versión actual ni el historial), y
+     * los operativos solo pueden actualizarlo contestando las preguntas del wizard.
+     */
+    public function isOutdated(): bool
+    {
+        return $this->approval_status === 'outdated';
+    }
+
+    public function allowsDownload(): bool
+    {
+        return ! $this->isOutdated();
+    }
+
+    /**
+     * En un documento desactualizado un operativo (responsable) solo edita con el wizard de
+     * preguntas: sin editor de texto en línea ni "Info básica". Los admins siguen igual.
+     */
+    public function onlyWizardEditFor(User $user): bool
+    {
+        return $this->isOutdated() && ! $user->isAdmin();
     }
 
     public function approvalStatusLabel(): string

@@ -118,10 +118,12 @@
                                            class="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A] transition">
                                             Ver
                                         </a>
-                                        <a href="{{ route('regulation-versions.download', $cv) }}"
-                                           class="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A] transition">
-                                            Descargar
-                                        </a>
+                                        @if($reg->allowsDownload())
+                                            <a href="{{ route('regulation-versions.download', $cv) }}"
+                                               class="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A] transition">
+                                                Descargar
+                                            </a>
+                                        @endif
                                     @endif
                                     <a href="{{ route('processes.show', $reg) }}"
                                        class="text-xs px-2.5 py-1 rounded bg-[#1A428A] text-white hover:bg-[#15356d] transition">
@@ -201,10 +203,12 @@
                                        class="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A] transition">
                                         Ver
                                     </a>
-                                    <a href="{{ route('regulation-versions.download', $v) }}"
-                                       class="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A] transition">
-                                        Descargar
-                                    </a>
+                                    @if($v->regulation?->allowsDownload())
+                                        <a href="{{ route('regulation-versions.download', $v) }}"
+                                           class="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A] transition">
+                                            Descargar
+                                        </a>
+                                    @endif
                                     <a href="{{ route('processes.show', $v->regulation_id) }}"
                                        class="text-xs px-2.5 py-1 rounded bg-[#1A428A] text-white hover:bg-[#15356d] transition">
                                         Ir al proceso

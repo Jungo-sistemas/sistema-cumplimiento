@@ -338,8 +338,9 @@
                             <option value="all">Ambas áreas</option>
                             <option value="cumplimiento">Solo Cumplimiento</option>
                             <option value="procesos">Solo Procesos</option>
+                            <option value="none">Ninguna (solo avisos personales)</option>
                         </select>
-                        <p class="mt-1 text-xs text-gray-400">De qué área recibirá avisos (correos, recordatorios), sin importar a qué módulo tenga acceso.</p>
+                        <p class="mt-1 text-xs text-gray-400">De qué área recibirá avisos de administración (solicitudes de acceso, escalamientos, etc.). Sus propias aprobaciones le llegan siempre.</p>
                     </div>
 
                 </div>
@@ -552,8 +553,9 @@
                                     <option value="all">Ambas áreas</option>
                                     <option value="cumplimiento">Solo Cumplimiento</option>
                                     <option value="procesos">Solo Procesos</option>
+                                    <option value="none">Ninguna (solo avisos personales)</option>
                                 </select>
-                                <p class="mt-1 text-xs text-gray-400">De qué área recibirá avisos (correos, recordatorios), sin importar a qué módulo tenga acceso.</p>
+                                <p class="mt-1 text-xs text-gray-400">De qué área recibirá avisos de administración (solicitudes de acceso, escalamientos, etc.). Sus propias aprobaciones le llegan siempre.</p>
                             </div>
 
                         </div>

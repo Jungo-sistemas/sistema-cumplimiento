@@ -260,7 +260,7 @@ class SuperAdminController extends Controller
             'company_id.*'  => ['exists:companies,id'],
             'group_id'      => ['nullable', 'exists:groups,id'],
             'module_access' => ['nullable', 'in:all,cumplimiento,procesos'],
-            'notification_modules' => ['nullable', 'in:all,cumplimiento,procesos'],
+            'notification_modules' => ['nullable', 'in:all,cumplimiento,procesos,none'],
         ]);
 
         $role = Role::findOrFail($request->role_id);
@@ -285,7 +285,7 @@ class SuperAdminController extends Controller
 
         // A diferencia de module_access, esto no se fuerza a 'all' para superadmin: un superadmin
         // también puede querer notificaciones de una sola área aunque tenga acceso a ambas.
-        $notificationModules = in_array($request->notification_modules, ['all', 'cumplimiento', 'procesos'])
+        $notificationModules = in_array($request->notification_modules, ['all', 'cumplimiento', 'procesos', 'none'])
             ? $request->notification_modules : null;
 
         $user = User::create([
@@ -330,7 +330,7 @@ class SuperAdminController extends Controller
             'company_id.*'  => ['exists:companies,id'],
             'group_id'      => ['nullable', 'exists:groups,id'],
             'module_access' => ['nullable', 'in:all,cumplimiento,procesos'],
-            'notification_modules' => ['nullable', 'in:all,cumplimiento,procesos'],
+            'notification_modules' => ['nullable', 'in:all,cumplimiento,procesos,none'],
         ]);
 
         $role = Role::findOrFail($request->role_id);
@@ -351,7 +351,7 @@ class SuperAdminController extends Controller
                 ? $request->module_access : 'all';
         }
 
-        $notificationModules = in_array($request->notification_modules, ['all', 'cumplimiento', 'procesos'])
+        $notificationModules = in_array($request->notification_modules, ['all', 'cumplimiento', 'procesos', 'none'])
             ? $request->notification_modules : null;
 
         $user->update([

@@ -267,6 +267,7 @@ class RegulationVersionController extends Controller
         // el editor de texto en línea se bloquea aparte: reconstruir un documento antiguo desde
         // su .docx en este editor no es lo que se quiere para estos casos.
         abort_if($version->regulation->is_legacy, 403, 'Este es un documento antiguo — no se puede editar directamente aquí. Actualízalo con el wizard o subiendo una nueva versión.');
+        abort_if($version->regulation->onlyWizardEditFor($user), 403, 'Este documento está desactualizado — actualízalo con "Editar" contestando las preguntas.');
 
         $ext = strtolower(pathinfo($version->original_name ?? $version->file_path, PATHINFO_EXTENSION));
         abort_unless($ext === 'docx', 422, 'Solo se pueden editar archivos .docx');
@@ -332,6 +333,7 @@ class RegulationVersionController extends Controller
     {
         $user = auth()->user();
         abort_unless($version->regulation->isEditableBy($user), 403);
+        abort_if($version->regulation->onlyWizardEditFor($user), 403);
 
         // Auto-acquire lock if free (defensivo: por si editForm falló en adquirirlo)
         if ($version->editing_by === null) {
@@ -441,6 +443,7 @@ class RegulationVersionController extends Controller
     {
         $user = auth()->user();
         abort_unless($version->regulation->isEditableBy($user), 403);
+        abort_if($version->regulation->onlyWizardEditFor($user), 403);
 
         // Auto-acquire lock if free (defensivo)
         if ($version->editing_by === null) {
@@ -656,7 +659,9 @@ class RegulationVersionController extends Controller
                     . '</details>';
             }
 
-            $downloadUrl = route('regulation-versions.download', $version);
+            $downloadBtn = $regulation->allowsDownload()
+                ? '<a href="' . route('regulation-versions.download', $version) . '" class="dl-btn">&#8595; Descargar</a>'
+                : '';
             $backUrl     = route('processes.show', $regulation);
             $versionLabel = 'v' . $version->version_number;
             $regCode      = htmlspecialchars($regulation->code ?? '');
@@ -762,7 +767,7 @@ class RegulationVersionController extends Controller
     <div class="doc-name">{$regName}</div>
     <div class="doc-meta">{$regCode} &nbsp;·&nbsp; {$versionLabel} &nbsp;·&nbsp; {$name}</div>
   </div>
-  <a href="{$downloadUrl}" class="dl-btn">&#8595; Descargar</a>
+  {$downloadBtn}
 </div>
 
 <div id="doc-source" style="display: none;">
@@ -823,6 +828,7 @@ HTML;
     {
         $user = auth()->user();
         $this->authorizeVersionAccess($version, $user);
+        abort_unless($version->regulation->allowsDownload(), 403, 'Este documento está desactualizado — solo se puede ver hasta que se actualice.');
 
         abort_unless($version->file_path && Storage::disk('private')->exists($version->file_path), 404);
 

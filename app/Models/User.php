@@ -211,7 +211,10 @@ class User extends Authenticatable
 
     /**
      * Preferencia de notificaciones, independiente de module_access: un admin puede tener acceso
-     * a ambos módulos pero solo querer avisos de uno. null/'all' = recibe de ambas áreas.
+     * a ambos módulos pero solo querer avisos de uno. null/'all' = recibe de ambas áreas; 'none' =
+     * de ninguna, para dejar a un solo admin del área como quien recibe solicitudes de acceso,
+     * escalamientos, etc. Solo aplica a esos avisos de administración: los personales (su turno de
+     * aprobar, su documento aprobado/rechazado, vencimientos de sus activos) le siguen llegando.
      */
     public function wantsNotificationsFor(string $module): bool
     {

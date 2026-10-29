@@ -63,7 +63,17 @@
             </div>
 
             <div class="flex items-center gap-2 shrink-0">
-                @if($regulation->isEditableBy(auth()->user()))
+                @if($regulation->isEditableBy(auth()->user()) && $regulation->onlyWizardEditFor(auth()->user()))
+                    {{-- Desactualizado + operativo: solo se actualiza contestando las preguntas (wizard) --}}
+                    <a href="{{ route('processes.edit', $regulation) }}"
+                       title="Documento desactualizado — actualízalo contestando las preguntas"
+                       class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50 text-sm flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        Editar
+                    </a>
+                @elseif($regulation->isEditableBy(auth()->user()))
                     {{-- Dropdown Editar --}}
                     <div class="relative" x-data="{ open: false }">
                         <button type="button"
@@ -759,10 +769,12 @@
                                    class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
                                     Ver
                                 </a>
-                                <a href="{{ route('regulation-versions.download', $currentVersion) }}"
-                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
-                                    Descargar
-                                </a>
+                                @if($regulation->allowsDownload())
+                                    <a href="{{ route('regulation-versions.download', $currentVersion) }}"
+                                       class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                        Descargar
+                                    </a>
+                                @endif
                                 @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
                                     @include('processes.partials.edit-version-button', ['regulation' => $regulation, 'currentVersion' => $currentVersion, 'editLock' => $editLock])
                                     <button type="button"
@@ -858,10 +870,12 @@
                                        class="px-3 py-1.5 rounded-md border text-xs font-semibold text-center text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
                                         Ver
                                     </a>
-                                    <a href="{{ route('regulation-versions.download', $v) }}"
-                                       class="px-3 py-1.5 rounded-md border text-xs font-semibold text-center text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
-                                        Descargar
-                                    </a>
+                                    @if($regulation->allowsDownload())
+                                        <a href="{{ route('regulation-versions.download', $v) }}"
+                                           class="px-3 py-1.5 rounded-md border text-xs font-semibold text-center text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                            Descargar
+                                        </a>
+                                    @endif
                                     @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
                                         <button type="button"
                                                 onclick="openDeleteModal(
@@ -1355,8 +1369,10 @@
                 <span class="ml-2 text-blue-200 text-xs font-normal">v{{ $currentVersion->version_number }}</span>
             </span>
             <div class="flex items-center gap-3 shrink-0 ml-4">
-                <a href="{{ route('regulation-versions.download', $currentVersion) }}"
-                   class="text-blue-200 hover:text-white text-sm">Descargar</a>
+                @if($regulation->allowsDownload())
+                    <a href="{{ route('regulation-versions.download', $currentVersion) }}"
+                       class="text-blue-200 hover:text-white text-sm">Descargar</a>
+                @endif
                 <button type="button" onclick="closePdfOverlay()"
                         class="text-blue-200 hover:text-white" title="Cerrar">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

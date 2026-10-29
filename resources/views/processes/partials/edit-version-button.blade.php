@@ -8,7 +8,14 @@
         $cvExt   = strtolower(pathinfo($currentVersion->original_name ?? $currentVersion->file_path, PATHINFO_EXTENSION));
         $canEdit = $cvExt === 'docx' && ! $regulation->is_legacy;
     @endphp
-    @if($regulation->is_legacy)
+    @if($regulation->onlyWizardEditFor(auth()->user()))
+        {{-- Desactualizado + operativo: el único "Editar" es el de las preguntas (wizard) --}}
+        <a href="{{ route('processes.edit', $regulation) }}"
+           title="Documento desactualizado — actualízalo contestando las preguntas"
+           class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+            Editar
+        </a>
+    @elseif($regulation->is_legacy)
         <span title="Documento antiguo — actualízalo con el wizard o subiendo una nueva versión para poder editarlo aquí"
               class="px-3 py-2 rounded-md border font-semibold text-sm bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed select-none">
             Editar

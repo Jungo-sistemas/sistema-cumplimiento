@@ -4,41 +4,6 @@
         <span class="text-gray-700 font-medium">Mis aprobaciones</span>
     </x-slot>
 
-    @php
-        $previewBlocks = [
-            ['title' => 'Objetivo y Alcance', 'fields' => [
-                'problema_resuelve'  => 'Problema que resuelve',
-                'resultado_esperado' => 'Resultado esperado',
-                'areas_aplica'       => 'Áreas a las que aplica',
-                'fuera_alcance'      => 'Fuera de alcance',
-            ]],
-            ['title' => 'Indicadores', 'fields' => [
-                'indicador_proceso'   => 'Indicador de proceso',
-                'indicador_resultado' => 'Indicador de resultado',
-                'meta_valor'          => 'Meta / Valor',
-                'frecuencia_medicion' => 'Frecuencia de medición',
-            ]],
-            ['title' => 'Actividades', 'fields' => [
-                'que_detona'           => '¿Qué detona el proceso?',
-                'lista_actividades'    => 'Lista de actividades',
-                'areas_ejecutan'       => 'Áreas que ejecutan',
-                'decisiones_control'   => 'Decisiones de control',
-                'documentos_usados'    => 'Documentos usados',
-                'resultado_entregable' => 'Resultado / Entregable',
-            ]],
-            ['title' => 'Mapa de Proceso', 'fields' => [
-                'areas_roles_mapa'             => 'Áreas y roles',
-                'procedimientos_relacionados'  => 'Procedimientos relacionados',
-                'proveedores_clientes'         => 'Proveedores / Clientes',
-            ]],
-            ['title' => 'Contexto', 'fields' => [
-                'terminos_abreviaturas'    => 'Términos y abreviaturas',
-                'riesgos_errores'          => 'Riesgos y errores',
-                'requerimientos_normativos'=> 'Requerimientos normativos',
-            ]],
-        ];
-    @endphp
-
     <div class="max-w-4xl mx-auto space-y-6" data-tour="mis-aprobaciones-content">
 
         {{-- Header --}}
@@ -80,9 +45,10 @@
                     // largo; decisión explícita del usuario, se sigue calculando todo pero solo
                     // se muestra 1 fila.
                     $changedSections = $changedSectionsAll !== [] ? [end($changedSectionsAll)] : [];
+                    $summaryErrors = $errors->getBag('changeSummary' . $regulation->id);
                 @endphp
 
-                <div x-data="{ showPreview: false, showReject: false, showConfirm: false }" class="bg-white rounded-xl border shadow-sm overflow-hidden">
+                <div x-data="{ showPreview: @js($summaryErrors->any()), showReject: false, showConfirm: false }" class="bg-white rounded-xl border shadow-sm overflow-hidden">
 
                     {{-- Cabecera --}}
                     <div class="px-6 py-4 border-b flex items-start justify-between gap-4 flex-wrap" style="background: linear-gradient(135deg, #1A428A 0%, #1e5096 100%);">
@@ -232,7 +198,7 @@
                         <button type="button"
                                 @click="showPreview = !showPreview"
                                 class="mt-4 w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-dashed border-[#1A428A]/40 bg-blue-50/50 text-[#1A428A] text-sm font-medium hover:bg-blue-50 transition-colors">
-                            <span x-text="showPreview ? 'Ocultar contenido del documento' : 'Ver contenido del documento'"></span>
+                            <span x-text="showPreview ? 'Ocultar resumen de cambios' : 'Ver resumen de cambios'"></span>
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="showPreview ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
                             </svg>
@@ -249,45 +215,112 @@
                          x-transition:leave-end="opacity-0 -translate-y-1"
                          class="px-6 pb-5 space-y-5 border-t pt-5">
 
-                        @foreach($previewBlocks as $block)
-                            @php
-                                $filledFields = collect($block['fields'])->filter(fn($label, $key) => !empty($details[$key]));
-                            @endphp
-                            @if($filledFields->isNotEmpty())
-                                <div>
-                                    <h3 class="text-xs font-semibold text-[#1A428A] uppercase tracking-widest mb-3 flex items-center gap-2">
-                                        <span class="inline-block w-5 h-px bg-[#1A428A]/30"></span>
-                                        {{ $block['title'] }}
-                                        <span class="inline-block flex-1 h-px bg-[#1A428A]/30"></span>
-                                    </h3>
-                                    <div class="space-y-3">
-                                        @foreach($filledFields as $key => $label)
-                                            <div class="bg-gray-50 rounded-lg px-4 py-3">
-                                                <p class="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">{{ $label }}</p>
-                                                <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-line">{{ $details[$key] }}</p>
-                                            </div>
-                                        @endforeach
+                        @if($regulation->change_summary_path)
+                            {{-- Documento con el resumen de cambios que subió un administrador --}}
+                            <div>
+                                <div class="flex items-center justify-between gap-3 flex-wrap mb-2">
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-semibold text-gray-800 truncate">{{ $regulation->change_summary_original_name }}</p>
+                                        <p class="text-xs text-gray-500">
+                                            Subido por {{ $regulation->changeSummaryUploader?->name ?? '—' }}
+                                            · {{ $regulation->change_summary_uploaded_at?->format('d/m/Y H:i') }}
+                                        </p>
                                     </div>
+                                    <a href="{{ route('processes.changeSummary.show', $regulation) }}"
+                                       target="_blank"
+                                       class="text-xs font-semibold text-[#1A428A] hover:underline shrink-0">
+                                        Abrir en pestaña nueva
+                                    </a>
                                 </div>
-                            @endif
-                        @endforeach
+                                <template x-if="showPreview">
+                                    <iframe src="{{ route('processes.changeSummary.show', $regulation) }}"
+                                            title="Resumen de cambios"
+                                            class="w-full h-[600px] rounded-lg border bg-gray-100"></iframe>
+                                </template>
+                            </div>
+                        @else
+                            {{-- Mientras ningún administrador suba el documento, se muestra el registro más
+                                 reciente del "Historial de revisiones y cambios" de la ficha del proceso. --}}
+                            <div>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    Aún no hay un documento de resumen de cambios. Se muestra el último registro del historial de revisiones.
+                                </p>
+                                @if($currentVersion)
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full border-collapse text-sm">
+                                            <thead>
+                                                <tr class="bg-[#e8eef8]">
+                                                    <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800 w-16">Versión</th>
+                                                    <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800 w-24">Fecha</th>
+                                                    <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Elaboró</th>
+                                                    <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Descripción del cambio</th>
+                                                    <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Justificación</th>
+                                                    <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Aprobó</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr class="bg-white">
+                                                    <td class="border border-gray-300 px-3 py-2 text-center font-medium">{{ str_pad($currentVersion->version_number, 2, '0', STR_PAD_LEFT) }}</td>
+                                                    <td class="border border-gray-300 px-3 py-2">{{ $currentVersion->issued_at?->format('d/m/Y') ?? $currentVersion->created_at->format('d/m/Y') }}</td>
+                                                    <td class="border border-gray-300 px-3 py-2 text-gray-600">{{ $currentVersion->uploader?->name ?? $details['quien_elabora'] ?? '—' }}</td>
+                                                    <td class="border border-gray-300 px-3 py-2 text-gray-700">{{ $currentVersion->change_description ?: ($currentVersion->version_number == 1 ? 'Creación inicial del documento' : '—') }}</td>
+                                                    <td class="border border-gray-300 px-3 py-2 text-gray-700">{{ $currentVersion->change_justification ?: '—' }}</td>
+                                                    <td class="border border-gray-300 px-3 py-2 text-gray-600">{{ $details['quien_aprueba'] ?? '—' }}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @else
+                                    <p class="text-sm text-gray-400 italic text-center py-4">Este documento no tiene versiones registradas.</p>
+                                @endif
+                            </div>
+                        @endif
 
-                        @if(collect($previewBlocks)->every(fn($b) => collect($b['fields'])->every(fn($l, $k) => empty($details[$k]))))
-                            <p class="text-sm text-gray-400 italic text-center py-4">Este documento no tiene contenido adicional registrado.</p>
+                        @if(auth()->user()->isAdmin())
+                            {{-- Solo administradores: subir (o reemplazar) el documento guía de este proceso --}}
+                            <form method="POST"
+                                  action="{{ route('processes.changeSummary.store', $regulation) }}"
+                                  enctype="multipart/form-data"
+                                  class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3">
+                                @csrf
+                                <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                                    {{ $regulation->change_summary_path ? 'Reemplazar documento de resumen de cambios' : 'Subir documento de resumen de cambios' }}
+                                </label>
+                                <div class="flex items-center gap-3 flex-wrap">
+                                    <input type="file" name="file" required
+                                           accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                                           class="text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#1A428A] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-[#15356d]">
+                                    <button type="submit"
+                                            class="px-4 py-1.5 rounded-lg bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d]">
+                                        Guardar
+                                    </button>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-2">
+                                    PDF, Word, Excel o imagen, máx. 20 MB. Lo verán todos los aprobadores de este proceso, también en las siguientes aprobaciones, hasta que se reemplace.
+                                </p>
+                                @if($summaryErrors->has('file'))
+                                    <p class="text-xs text-red-600 mt-1">{{ $summaryErrors->first('file') }}</p>
+                                @endif
+                            </form>
                         @endif
                     </div>
 
                     {{-- Footer: acciones --}}
                     <div class="px-6 py-4 bg-gray-50 border-t flex items-center justify-between gap-3 flex-wrap">
 
-                        <a href="{{ route('processes.show', $regulation) }}"
-                           target="_blank"
-                           class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                            </svg>
-                            Ver ficha completa
-                        </a>
+                        @if($currentVersion)
+                            <a href="{{ route('regulation-versions.preview', $currentVersion) }}"
+                               target="_blank"
+                               class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                                Vista previa
+                            </a>
+                        @else
+                            <span></span>
+                        @endif
 
                         <div class="flex items-center gap-2">
                             <button type="button"

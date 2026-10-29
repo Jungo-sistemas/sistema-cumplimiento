@@ -1127,6 +1127,7 @@ class RegulationController extends Controller
         // Igual que el editor en línea: bloqueado aparte de isEditableBy() para no tocar el
         // wizard, que sigue siendo una forma válida de actualizar un documento antiguo.
         abort_if($regulation->is_legacy, 403, 'Este es un documento antiguo — actualízalo con el wizard o subiendo una nueva versión.');
+        abort_if($regulation->onlyWizardEditFor($user), 403, 'Este documento está desactualizado — actualízalo con "Editar" contestando las preguntas.');
 
         $regulation->load(['processType', 'company', 'currentVersion', 'responsables']);
 
@@ -1157,6 +1158,7 @@ class RegulationController extends Controller
         $user = auth()->user();
         abort_unless($regulation->isEditableBy($user), 403);
         abort_if($regulation->is_legacy, 403, 'Este es un documento antiguo — actualízalo con el wizard o subiendo una nueva versión.');
+        abort_if($regulation->onlyWizardEditFor($user), 403);
 
         $data = $request->validate([
             'process_type_id' => ['required', 'exists:process_types,id'],
@@ -1270,6 +1272,8 @@ class RegulationController extends Controller
         $user = auth()->user();
 
         abort_unless($user->canAccessCompany($regulation->company), 403);
+        // Esta vista es para imprimir / guardar PDF — un desactualizado solo se puede ver.
+        abort_unless($regulation->allowsDownload(), 403, 'Este documento está desactualizado — solo se puede ver hasta que se actualice.');
 
         $regulation->load(['processType', 'company', 'currentVersion']);
 
