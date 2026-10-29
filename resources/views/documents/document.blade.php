@@ -62,7 +62,7 @@
                 @endif
             </div>
 
-            <a href="{{ route('documents.index') }}"
+            <a href="{{ session('documents.index_url', route('documents.index')) }}"
                class="shrink-0 px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
                 Volver
             </a>
