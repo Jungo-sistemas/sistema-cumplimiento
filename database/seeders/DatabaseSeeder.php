@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
         $this->call(ProcessTypeSeeder::class);
         $this->call(JobPositionSeeder::class);
         $this->call(ApprovalFlowUsersSeeder::class);
+        $this->call(AuditUsersSeeder::class);
 
         $company = Company::factory()->create([
             'name' => 'Empresa Demo',

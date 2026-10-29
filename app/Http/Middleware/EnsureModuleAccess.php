@@ -19,6 +19,7 @@ class EnsureModuleAccess
             'procesos.*',
             'my-approvals.*',
             'regulation-versions.*',
+            'auditorias.*',
         ],
         'cumplimiento' => [
             'assets.*',

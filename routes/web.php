@@ -158,6 +158,18 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
 
     /*
     |--------------------------------------------------------------------------
+    | Auditorías (vista del auditor)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('auditorias')->name('auditorias.')->group(function () {
+        Route::view('/', 'auditorias.home')->name('home');
+        Route::view('/lista', 'auditorias.audits')->name('audits.index');
+        Route::view('/hallazgos', 'auditorias.findings')->name('findings.index');
+        Route::view('/ayuda', 'auditorias.help')->name('help');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
     | Processes / Regulations
     |--------------------------------------------------------------------------
     */
@@ -298,7 +310,6 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
 
     Route::get('/processes/{regulation}/qr', [RegulationShareController::class, 'qr'])
         ->name('processes.qr');
-
 
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
