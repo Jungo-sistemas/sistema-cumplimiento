@@ -111,6 +111,28 @@ class Regulation extends Model
         return $this->belongsTo(User::class, 'change_summary_uploaded_by');
     }
 
+    /**
+     * Guarda (o reemplaza) el documento con la síntesis de cambios que ven los aprobadores. Es uno
+     * por proceso, no por versión: se adjunta al establecer el flujo y sirve para las aprobaciones
+     * que vengan después hasta que se adjunte otro.
+     */
+    public function replaceChangeSummary(\Illuminate\Http\UploadedFile $file, User $uploader): void
+    {
+        $path = $file->store("regulations/{$this->company_id}/{$this->id}/change-summary", 'private');
+
+        if ($old = $this->change_summary_path) {
+            \Illuminate\Support\Facades\Storage::disk('private')->delete([$old, $old . '.preview.pdf']);
+        }
+
+        $this->update([
+            'change_summary_path'          => $path,
+            'change_summary_original_name' => $file->getClientOriginalName(),
+            'change_summary_mime_type'     => $file->getMimeType(),
+            'change_summary_uploaded_by'   => $uploader->id,
+            'change_summary_uploaded_at'   => now(),
+        ]);
+    }
+
     public function responsables()
     {
         return $this->belongsToMany(User::class, 'regulation_responsables')->withTimestamps();

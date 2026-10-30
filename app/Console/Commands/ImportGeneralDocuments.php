@@ -598,15 +598,40 @@ class ImportGeneralDocuments extends Command
             return [];
         }
 
-        return array_values(array_filter($allFiles, function ($file) use ($normalizedHint, $usedFilenames) {
+        $hintWords = $this->significantWords($normalizedHint);
+
+        return array_values(array_filter($allFiles, function ($file) use ($normalizedHint, $hintWords, $usedFilenames) {
             if (in_array($file->getFilename(), $usedFilenames, true)) {
                 return false;
             }
 
             $normalizedName = Str::of(pathinfo($file->getFilename(), PATHINFO_FILENAME))->ascii()->lower()->value();
 
-            return str_contains($normalizedName, $normalizedHint) || str_contains($normalizedHint, $normalizedName);
+            if (str_contains($normalizedName, $normalizedHint) || str_contains($normalizedHint, $normalizedName)) {
+                return true;
+            }
+
+            // Si el texto no coincide tal cual, se compara por palabras: basta con que todas las
+            // palabras de uno estén en el otro, ignorando las cortas ("de", "a", "y"), puntuación
+            // y espacios dobles — así "Contrato Donación de Acciones" en el CSV sí empareja con un
+            // archivo llamado "Contrato Donación Acciones". Se pide un mínimo de palabras para que
+            // un texto muy corto no empareje con medio mundo.
+            $nameWords = $this->significantWords($normalizedName);
+
+            if (count($hintWords) < 3 || count($nameWords) < 3) {
+                return false;
+            }
+
+            return empty(array_diff($nameWords, $hintWords)) || empty(array_diff($hintWords, $nameWords));
         }));
+    }
+
+    /** @return array<int, string> palabras de 3+ caracteres, sin repetir, de un texto ya normalizado */
+    private function significantWords(string $normalized): array
+    {
+        $words = preg_split('/[^a-z0-9]+/', $normalized, -1, PREG_SPLIT_NO_EMPTY);
+
+        return array_values(array_unique(array_filter($words, fn ($w) => strlen($w) >= 3)));
     }
 
     /**

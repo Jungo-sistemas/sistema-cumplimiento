@@ -962,12 +962,26 @@ class RegulationController extends Controller
         abort_unless($user->isAdmin(), 403);
         abort_unless($user->canAccessCompany($regulation->company), 403);
 
-        $data = $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'impact_level'    => ['nullable', 'string', 'in:' . implode(',', array_keys(Regulation::IMPACT_LEVELS))],
+            // Las personas por puesto son opcionales: un puesto sin nadie asignado toma a todos
+            // los usuarios de ese puesto (ver ApprovalFlowService::resolveStepUsers()).
             'users'           => ['nullable', 'array'],
             'users.*'         => ['nullable', 'array'],
             'users.*.*'       => ['nullable', 'integer', 'exists:users,id'],
+            'change_summary'  => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png', 'max:20480'],
+        ], [
+            'change_summary.mimes' => 'La síntesis de cambios debe ser PDF, Word, Excel o imagen (JPG/PNG).',
+            'change_summary.max'   => 'La síntesis de cambios no puede pesar más de 20 MB.',
         ]);
+
+        // Los modales del flujo no muestran errores por campo — se avisa con el mensaje general
+        // de la página, sin tocar el flujo.
+        if ($validator->fails()) {
+            return back()->with('error', $validator->errors()->first());
+        }
+
+        $data = $validator->validated();
 
         $newLevel = $data['impact_level'] ?: null;
 
@@ -987,6 +1001,12 @@ class RegulationController extends Controller
             'flow_locked'     => (bool) $newLevel,
             'flow_user_map'   => $newLevel && count($userMap) ? $userMap : null,
         ]);
+
+        // La síntesis se guarda antes de iniciar el flujo para que ya esté disponible cuando le
+        // llegue la notificación al primer aprobador.
+        if ($newLevel && $request->hasFile('change_summary')) {
+            $regulation->replaceChangeSummary($request->file('change_summary'), $user);
+        }
 
         if ($newLevel) {
             $this->flowService->initFlow($regulation, $userMap);

@@ -216,6 +216,12 @@
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 text-sm">
+            {{ session('error') }}
+        </div>
+    @endif
+
     @if($cardView)
 
         {{-- VISTA DE TARJETAS --}}
@@ -807,10 +813,13 @@
          style="display:none;">
 
         {{-- Hidden form submitted on confirm --}}
-        <form x-ref="flowForm" method="POST" :action="formAction">
+        <form x-ref="flowForm" method="POST" :action="formAction" enctype="multipart/form-data">
             @csrf
             @method('PATCH')
             <input type="hidden" name="impact_level" :value="impactLevel">
+            <input type="file" name="change_summary" x-ref="summaryInput" class="hidden"
+                   accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                   @change="pickSummary($event)">
             <template x-for="pos in positions" :key="pos.slug">
                 <template x-for="u in (selected[pos.slug] || [])" :key="u.id">
                     <input type="hidden"
@@ -858,8 +867,10 @@
                             <span class="font-semibold text-[#1A428A]" x-text="levelLabel"></span>
                         </p>
                         <p class="text-xs text-gray-500 mb-4">
-                            Asigna un responsable por cada puesto. Una vez confirmado, el flujo no podrá modificarse.
+                            Asignar personas es opcional: si dejas un puesto vacío, aprueba cualquiera de ese puesto. Una vez confirmado, el flujo no podrá modificarse.
                         </p>
+
+                        @include('processes.partials.flow-change-summary')
 
                         <div class="space-y-5">
                             <template x-for="pos in positions" :key="pos.slug">
@@ -870,7 +881,7 @@
                                               class="text-xs text-gray-400 font-normal">(cualquiera basta)</span>
                                         <span class="ml-auto text-xs"
                                               :class="(selected[pos.slug]||[]).length > 0 ? 'text-green-600' : 'text-gray-400'"
-                                              x-text="(selected[pos.slug]||[]).length + ' asignado(s)'"></span>
+                                              x-text="(selected[pos.slug]||[]).length > 0 ? (selected[pos.slug]||[]).length + ' asignado(s)' : 'Opcional'"></span>
                                     </div>
 
                                     {{-- Chips de usuarios seleccionados --}}
@@ -1119,11 +1130,29 @@ function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders
         selected: {},
         search: {},
         open: {},
+        summaryName: '',
+        summaryError: '',
 
+        // Las personas por puesto son opcionales — basta con haber elegido un nivel.
         get canConfirm() {
             if (this.removing) return true;
-            return this.positions.length > 0 &&
-                   this.positions.every(p => (this.selected[p.slug] || []).length > 0);
+            return this.positions.length > 0;
+        },
+
+        pickSummary(event) {
+            const file = event.target.files[0];
+            this.summaryError = '';
+            if (file && file.size > 20 * 1024 * 1024) {
+                this.summaryError = 'El documento no puede pesar más de 20 MB.';
+                this.clearSummary();
+                return;
+            }
+            this.summaryName = file ? file.name : '';
+        },
+
+        clearSummary() {
+            this.$refs.summaryInput.value = '';
+            this.summaryName = '';
         },
 
         filtered(slug) {
@@ -1148,6 +1177,8 @@ function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders
             this.selected  = {};
             this.search    = {};
             this.open      = {};
+            this.summaryError = '';
+            this.clearSummary();
 
             if (detail.impactLevel && flowDefs[detail.impactLevel]) {
                 const steps = flowDefs[detail.impactLevel];

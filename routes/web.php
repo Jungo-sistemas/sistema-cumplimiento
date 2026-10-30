@@ -306,8 +306,6 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::post('/processes/{regulation}/resubmit', [RegulationApprovalController::class, 'resubmit'])
         ->name('processes.resubmit');
 
-    Route::post('/processes/{regulation}/change-summary', [RegulationChangeSummaryController::class, 'store'])
-        ->name('processes.changeSummary.store');
     Route::get('/processes/{regulation}/change-summary', [RegulationChangeSummaryController::class, 'show'])
         ->name('processes.changeSummary.show');
 
