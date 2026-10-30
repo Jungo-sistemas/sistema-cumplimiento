@@ -52,6 +52,12 @@ Route::get('/dashboard', [ComplianceDashboardController::class, 'index'])
     ->middleware(['auth', 'verified', 'license.active'])
     ->name('dashboard');
 
+// Lo llama resources/js/app.js cada 10 min mientras el usuario está trabajando en la página, para
+// que la sesión no expire a media captura (wizard, editor) y salga "Page Expired" al enviar.
+Route::get('/session/keep-alive', fn () => response()->json(['token' => csrf_token()]))
+    ->middleware('auth')
+    ->name('session.keepAlive');
+
 Route::middleware(['auth', 'license.active', 'module.access'])->group(function () {
 
     /*

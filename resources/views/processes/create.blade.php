@@ -52,7 +52,7 @@
     @endif
 
     <div
-        x-data="wizardApp({{ $selectedCompanyId ?? 'null' }}, {{ $hasGroupScope ? 'true' : 'false' }})"
+        x-data="wizardApp({{ $selectedCompanyId ?? 'null' }}, {{ $hasGroupScope ? 'true' : 'false' }}, {{ Js::from((object) (old() ?? [])) }})"
         x-init="init()"
         class="pb-12"
     >
@@ -732,7 +732,7 @@
     </div>
 
     <script>
-    function wizardApp(preselectedCompanyId, hasGroupScope) {
+    function wizardApp(preselectedCompanyId, hasGroupScope, oldInput = {}) {
         return {
             currentBlock: 1,
             hasGroupScope: hasGroupScope,
@@ -803,6 +803,14 @@
 
             init() {
                 this.blockFieldMap[1] = ['process_type_id', 'document_type', 'nombre', 'codigo', 'quien_elabora', 'quien_aprueba', 'fecha_vigencia', 'motivo_creacion'];
+
+                // Lo capturado en un envío que no se completó (validación o sesión expirada).
+                Object.keys(this.form).forEach((field) => {
+                    if (oldInput[field] === undefined || oldInput[field] === null) return;
+                    this.form[field] = field === 'is_annex'
+                        ? ['1', 'true', true].includes(oldInput[field])
+                        : String(oldInput[field]);
+                });
             },
 
             blockColor(b) {
