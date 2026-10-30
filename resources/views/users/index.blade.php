@@ -264,6 +264,25 @@
             </div>
         @endif
 
+        {{-- Búsqueda --}}
+        <form method="GET" action="{{ route('users.index') }}" class="mb-4 flex flex-wrap items-end gap-3">
+            <div class="flex-1 min-w-[180px] max-w-md">
+                <label class="mb-1 block text-xs font-medium text-gray-500">Buscar</label>
+                <input type="text" name="q" value="{{ $search }}" placeholder="Nombre o correo..."
+                    class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="px-4 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                    Buscar
+                </button>
+                @if($search !== '')
+                    <a href="{{ route('users.index') }}" class="px-4 py-1.5 rounded-md border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50">
+                        Limpiar
+                    </a>
+                @endif
+            </div>
+        </form>
+
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-gray-600">
@@ -376,7 +395,7 @@
                     @empty
                         <tr>
                             <td colspan="8" class="px-4 py-8 text-center text-gray-500">
-                                No hay usuarios registrados todavía.
+                                {{ $search !== '' ? 'Ningún usuario coincide con "' . $search . '".' : 'No hay usuarios registrados todavía.' }}
                             </td>
                         </tr>
                     @endforelse
