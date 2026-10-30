@@ -278,8 +278,9 @@
     /* Imágenes (diagramas de flujo, etc.) — el HTML trae width/height fijos pensados para la
        exportación a Word (ver imageDimensionAttrs en AiProcedureGenerationService); en el panel
        del editor, más angosto, eso desborda y se ve "partido". Esto solo reescala la vista, no
-       toca esos atributos. */
-    #editor img { max-width: 100%; height: auto; display: block; margin: .5em auto; }
+       toca esos atributos. !important porque los .docx subidos a mano traen el tamaño en un
+       style="width:…;height:…" en línea, que si no le gana a esta regla y deja la imagen estirada. */
+    #editor img { max-width: 100% !important; height: auto !important; display: block; margin: .5em auto; }
     .tb-btn {
         padding: 3px 8px; border-radius: 4px; font-size: 13px; color: #374151;
         background: transparent; border: 1px solid transparent; cursor: pointer;
@@ -321,26 +322,16 @@
     .mention-suggestion-empty { padding: 6px 10px; color: #9ca3af; font-style: italic; }
 </style>
 
+@vite('resources/js/tiptap.js')
 <script type="module">
-// Todas las importaciones fijan la MISMA versión de @tiptap/core y @tiptap/pm vía ?deps=
-// — sin esto, esm.sh resuelve la dependencia interna de Mention/Link a otra versión distinta
-// (ej. 2.27.2) y quedan dos copias incompatibles de @tiptap/core cargadas a la vez, rompiendo
-// silenciosamente cualquier chequeo de identidad de clase (Suggestion, PluginKey, etc.).
-import { Editor, mergeAttributes, Extension } from 'https://esm.sh/@tiptap/core@2.27.2';
-import StarterKit    from 'https://esm.sh/@tiptap/starter-kit@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
-import Underline     from 'https://esm.sh/@tiptap/extension-underline@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
-import Highlight     from 'https://esm.sh/@tiptap/extension-highlight@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
-import Mention       from 'https://esm.sh/@tiptap/extension-mention@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
-import Link          from 'https://esm.sh/@tiptap/extension-link@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
-import Image         from 'https://esm.sh/@tiptap/extension-image@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
-import TextStyle     from 'https://esm.sh/@tiptap/extension-text-style@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
-import Table         from 'https://esm.sh/@tiptap/extension-table@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
-import TableRow      from 'https://esm.sh/@tiptap/extension-table-row@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
-import TableHeader   from 'https://esm.sh/@tiptap/extension-table-header@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
-import TableCell     from 'https://esm.sh/@tiptap/extension-table-cell@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
-import Subscript     from 'https://esm.sh/@tiptap/extension-subscript@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
-import Superscript   from 'https://esm.sh/@tiptap/extension-superscript@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
-import { PluginKey } from 'https://esm.sh/@tiptap/pm@2.27.2/state';
+// TipTap viene empaquetado con Vite (resources/js/tiptap.js), ya no de esm.sh: cuando ese servicio
+// fallaba, el editor quedaba en blanco para todos los documentos.
+const {
+    Editor, mergeAttributes, Extension,
+    StarterKit, Underline, Highlight, Mention, Link, Image, TextStyle,
+    Table, TableRow, TableHeader, TableCell, Subscript, Superscript,
+    PluginKey,
+} = window.Tiptap;
 // ── URLs ────────────────────────────────────────────────────────────────────
 const DRAFT_URL         = "{{ route('regulation-versions.saveDraft', $version) }}";
 const LOCK_URL          = "{{ route('regulation-versions.releaseLock', $version) }}";
