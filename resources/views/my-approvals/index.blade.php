@@ -45,10 +45,9 @@
                     // largo; decisión explícita del usuario, se sigue calculando todo pero solo
                     // se muestra 1 fila.
                     $changedSections = $changedSectionsAll !== [] ? [end($changedSectionsAll)] : [];
-                    $summaryErrors = $errors->getBag('changeSummary' . $regulation->id);
                 @endphp
 
-                <div x-data="{ showPreview: @js($summaryErrors->any()), showReject: false, showConfirm: false }" class="bg-white rounded-xl border shadow-sm overflow-hidden">
+                <div x-data="{ showPreview: false, showReject: false, showConfirm: false }" class="bg-white rounded-xl border shadow-sm overflow-hidden">
 
                     {{-- Cabecera --}}
                     <div class="px-6 py-4 border-b flex items-start justify-between gap-4 flex-wrap" style="background: linear-gradient(135deg, #1A428A 0%, #1e5096 100%);">
@@ -216,7 +215,7 @@
                          class="px-6 pb-5 space-y-5 border-t pt-5">
 
                         @if($regulation->change_summary_path)
-                            {{-- Documento con el resumen de cambios que subió un administrador --}}
+                            {{-- Síntesis de cambios que se adjuntó al establecer el flujo --}}
                             <div>
                                 <div class="flex items-center justify-between gap-3 flex-wrap mb-2">
                                     <div class="min-w-0">
@@ -239,7 +238,7 @@
                                 </template>
                             </div>
                         @else
-                            {{-- Mientras ningún administrador suba el documento, se muestra el registro más
+                            {{-- Si no se adjuntó síntesis al establecer el flujo, se muestra el registro más
                                  reciente del "Historial de revisiones y cambios" de la ficha del proceso. --}}
                             <div>
                                 <p class="text-xs text-gray-500 mb-2">
@@ -276,33 +275,6 @@
                             </div>
                         @endif
 
-                        @if(auth()->user()->isAdmin())
-                            {{-- Solo administradores: subir (o reemplazar) el documento guía de este proceso --}}
-                            <form method="POST"
-                                  action="{{ route('processes.changeSummary.store', $regulation) }}"
-                                  enctype="multipart/form-data"
-                                  class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3">
-                                @csrf
-                                <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
-                                    {{ $regulation->change_summary_path ? 'Reemplazar documento de resumen de cambios' : 'Subir documento de resumen de cambios' }}
-                                </label>
-                                <div class="flex items-center gap-3 flex-wrap">
-                                    <input type="file" name="file" required
-                                           accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                                           class="text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#1A428A] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-[#15356d]">
-                                    <button type="submit"
-                                            class="px-4 py-1.5 rounded-lg bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d]">
-                                        Guardar
-                                    </button>
-                                </div>
-                                <p class="text-xs text-gray-400 mt-2">
-                                    PDF, Word, Excel o imagen, máx. 20 MB. Lo verán todos los aprobadores de este proceso, también en las siguientes aprobaciones, hasta que se reemplace.
-                                </p>
-                                @if($summaryErrors->has('file'))
-                                    <p class="text-xs text-red-600 mt-1">{{ $summaryErrors->first('file') }}</p>
-                                @endif
-                            </form>
-                        @endif
                     </div>
 
                     {{-- Footer: acciones --}}

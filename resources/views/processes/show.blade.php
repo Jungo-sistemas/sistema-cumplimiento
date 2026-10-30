@@ -777,6 +777,8 @@
                                 @endif
                                 @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
                                     @include('processes.partials.edit-version-button', ['regulation' => $regulation, 'currentVersion' => $currentVersion, 'editLock' => $editLock])
+                                @endif
+                                @if(auth()->user()->isAdmin())
                                     <button type="button"
                                             onclick="openDeleteModal(
                                                 '{{ route('regulation-versions.destroy', [$regulation, $currentVersion]) }}',
@@ -876,7 +878,7 @@
                                             Descargar
                                         </a>
                                     @endif
-                                    @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
+                                    @if(auth()->user()->isAdmin())
                                         <button type="button"
                                                 onclick="openDeleteModal(
                                                     '{{ route('regulation-versions.destroy', [$regulation, $v]) }}',
@@ -1203,10 +1205,13 @@
     <div x-data="reviewFlowModal('{{ $regulation->impact_level }}')">
 
         {{-- Formulario oculto para enviar a setFlow --}}
-        <form x-ref="flowForm" method="POST" action="{{ route('processes.setFlow', $regulation) }}">
+        <form x-ref="flowForm" method="POST" action="{{ route('processes.setFlow', $regulation) }}" enctype="multipart/form-data">
             @csrf
             @method('PATCH')
             <input type="hidden" name="impact_level" :value="selectedLevel">
+            <input type="file" name="change_summary" x-ref="summaryInput" class="hidden"
+                   accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                   @change="pickSummary($event)">
             <template x-for="pos in positions" :key="pos.slug">
                 <template x-for="u in (selected[pos.slug] || [])" :key="u.id">
                     <input type="hidden" :name="`users[${pos.slug}][]`" :value="u.id">
@@ -1275,6 +1280,12 @@
                             </select>
                         </div>
 
+                        @include('processes.partials.flow-change-summary')
+
+                        <p class="text-xs text-gray-500">
+                            Asignar personas es opcional: si dejas un puesto vacío, aprueba cualquiera de ese puesto.
+                        </p>
+
                         {{-- Personas por puesto --}}
                         <template x-for="pos in positions" :key="pos.slug">
                             <div>
@@ -1282,8 +1293,8 @@
                                     <label class="text-xs font-semibold text-gray-700" x-text="pos.label"></label>
                                     <span x-show="!pos.requiresAll" class="text-xs text-gray-400 font-normal">(cualquiera basta)</span>
                                     <span class="ml-auto text-xs"
-                                          :class="(selected[pos.slug]||[]).length > 0 ? 'text-green-600' : 'text-red-400'"
-                                          x-text="(selected[pos.slug]||[]).length > 0 ? (selected[pos.slug]||[]).length + ' asignado(s)' : 'Requerido'"></span>
+                                          :class="(selected[pos.slug]||[]).length > 0 ? 'text-green-600' : 'text-gray-400'"
+                                          x-text="(selected[pos.slug]||[]).length > 0 ? (selected[pos.slug]||[]).length + ' asignado(s)' : 'Opcional'"></span>
                                 </div>
                                 <div x-show="(selected[pos.slug]||[]).length > 0" class="flex flex-wrap gap-1.5 mb-2">
                                     <template x-for="u in (selected[pos.slug]||[])" :key="u.id">
@@ -1446,10 +1457,28 @@
             selected:  {},
             search:    {},
             open:      {},
+            summaryName:  '',
+            summaryError: '',
 
+            // Las personas por puesto son opcionales — basta con haber elegido un nivel.
             get canConfirm() {
-                return this.positions.length > 0 &&
-                       this.positions.every(p => (this.selected[p.slug] || []).length > 0);
+                return this.positions.length > 0;
+            },
+
+            pickSummary(event) {
+                const file = event.target.files[0];
+                this.summaryError = '';
+                if (file && file.size > 20 * 1024 * 1024) {
+                    this.summaryError = 'El documento no puede pesar más de 20 MB.';
+                    this.clearSummary();
+                    return;
+                }
+                this.summaryName = file ? file.name : '';
+            },
+
+            clearSummary() {
+                this.$refs.summaryInput.value = '';
+                this.summaryName = '';
             },
 
             buildPositions() {

@@ -870,7 +870,8 @@ HTML;
     {
         $user = auth()->user();
 
-        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+        // Solo admins: los operativos no pueden eliminar versiones
+        abort_unless($user->isAdmin(), 403);
         abort_unless($user->canAccessCompany($regulation->company), 403);
         abort_unless($version->regulation_id === $regulation->id, 403);
 
