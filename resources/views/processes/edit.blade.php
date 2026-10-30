@@ -46,6 +46,12 @@
             'requerimientos_normativos'   => $d['requerimientos_normativos'] ?? '',
         ];
 
+        // Lo capturado en un envío que no se completó (validación o sesión expirada) tiene
+        // prioridad sobre lo guardado, para no perderlo.
+        foreach (array_intersect_key(old() ?? [], $initialForm) as $field => $value) {
+            $initialForm[$field] = $field === 'is_annex' ? (bool) $value : (string) $value;
+        }
+
         $blockFields = [
             1 => ['process_type_id', 'document_type', 'nombre', 'codigo', 'quien_elabora', 'quien_aprueba', 'fecha_vigencia', 'motivo_creacion'],
             2 => ['problema_resuelve', 'resultado_esperado', 'areas_aplica', 'fuera_alcance'],

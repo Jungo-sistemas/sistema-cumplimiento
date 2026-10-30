@@ -62,6 +62,49 @@ window.initPersonPicker = function (selectEl, { multiple = true } = {}) {
 };
 
 /**
+ * Mantiene viva la sesión mientras el usuario está trabajando en la página. Sin esto, llenar el
+ * wizard o editar un documento por más de SESSION_LIFETIME (120 min) sin enviar nada terminaba en
+ * "Page Expired" al guardar, perdiendo lo capturado. Solo se renueva si hubo actividad (teclear,
+ * clic, scroll) desde el último aviso: una pestaña olvidada sí deja expirar la sesión.
+ */
+(function keepSessionAlive() {
+    const meta = document.querySelector('meta[name=csrf-token][data-keep-alive]');
+    if (!meta) return;
+
+    const INTERVAL_MS = 10 * 60 * 1000;
+    let active = false;
+
+    ['keydown', 'input', 'click', 'scroll'].forEach((evt) => {
+        document.addEventListener(evt, () => { active = true; }, { capture: true, passive: true });
+    });
+
+    async function ping() {
+        try {
+            const res = await fetch(meta.dataset.keepAlive, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+            });
+            if (!res.ok) return;
+            const { token } = await res.json();
+            if (!token) return;
+            // El token casi nunca cambia, pero si cambió (ej. se inició sesión de nuevo en otra
+            // pestaña) los formularios ya abiertos deben mandar el nuevo.
+            meta.content = token;
+            document.querySelectorAll('input[name="_token"]').forEach((input) => { input.value = token; });
+        } catch {
+            // Sin conexión o la sesión ya expiró (redirige al login, no es JSON): no hay nada que
+            // renovar; si envía el formulario, el 419 lo maneja bootstrap/app.php.
+        }
+    }
+
+    setInterval(() => {
+        if (!active) return;
+        active = false;
+        ping();
+    }, INTERVAL_MS);
+})();
+
+/**
  * Guía interactiva de Procesos: resalta elementos reales de la interfaz (nav, botones, tablas)
  * en vez de solo describirlos en un modal. Como la app es multi-página (no SPA), el progreso se
  * guarda en localStorage para sobrevivir recargas completas al navegar de un paso a otro.
