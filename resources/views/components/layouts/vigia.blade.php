@@ -68,7 +68,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}" @auth data-keep-alive="{{ route('session.keepAlive') }}" @endauth>
     <title>{{ $title ? $title . ' · Vigia' : 'Vigia' }}</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -484,6 +484,12 @@
                 @if(session('success'))
                     <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
                         {{ session('success') }}
+                    </div>
+                @endif
+
+                @if(session('session_notice'))
+                    <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                        {{ session('session_notice') }}
                     </div>
                 @endif
 
