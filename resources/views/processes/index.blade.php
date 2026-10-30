@@ -817,8 +817,11 @@
             @csrf
             @method('PATCH')
             <input type="hidden" name="impact_level" :value="impactLevel">
+            {{-- @click.stop: este input vive fuera de la tarjeta del modal, y la tarjeta se cierra con
+                 @click.outside — sin esto, abrir el selector de archivo cerraba el modal. --}}
             <input type="file" name="change_summary" x-ref="summaryInput" class="hidden"
                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                   @click.stop
                    @change="pickSummary($event)">
             <template x-for="pos in positions" :key="pos.slug">
                 <template x-for="u in (selected[pos.slug] || [])" :key="u.id">

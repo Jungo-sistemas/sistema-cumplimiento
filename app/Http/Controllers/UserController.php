@@ -14,13 +14,20 @@ use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         abort_unless(auth()->user()->isAdmin(), 403);
 
         $authUser = auth()->user();
+        $search   = trim((string) $request->query('q', ''));
 
         $users = User::with(['role', 'company', 'group', 'jobPositions', 'companies'])
+            // Mismo criterio que la búsqueda del superadmin; va aparte del filtro de alcance de
+            // abajo (agrupado) para que el orWhere no se salte la restricción de grupo/empresa.
+            ->when($search !== '', fn ($query) => $query->where(
+                fn ($q) => $q->where('name', 'ilike', "%{$search}%")
+                    ->orWhere('email', 'ilike', "%{$search}%")
+            ))
             ->when($authUser->isGlobalScope(), function ($query) {
                 // global-scope admins see all users except superadmins
                 $query->whereHas('role', fn ($q) => $q->where('slug', '!=', 'superadmin'));
@@ -34,7 +41,8 @@ class UserController extends Controller
                 }
             })
             ->latest()
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString();
 
         $allowedRoleSlugs = ($authUser->hasGroupScope() || $authUser->isGlobalScope())
             ? ['admin', 'operative', 'readonly', 'auditor']
@@ -65,7 +73,7 @@ class UserController extends Controller
             ->groupBy('group_id')
             ->map->values();
 
-        return view('users.index', compact('users', 'roles', 'adminRoleId', 'positionsByGroup', 'companiesByGroup'));
+        return view('users.index', compact('users', 'roles', 'adminRoleId', 'positionsByGroup', 'companiesByGroup', 'search'));
     }
 
     public function create()
