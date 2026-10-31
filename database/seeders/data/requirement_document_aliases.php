@@ -163,6 +163,9 @@ return [
         // Confirmado con negocio: mismo requerimiento, el Excel de vigencias no lleva los
         // paréntesis alrededor de "EC" que sí trae el nombre oficial (EC Altamira).
         'NOM-003-SEDG-2004 Dictamen de Construcción EC' => 'NOM-003-SEDG-2004 Dictamen de Construcción (EC)',
+        // Mismo requerimiento sin ninguna mención a "EC" — en el catálogo de EC no hay otro
+        // "Dictamen de Construcción" con el que se pueda confundir (EC Cintermex).
+        'NOM-003-SEDG-2004 Dictamen de Construcción' => 'NOM-003-SEDG-2004 Dictamen de Construcción (EC)',
 
         // Confirmado con negocio: mismo requerimiento, redactado distinto en el Excel de
         // vigencias ("PC" = Protección Civil, "factibilidad de inicio de operaciones" = Vo.Bo.
