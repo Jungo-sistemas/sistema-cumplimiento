@@ -178,6 +178,9 @@ return [
         // Mismo alias que ya existe para ES; el Excel de vigencias solo trae "Informe Preventivo"
         // (EC Carr Cd Valles).
         'Informe Preventivo' => 'Manifiesto de Impacto Ambiental / Informe Preventivo',
+        // Mismo alias que ya existe para ES: el archivo/Excel de vigencias solo trae la primera
+        // mitad del nombre (EC Cintermex).
+        'Manifiesto de Impacto Ambiental' => 'Manifiesto de Impacto Ambiental / Informe Preventivo',
         // Nombre completo pero sin las comas antes de "MISSE" y "EVIS" en el Excel de vigencias
         // (EC Carr Cd Valles).
         'Resolutivo del Manifestación de Impacto Social en el Sector Energético MISSE o Evaluación de Impacto Social EVIS'
