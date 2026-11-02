@@ -8,8 +8,8 @@
         ];
 
         $pendientes = [
-            ['procedimiento' => 'Control de maniobras y seguridad', 'estado' => 'En captura'],
-            ['procedimiento' => 'Recepción de materia prima',       'estado' => 'Programada'],
+            ['id' => 1, 'procedimiento' => 'Control de maniobras y seguridad', 'estado' => 'En captura'],
+            ['id' => 2, 'procedimiento' => 'Recepción de materia prima',       'estado' => 'Programada'],
         ];
     @endphp
 
@@ -44,8 +44,7 @@
                         <div class="text-lg font-semibold text-gray-900">{{ $audit['procedimiento'] }}</div>
                         <div class="mt-2 text-[15px] text-gray-600">{{ $audit['estado'] }}</div>
                     </div>
-                    {{-- Todavía no existe la pantalla del checklist; al crearla se cambia el "#" por su ruta --}}
-                    <a href="#" class="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">Continuar checklist</a>
+                    <a href="{{ route('auditorias.audits.checklist', $audit['id']) }}" class="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">Continuar checklist</a>
                 </div>
             @empty
                 <p class="mt-5 text-[15px] text-gray-600">No tienes auditorías pendientes.</p>
