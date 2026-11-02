@@ -20,6 +20,7 @@ class EnsureModuleAccess
             'my-approvals.*',
             'regulation-versions.*',
             'auditorias.*',
+            'mi-espacio.*',
         ],
         'cumplimiento' => [
             'assets.*',

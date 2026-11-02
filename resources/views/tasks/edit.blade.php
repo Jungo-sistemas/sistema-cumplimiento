@@ -48,7 +48,7 @@
         {{-- Header --}}
         <div class="flex items-start justify-between gap-6">
             <div>
-                <h1 class="text-2xl font-bold text-[#1A428A]">Editar tarea</h1>
+                <h1 class="text-2xl font-bold text-brand">Editar tarea</h1>
                 <div class="text-sm text-gray-500 mt-1">
                     Carpeta: <span class="font-semibold text-gray-700">{{ $folderTitle }}</span>
                     @if($asset)
@@ -181,7 +181,7 @@
                 <button
                     type="submit"
                     class="px-5 py-2 rounded-md font-semibold transition
-                    {{ $assetInactive ? 'bg-gray-100 text-gray-500 border border-gray-300 cursor-not-allowed' : 'bg-[#1A428A] text-white hover:bg-[#15356d]' }}"
+                    {{ $assetInactive ? 'bg-gray-100 text-gray-500 border border-gray-300 cursor-not-allowed' : 'bg-brand text-white hover:bg-brand-dark' }}"
                     {{ $assetInactive ? 'disabled' : '' }}
                 >
                     Actualizar
@@ -306,7 +306,7 @@
 
         .select2-container--default .select2-results__option--highlighted[aria-selected] {
             background-color: rgb(239 246 255) !important;
-            color: #1A428A !important;
+            color: #5B1690 !important;
         }
 
         .select2-container--default .select2-results__option[aria-selected=true] {

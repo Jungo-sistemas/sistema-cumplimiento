@@ -1,85 +1,41 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Restablecer contraseña - VIGIA</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="min-h-screen bg-[#123B82] flex items-center justify-center">
+<x-layouts.auth title="Restablecer contraseña" heading="Restablecer contraseña">
+    <form method="POST" action="{{ route('password.store') }}" class="space-y-5">
+        @csrf
+        <input type="hidden" name="token" value="{{ $request->route('token') }}">
 
-    <div class="w-full max-w-5xl flex flex-col items-center">
-
-        <div class="w-full max-w-md bg-white rounded-2xl shadow-xl p-10">
-
-            <div class="flex flex-col items-center mb-8">
-                <img src="{{ asset('images/vigia-logo.svg') }}" alt="VIGIA" class="h-12 mb-4">
-                <h1 class="text-2xl font-semibold text-gray-800">Restablecer contraseña</h1>
-            </div>
-
-            <form method="POST" action="{{ route('password.store') }}" class="space-y-6">
-                @csrf
-                <input type="hidden" name="token" value="{{ $request->route('token') }}">
-
-                <div>
-                    <label class="block text-sm text-gray-700 mb-1">Correo electrónico</label>
-                    <input
-                        type="email"
-                        name="email"
-                        value="{{ old('email', $request->email) }}"
-                        required
-                        autofocus
-                        autocomplete="username"
-                        class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600"
-                    >
-                    @error('email')
-                        <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label class="block text-sm text-gray-700 mb-1">Nueva contraseña</label>
-                    <input
-                        type="password"
-                        name="password"
-                        required
-                        autocomplete="new-password"
-                        class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600"
-                    >
-                    @error('password')
-                        <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label class="block text-sm text-gray-700 mb-1">Confirmar contraseña</label>
-                    <input
-                        type="password"
-                        name="password_confirmation"
-                        required
-                        autocomplete="new-password"
-                        class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600"
-                    >
-                    @error('password_confirmation')
-                        <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <button
-                    type="submit"
-                    class="w-full py-3 bg-[#1F3F82] text-white rounded-md font-semibold hover:bg-[#173066] transition"
-                >
-                    Restablecer contraseña
-                </button>
-            </form>
+        <div>
+            <label for="email" class="mb-1.5 block text-sm font-medium text-gray-700">Correo electrónico</label>
+            <input id="email" type="email" name="email" value="{{ old('email', $request->email) }}" required autofocus autocomplete="username"
+                   class="h-12 w-full rounded-xl border-gray-300 px-4 focus:border-brand focus:ring-brand">
+            @error('email')
+                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+            @enderror
         </div>
 
-        <div class="mt-8 text-center text-xs text-white/80">
-            <a href="{{ route('login') }}" class="underline">Volver al inicio de sesión</a>
-            <div class="mt-2">© {{ date('Y') }} Grupo Vigia. Todos los derechos reservados.</div>
+        <div>
+            <label for="password" class="mb-1.5 block text-sm font-medium text-gray-700">Nueva contraseña</label>
+            <input id="password" type="password" name="password" required autocomplete="new-password"
+                   class="h-12 w-full rounded-xl border-gray-300 px-4 focus:border-brand focus:ring-brand">
+            @error('password')
+                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+            @enderror
         </div>
 
-    </div>
+        <div>
+            <label for="password_confirmation" class="mb-1.5 block text-sm font-medium text-gray-700">Confirmar contraseña</label>
+            <input id="password_confirmation" type="password" name="password_confirmation" required autocomplete="new-password"
+                   class="h-12 w-full rounded-xl border-gray-300 px-4 focus:border-brand focus:ring-brand">
+            @error('password_confirmation')
+                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+            @enderror
+        </div>
 
-</body>
-</html>
+        <button type="submit" class="h-12 w-full rounded-xl bg-brand font-semibold text-white transition hover:bg-brand-dark">
+            Restablecer contraseña
+        </button>
+    </form>
+
+    <x-slot:footer>
+        <a href="{{ route('login') }}" class="underline hover:text-white">Volver al inicio de sesión</a>
+    </x-slot:footer>
+</x-layouts.auth>

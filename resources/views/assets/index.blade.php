@@ -32,12 +32,12 @@
     @endif
 
     <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-[#1A428A]">Lista de activos</h1>
+        <h1 class="text-2xl font-semibold text-brand">Lista de activos</h1>
 
         @can('create', App\Models\Asset::class)
             @if(!($licenseInfo['at_limit'] ?? false))
                 <a href="{{ route('assets.create', array_filter(['company_id' => request('company_id', $selectedCompanyId ?? null)])) }}"
-                   class="bg-[#1A428A] text-white px-4 py-2 rounded-md font-semibold hover:bg-[#15356d]">
+                   class="bg-brand text-white px-4 py-2 rounded-md font-semibold hover:bg-brand-dark">
                     + Nuevo activo
                 </a>
             @else
@@ -53,7 +53,7 @@
     @if(!is_null($licenseInfo['limit'] ?? null))
         @php
             $pct   = $licenseInfo['percent'];
-            $color = $pct >= 100 ? 'bg-red-500' : ($pct >= 80 ? 'bg-orange-400' : 'bg-[#1A428A]');
+            $color = $pct >= 100 ? 'bg-red-500' : ($pct >= 80 ? 'bg-orange-400' : 'bg-brand');
             $scope = $licenseInfo['scope'] === 'group' ? 'del grupo' : 'de la empresa';
         @endphp
         <div class="mt-3 mb-1">
@@ -172,7 +172,7 @@
 
         <div>
             <button type="submit"
-                    class="w-full px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                    class="w-full px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark">
                 Filtrar
             </button>
         </div>
@@ -187,14 +187,14 @@
                  x-transition:enter="transition ease-out duration-150"
                  x-transition:enter-start="opacity-0 -translate-y-1"
                  x-transition:enter-end="opacity-100 translate-y-0"
-                 class="mt-4 flex items-center gap-3 rounded-lg border border-[#1A428A] bg-blue-50 px-4 py-2.5"
+                 class="mt-4 flex items-center gap-3 rounded-lg border border-brand bg-blue-50 px-4 py-2.5"
                  style="display:none;">
-                <span class="text-sm font-semibold text-[#1A428A]">
+                <span class="text-sm font-semibold text-brand">
                     <span x-text="selected.length"></span> seleccionado<span x-show="selected.length !== 1">s</span>
                 </span>
                 <button type="button"
                         @click="submitReport()"
-                        class="ml-auto flex items-center gap-1.5 rounded-md bg-[#1A428A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#15356d]">
+                        class="ml-auto flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
                          viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -226,7 +226,7 @@
                         @if($user->isAdmin())
                             <th class="px-3 py-3 w-10">
                                 <input type="checkbox"
-                                       class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A] cursor-pointer"
+                                       class="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
                                        :checked="allSelected"
                                        :indeterminate.prop="selected.length > 0 && !allSelected"
                                        @change="toggleAll()"
@@ -253,7 +253,7 @@
                             @if($user->isAdmin())
                                 <td class="px-3 py-3">
                                     <input type="checkbox"
-                                           class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A] cursor-pointer"
+                                           class="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
                                            :checked="selected.includes({{ $asset->id }})"
                                            @change="toggle({{ $asset->id }})">
                                 </td>
@@ -329,7 +329,7 @@
                         </span>
                     @else
                         <a href="{{ $assets->previousPageUrl() }}"
-                           class="px-3 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                           class="px-3 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold">
                             ←
                         </a>
                     @endif
@@ -343,7 +343,7 @@
 
                     @if($start > 1)
                         <a href="{{ $assets->url(1) }}"
-                           class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                           class="px-4 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold">
                             1
                         </a>
 
@@ -354,12 +354,12 @@
 
                     @for($page = $start; $page <= $end; $page++)
                         @if($page == $current)
-                            <span class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold border border-[#1A428A]">
+                            <span class="px-4 py-2 rounded-md bg-brand text-white font-semibold border border-brand">
                                 {{ $page }}
                             </span>
                         @else
                             <a href="{{ $assets->url($page) }}"
-                               class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                               class="px-4 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold">
                                 {{ $page }}
                             </a>
                         @endif
@@ -371,14 +371,14 @@
                         @endif
 
                         <a href="{{ $assets->url($last) }}"
-                           class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                           class="px-4 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold">
                             {{ $last }}
                         </a>
                     @endif
 
                     @if($assets->hasMorePages())
                         <a href="{{ $assets->nextPageUrl() }}"
-                           class="px-3 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                           class="px-3 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold">
                             →
                         </a>
                     @else

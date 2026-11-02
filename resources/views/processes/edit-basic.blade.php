@@ -15,7 +15,7 @@
     @endphp
 
     <div class="mb-6">
-        <h1 class="text-2xl font-semibold text-[#1A428A]">Editar información básica</h1>
+        <h1 class="text-2xl font-semibold text-brand">Editar información básica</h1>
         <p class="text-sm text-gray-500 mt-1">
             Identificación del documento: tipo, nombre, código y responsables.
         </p>
@@ -38,7 +38,7 @@
         @method('PUT')
 
         <div class="bg-white border rounded-xl shadow-sm overflow-hidden max-w-2xl">
-            <div class="px-5 py-3.5 border-b bg-[#1A428A]">
+            <div class="px-5 py-3.5 border-b bg-brand">
                 <h2 class="text-sm font-semibold text-white">Identificación del documento</h2>
             </div>
 
@@ -59,7 +59,7 @@
                             Tipo de proceso <span class="text-red-500">*</span>
                         </label>
                         <select name="process_type_id"
-                                class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('process_type_id') border-red-400 @enderror">
+                                class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('process_type_id') border-red-400 @enderror">
                             <option value="">— Seleccionar —</option>
                             @foreach($processTypes as $pt)
                                 <option value="{{ $pt->id }}"
@@ -77,7 +77,7 @@
                             Tipo de documento <span class="text-red-500">*</span>
                         </label>
                         <select name="document_type"
-                                class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('document_type') border-red-400 @enderror">
+                                class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('document_type') border-red-400 @enderror">
                             <option value="">— Seleccionar —</option>
                             @foreach($documentTypes as $dt)
                                 <option value="{{ $dt }}"
@@ -100,7 +100,7 @@
                         name="is_annex"
                         value="1"
                         {{ old('is_annex', $regulation->is_annex) ? 'checked' : '' }}
-                        class="mt-0.5 rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]"
+                        class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand"
                     >
                     <label for="is_annex" class="text-xs text-gray-600">
                         <span class="font-medium uppercase tracking-wide text-gray-500">Es un anexo</span>
@@ -121,7 +121,7 @@
                            name="nombre"
                            value="{{ old('nombre', $regulation->name) }}"
                            placeholder="Ej: Procedimiento de Alta de Proveedores"
-                           class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('nombre') border-red-400 @enderror">
+                           class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('nombre') border-red-400 @enderror">
                     @error('nombre')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                     @enderror
@@ -136,7 +136,7 @@
                            name="codigo"
                            value="{{ old('codigo', $regulation->code) }}"
                            placeholder="Ej: P-COM-001"
-                           class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                           class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                 </div>
 
                 {{-- Elaborado por --}}
@@ -148,7 +148,7 @@
                            name="quien_elabora"
                            value="{{ old('quien_elabora', $d['quien_elabora'] ?? '') }}"
                            placeholder="Ej: Juan Pérez — Jefe de Compras"
-                           class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('quien_elabora') border-red-400 @enderror">
+                           class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('quien_elabora') border-red-400 @enderror">
                     @error('quien_elabora')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                     @enderror
@@ -163,7 +163,7 @@
                            name="quien_aprueba"
                            value="{{ old('quien_aprueba', $d['quien_aprueba'] ?? '') }}"
                            placeholder="Ej: María López — Directora de Operaciones"
-                           class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('quien_aprueba') border-red-400 @enderror">
+                           class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('quien_aprueba') border-red-400 @enderror">
                     @error('quien_aprueba')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                     @enderror
@@ -177,7 +177,7 @@
                     <input type="date"
                            name="fecha_vigencia"
                            value="{{ old('fecha_vigencia', $d['fecha_vigencia'] ?? '') }}"
-                           class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('fecha_vigencia') border-red-400 @enderror">
+                           class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('fecha_vigencia') border-red-400 @enderror">
                     <p class="text-xs text-gray-400 mt-1">La vigencia (1 año) se asigna automáticamente cuando el documento se aprueba.</p>
                     @error('fecha_vigencia')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
@@ -192,7 +192,7 @@
                     <textarea name="motivo_creacion"
                               rows="2"
                               placeholder="Ej: Se detectó falta de un procedimiento formal durante la auditoría interna 2026"
-                              class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('motivo_creacion') border-red-400 @enderror">{{ old('motivo_creacion', $d['motivo_creacion'] ?? '') }}</textarea>
+                              class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('motivo_creacion') border-red-400 @enderror">{{ old('motivo_creacion', $d['motivo_creacion'] ?? '') }}</textarea>
                     @error('motivo_creacion')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                     @enderror
@@ -234,7 +234,7 @@
 
         <div class="mt-6 flex items-center gap-3">
             <button type="submit"
-                    class="px-6 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d] text-sm">
+                    class="px-6 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark text-sm">
                 Guardar cambios
             </button>
             <a href="{{ route('processes.show', $regulation) }}"

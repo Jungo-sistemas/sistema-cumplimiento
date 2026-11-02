@@ -4,11 +4,11 @@
 
         {{-- Header --}}
         <div class="mb-6 flex items-center justify-between">
-            <h1 class="text-2xl font-bold text-[#1A428A]">Grupos</h1>
+            <h1 class="text-2xl font-bold text-brand">Grupos</h1>
             <button
                 type="button"
                 @click="showForm = !showForm"
-                class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d] text-sm"
+                class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark text-sm"
             >
                 + Nuevo grupo
             </button>
@@ -36,7 +36,7 @@
                         name="name"
                         value="{{ old('name') }}"
                         required
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]"
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                         placeholder="Nombre del grupo"
                     >
                     @error('name')
@@ -46,7 +46,7 @@
                 <div class="flex gap-2">
                     <button
                         type="submit"
-                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d] text-sm"
+                        class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark text-sm"
                     >
                         Crear grupo
                     </button>
@@ -82,7 +82,7 @@
                                 $limit   = $group->asset_limit;
                                 $current = $group->asset_current ?? 0;
                                 $pct     = $limit > 0 ? min(100, (int) round(($current / $limit) * 100)) : 0;
-                                $barColor = $pct >= 100 ? 'bg-red-500' : ($pct >= 80 ? 'bg-orange-400' : 'bg-[#1A428A]');
+                                $barColor = $pct >= 100 ? 'bg-red-500' : ($pct >= 80 ? 'bg-orange-400' : 'bg-brand');
                             @endphp
                             <tr class="border-t hover:bg-gray-50">
                                 <td class="px-5 py-3 font-medium text-gray-900">
@@ -114,7 +114,7 @@
                                                     <span class="text-xs text-gray-400">Sin límite</span>
                                                 @endif
                                                 <button type="button" @click="editing = true"
-                                                        class="text-xs text-[#1A428A] hover:underline">Cambiar</button>
+                                                        class="text-xs text-brand hover:underline">Cambiar</button>
                                             </div>
                                             @if($limit)
                                                 <div class="h-1.5 w-full rounded-full bg-gray-200">
@@ -149,7 +149,7 @@
                                                    :value="plan === 'enterprise' ? '' : (plan === 'custom' ? customLimit : {basic:'50',pro:'100',business:'500'}[plan])">
                                             <div class="flex gap-2">
                                                 <button type="submit"
-                                                        class="text-xs px-3 py-1.5 rounded bg-[#1A428A] text-white hover:bg-[#15356d]">Guardar</button>
+                                                        class="text-xs px-3 py-1.5 rounded bg-brand text-white hover:bg-brand-dark">Guardar</button>
                                                 <button type="button" @click="editing = false"
                                                         class="text-xs text-gray-500 hover:underline">Cancelar</button>
                                             </div>

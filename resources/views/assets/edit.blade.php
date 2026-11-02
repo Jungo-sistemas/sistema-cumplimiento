@@ -24,7 +24,7 @@
     <div class="bg-white rounded-xl shadow p-6">
         <div class="flex items-start justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-semibold text-[#1A428A]">Editar activo</h1>
+                <h1 class="text-2xl font-semibold text-brand">Editar activo</h1>
 
                 @if(($user->hasGroupScope() || $user->hasMultipleCompanies()) && $asset->company)
                     <p class="mt-1 text-sm text-gray-500">
@@ -263,7 +263,7 @@
                     <select
                         name="parent_asset_id"
                         id="parent_asset_id"
-                        class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-[#1A428A] focus:ring-[#1A428A]"
+                        class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand focus:ring-brand"
                     >
                         <option value="">Sin relación</option>
 
@@ -297,7 +297,7 @@
                 </a>
 
                 <button type="submit"
-                        class="px-5 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                        class="px-5 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark">
                     Guardar cambios
                 </button>
             </div>
@@ -438,7 +438,7 @@
 
         .select2-container--default .select2-results__option--highlighted[aria-selected] {
             background-color: rgb(239 246 255) !important;
-            color: #1A428A !important;
+            color: #5B1690 !important;
         }
 
         .select2-container--default .select2-results__option[aria-selected=true] {

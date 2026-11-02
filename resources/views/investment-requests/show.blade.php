@@ -11,7 +11,7 @@
         {{-- Header --}}
         <div class="flex items-start justify-between gap-6">
             <div class="space-y-1">
-                <h1 class="text-2xl font-bold text-[#1A428A]">
+                <h1 class="text-2xl font-bold text-brand">
                     {{ $investmentRequest->concept }}
                 </h1>
 
@@ -46,7 +46,7 @@
             </div>
 
             <a href="{{ route('investment-requests.index') }}"
-               class="shrink-0 px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+               class="shrink-0 px-4 py-2 rounded-md border bg-white text-brand border-brand font-semibold hover:bg-brand-50">
                 Volver
             </a>
         </div>
@@ -68,7 +68,7 @@
         {{-- Flujo de aprobación --}}
         <div class="mt-8 bg-white border rounded-xl overflow-hidden" x-data="{ showReject: {{ $errors->has('comments') ? 'true' : 'false' }}, showConfirm: false }">
             <div class="p-5 border-b">
-                <div class="font-semibold text-[#1A428A]">Flujo de aprobación</div>
+                <div class="font-semibold text-brand">Flujo de aprobación</div>
                 <div class="text-sm text-gray-500">Las personas aprueban una tras otra, en este orden.</div>
             </div>
 
@@ -84,13 +84,13 @@
                                 $dot = match ($approval->status) {
                                     'approved'  => 'bg-green-600 text-white',
                                     'rejected'  => 'bg-red-600 text-white',
-                                    'pending'   => 'bg-[#1A428A] text-white ring-4 ring-blue-100',
+                                    'pending'   => 'bg-brand text-white ring-4 ring-blue-100',
                                     default     => 'bg-gray-200 text-gray-500',
                                 };
                                 $label = match ($approval->status) {
                                     'approved'  => 'text-green-700',
                                     'rejected'  => 'text-red-700',
-                                    'pending'   => 'text-[#1A428A] font-semibold',
+                                    'pending'   => 'text-brand font-semibold',
                                     default     => 'text-gray-400',
                                 };
                             @endphp
@@ -119,14 +119,14 @@
 
                 @if($myTurn)
                     <div class="mt-5 rounded-lg border border-blue-200 bg-blue-50 p-4 flex flex-wrap items-center justify-between gap-3">
-                        <div class="text-sm text-[#1A428A] font-medium">Es tu turno de aprobar esta solicitud.</div>
+                        <div class="text-sm text-brand font-medium">Es tu turno de aprobar esta solicitud.</div>
                         <div class="flex items-center gap-2">
                             <button type="button" @click="showReject = true"
                                     class="px-4 py-2 rounded-md border bg-white border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-300 hover:text-red-700 text-sm font-semibold">
                                 Rechazar
                             </button>
                             <button type="button" @click="showConfirm = true"
-                                    class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                    class="px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                                 Aprobar
                             </button>
                         </div>
@@ -154,7 +154,7 @@
                                     Cancelar
                                 </button>
                                 <button type="submit"
-                                        class="flex-1 px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                        class="flex-1 px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                                     Sí, aprobar
                                 </button>
                             </div>
@@ -194,7 +194,7 @@
         {{-- Anexo 8 --}}
         <div class="mt-8 bg-white border rounded-xl overflow-hidden">
             <div class="p-5 border-b">
-                <div class="font-semibold text-[#1A428A]">Anexo 8</div>
+                <div class="font-semibold text-brand">Anexo 8</div>
                 <div class="text-sm text-gray-500">
                     Documento justificante del gasto solicitado.
                 </div>
@@ -217,12 +217,12 @@
                             @if($investmentRequest->isPreviewable())
                                 <a href="{{ route('investment-requests.preview', $investmentRequest) }}"
                                    target="_blank"
-                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
                                     Ver
                                 </a>
                             @endif
                             <a href="{{ route('investment-requests.download', $investmentRequest) }}"
-                               class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                               class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
                                 Descargar
                             </a>
                         </div>

@@ -88,7 +88,7 @@
         <div x-show="submitting" style="display: none;"
              class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
             <div class="bg-white rounded-lg px-8 py-6 shadow-xl text-center max-w-sm">
-                <svg class="animate-spin h-8 w-8 text-[#1A428A] mx-auto mb-3" viewBox="0 0 24 24" fill="none">
+                <svg class="animate-spin h-8 w-8 text-brand mx-auto mb-3" viewBox="0 0 24 24" fill="none">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                 </svg>
@@ -100,11 +100,11 @@
         {{-- ===== TOP PROGRESS BAR ===== --}}
         <div class="mb-6">
             <div class="flex items-center justify-between mb-1">
-                <h1 class="text-2xl font-semibold text-[#1A428A]">Editar Prompt</h1>
+                <h1 class="text-2xl font-semibold text-brand">Editar Prompt</h1>
                 <span class="text-sm text-gray-500" x-text="Math.round(overallProgress()) + '% completado'"></span>
             </div>
             <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div class="h-full bg-[#1A428A] rounded-full transition-all duration-300"
+                <div class="h-full bg-brand rounded-full transition-all duration-300"
                      :style="'width:' + overallProgress() + '%'"></div>
             </div>
         </div>
@@ -166,7 +166,7 @@
                     {{-- ==================== BLOQUE 1: Identificación ==================== --}}
                     <div x-show="currentBlock === 1" x-transition.opacity>
                         <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
-                            <div class="px-6 py-4 border-b" style="background-color: #1A428A;">
+                            <div class="px-6 py-4 border-b" style="background-color: #5B1690;">
                                 <h2 class="text-lg font-semibold text-white">Bloque 1 — Identificación</h2>
                                 <p class="text-sm text-white mt-0.5">Datos básicos del documento</p>
                             </div>
@@ -226,7 +226,7 @@
                                         name="is_annex"
                                         value="1"
                                         x-model="form.is_annex"
-                                        class="mt-0.5 rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]"
+                                        class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand"
                                     >
                                     <label for="is_annex" class="text-sm text-gray-700">
                                         <span class="font-medium">Es un anexo</span>
@@ -336,7 +336,7 @@
                     {{-- ==================== BLOQUE 2: Objetivo y Alcance ==================== --}}
                     <div x-show="currentBlock === 2" x-transition.opacity>
                         <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
-                            <div class="px-6 py-4 border-b" style="background-color: #1A428A;">
+                            <div class="px-6 py-4 border-b" style="background-color: #5B1690;">
                                 <h2 class="text-lg font-semibold text-white">Bloque 2 — Objetivo y Alcance</h2>
                                 <p class="text-sm text-white mt-0.5">Define el propósito y los límites del proceso</p>
                             </div>
@@ -393,7 +393,7 @@
                     {{-- ==================== BLOQUE 3: Indicadores ==================== --}}
                     <div x-show="currentBlock === 3" x-transition.opacity>
                         <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
-                            <div class="px-6 py-4 border-b" style="background-color: #1A428A;">
+                            <div class="px-6 py-4 border-b" style="background-color: #5B1690;">
                                 <h2 class="text-lg font-semibold text-white">Bloque 3 — Indicadores</h2>
                                 <p class="text-sm text-white mt-0.5">Métricas para medir el desempeño del proceso</p>
                             </div>
@@ -448,7 +448,7 @@
                     {{-- ==================== BLOQUE 4: Actividades ==================== --}}
                     <div x-show="currentBlock === 4" x-transition.opacity>
                         <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
-                            <div class="px-6 py-4 border-b" style="background-color: #1A428A;">
+                            <div class="px-6 py-4 border-b" style="background-color: #5B1690;">
                                 <h2 class="text-lg font-semibold text-white">Bloque 4 — Actividades</h2>
                                 <p class="text-sm text-white mt-0.5">Desglose operativo del proceso</p>
                             </div>
@@ -523,7 +523,7 @@
                     {{-- ==================== BLOQUE 5: Mapa de Proceso ==================== --}}
                     <div x-show="currentBlock === 5" x-transition.opacity>
                         <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
-                            <div class="px-6 py-4 border-b" style="background-color: #1A428A;">
+                            <div class="px-6 py-4 border-b" style="background-color: #5B1690;">
                                 <h2 class="text-lg font-semibold text-white">Bloque 5 — Mapa de Proceso</h2>
                                 <p class="text-sm text-white mt-0.5">Relaciones y actores del proceso</p>
                             </div>
@@ -568,7 +568,7 @@
                     {{-- ==================== BLOQUE 6: Contexto ==================== --}}
                     <div x-show="currentBlock === 6" x-transition.opacity>
                         <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
-                            <div class="px-6 py-4 border-b" style="background-color: #1A428A;">
+                            <div class="px-6 py-4 border-b" style="background-color: #5B1690;">
                                 <h2 class="text-lg font-semibold text-white">Bloque 6 — Contexto</h2>
                                 <p class="text-sm text-white mt-0.5">Glosario, riesgos y normativa aplicable</p>
                             </div>
@@ -629,13 +629,13 @@
 
                             <template x-if="currentBlock < 6">
                                 <button type="button" @click="next()"
-                                        class="px-6 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                        class="px-6 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                                     Siguiente
                                 </button>
                             </template>
                             <template x-if="currentBlock === 6">
                                 <button type="button" @click="submitWizard()"
-                                        class="px-6 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                        class="px-6 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                                     Generar Vista Previa
                                 </button>
                             </template>
@@ -678,7 +678,7 @@
 
             init() {},
 
-            blockColor(b) { return '#1A428A'; },
+            blockColor(b) { return '#5B1690'; },
             blockColorBg(b) { return '#eff6ff'; },
             blockName(b) { return this.blockNames[b] || ''; },
 

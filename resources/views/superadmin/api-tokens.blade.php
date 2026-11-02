@@ -8,7 +8,7 @@
 
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-semibold text-[#1A428A]">API Tokens</h1>
+            <h1 class="text-2xl font-semibold text-brand">API Tokens</h1>
             <p class="mt-1 text-sm text-gray-500">
                 Tokens de solo lectura para consultar catálogos de tipos de activo y requerimientos.
             </p>
@@ -49,13 +49,13 @@
                         <label class="block text-xs text-gray-500 mb-1">Nombre / descripción</label>
                         <input type="text" name="name" value="{{ old('name') }}"
                                placeholder="Ej: Sistema de inventario"
-                               class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                               class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                         @error('name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">Grupo (referencia)</label>
                         <select name="group_id"
-                                class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                                class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                             <option value="">Selecciona un grupo</option>
                             @foreach($groups as $group)
                                 <option value="{{ $group->id }}" @selected(old('group_id') == $group->id)>
@@ -67,7 +67,7 @@
                     </div>
                 </div>
                 <button type="submit"
-                        class="px-5 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                        class="px-5 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                     Generar token
                 </button>
             </form>
@@ -121,7 +121,7 @@
                             </svg>
                         </span>
                         <input type="text" x-model="search" placeholder="Buscar por nombre o grupo…"
-                               class="w-full rounded-md border-gray-300 text-xs pl-8 py-1.5 focus:border-[#1A428A] focus:ring-[#1A428A]">
+                               class="w-full rounded-md border-gray-300 text-xs pl-8 py-1.5 focus:border-brand focus:ring-brand">
                     </div>
                 </div>
 

@@ -26,7 +26,7 @@
         {{-- Header --}}
         <div class="flex items-start justify-between gap-6">
             <div class="space-y-1">
-                <h1 class="text-2xl font-bold text-[#1A428A]">
+                <h1 class="text-2xl font-bold text-brand">
                     Info extra
                 </h1>
 
@@ -51,7 +51,7 @@
 
             <div class="flex items-center gap-2">
                 <a href="{{ route('assets.show', $asset) }}"
-                   class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+                   class="px-4 py-2 rounded-md border bg-white text-brand border-brand font-semibold hover:bg-brand-50">
                     Volver
                 </a>
             </div>
@@ -77,7 +77,7 @@
             {{-- Subir documentación extra --}}
             <div class="bg-white border rounded-xl overflow-hidden">
                 <div class="p-5 border-b">
-                    <div class="font-semibold text-[#1A428A]">
+                    <div class="font-semibold text-brand">
                         Subir documentación extra
                     </div>
 
@@ -116,7 +116,7 @@
                                 <div class="grid grid-cols-3 gap-2">
                                     <button type="button" @click="mode = 'no_dates'"
                                             :class="mode === 'no_dates'
-                                                ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                                ? 'bg-brand text-white border-brand'
                                                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
                                             class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
                                         Sin fechas<br>
@@ -124,7 +124,7 @@
                                     </button>
                                     <button type="button" @click="mode = 'no_renewal'"
                                             :class="mode === 'no_renewal'
-                                                ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                                ? 'bg-brand text-white border-brand'
                                                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
                                             class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
                                         Solo emisión<br>
@@ -132,7 +132,7 @@
                                     </button>
                                     <button type="button" @click="mode = 'renewal'"
                                             :class="mode === 'renewal'
-                                                ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                                ? 'bg-brand text-white border-brand'
                                                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
                                             class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
                                         Emisión y vencimiento<br>
@@ -200,8 +200,8 @@
                                                    required
                                                    class="block flex-1 rounded-md border border-gray-300 text-sm text-gray-700
                                                           file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0
-                                                          file:text-sm file:font-medium file:bg-[#1A428A] file:text-white
-                                                          hover:file:bg-[#15356d] focus:outline-none">
+                                                          file:text-sm file:font-medium file:bg-brand file:text-white
+                                                          hover:file:bg-brand-dark focus:outline-none">
                                             <button type="button"
                                                     @click="removeSlot(slotId)"
                                                     x-show="slots.length > 1"
@@ -217,7 +217,7 @@
                                 <button type="button"
                                         @click="addSlot()"
                                         x-show="slots.length < 10"
-                                        class="mt-2 flex items-center gap-1.5 text-sm text-[#1A428A] hover:underline font-medium">
+                                        class="mt-2 flex items-center gap-1.5 text-sm text-brand hover:underline font-medium">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
                                     </svg>
@@ -234,7 +234,7 @@
                             </div>
 
                             <button type="submit"
-                                    class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                                    class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark">
                                 Subir documentación
                             </button>
                         </form>
@@ -246,7 +246,7 @@
             <div class="bg-white border rounded-xl overflow-hidden">
                 <div class="p-5 border-b flex items-center justify-between">
                     <div>
-                        <div class="font-semibold text-[#1A428A]">Documentos ({{ $documents->count() }})</div>
+                        <div class="font-semibold text-brand">Documentos ({{ $documents->count() }})</div>
                         <div class="text-sm text-gray-500">
                             Documentación extra registrada para este activo.
                         </div>
@@ -284,12 +284,12 @@
                                     <div class="flex items-center gap-2 shrink-0">
                                         <a href="{{ route('assets.extra-documents.preview', [$asset, $doc]) }}"
                                            target="_blank"
-                                           class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                           class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
                                             Ver
                                         </a>
 
                                         <a href="{{ route('assets.extra-documents.download', [$asset, $doc]) }}"
-                                           class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                           class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
                                             Descargar
                                         </a>
 

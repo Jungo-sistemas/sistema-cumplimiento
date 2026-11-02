@@ -6,7 +6,7 @@
     <div class="flex items-center justify-between gap-4 mb-4 shrink-0">
         <div class="min-w-0">
             <div class="text-xs text-gray-500 mb-0.5">
-                <a href="{{ route('processes.show', $regulation) }}" class="hover:underline text-[#1A428A]">
+                <a href="{{ route('processes.show', $regulation) }}" class="hover:underline text-brand">
                     {{ $regulation->name }}
                 </a> &rsaquo; Editar
             </div>
@@ -32,7 +32,7 @@
                 Cancelar
             </button>
             <button type="button" id="saveBtn"
-                    class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                    class="px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                 Guardar nueva versión
             </button>
         </div>
@@ -169,7 +169,7 @@
                 <label class="block text-xs font-medium text-gray-600 mb-1">Descripción del cambio</label>
                 <textarea id="changeDesc" rows="4"
                           placeholder="¿Qué se modificó?"
-                          class="block w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]"></textarea>
+                          class="block w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand"></textarea>
                 <p class="text-xs text-gray-400 mt-2 mb-3">Los cambios en amarillo quedan visibles al abrir el .docx en Word.</p>
 
                 <label class="block text-xs font-medium text-gray-600 mb-1">
@@ -177,7 +177,7 @@
                 </label>
                 <textarea id="changeJustification" rows="3"
                           placeholder="¿Por qué se hizo este cambio?"
-                          class="block w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]"></textarea>
+                          class="block w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand"></textarea>
                 <p id="justificationError" class="text-xs text-red-600 mt-1 hidden">Explica por qué se hizo este cambio antes de guardar.</p>
             </div>
 
@@ -205,7 +205,7 @@
         <p class="text-sm text-gray-600 mb-5">Tienes cambios no guardados como nueva versión.</p>
         <div class="flex flex-col gap-2">
             <button type="button" id="keepDraftBtn"
-                    class="w-full px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                    class="w-full px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                 Conservar borrador y salir
             </button>
             <button type="button" id="discardDraftBtn"
@@ -230,7 +230,7 @@
         </p>
         <div class="flex flex-col gap-2">
             <button type="button" id="confirmSaveBtn"
-                    class="w-full px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                    class="w-full px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                 Guardar nueva versión
             </button>
             <button type="button" id="cancelSaveBtn"

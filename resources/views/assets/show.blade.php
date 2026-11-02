@@ -35,7 +35,7 @@
         <div class="flex items-start justify-between flex-wrap gap-6">
             <div>
                 <div class="flex items-center gap-3 flex-wrap">
-                    <h1 class="text-3xl font-bold text-[#1A428A]">
+                    <h1 class="text-3xl font-bold text-brand">
                         {{ $asset->display_name }}
                     </h1>
 
@@ -59,13 +59,13 @@
 
             <div class="flex items-center gap-3">
                 <a href="{{ route('assets.extra-documents.index', $asset) }}"
-                   class="px-5 py-2 rounded-md border border-[#1A428A] text-[#1A428A] font-semibold hover:bg-blue-50">
+                   class="px-5 py-2 rounded-md border border-brand text-brand font-semibold hover:bg-brand-50">
                     Extra
                 </a>
 
                 @can('update', $asset)
                     <a href="{{ route('assets.edit', array_merge(['asset' => $asset], array_filter(['company_id' => request('company_id', $asset->company_id)]))) }}"
-                    class="px-5 py-2 rounded-md border border-[#1A428A] text-[#1A428A] font-semibold hover:bg-blue-50
+                    class="px-5 py-2 rounded-md border border-brand text-brand font-semibold hover:bg-brand-50
                     {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
                         Editar
                     </a>
@@ -80,7 +80,7 @@
                             @csrf
                             @method('PATCH')
                             <button type="submit"
-                                class="px-6 py-2 rounded-md font-semibold text-white bg-[#1A428A] hover:bg-[#15356d]">
+                                class="px-6 py-2 rounded-md font-semibold text-white bg-brand hover:bg-brand-dark">
                                 Volver a Operar
                             </button>
                         </form>
@@ -89,7 +89,7 @@
                             @csrf
                             @method('PATCH')
                             <button type="submit"
-                                class="px-6 py-2 rounded-md font-semibold text-white bg-[#1A428A] hover:bg-[#15356d]">
+                                class="px-6 py-2 rounded-md font-semibold text-white bg-brand hover:bg-brand-dark">
                                 Marcar como Operando
                             </button>
                         </form>
@@ -160,7 +160,7 @@
         @if($hasParent || $isParentType)
             <div class="bg-white border rounded-xl p-6 space-y-4">
                 <div>
-                    <div class="font-semibold text-[#1A428A] text-lg">
+                    <div class="font-semibold text-brand text-lg">
                         Relación con otros activos
                     </div>
                     <div class="text-sm text-gray-500">
@@ -183,7 +183,7 @@
 
                                 <div class="mt-3 flex items-center gap-3 flex-wrap">
                                     <a href="{{ route('assets.show', $asset->parent) }}"
-                                    class="text-lg font-semibold text-[#1A428A] hover:underline">
+                                    class="text-lg font-semibold text-brand hover:underline">
                                         {{ $asset->parent->name }}
                                     </a>
 
@@ -198,7 +198,7 @@
 
                             <div>
                                 <a href="{{ route('assets.show', $asset->parent) }}"
-                                class="inline-flex items-center px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] font-semibold hover:bg-blue-50 whitespace-nowrap">
+                                class="inline-flex items-center px-4 py-2 rounded-md border border-brand text-brand font-semibold hover:bg-brand-50 whitespace-nowrap">
                                     Abrir activo principal
                                 </a>
                             </div>
@@ -213,7 +213,7 @@
                                 Activos relacionados
                             </div>
 
-                            <div class="text-xs px-3 py-1 rounded border bg-blue-50 text-[#1A428A] border-blue-200">
+                            <div class="text-xs px-3 py-1 rounded border bg-blue-50 text-brand border-blue-200">
                                 {{ $childrenCount }} {{ \Illuminate\Support\Str::plural('activo', $childrenCount) }}
                             </div>
                         </div>
@@ -233,7 +233,7 @@
                                     <tbody class="divide-y divide-gray-200">
                                         @foreach($asset->children->take(10) as $child)
                                             <tr class="bg-gray-50 hover:bg-gray-100">
-                                                <td class="px-4 py-3 font-medium text-[#1A428A]">
+                                                <td class="px-4 py-3 font-medium text-brand">
                                                     {{ $child->name }}
                                                 </td>
                                                 <td class="px-4 py-3 text-gray-700 whitespace-nowrap">
@@ -279,7 +279,7 @@
                 <div class="p-6 border-b space-y-5">
                     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div>
-                            <div class="font-semibold text-[#1A428A] text-lg">
+                            <div class="font-semibold text-brand text-lg">
                                 Cumplimiento normativo
                             </div>
                             <div class="text-sm text-gray-500">
@@ -293,8 +293,8 @@
                                     <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => $key]) }}"
                                        class="px-4 py-2 rounded-md border font-semibold whitespace-nowrap
                                        {{ $scope === $key
-                                           ? 'bg-[#1A428A] text-white border-[#1A428A]'
-                                           : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                           ? 'bg-brand text-white border-brand'
+                                           : 'bg-white text-brand border-brand hover:bg-brand-50' }}">
                                         {{ $label }}
                                     </a>
                                 @endforeach
@@ -302,7 +302,7 @@
                         </div>
                     </div>
 
-                    <div class="font-semibold text-[#1A428A] text-base">
+                    <div class="font-semibold text-brand text-base">
                         {{ $scopeTitle }}
                     </div>
 
@@ -316,12 +316,12 @@
                                 name="search"
                                 value="{{ $activeSearch }}"
                                 placeholder="Buscar requerimiento..."
-                                class="w-72 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 placeholder-gray-400 focus:border-[#1A428A] focus:ring-[#1A428A]"
+                                class="w-72 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 placeholder-gray-400 focus:border-brand focus:ring-brand"
                             >
 
                             <button
                                 type="submit"
-                                class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d] whitespace-nowrap"
+                                class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark whitespace-nowrap"
                             >
                                 Buscar
                             </button>
@@ -329,7 +329,7 @@
                             <button
                                 type="button"
                                 onclick="toggleRequirementFilters()"
-                                class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50 whitespace-nowrap"
+                                class="px-4 py-2 rounded-md border border-brand bg-white text-brand font-semibold hover:bg-brand-50 whitespace-nowrap"
                             >
                                 Filtros
                             </button>
@@ -358,7 +358,7 @@
                                         </span>
                                     @else
                                         <a href="{{ $requirements->previousPageUrl() }}"
-                                        class="px-3 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                        class="px-3 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold">
                                             ←
                                         </a>
                                     @endif
@@ -372,7 +372,7 @@
 
                                     @if($start > 1)
                                         <a href="{{ $requirements->url(1) }}"
-                                        class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                        class="px-4 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold">
                                             1
                                         </a>
 
@@ -383,12 +383,12 @@
 
                                     @for($page = $start; $page <= $end; $page++)
                                         @if($page == $current)
-                                            <span class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold border border-[#1A428A]">
+                                            <span class="px-4 py-2 rounded-md bg-brand text-white font-semibold border border-brand">
                                                 {{ $page }}
                                             </span>
                                         @else
                                             <a href="{{ $requirements->url($page) }}"
-                                            class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                            class="px-4 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold">
                                                 {{ $page }}
                                             </a>
                                         @endif
@@ -400,14 +400,14 @@
                                         @endif
 
                                         <a href="{{ $requirements->url($last) }}"
-                                        class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                        class="px-4 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold">
                                             {{ $last }}
                                         </a>
                                     @endif
 
                                     @if($requirements->hasMorePages())
                                         <a href="{{ $requirements->nextPageUrl() }}"
-                                        class="px-3 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                        class="px-3 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold">
                                             →
                                         </a>
                                     @else
@@ -432,7 +432,7 @@
 
                                 <select
                                     name="authority"
-                                    class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-[#1A428A] focus:ring-[#1A428A]"
+                                    class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand focus:ring-brand"
                                 >
                                     <option value="">Todas</option>
                                     @foreach($authorities as $item)
@@ -450,7 +450,7 @@
 
                                 <select
                                     name="risk"
-                                    class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-[#1A428A] focus:ring-[#1A428A]"
+                                    class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand focus:ring-brand"
                                 >
                                     <option value="">Todos</option>
                                     <option value="normal" {{ $activeRisk === 'normal' ? 'selected' : '' }}>Normal</option>
@@ -466,7 +466,7 @@
 
                                 <select
                                     name="status"
-                                    class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-[#1A428A] focus:ring-[#1A428A]"
+                                    class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand focus:ring-brand"
                                 >
                                     <option value="">Todos</option>
                                     <option value="missing_document" {{ $activeStatus === 'missing_document' ? 'selected' : '' }}>Falta documento oficial</option>
@@ -485,7 +485,7 @@
 
                                 <select
                                     name="responsible_area"
-                                    class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-[#1A428A] focus:ring-[#1A428A]"
+                                    class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand focus:ring-brand"
                                 >
                                     <option value="">Todas</option>
                                     @foreach($responsibleAreas as $item)
@@ -501,7 +501,7 @@
             </form>
 
             @if($hasActiveFilters)
-                <div class="px-6 py-3 bg-blue-50 border-t border-b text-sm text-[#1A428A]">
+                <div class="px-6 py-3 bg-blue-50 border-t border-b text-sm text-brand">
                     @if(filled($activeSearch))
                         <span>
                             Búsqueda: <span class="font-semibold">{{ $activeSearch }}</span>

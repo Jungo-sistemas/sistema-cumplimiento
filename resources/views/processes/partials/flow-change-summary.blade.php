@@ -19,7 +19,7 @@
                 Quitar
             </button>
             <button type="button" @click="$refs.summaryInput.click()"
-                    class="px-3 py-1.5 rounded-lg bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d]"
+                    class="px-3 py-1.5 rounded-lg bg-brand text-white text-xs font-semibold hover:bg-brand-dark"
                     x-text="summaryName ? 'Cambiar' : 'Adjuntar síntesis'"></button>
         </div>
     </div>

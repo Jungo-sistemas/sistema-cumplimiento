@@ -109,7 +109,7 @@
                                 Rol <span class="text-red-500">*</span>
                             </label>
                             <select name="role_id" x-model="editRole" required
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
                                 <option value="">Seleccionar rol…</option>
                                 @foreach($roles as $role)
                                     <option value="{{ $role->id }}">{{ $role->name }}</option>
@@ -124,7 +124,7 @@
                             {{-- Seleccionadas --}}
                             <div class="flex flex-wrap gap-1.5 mb-2" x-show="editCompanyIds.length > 0">
                                 <template x-for="id in editCompanyIds" :key="id">
-                                    <span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50 text-[#1A428A] text-xs font-medium border border-blue-200">
+                                    <span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50 text-brand text-xs font-medium border border-blue-200">
                                         <span x-text="companyName(id)"></span>
                                         <button type="button" @click="removeCompany(id)" class="rounded-full hover:bg-blue-100 p-0.5">
                                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
@@ -142,7 +142,7 @@
                                     @focus="companySearchOpen = true"
                                     placeholder="Buscar empresa para agregar…"
                                     autocomplete="off"
-                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
 
                                 <div x-show="companySearchOpen && companySearchResults.length > 0"
                                      class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto"
@@ -181,7 +181,7 @@
                                 <template x-for="pos in availablePositions" :key="pos.id">
                                     <label class="flex items-center gap-2 px-3 py-2.5 text-sm cursor-pointer hover:bg-gray-50">
                                         <input type="checkbox" name="job_position_id[]" :value="pos.id" x-model="editPositionIds"
-                                            class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]/40 cursor-pointer">
+                                            class="rounded border-gray-300 text-brand focus:ring-brand/40 cursor-pointer">
                                         <span x-text="pos.name" class="text-gray-700"></span>
                                     </label>
                                 </template>
@@ -209,7 +209,7 @@
 
                             <template x-if="!isAuditorEdit">
                                 <select name="module_access" x-model="editModuleAccess"
-                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
                                     <option value="all">Ambos módulos</option>
                                     <option value="cumplimiento">Solo Cumplimiento</option>
                                     <option value="procesos">Solo Procesos</option>
@@ -234,7 +234,7 @@
                             Cancelar
                         </button>
                         <button type="submit"
-                            class="px-5 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d] transition-colors shadow-sm">
+                            class="px-5 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark transition-colors shadow-sm">
                             Guardar cambios
                         </button>
                     </div>
@@ -246,13 +246,13 @@
     <div class="bg-white rounded-xl shadow p-6">
         <div class="flex items-center justify-between mb-6">
             <div>
-                <h1 class="text-2xl font-semibold text-[#1A428A]">Usuarios</h1>
+                <h1 class="text-2xl font-semibold text-brand">Usuarios</h1>
                 <p class="text-sm text-gray-500">Administra los accesos de los usuarios.</p>
             </div>
 
             @if(auth()->user()->isAdmin())
                 <a href="{{ route('users.create') }}"
-                   class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                   class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark">
                     Agregar usuario
                 </a>
             @endif
@@ -264,18 +264,40 @@
             </div>
         @endif
 
-        {{-- Búsqueda --}}
+        {{-- Búsqueda y filtros --}}
         <form method="GET" action="{{ route('users.index') }}" class="mb-4 flex flex-wrap items-end gap-3">
             <div class="flex-1 min-w-[180px] max-w-md">
                 <label class="mb-1 block text-xs font-medium text-gray-500">Buscar</label>
                 <input type="text" name="q" value="{{ $search }}" placeholder="Nombre o correo..."
-                    class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                    class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+            </div>
+            @if($filterCompanies->count() > 1)
+                <div class="min-w-[180px]">
+                    <label class="mb-1 block text-xs font-medium text-gray-500">Empresa</label>
+                    <select name="company_id" onchange="this.form.submit()"
+                        class="w-full rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+                        <option value="">Todas</option>
+                        @foreach($filterCompanies as $company)
+                            <option value="{{ $company->id }}" @selected($filterCompanyId === $company->id)>{{ $company->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+            <div class="min-w-[160px]">
+                <label class="mb-1 block text-xs font-medium text-gray-500">Rol</label>
+                <select name="role_id" onchange="this.form.submit()"
+                    class="w-full rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+                    <option value="">Todos</option>
+                    @foreach($filterRoles as $role)
+                        <option value="{{ $role->id }}" @selected($filterRoleId === $role->id)>{{ $role->name }}</option>
+                    @endforeach
+                </select>
             </div>
             <div class="flex gap-2">
-                <button type="submit" class="px-4 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                <button type="submit" class="px-4 py-1.5 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                     Buscar
                 </button>
-                @if($search !== '')
+                @if($search !== '' || $filterCompanyId || $filterRoleId)
                     <a href="{{ route('users.index') }}" class="px-4 py-1.5 rounded-md border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50">
                         Limpiar
                     </a>
@@ -358,7 +380,7 @@
                                             @if(!$user->isAdmin() || auth()->user()->isSuperAdmin())
                                             <button type="button"
                                                 @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', @json($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])), '{{ $user->module_access ?? 'all' }}', @json($user->jobPositions->pluck('id')))"
-                                                class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                                class="whitespace-nowrap px-3 py-1.5 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                                                 Editar
                                             </button>
                                             @endif
@@ -367,9 +389,9 @@
                                                   action="{{ route('users.resend-invitation', $user) }}"
                                                   onsubmit="return confirm('¿Reenviar la invitación a {{ addslashes($user->email) }}?');">
                                                 @csrf
-                                                <button type="submit"
-                                                    class="px-3 py-1.5 rounded-md border border-[#1A428A] bg-white text-[#1A428A] text-sm font-semibold hover:bg-blue-50">
-                                                    Reenviar invitación
+                                                <button type="submit" title="Reenviar invitación"
+                                                    class="whitespace-nowrap px-3 py-1.5 rounded-md border border-brand bg-white text-brand text-sm font-semibold hover:bg-brand-50">
+                                                    Reenviar
                                                 </button>
                                             </form>
                                             @endif
@@ -380,7 +402,7 @@
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit"
-                                                    class="px-3 py-1.5 rounded-md bg-[#DB0000] text-white text-sm font-semibold hover:bg-red-700">
+                                                    class="whitespace-nowrap px-3 py-1.5 rounded-md bg-[#DB0000] text-white text-sm font-semibold hover:bg-red-700">
                                                     Eliminar
                                                 </button>
                                             </form>
@@ -395,7 +417,11 @@
                     @empty
                         <tr>
                             <td colspan="8" class="px-4 py-8 text-center text-gray-500">
-                                {{ $search !== '' ? 'Ningún usuario coincide con "' . $search . '".' : 'No hay usuarios registrados todavía.' }}
+                                {{ match (true) {
+                                    $search !== ''                    => 'Ningún usuario coincide con "' . $search . '".',
+                                    $filterCompanyId || $filterRoleId => 'Ningún usuario coincide con los filtros.',
+                                    default                           => 'No hay usuarios registrados todavía.',
+                                } }}
                             </td>
                         </tr>
                     @endforelse

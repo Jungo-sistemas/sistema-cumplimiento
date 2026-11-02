@@ -12,7 +12,7 @@
         {{-- Desactualizado + operativo: el único "Editar" es el de las preguntas (wizard) --}}
         <a href="{{ route('processes.edit', $regulation) }}"
            title="Documento desactualizado — actualízalo contestando las preguntas"
-           class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+           class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
             Editar
         </a>
     @elseif($regulation->is_legacy)
@@ -40,7 +40,7 @@
         </a>
     @else
         <a href="{{ route('regulation-versions.edit', $currentVersion) }}"
-           class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+           class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
             Editar
         </a>
     @endif

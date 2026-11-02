@@ -20,7 +20,7 @@
         <div x-show="submitting" style="display: none;"
              class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
             <div class="bg-white rounded-lg px-8 py-6 shadow-xl text-center max-w-sm">
-                <svg class="animate-spin h-8 w-8 text-[#1A428A] mx-auto mb-3" viewBox="0 0 24 24" fill="none">
+                <svg class="animate-spin h-8 w-8 text-brand mx-auto mb-3" viewBox="0 0 24 24" fill="none">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                 </svg>
@@ -43,11 +43,11 @@
 
         <div class="flex items-center justify-between mb-6 flex-wrap gap-2">
             <div>
-                <h1 class="text-2xl font-semibold text-[#1A428A]">Vista previa del procedimiento</h1>
+                <h1 class="text-2xl font-semibold text-brand">Vista previa del procedimiento</h1>
                 <p class="text-sm text-gray-500">
                     {{ $draft['meta']['nombre'] }}
                     @if(($draft['revisions'] ?? 0) > 0)
-                        <span class="ml-2 inline-block px-2 py-0.5 rounded-full bg-blue-50 text-[#1A428A] text-xs font-semibold">
+                        <span class="ml-2 inline-block px-2 py-0.5 rounded-full bg-blue-50 text-brand text-xs font-semibold">
                             Revisión {{ $draft['revisions'] }}
                         </span>
                     @endif
@@ -100,7 +100,7 @@
                           @submit="submitting = true; submittingMessage = '{{ $isEdit ? 'Actualizando el documento…' : 'Creando el documento…' }}'">
                         @csrf
                         <button type="submit"
-                                class="w-full px-4 py-2.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                class="w-full px-4 py-2.5 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                             {{ $isEdit ? 'Aceptar y actualizar documento' : 'Aceptar y crear documento' }}
                         </button>
                     </form>
@@ -116,10 +116,10 @@
                           @submit="submitting = true; submittingMessage = 'Aplicando los cambios…'">
                         @csrf
                         <textarea name="feedback" rows="4" required maxlength="2000"
-                                  class="w-full border rounded-md px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-[#1A428A]/30 @error('feedback') border-red-400 @enderror"
+                                  class="w-full border rounded-md px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-brand/30 @error('feedback') border-red-400 @enderror"
                                   placeholder="Ej: en el bloque de actividades, agrega un paso de validación con el cliente antes de cerrar el caso.">{{ old('feedback') }}</textarea>
                         <button type="submit"
-                                class="w-full px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] text-sm font-semibold hover:bg-blue-50">
+                                class="w-full px-4 py-2 rounded-md border border-brand text-brand text-sm font-semibold hover:bg-brand-50">
                             Solicitar cambios
                         </button>
                     </form>

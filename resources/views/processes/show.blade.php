@@ -19,7 +19,7 @@
         <div class="flex items-start justify-between gap-6 flex-wrap">
             <div class="space-y-1 min-w-0 flex-1">
                 <div class="flex items-center gap-3 flex-wrap">
-                    <h1 class="text-2xl font-bold text-[#1A428A]">{{ $regulation->name }}</h1>
+                    <h1 class="text-2xl font-bold text-brand">{{ $regulation->name }}</h1>
 
                     @if($regulation->is_legacy)
                         <span class="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border bg-gray-100 text-gray-600 border-gray-300"
@@ -67,7 +67,7 @@
                     {{-- Desactualizado + operativo: solo se actualiza contestando las preguntas (wizard) --}}
                     <a href="{{ route('processes.edit', $regulation) }}"
                        title="Documento desactualizado — actualízalo contestando las preguntas"
-                       class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50 text-sm flex items-center gap-1.5">
+                       class="px-4 py-2 rounded-md border border-brand bg-white text-brand font-semibold hover:bg-brand-50 text-sm flex items-center gap-1.5">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                         </svg>
@@ -79,7 +79,7 @@
                         <button type="button"
                                 @click="open = !open"
                                 @click.outside="open = false"
-                                class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50 text-sm flex items-center gap-1.5">
+                                class="px-4 py-2 rounded-md border border-brand bg-white text-brand font-semibold hover:bg-brand-50 text-sm flex items-center gap-1.5">
                             Editar
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-150" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
@@ -101,7 +101,7 @@
                                 </span>
                             @else
                                 <a href="{{ route('processes.editBasic', $regulation) }}"
-                                   class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#1A428A]">
+                                   class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-50 hover:text-brand">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                                     </svg>
@@ -109,7 +109,7 @@
                                 </a>
                             @endif
                             <a href="{{ route('processes.edit', $regulation) }}"
-                               class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#1A428A] border-t border-gray-100">
+                               class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-50 hover:text-brand border-t border-gray-100">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                 </svg>
@@ -148,7 +148,7 @@
                     </button>
                 @endif
                 <a href="{{ route('processes.index', ['company_id' => $regulation->company_id]) }}"
-                   class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50 text-sm">
+                   class="px-4 py-2 rounded-md border border-brand bg-white text-brand font-semibold hover:bg-brand-50 text-sm">
                     Volver
                 </a>
             </div>
@@ -326,7 +326,7 @@
                         </td>
                         <td class="border border-gray-400 p-3 text-center w-[120px] align-middle">
                             <div class="text-xs font-bold text-gray-500 uppercase">CÓDIGO</div>
-                            <div class="font-mono font-bold text-[#1A428A] text-sm mt-0.5">{{ $regulation->code ?? '—' }}</div>
+                            <div class="font-mono font-bold text-brand text-sm mt-0.5">{{ $regulation->code ?? '—' }}</div>
                         </td>
                         <td class="border border-gray-400 p-3 text-center w-[80px] align-middle">
                             <div class="text-xs font-bold text-gray-500 uppercase">VERSIÓN</div>
@@ -357,13 +357,13 @@
 
                     {{-- OBJETIVO --}}
                     <div>
-                        <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">OBJETIVO</h3>
+                        <h3 class="font-bold text-brand uppercase text-sm border-b-2 border-brand pb-0.5 mb-2">OBJETIVO</h3>
                         <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">{{ $d['resultado_esperado'] ?? '' }}</div>
                     </div>
 
                     {{-- ALCANCE --}}
                     <div>
-                        <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">ALCANCE</h3>
+                        <h3 class="font-bold text-brand uppercase text-sm border-b-2 border-brand pb-0.5 mb-2">ALCANCE</h3>
                         @if(!empty($d['problema_resuelve']))
                             <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-700 mb-3 leading-relaxed whitespace-pre-line">{{ $d['problema_resuelve'] }}</div>
                         @endif
@@ -390,7 +390,7 @@
                     {{-- TÓPICOS --}}
                     @if(!empty($d['requerimientos_normativos']))
                     <div>
-                        <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">TÓPICOS</h3>
+                        <h3 class="font-bold text-brand uppercase text-sm border-b-2 border-brand pb-0.5 mb-2">TÓPICOS</h3>
                         <ul class="list-disc list-inside space-y-0.5 text-sm text-gray-700 ml-2">
                             @foreach($parseLines($d['requerimientos_normativos']) as $line)
                                 <li>{{ $line }}</li>
@@ -402,7 +402,7 @@
                     {{-- INDICADORES --}}
                     @if(!empty($d['indicador_proceso']) || !empty($d['indicador_resultado']))
                     <div>
-                        <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">INDICADORES</h3>
+                        <h3 class="font-bold text-brand uppercase text-sm border-b-2 border-brand pb-0.5 mb-2">INDICADORES</h3>
                         <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 ml-2">
                             @if(!empty($d['indicador_proceso']))
                                 <li><span class="font-medium">Proceso:</span> {{ $d['indicador_proceso'] }}</li>
@@ -423,11 +423,11 @@
                     {{-- DEFINICIONES Y ABREVIATURAS --}}
                     @if(!empty($d['terminos_abreviaturas']))
                     <div>
-                        <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">DEFINICIONES Y ABREVIATURAS</h3>
+                        <h3 class="font-bold text-brand uppercase text-sm border-b-2 border-brand pb-0.5 mb-2">DEFINICIONES Y ABREVIATURAS</h3>
                         @php $terms = $parseTerms($d['terminos_abreviaturas']); @endphp
                         <table class="w-full border-collapse text-sm">
                             <thead>
-                                <tr class="bg-[#e8eef8]">
+                                <tr class="bg-brand-50">
                                     <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800 w-1/3">Término / Abreviatura</th>
                                     <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Definición</th>
                                 </tr>
@@ -451,7 +451,7 @@
                 </div>
 
                 {{-- ── Segunda "página": encabezado + descripción + historial + anexos ── --}}
-                <div class="border-t-4 border-[#1A428A]">
+                <div class="border-t-4 border-brand">
                     {{-- Repetir encabezado --}}
                     <table class="w-full border-collapse text-xs">
                         <tr>
@@ -465,7 +465,7 @@
                             </td>
                             <td class="border border-gray-400 p-3 text-center w-[120px] align-middle">
                                 <div class="text-xs font-bold text-gray-500 uppercase">CÓDIGO</div>
-                                <div class="font-mono font-bold text-[#1A428A] text-sm mt-0.5">{{ $regulation->code ?? '—' }}</div>
+                                <div class="font-mono font-bold text-brand text-sm mt-0.5">{{ $regulation->code ?? '—' }}</div>
                             </td>
                             <td class="border border-gray-400 p-3 text-center w-[80px] align-middle">
                                 <div class="text-xs font-bold text-gray-500 uppercase">VERSIÓN</div>
@@ -497,7 +497,7 @@
                         {{-- DESCRIPCIÓN DEL PROCESO / ACTIVIDADES --}}
                         @if(!empty($d['lista_actividades']) || !empty($d['que_detona']))
                         <div>
-                            <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">DESCRIPCIÓN DEL PROCESO / ACTIVIDADES</h3>
+                            <h3 class="font-bold text-brand uppercase text-sm border-b-2 border-brand pb-0.5 mb-2">DESCRIPCIÓN DEL PROCESO / ACTIVIDADES</h3>
                             @if(!empty($d['que_detona']))
                                 <p class="font-medium text-gray-700 text-sm mb-1">Detonante:</p>
                                 <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-700 mb-3 whitespace-pre-line">{{ $d['que_detona'] }}</div>
@@ -518,10 +518,10 @@
 
                         {{-- HISTORIAL DE REVISIONES Y CAMBIOS --}}
                         <div>
-                            <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">HISTORIAL DE REVISIONES Y CAMBIOS</h3>
+                            <h3 class="font-bold text-brand uppercase text-sm border-b-2 border-brand pb-0.5 mb-2">HISTORIAL DE REVISIONES Y CAMBIOS</h3>
                             <table class="w-full border-collapse text-sm">
                                 <thead>
-                                    <tr class="bg-[#e8eef8]">
+                                    <tr class="bg-brand-50">
                                         <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800 w-16">Versión</th>
                                         <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800 w-24">Fecha</th>
                                         <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Elaboró</th>
@@ -552,7 +552,7 @@
                         {{-- ANEXOS --}}
                         @if(!empty($d['procedimientos_relacionados']) || !empty($d['documentos_usados']))
                         <div>
-                            <h3 class="font-bold text-[#1A428A] uppercase text-sm border-b-2 border-[#1A428A] pb-0.5 mb-2">ANEXOS</h3>
+                            <h3 class="font-bold text-brand uppercase text-sm border-b-2 border-brand pb-0.5 mb-2">ANEXOS</h3>
                             <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700 ml-2">
                                 @foreach($parseLines($d['procedimientos_relacionados'] ?? '') as $line)
                                     <li>{{ $line }}</li>
@@ -567,7 +567,7 @@
                         {{-- AVISO DE CONTROL --}}
                         @if(!empty($d['riesgos_errores']))
                         <div class="border-t border-gray-300 pt-3">
-                            <p class="text-sm text-gray-700"><span class="font-bold text-[#1A428A]">AVISO DE CONTROL:</span> {{ $d['riesgos_errores'] }}</p>
+                            <p class="text-sm text-gray-700"><span class="font-bold text-brand">AVISO DE CONTROL:</span> {{ $d['riesgos_errores'] }}</p>
                         </div>
                         @endif
 
@@ -618,7 +618,7 @@
                     <span class="text-xs text-gray-400">Impacto: {{ $regulation->impactLevelLabel() }}</span>
                 </div>
                 <a href="{{ route('processes.flow', $regulation) }}"
-                   class="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                   class="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                     {{ $pendingApprovalForUser ? 'Ir al flujo' : 'Ver flujo' }}
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                          viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -659,7 +659,7 @@
             @if(auth()->user()->isAdmin())
                 <div class="bg-white border rounded-xl overflow-hidden">
                     <div class="p-5 border-b">
-                        <div class="font-semibold text-[#1A428A]">
+                        <div class="font-semibold text-brand">
                             {{ $currentVersion ? 'Subir nueva versión' : 'Subir documento' }}
                         </div>
                         <div class="text-sm text-gray-500">
@@ -714,7 +714,7 @@
                             </div>
 
                             <button type="submit"
-                                    class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                                    class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark">
                                 {{ $currentVersion ? 'Subir nueva versión' : 'Subir documento' }}
                             </button>
                         </form>
@@ -725,7 +725,7 @@
             {{-- Versión actual --}}
             <div class="bg-white border rounded-xl overflow-hidden">
                 <div class="p-5 border-b">
-                    <div class="font-semibold text-[#1A428A]">Versión actual</div>
+                    <div class="font-semibold text-brand">Versión actual</div>
                     <div class="text-sm text-gray-500">
                         La versión vigente. Las anteriores permanecen en el historial.
                     </div>
@@ -766,12 +766,12 @@
                             <div class="flex items-center gap-2 shrink-0">
                                 <a href="{{ route('regulation-versions.preview', $currentVersion) }}"
                                    target="_blank"
-                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
                                     Ver
                                 </a>
                                 @if($regulation->allowsDownload())
                                     <a href="{{ route('regulation-versions.download', $currentVersion) }}"
-                                       class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                       class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
                                         Descargar
                                     </a>
                                 @endif
@@ -803,7 +803,7 @@
         {{-- Historial de versiones --}}
         <div class="mt-8 bg-white border rounded-xl overflow-hidden">
             <div class="p-5 border-b">
-                <div class="font-semibold text-[#1A428A]">Histórico de versiones</div>
+                <div class="font-semibold text-brand">Histórico de versiones</div>
                 <div class="text-sm text-gray-500">
                     Se conservan todas las versiones registradas del documento.
                 </div>
@@ -869,12 +869,12 @@
                                 <div class="w-36 shrink-0 border-l flex flex-col items-stretch justify-center gap-2 px-4 py-4">
                                     <a href="{{ route('regulation-versions.preview', $v) }}"
                                        target="_blank"
-                                       class="px-3 py-1.5 rounded-md border text-xs font-semibold text-center text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                       class="px-3 py-1.5 rounded-md border text-xs font-semibold text-center text-brand border-brand hover:bg-brand-50">
                                         Ver
                                     </a>
                                     @if($regulation->allowsDownload())
                                         <a href="{{ route('regulation-versions.download', $v) }}"
-                                           class="px-3 py-1.5 rounded-md border text-xs font-semibold text-center text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                           class="px-3 py-1.5 rounded-md border text-xs font-semibold text-center text-brand border-brand hover:bg-brand-50">
                                             Descargar
                                         </a>
                                     @endif
@@ -952,13 +952,13 @@
             <div class="flex border-b shrink-0">
                 <button type="button"
                         @click="tab = 'send'"
-                        :class="tab === 'send' ? 'border-b-2 border-[#1A428A] text-[#1A428A] font-semibold' : 'text-gray-500 hover:text-gray-700'"
+                        :class="tab === 'send' ? 'border-b-2 border-brand text-brand font-semibold' : 'text-gray-500 hover:text-gray-700'"
                         class="px-5 py-2.5 text-sm transition">
                     Enviar notificación
                 </button>
                 <button type="button"
                         @click="tab = 'track'"
-                        :class="tab === 'track' ? 'border-b-2 border-[#1A428A] text-[#1A428A] font-semibold' : 'text-gray-500 hover:text-gray-700'"
+                        :class="tab === 'track' ? 'border-b-2 border-brand text-brand font-semibold' : 'text-gray-500 hover:text-gray-700'"
                         class="px-5 py-2.5 text-sm transition flex items-center gap-1.5">
                     Quién lo vio
                     <span class="text-xs rounded-full px-1.5 py-0.5 font-medium"
@@ -967,7 +967,7 @@
                 </button>
                 <button type="button"
                         @click="tab = 'qr'"
-                        :class="tab === 'qr' ? 'border-b-2 border-[#1A428A] text-[#1A428A] font-semibold' : 'text-gray-500 hover:text-gray-700'"
+                        :class="tab === 'qr' ? 'border-b-2 border-brand text-brand font-semibold' : 'text-gray-500 hover:text-gray-700'"
                         class="px-5 py-2.5 text-sm transition">
                     Código QR
                 </button>
@@ -985,7 +985,7 @@
                             <input type="text"
                                    x-model="search"
                                    placeholder="Nombre o correo…"
-                                   class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                                   class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                         </div>
 
                         <div class="border rounded-lg divide-y">
@@ -995,7 +995,7 @@
                                            name="user_ids[]"
                                            :value="u.id"
                                            x-model="selected"
-                                           class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]">
+                                           class="rounded border-gray-300 text-brand focus:ring-brand">
                                     <div>
                                         <div class="text-sm font-medium text-gray-800" x-text="u.name"></div>
                                         <div class="text-xs text-gray-400" x-text="u.email"></div>
@@ -1020,7 +1020,7 @@
                         </button>
                         <button type="submit"
                                 :disabled="selected.length === 0"
-                                :class="selected.length > 0 ? 'bg-[#1A428A] hover:bg-[#15356d] text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+                                :class="selected.length > 0 ? 'bg-brand hover:bg-brand-dark text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
                                 class="px-5 py-2 rounded-md text-sm font-semibold transition">
                             Enviar notificación
                         </button>
@@ -1095,7 +1095,7 @@
                     </button>
                     <a href="{{ route('processes.qr', $regulation) }}"
                        target="_blank"
-                       class="px-5 py-2 rounded-md bg-[#1A428A] hover:bg-[#15356d] text-white text-sm font-semibold transition">
+                       class="px-5 py-2 rounded-md bg-brand hover:bg-brand-dark text-white text-sm font-semibold transition">
                         Generar / imprimir QR
                     </a>
                 </div>
@@ -1181,7 +1181,7 @@
                     <button id="deleteSubmitButton"
                             type="submit"
                             disabled
-                            class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold opacity-50 cursor-not-allowed">
+                            class="px-4 py-2 rounded-md bg-brand text-white font-semibold opacity-50 cursor-not-allowed">
                         Confirmar eliminación
                     </button>
                 </form>
@@ -1233,7 +1233,7 @@
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden">
 
                 {{-- Header --}}
-                <div class="bg-[#1A428A] px-6 py-4 flex items-center justify-between">
+                <div class="bg-brand px-6 py-4 flex items-center justify-between">
                     <div>
                         <h3 class="text-white font-semibold text-base">Flujo de aprobación</h3>
                         <p class="text-blue-200 text-xs mt-0.5">Se detectaron cambios en el documento</p>
@@ -1259,7 +1259,7 @@
                             Mantener flujo actual
                         </a>
                         <button type="button" @click="goStage2()"
-                                class="px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d] transition">
+                                class="px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark transition">
                             Cambiar flujo
                         </button>
                     </div>
@@ -1273,7 +1273,7 @@
                         <div>
                             <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Nivel de impacto</label>
                             <select x-model="selectedLevel" @change="buildPositions()"
-                                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-[#1A428A] focus:ring-1 focus:ring-[#1A428A]">
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand">
                                 @foreach(\App\Models\Regulation::IMPACT_LEVELS as $lvlKey => $lvlLabel)
                                     <option value="{{ $lvlKey }}">{{ $lvlLabel }}</option>
                                 @endforeach
@@ -1315,14 +1315,14 @@
                                            @focus="open[pos.slug] = true"
                                            @input="open[pos.slug] = true"
                                            @keydown.escape="open[pos.slug] = false; search[pos.slug] = ''"
-                                           class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 focus:outline-none focus:border-[#1A428A] focus:ring-1 focus:ring-[#1A428A]">
+                                           class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand">
                                     <div x-show="open[pos.slug] && filtered(pos.slug).length > 0"
                                          @click.outside="open[pos.slug] = false"
                                          class="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                                         <template x-for="u in filtered(pos.slug)" :key="u.id">
                                             <button type="button" @click="selectUser(pos.slug, u)"
-                                                    class="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center gap-2">
-                                                <span class="h-6 w-6 rounded-full bg-[#1A428A] text-white text-xs flex items-center justify-center shrink-0"
+                                                    class="w-full text-left px-3 py-2 text-sm hover:bg-brand-50 flex items-center gap-2">
+                                                <span class="h-6 w-6 rounded-full bg-brand text-white text-xs flex items-center justify-center shrink-0"
                                                       x-text="u.name.charAt(0).toUpperCase()"></span>
                                                 <div>
                                                     <div class="font-medium text-gray-800" x-text="u.name"></div>
@@ -1354,7 +1354,7 @@
                             </a>
                             <button type="button" @click="confirmFlow()"
                                     :disabled="!canConfirm"
-                                    :class="canConfirm ? 'bg-[#1A428A] hover:bg-[#15356d] text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+                                    :class="canConfirm ? 'bg-brand hover:bg-brand-dark text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
                                     class="px-4 py-2 rounded-lg text-sm font-semibold transition">
                                 Confirmar flujo
                             </button>
@@ -1374,7 +1374,7 @@
          JS para mostrarse, aparece desde el primer render, tapando la ficha de inmediato. --}}
     @if(request('open_pdf') && $currentVersion)
     <div id="pdfOverlay" class="fixed inset-0 z-[60] flex flex-col bg-gray-900">
-        <div class="flex items-center justify-between px-4 py-2 bg-[#1A428A] text-white shrink-0">
+        <div class="flex items-center justify-between px-4 py-2 bg-brand text-white shrink-0">
             <span class="font-semibold text-sm truncate">
                 {{ $currentVersion->original_name ?? basename($currentVersion->file_path) }}
                 <span class="ml-2 text-blue-200 text-xs font-normal">v{{ $currentVersion->version_number }}</span>

@@ -4,11 +4,11 @@
 
         {{-- Header --}}
         <div class="mb-6 flex items-center justify-between">
-            <h1 class="text-2xl font-bold text-[#1A428A]">Empresas</h1>
+            <h1 class="text-2xl font-bold text-brand">Empresas</h1>
             <button
                 type="button"
                 @click="showForm = !showForm"
-                class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d] text-sm"
+                class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark text-sm"
             >
                 + Nueva empresa
             </button>
@@ -36,7 +36,7 @@
                         name="name"
                         value="{{ old('name') }}"
                         required
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]"
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                         placeholder="Nombre de la empresa"
                     >
                     @error('name')
@@ -51,7 +51,7 @@
                         id="company_group_id"
                         name="group_id"
                         required
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]"
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                     >
                         <option value="">Seleccionar grupo…</option>
                         @foreach($groups as $group)
@@ -71,14 +71,14 @@
                         name="show_in_processes"
                         value="1"
                         checked
-                        class="h-4 w-4 rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]"
+                        class="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
                     >
                     <label for="show_in_processes" class="text-sm text-gray-700">Mostrar en Procesos</label>
                 </div>
                 <div class="flex gap-2">
                     <button
                         type="submit"
-                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d] text-sm"
+                        class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark text-sm"
                     >
                         Crear empresa
                     </button>
@@ -114,7 +114,7 @@
                                 $li      = $company->license_info;
                                 $via     = $li['scope'] === 'group' ? 'vía grupo' : 'propio';
                                 $pct     = $li['percent'];
-                                $barColor = $pct >= 100 ? 'bg-red-500' : ($pct >= 80 ? 'bg-orange-400' : 'bg-[#1A428A]');
+                                $barColor = $pct >= 100 ? 'bg-red-500' : ($pct >= 80 ? 'bg-orange-400' : 'bg-brand');
                                 $hasGroupLimit = $li['scope'] === 'group';
                             @endphp
                             <tr class="border-t hover:bg-gray-50">
@@ -160,7 +160,7 @@
                                         @endphp
                                         <div x-data="{ editing: false, plan: '{{ $cPlanSlug }}', customLimit: '{{ $cLimit ?? '' }}' }" class="mt-1">
                                             <button type="button" @click="editing = !editing"
-                                                    class="text-xs text-[#1A428A] hover:underline">
+                                                    class="text-xs text-brand hover:underline">
                                                 Cambiar
                                             </button>
                                             <form x-show="editing" method="POST"
@@ -188,7 +188,7 @@
                                                        :value="plan === 'enterprise' ? '' : (plan === 'custom' ? customLimit : {basic:'50',pro:'100',business:'500'}[plan])">
                                                 <div class="flex gap-2">
                                                     <button type="submit"
-                                                            class="text-xs px-3 py-1.5 rounded bg-[#1A428A] text-white hover:bg-[#15356d]">Guardar</button>
+                                                            class="text-xs px-3 py-1.5 rounded bg-brand text-white hover:bg-brand-dark">Guardar</button>
                                                     <button type="button" @click="editing = false"
                                                             class="text-xs text-gray-500 hover:underline">Cancelar</button>
                                                 </div>

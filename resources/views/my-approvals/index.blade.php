@@ -9,7 +9,7 @@
         {{-- Header --}}
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-[#1A428A]">Mis aprobaciones pendientes</h1>
+                <h1 class="text-2xl font-bold text-brand">Mis aprobaciones pendientes</h1>
                 <p class="text-sm text-gray-500 mt-0.5">
                     {{ $pendingApprovals->count() === 0 ? 'No tienes aprobaciones pendientes.' : $pendingApprovals->count() . ' documento(s) esperan tu decisión.' }}
                 </p>
@@ -50,7 +50,7 @@
                 <div x-data="{ showPreview: false, showReject: false, showConfirm: false }" class="bg-white rounded-xl border shadow-sm overflow-hidden">
 
                     {{-- Cabecera --}}
-                    <div class="px-6 py-4 border-b flex items-start justify-between gap-4 flex-wrap" style="background: linear-gradient(135deg, #1A428A 0%, #1e5096 100%);">
+                    <div class="px-6 py-4 border-b flex items-start justify-between gap-4 flex-wrap" style="background: linear-gradient(135deg, #5B1690 0%, #1e5096 100%);">
                         <div class="min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
                                 @if($regulation->code)
@@ -196,7 +196,7 @@
                         {{-- Botón para desplegar vista previa --}}
                         <button type="button"
                                 @click="showPreview = !showPreview"
-                                class="mt-4 w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-dashed border-[#1A428A]/40 bg-blue-50/50 text-[#1A428A] text-sm font-medium hover:bg-blue-50 transition-colors">
+                                class="mt-4 w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-dashed border-brand/40 bg-blue-50/50 text-brand text-sm font-medium hover:bg-brand-50 transition-colors">
                             <span x-text="showPreview ? 'Ocultar resumen de cambios' : 'Ver resumen de cambios'"></span>
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="showPreview ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
@@ -227,7 +227,7 @@
                                     </div>
                                     <a href="{{ route('processes.changeSummary.show', $regulation) }}"
                                        target="_blank"
-                                       class="text-xs font-semibold text-[#1A428A] hover:underline shrink-0">
+                                       class="text-xs font-semibold text-brand hover:underline shrink-0">
                                         Abrir en pestaña nueva
                                     </a>
                                 </div>
@@ -248,7 +248,7 @@
                                     <div class="overflow-x-auto">
                                         <table class="w-full border-collapse text-sm">
                                             <thead>
-                                                <tr class="bg-[#e8eef8]">
+                                                <tr class="bg-brand-50">
                                                     <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800 w-16">Versión</th>
                                                     <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800 w-24">Fecha</th>
                                                     <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Elaboró</th>
@@ -342,7 +342,7 @@
 
                             <button type="button"
                                     @click="showConfirm = true"
-                                    class="px-5 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d] shadow-sm">
+                                    class="px-5 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark shadow-sm">
                                 Aprobar
                             </button>
 
@@ -354,7 +354,7 @@
                                 <div class="absolute inset-0 bg-black/40" @click="showConfirm = false"></div>
                                 <div class="relative bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center">
                                     <div class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mx-auto mb-4">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#1A428A]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                         </svg>
                                     </div>
@@ -372,7 +372,7 @@
                                         <form method="POST" action="{{ route('processes.approve', $regulation) }}" class="flex-1">
                                             @csrf
                                             <button type="submit"
-                                                    class="w-full px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                                    class="w-full px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                                                 Sí, aprobar
                                             </button>
                                         </form>

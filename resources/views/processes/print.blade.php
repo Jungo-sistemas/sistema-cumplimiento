@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
+    @include('partials.brand-head')
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $regulation->code }} — {{ $regulation->name }}</title>
     @vite(['resources/css/app.css'])
@@ -27,7 +28,7 @@
             <span class="font-semibold text-sm">{{ $regulation->code }} — {{ $regulation->name }}</span>
         </div>
         <button onclick="window.print()"
-                class="px-4 py-1.5 rounded bg-white text-[#002060] text-sm font-semibold hover:bg-blue-50">
+                class="px-4 py-1.5 rounded bg-white text-[#002060] text-sm font-semibold hover:bg-brand-50">
             Imprimir / Guardar PDF
         </button>
     </div>

@@ -16,7 +16,7 @@
         <div class="flex items-start justify-between gap-4 flex-wrap">
             <div class="min-w-0">
                 <div class="flex items-center gap-3 flex-wrap">
-                    <h1 class="text-xl font-bold text-[#1A428A]">Flujo de aprobación</h1>
+                    <h1 class="text-xl font-bold text-brand">Flujo de aprobación</h1>
                     @php $apColor = $regulation->approvalStatusColor(); @endphp
                     <span class="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border
                         {{ $apColor === 'green'  ? 'bg-green-50 text-green-700 border-green-200' : '' }}
@@ -44,7 +44,7 @@
             </div>
 
             <a href="{{ route('processes.show', $regulation) }}"
-               class="shrink-0 px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold text-sm hover:bg-blue-50">
+               class="shrink-0 px-4 py-2 rounded-md border border-brand bg-white text-brand font-semibold text-sm hover:bg-brand-50">
                 Volver al documento
             </a>
         </div>
@@ -72,7 +72,7 @@
                 <div class="flex items-center gap-3 flex-wrap">
                     <button type="button"
                             @click="showApprove = true"
-                            class="px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                            class="px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                         Aprobar
                     </button>
                     <button type="button"
@@ -90,7 +90,7 @@
                     <div class="absolute inset-0 bg-black/40" @click="showApprove = false"></div>
                     <div class="relative bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center">
                         <div class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mx-auto mb-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#1A428A]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                         </div>
@@ -108,7 +108,7 @@
                             <form method="POST" action="{{ route('processes.approve', $regulation) }}" class="flex-1">
                                 @csrf
                                 <button type="submit"
-                                        class="w-full px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                        class="w-full px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                                     Sí, aprobar
                                 </button>
                             </form>
@@ -180,7 +180,7 @@
                             @csrf
                             <button type="submit"
                                     onclick="return confirm('¿Re-enviar este documento a aprobación? El flujo se reiniciará desde el paso 1.')"
-                                    class="px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-blue-800">
+                                    class="px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-blue-800">
                                 Re-enviar a aprobación
                             </button>
                         </form>

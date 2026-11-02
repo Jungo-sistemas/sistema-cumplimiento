@@ -22,6 +22,11 @@ class ComplianceDashboardController extends Controller
             return redirect()->route('superadmin.dashboard');
         }
 
+        // Los roles que no son admin solo tienen la Vista de auditado.
+        if ($user->isAuditeeOnly()) {
+            return redirect()->route('mi-espacio.home');
+        }
+
         $companies = Company::query()
             ->when($user->isGlobalScope(), function ($query) {
                 // global-scope non-superadmin: see all companies

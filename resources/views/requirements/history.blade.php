@@ -133,7 +133,7 @@
         {{-- Header --}}
         <div class="flex items-start justify-between gap-6">
             <div>
-                <h1 class="text-2xl font-bold text-[#1A428A]">
+                <h1 class="text-2xl font-bold text-brand">
                     Historial de cambios
                 </h1>
 
@@ -146,7 +146,7 @@
             </div>
 
             <a href="{{ route('assets.requirements.show', [$asset, $requirement]) }}"
-               class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+               class="px-4 py-2 rounded-md border bg-white text-brand border-brand font-semibold hover:bg-brand-50">
                 Volver
             </a>
         </div>
@@ -161,7 +161,7 @@
                 @endphp
 
                 <div class="relative pl-6 pb-6 border-l border-gray-200">
-                    <div class="absolute -left-2 top-1 w-3 h-3 bg-[#1A428A] rounded-full"></div>
+                    <div class="absolute -left-2 top-1 w-3 h-3 bg-brand rounded-full"></div>
 
                     <div class="bg-gray-50 border rounded-lg p-4">
                         <div class="flex items-center justify-between gap-4">

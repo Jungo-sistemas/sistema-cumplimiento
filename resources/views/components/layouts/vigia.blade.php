@@ -15,26 +15,39 @@
 
 @php
     $user = auth()->user();
-    $currentModule = match (true) {
-        request()->routeIs('auditorias.*') => 'auditorias',
-        request()->routeIs('processes.*', 'my-approvals.*', 'regulation-versions.*') => 'procesos',
-        default => 'cumplimiento',
-    };
 
     $allModules = [
         'cumplimiento' => ['label' => 'Cumplimiento', 'route' => 'dashboard'],
         'procesos'     => ['label' => 'Procesos',     'route' => 'processes.dashboard'],
         'auditorias'   => ['label' => 'Auditorías',   'route' => 'auditorias.home'],
     ];
+    // Solo los módulos a los que el usuario de verdad puede entrar: Procesos y Auditorías también
+    // dependen de la licencia, no solo de module_access (si no, el menú y "Volver a…" mandaban a
+    // pantallas que luego lo rechazaban).
     $modules = collect($allModules)
         ->filter(fn ($_, $key) => match ($key) {
+            'procesos'   => $user?->canUseProcesos() ?? false,
             // Auditorías va con la licencia de Procesos y solo la usan auditores y administradores.
-            'auditorias' => ($user?->canAccessModule('procesos') ?? false) && ($user->isAuditor() || $user->isAdmin()),
+            'auditorias' => ($user?->canUseProcesos() ?? false) && ($user->isAuditor() || $user->isAdmin()),
             default      => $user?->canAccessModule($key) ?? true,
         })
         ->all();
+
+    // Módulo de la página actual. Las páginas que no son de un módulo (Usuarios, Mi perfil…) se
+    // muestran con el último módulo en el que anduvo el usuario, y "Volver a…" regresa a ese.
+    $routeModule = match (true) {
+        request()->routeIs('auditorias.*') => 'auditorias',
+        request()->routeIs('processes.*', 'my-approvals.*', 'regulation-versions.*') => 'procesos',
+        request()->routeIs('dashboard', 'assets.*', 'requirements.*', 'tasks.*', 'documents.*', 'investment-requests.*') => 'cumplimiento',
+        default => null,
+    };
+    if ($routeModule && isset($modules[$routeModule])) {
+        session(['last_module' => $routeModule]);
+    }
+    $currentModule = $routeModule ?? session('last_module');
     if (!isset($modules[$currentModule])) {
-        $currentModule = array_key_first($modules) ?? 'cumplimiento';
+        // Sin historial (o ya sin acceso a ese módulo): Cumplimiento si lo tiene, si no el primero.
+        $currentModule = isset($modules['cumplimiento']) ? 'cumplimiento' : (array_key_first($modules) ?? 'cumplimiento');
     }
     $pendingApprovalsCount = $user && !$user->isSuperAdmin()
         ? \App\Models\RegulationApproval::where('user_id', $user->id)->where('status', 'pending')->count()
@@ -42,6 +55,21 @@
     $pendingInvestmentApprovalsCount = $user
         ? \App\Models\InvestmentRequestApproval::where('user_id', $user->id)->where('status', 'pending')->count()
         : 0;
+
+    // ── Vista: Gestión o Auditado ──
+    // Los roles que no son admin ni auditor solo tienen la Vista de auditado; admins y auditores
+    // cambian con el botón del encabezado (que guarda la elección en sesión). Las páginas
+    // compartidas entre ambas vistas — consultar un proceso, por ejemplo — se muestran con el menú
+    // de la última vista elegida.
+    $canSwitchView = $user && ($user->isAdmin() || $user->isAuditor()) && $user->canUseAuditeeView();
+    $sharedRoute = request()->routeIs('processes.show', 'processes.print', 'processes.preview', 'regulation-versions.preview', 'profile.*');
+    $viewMode = match (true) {
+        ! $user || $user->isSuperAdmin()     => 'gestion',
+        $user->isAuditeeOnly()              => 'auditado',
+        request()->routeIs('mi-espacio.*')  => 'auditado',
+        $canSwitchView && $sharedRoute && session('view_mode') === 'auditado' => 'auditado',
+        default                             => 'gestion',
+    };
 
     // Vistas "minimal" no muestran el menú lateral contextual — en su lugar, un solo botón de
     // regreso. Por defecto regresa al módulo "de casa" del usuario (ver abajo), pero una página
@@ -55,93 +83,180 @@
         // "inicio" real es el panel de Sistema, igual que ya es el primer bloque del menú lateral
         // para ese rol.
         $homeModule = ['label' => 'Panel general', 'route' => 'superadmin.dashboard'];
+    } elseif ($viewMode === 'auditado') {
+        $homeModule = ['label' => 'Mi espacio', 'route' => 'mi-espacio.home'];
     } else {
-        // Si el usuario tiene acceso a ambos módulos, Cumplimiento es el principal (de ahí puede
-        // moverse a Procesos); si solo tiene uno de los dos, regresa a ese.
-        $homeModuleKey = isset($modules['cumplimiento']) ? 'cumplimiento' : array_key_first($modules);
-        $homeModule = $modules[$homeModuleKey] ?? $allModules['cumplimiento'];
+        // Regresa al módulo en el que andaba el usuario (ya validado arriba contra lo que tiene
+        // autorizado), no siempre a Cumplimiento.
+        $homeModule = $modules[$currentModule] ?? $allModules['cumplimiento'];
     }
+
+    // ── Menú lateral ──
+    // Secciones con título y ligas; el mismo arreglo pinta el menú de escritorio (colapsable) y el
+    // del celular. Cada liga: label, url, icon, active y, opcionales, badge, tour (data-tour de la
+    // guía de Procesos), children (el árbol activo → requisito → tarea de Cumplimiento).
+    $item = fn (string $label, string $route, string $icon, bool $active, array $extra = []) =>
+        ['label' => $label, 'url' => route($route), 'icon' => $icon, 'active' => $active] + $extra;
+
+    $sections = [];
+    $helpItem = null;
+
+    if ($minimal) {
+        $sections[] = ['title' => null, 'items' => [
+            $item('Volver a ' . $homeModule['label'], $homeModule['route'], 'back', true),
+        ]];
+    } elseif ($user?->isSuperAdmin()) {
+        $sections[] = ['title' => 'Sistema', 'items' => [
+            $item('Panel general', 'superadmin.dashboard', 'chart', request()->routeIs('superadmin.dashboard')),
+            $item('Grupos', 'superadmin.groups', 'layers', request()->routeIs('superadmin.groups')),
+            $item('Empresas', 'superadmin.companies', 'building', request()->routeIs('superadmin.companies')),
+            $item('Usuarios', 'superadmin.users', 'users', request()->routeIs('superadmin.users')),
+        ]];
+    } elseif ($viewMode === 'auditado') {
+        $sections[] = ['title' => 'Mi espacio', 'items' => [
+            $item('Inicio', 'mi-espacio.home', 'home', request()->routeIs('mi-espacio.home')),
+            $item('Mis solicitudes', 'mi-espacio.requests', 'clock', request()->routeIs('mi-espacio.requests')),
+        ]];
+        $sections[] = ['title' => 'Procesos', 'items' => [
+            $item('Mis documentos', 'mi-espacio.documents', 'document', request()->routeIs('mi-espacio.documents') || $sharedRoute && ! request()->routeIs('profile.*')),
+        ]];
+        $sections[] = ['title' => 'Auditorías', 'items' => [
+            $item('Mis auditorías', 'mi-espacio.audits', 'check', request()->routeIs('mi-espacio.audits')),
+            $item('Mis actividades', 'mi-espacio.activities', 'alert', request()->routeIs('mi-espacio.activities')),
+        ]];
+        $helpItem = $item('Ayuda', 'mi-espacio.help', 'help', request()->routeIs('mi-espacio.help'));
+    } elseif ($currentModule === 'auditorias') {
+        $sections[] = ['title' => 'Auditorías', 'items' => [
+            $item('Inicio', 'auditorias.home', 'home', request()->routeIs('auditorias.home')),
+            $item('Auditorías', 'auditorias.audits.index', 'clipboard', request()->routeIs('auditorias.audits.*')),
+            $item('Hallazgos', 'auditorias.findings.index', 'flag', request()->routeIs('auditorias.findings.*')),
+        ]];
+        $helpItem = $item('Ayuda', 'auditorias.help', 'help', request()->routeIs('auditorias.help'));
+    } elseif ($currentModule === 'procesos') {
+        $procesosItems = [
+            $item('Tablero', 'processes.dashboard', 'chart', request()->routeIs('processes.dashboard'), ['tour' => 'nav-tablero']),
+            $item('Procedimientos', 'processes.index', 'document', request()->routeIs('processes.index', 'processes.show', 'processes.create'), ['tour' => 'nav-procedimientos']),
+        ];
+        if ($pendingApprovalsCount > 0 || request()->routeIs('my-approvals.*')) {
+            $procesosItems[] = $item('Mis aprobaciones', 'my-approvals.index', 'badge', request()->routeIs('my-approvals.*'), ['tour' => 'nav-mis-aprobaciones', 'badge' => $pendingApprovalsCount]);
+        }
+        $sections[] = ['title' => 'Procesos', 'items' => $procesosItems];
+        $helpItem = $item('Ayuda', 'processes.guide.manual', 'help', false, ['newTab' => true]);
+    } else {
+        $cumplimientoItems = [
+            $item('Tablero', 'dashboard', 'chart', request()->routeIs('dashboard')),
+        ];
+        if ($user?->isAdmin() || $user?->isOperative() || $user?->isReadOnly()) {
+            $cumplimientoItems[] = $item('Documentos generales', 'documents.index', 'folder', request()->routeIs('documents.*'));
+            $cumplimientoItems[] = $item('Solicitud de Inversiones', 'investment-requests.index', 'cash', request()->routeIs('investment-requests.*'), ['badge' => $pendingInvestmentApprovalsCount]);
+        }
+
+        // Árbol del activo abierto: Energético → activo → requisito → tarea / documentos.
+        $ctx = $navContext;
+        $children = [];
+        if (!empty($ctx['asset'])) {
+            $children[] = ['label' => $ctx['asset']->name, 'url' => route('assets.show', $ctx['asset']), 'depth' => 1,
+                'active' => empty($ctx['requirement']) && ($ctx['documentOwner'] ?? null) !== 'asset'];
+        }
+        if (!empty($ctx['requirement'])) {
+            $children[] = ['label' => $ctx['requirement']->name ?? $ctx['requirement']->title ?? $ctx['requirement']->template?->name ?? 'Requerimiento',
+                'url' => route('assets.requirements.show', [$ctx['asset']->id, $ctx['requirement']->id]), 'depth' => 2,
+                'active' => empty($ctx['task']) && empty($ctx['documentSection'])];
+        }
+        if (!empty($ctx['task'])) {
+            $children[] = ['label' => $ctx['task']->title ?? $ctx['task']->name ?? 'Tarea',
+                'url' => route('requirements.tasks.show', [$ctx['requirement']->id, $ctx['task']->id]), 'depth' => 3,
+                'active' => empty($ctx['documentSection'])];
+        }
+        if (!empty($ctx['documentSection'])) {
+            $children[] = match ($ctx['documentOwner'] ?? null) {
+                'requirement' => ['label' => 'Documentos', 'url' => route('assets.requirements.documents.index', [$ctx['asset']->id, $ctx['requirement']->id]), 'depth' => 3, 'active' => true],
+                'task'        => ['label' => 'Documentos', 'url' => route('tasks.documents.index', $ctx['task']->id), 'depth' => 4, 'active' => true],
+                'asset'       => ['label' => 'Info extra', 'url' => route('assets.extra-documents.index', $ctx['asset']->id), 'depth' => 2, 'active' => true],
+                default       => null,
+            };
+        }
+        $inCumplimiento = request()->routeIs('assets.*') || !empty($ctx['asset']);
+        $cumplimientoItems[] = $item('Energético', 'assets.index', 'bolt', $inCumplimiento, ['children' => array_values(array_filter($children))]);
+
+        $sections[] = ['title' => 'Cumplimiento', 'items' => $cumplimientoItems];
+    }
+
+    if (!$minimal && $viewMode === 'gestion' && !$user?->isSuperAdmin() && $user?->isAdmin()) {
+        $sections[] = ['title' => 'Administración', 'items' => [
+            $item('Usuarios', 'users.index', 'users', request()->routeIs('users.*')),
+        ]];
+    }
+
+    $notifications = array_values(array_filter([
+        $pendingApprovalsCount > 0 ? ['label' => 'Procesos por aprobar', 'count' => $pendingApprovalsCount, 'url' => route('my-approvals.index')] : null,
+        $pendingInvestmentApprovalsCount > 0 ? ['label' => 'Solicitudes de inversión por aprobar', 'count' => $pendingInvestmentApprovalsCount, 'url' => route('investment-requests.index')] : null,
+    ]));
+    $notificationsCount = collect($notifications)->sum('count');
+
+    $initials = collect(preg_split('/\s+/', trim($user?->name ?? '')))
+        ->filter()->take(2)->map(fn ($word) => mb_strtoupper(mb_substr($word, 0, 1)))->implode('');
+    $companyLabel = $user?->hasGroupScope() ? $user->group?->name : $user?->company?->name;
 @endphp
 
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8">
+    @include('partials.brand-head')
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}" @auth data-keep-alive="{{ route('session.keepAlive') }}" @endauth>
-    <title>{{ $title ? $title . ' · Vigia' : 'Vigia' }}</title>
+    <title>{{ $title ? $title . ' · Jungo Cumple' : 'Jungo Cumple' }}</title>
+
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="h-screen overflow-hidden bg-gray-50 text-gray-900">
-    <div x-data="{ mobileMenuOpen: false }" class="flex h-screen flex-col">
-        <header class="shrink-0 bg-[#1A428A] text-white">
-            <div class="mx-auto flex max-w-[1680px] items-center justify-between px-4 py-3 sm:px-6">
-                <div class="flex items-center gap-3">
-                    <button
-                        type="button"
-                        class="inline-flex items-center justify-center rounded-md p-2 hover:bg-white/10 lg:hidden"
-                        @click="mobileMenuOpen = true"
-                        aria-label="Abrir menú"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
-                             viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                  d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
+<body class="h-screen overflow-hidden bg-[#F7F7FA] text-gray-900">
+    {{-- El menú colapsado se recuerda en este navegador (localStorage puede fallar en modo privado). --}}
+    <div x-data="{
+            mobileMenuOpen: false,
+            collapsed: (() => { try { return localStorage.getItem('jc.sidebarCollapsed') === '1' } catch (e) { return false } })(),
+            toggleSidebar() {
+                this.collapsed = !this.collapsed;
+                try { localStorage.setItem('jc.sidebarCollapsed', this.collapsed ? '1' : '0') } catch (e) {}
+            },
+         }"
+         class="flex h-screen flex-col">
+        <header class="shrink-0 bg-brand-ink text-white">
+            <div class="flex items-center justify-between gap-3 px-4 py-4 sm:px-7 sm:py-5">
+                <div class="flex min-w-0 items-center gap-3">
+                    <button type="button" class="inline-flex items-center justify-center rounded-md p-2 hover:bg-white/10 lg:hidden"
+                            @click="mobileMenuOpen = true" aria-label="Abrir menú">
+                        <x-icon name="menu" class="h-6 w-6" />
                     </button>
 
-                    {{-- El logo es el "inicio", pero "inicio" depende de en qué módulo ya estás —
-                         antes mandaba siempre a Cumplimiento (route('dashboard') fijo), así que
-                         alguien navegando en Procesos que le diera clic terminaba en el tablero de
-                         Cumplimiento sin razón aparente. --}}
-                    <a href="{{ route($user?->isSuperAdmin() ? 'superadmin.dashboard' : ($modules[$currentModule]['route'] ?? 'dashboard')) }}"
-                       class="flex items-center gap-3">
-                        <img src="{{ asset('images/vigia.svg') }}" alt="VIGIA" class="h-8 w-auto">
+                    {{-- El logo es el "inicio" de la vista/módulo en el que ya estás. --}}
+                    <a href="{{ route(match (true) {
+                            (bool) $user?->isSuperAdmin() => 'superadmin.dashboard',
+                            $viewMode === 'auditado'      => 'mi-espacio.home',
+                            default                       => $modules[$currentModule]['route'] ?? 'dashboard',
+                        }) }}" class="flex items-center">
+                        <x-brand-logo class="h-9" />
                     </a>
 
-                    @if(!$user?->isSuperAdmin())
-                        <span class="hidden h-5 w-px bg-white/30 sm:block"></span>
+                    @if($viewMode === 'gestion' && !$user?->isSuperAdmin())
+                        <span class="ml-2 hidden h-6 w-px bg-white/25 sm:block"></span>
 
                         <div x-data="{ open: false }" class="relative hidden sm:block">
-                            <button
-                                type="button"
-                                @click="open = !open"
-                                @keydown.escape="open = false"
-                                class="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-white/90 hover:bg-white/10 focus:outline-none"
-                            >
+                            <button type="button" @click="open = !open" @keydown.escape="open = false"
+                                    class="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-white/90 hover:bg-white/10 focus:outline-none">
                                 {{ $modules[$currentModule]['label'] }}
-                                <svg :class="{ 'rotate-180': open }" class="h-3.5 w-3.5 text-white/60 transition-transform duration-150"
-                                     xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                     stroke="currentColor" stroke-width="2.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-                                </svg>
+                                <x-icon name="chevron" class="h-3.5 w-3.5 text-white/60 transition-transform duration-150" ::class="{ 'rotate-180': open }" />
                             </button>
 
-                            <div
-                                x-show="open"
-                                x-transition:enter="transition ease-out duration-100"
-                                x-transition:enter-start="opacity-0 scale-95"
-                                x-transition:enter-end="opacity-100 scale-100"
-                                x-transition:leave="transition ease-in duration-75"
-                                x-transition:leave-start="opacity-100 scale-100"
-                                x-transition:leave-end="opacity-0 scale-95"
-                                @click.outside="open = false"
-                                class="absolute left-0 top-full z-50 mt-2 w-44 origin-top-left rounded-lg border border-gray-100 bg-white py-1 shadow-lg"
-                                style="display:none;"
-                            >
+                            <div x-show="open" x-transition.opacity @click.outside="open = false" style="display:none;"
+                                 class="absolute left-0 top-full z-50 mt-2 w-44 rounded-lg border border-gray-100 bg-white py-1 text-gray-700 shadow-lg">
                                 @foreach($modules as $key => $mod)
-                                    <a
-                                        href="{{ route($mod['route']) }}"
-                                        @click="open = false"
-                                        class="flex items-center gap-2 px-3 py-2 text-sm {{ $currentModule === $key ? 'font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}"
-                                    >
+                                    <a href="{{ route($mod['route']) }}" @click="open = false"
+                                       class="flex items-center gap-2 px-3 py-2 text-sm {{ $currentModule === $key ? 'font-semibold text-brand' : 'hover:bg-gray-50' }}">
                                         @if($currentModule === $key)
-                                            <svg class="h-3.5 w-3.5 text-[#1A428A]" xmlns="http://www.w3.org/2000/svg"
-                                                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                                            </svg>
+                                            <x-icon name="check" class="h-3.5 w-3.5" />
                                         @else
                                             <span class="h-3.5 w-3.5"></span>
                                         @endif
@@ -150,357 +265,138 @@
                                 @endforeach
                             </div>
                         </div>
-
-                        @if($currentModule === 'procesos')
-                            <a href="{{ route('processes.guide.manual') }}" target="_blank" rel="noopener"
-                               title="Guía de usuario de Procesos"
-                               class="hidden h-5 w-5 flex-none items-center justify-center rounded-full border border-white/40 text-[11px] font-bold text-white/80 hover:border-white hover:text-white sm:inline-flex">?</a>
-                        @endif
                     @endif
                 </div>
 
-                <div class="flex items-center gap-3">
-                    @if(!$user?->isSuperAdmin() && $user?->isAdmin())
-                        <a href="{{ route('users.index') }}"
-                           title="Usuarios"
-                           class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-white/80 hover:bg-white/10 {{ request()->routeIs('users.*') ? 'bg-white/15 font-semibold text-white' : '' }}">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                            <span class="hidden sm:inline">Usuarios</span>
-                        </a>
+                <div class="flex items-center gap-3 sm:gap-6">
+                    {{-- El cambio de vista es de Auditorías: "Gestión" es el lado del auditor y
+                         "Vista de auditado" es Mi espacio. En Procesos y Cumplimiento no aparece. --}}
+                    @if($canSwitchView && ($viewMode === 'auditado' || $currentModule === 'auditorias'))
+                        <div class="hidden text-right leading-tight md:block">
+                            <div class="text-xs text-white/80">Vista actual:</div>
+                            <div class="text-sm font-semibold">{{ $viewMode === 'auditado' ? 'Auditado' : 'Gestión' }}</div>
+                        </div>
+
+                        <div class="flex rounded-xl border border-white/20 p-1 text-sm font-semibold">
+                            <a href="{{ route('view-mode.switch', 'gestion') }}"
+                               class="rounded-lg px-3 py-2 sm:px-4 {{ $viewMode === 'gestion' ? 'bg-white text-brand-ink' : 'text-white/85 hover:bg-white/10' }}">Gestión</a>
+                            <a href="{{ route('view-mode.switch', 'auditado') }}"
+                               class="rounded-lg px-3 py-2 sm:px-4 {{ $viewMode === 'auditado' ? 'bg-white text-brand-ink' : 'text-white/85 hover:bg-white/10' }}">
+                                <span class="sm:hidden">Auditado</span><span class="hidden sm:inline">Vista de auditado</span>
+                            </a>
+                        </div>
                     @endif
 
-                    <a href="{{ route('profile.edit') }}"
-                       class="hidden text-sm opacity-90 hover:opacity-100 hover:underline sm:block">
-                        {{ $user?->name }}
-                    </a>
+                    <div class="flex items-center gap-2 sm:gap-3">
+                        {{-- Notificaciones: por ahora, lo que el usuario tiene por aprobar. --}}
+                        <div x-data="{ open: false }" class="relative">
+                            <button type="button" @click="open = !open" @keydown.escape="open = false" aria-label="Notificaciones"
+                                    class="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/20 hover:bg-white/10 sm:h-12 sm:w-12">
+                                <x-icon name="bell" class="h-5 w-5" />
+                                @if($notificationsCount > 0)
+                                    <span class="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-yellow-400 px-1.5 text-xs font-bold text-yellow-900">{{ $notificationsCount }}</span>
+                                @endif
+                            </button>
 
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-[#1A428A] shadow-sm sm:px-4">
-                            Cerrar Sesión
-                        </button>
-                    </form>
+                            <div x-show="open" x-transition.opacity @click.outside="open = false" style="display:none;"
+                                 class="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-gray-100 bg-white py-2 text-sm text-gray-700 shadow-lg">
+                                <div class="px-4 pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Notificaciones</div>
+                                @forelse($notifications as $notification)
+                                    <a href="{{ $notification['url'] }}" class="flex items-center justify-between gap-3 px-4 py-2 hover:bg-gray-50">
+                                        <span>{{ $notification['label'] }}</span>
+                                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-yellow-400 px-1.5 text-xs font-bold text-yellow-900">{{ $notification['count'] }}</span>
+                                    </a>
+                                @empty
+                                    <p class="px-4 py-2 text-gray-500">No tienes notificaciones.</p>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <div x-data="{ open: false }" class="relative">
+                            <button type="button" @click="open = !open" @keydown.escape="open = false" aria-label="Mi cuenta"
+                                    class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/20 hover:bg-white/10 sm:h-12 sm:w-12">
+                                <x-icon name="user" class="h-6 w-6" />
+                            </button>
+
+                            <div x-show="open" x-transition.opacity @click.outside="open = false" style="display:none;"
+                                 class="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-gray-100 bg-white py-2 text-sm text-gray-700 shadow-lg">
+                                <div class="border-b border-gray-100 px-4 pb-3">
+                                    <div class="font-semibold text-gray-900">{{ $user?->name }}</div>
+                                    <div class="truncate text-xs text-gray-500">{{ $user?->email }}</div>
+                                </div>
+                                <a href="{{ route('profile.edit') }}" class="block px-4 py-2 hover:bg-gray-50">Mi perfil</a>
+                                @if(!$user?->isSuperAdmin() && $user?->isAdmin())
+                                    <a href="{{ route('users.index') }}" class="block px-4 py-2 hover:bg-gray-50">Usuarios</a>
+                                @endif
+                                <form method="POST" action="{{ route('logout') }}">
+                                    @csrf
+                                    <button class="block w-full px-4 py-2 text-left font-semibold text-brand hover:bg-gray-50">Cerrar sesión</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
 
-        <div
-            x-show="mobileMenuOpen"
-            x-transition.opacity
-            class="fixed inset-0 z-40 bg-black/40 lg:hidden"
-            @click="mobileMenuOpen = false"
-            style="display: none;"
-        ></div>
-
-        <aside
-            x-show="mobileMenuOpen"
-            x-transition:enter="transition ease-out duration-200"
-            x-transition:enter-start="-translate-x-full"
-            x-transition:enter-end="translate-x-0"
-            x-transition:leave="transition ease-in duration-150"
-            x-transition:leave-start="translate-x-0"
-            x-transition:leave-end="-translate-x-full"
-            class="fixed inset-y-0 left-0 z-50 w-[290px] bg-white shadow-xl lg:hidden"
-            style="display: none;"
-        >
-            <div class="flex h-full flex-col">
-                <div class="flex items-center justify-between border-b px-4 py-4">
-                    <div class="flex items-center gap-2 text-sm font-semibold text-[#1A428A]">
-                        <span>☰</span>
-                        <span>Menú</span>
-                    </div>
-
-                    <button
-                        type="button"
-                        class="rounded-md p-2 text-gray-500 hover:bg-gray-100"
-                        @click="mobileMenuOpen = false"
-                        aria-label="Cerrar menú"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-                             viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                  d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-
-                <div class="min-h-0 flex-1 overflow-y-auto p-4">
-                    <nav class="space-y-1 text-sm">
-                        @if($minimal)
-                            <a href="{{ route($homeModule['route']) }}" @click="mobileMenuOpen = false"
-                               class="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 font-semibold text-[#1A428A]">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                                </svg>
-                                Volver a {{ $homeModule['label'] }}
-                            </a>
-                        @elseif($user?->isSuperAdmin())
-                            <p class="mb-1 px-3 text-xs font-bold uppercase tracking-wider text-gray-400">Sistema</p>
-                            <a href="{{ route('superadmin.dashboard') }}" @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Panel general</a>
-                            <a href="{{ route('superadmin.groups') }}" @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.groups') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Grupos</a>
-                            <a href="{{ route('superadmin.companies') }}" @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.companies') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Empresas</a>
-                            <a href="{{ route('superadmin.users') }}" @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.users') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
-                        @elseif($currentModule === 'auditorias')
-                            @include('auditorias.partials.nav', ['mobile' => true])
-                        @elseif($currentModule === 'procesos')
-                            {{-- ── MÓDULO: PROCESOS ── --}}
-                            <a href="{{ route('processes.dashboard') }}" @click="mobileMenuOpen = false" data-tour="nav-tablero"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
-
-                            <a href="{{ route('processes.index') }}" @click="mobileMenuOpen = false" data-tour="nav-procedimientos"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Procedimientos</a>
-
-                            @if($pendingApprovalsCount > 0 || request()->routeIs('my-approvals.*'))
-                                <a href="{{ route('my-approvals.index') }}" @click="mobileMenuOpen = false" data-tour="nav-mis-aprobaciones"
-                                   class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('my-approvals.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                    <span>Mis aprobaciones</span>
-                                    @if($pendingApprovalsCount > 0)
-                                        <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">{{ $pendingApprovalsCount }}</span>
-                                    @endif
-                                </a>
-                            @endif
-                        @else
-                            {{-- ── MÓDULO: CUMPLIMIENTO ── --}}
-                            <a href="{{ route('dashboard') }}" @click="mobileMenuOpen = false"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
-
-                            @if($user?->isAdmin() || $user?->isOperative() || $user?->isReadOnly())
-                                <a href="{{ route('documents.index') }}" @click="mobileMenuOpen = false"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos generales</a>
-                                <a href="{{ route('investment-requests.index') }}" @click="mobileMenuOpen = false"
-                                   class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('investment-requests.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                    <span>Solicitud de Inversiones</span>
-                                    @if($pendingInvestmentApprovalsCount > 0)
-                                        <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">{{ $pendingInvestmentApprovalsCount }}</span>
-                                    @endif
-                                </a>
-                                <a href="{{ route('processes.index') }}" @click="mobileMenuOpen = false"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Procesos</a>
-                            @endif
-
-                            @php $inCumplimiento = request()->routeIs('assets.*') || !empty($navContext['asset']); @endphp
-                            <div x-data="{ open: {{ $inCumplimiento ? 'true' : 'false' }} }">
-                                <button type="button" @click="open = !open"
-                                    class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm {{ $inCumplimiento ? 'font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                    <span>Cumplimiento</span>
-                                    <svg :class="{ 'rotate-180': open }" class="h-4 w-4 transition-transform duration-200"
-                                         xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-                                    </svg>
-                                </button>
-                                <div x-show="open" class="mt-1 space-y-1 pl-2">
-                                    <a href="{{ route('assets.index') }}" @click="mobileMenuOpen = false"
-                                       class="block rounded-md px-3 py-2 {{ $inCumplimiento ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Energético</a>
-
-                                    @if(!empty($navContext['asset']))
-                                        <a href="{{ route('assets.show', $navContext['asset']) }}" @click="mobileMenuOpen = false"
-                                           class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) && !(($navContext['documentOwner'] ?? null) === 'asset') ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                            <span class="mr-2 text-gray-400">└</span>{{ $navContext['asset']->name }}
-                                        </a>
-                                    @endif
-                                    @if(!empty($navContext['requirement']))
-                                        <a href="{{ route('assets.requirements.show', [$navContext['asset']->id, $navContext['requirement']->id]) }}" @click="mobileMenuOpen = false"
-                                           class="ml-8 block rounded-md px-3 py-2 {{ empty($navContext['task']) && empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                            <span class="mr-2 text-gray-400">└</span>{{ $navContext['requirement']->name ?? $navContext['requirement']->title ?? $navContext['requirement']->template?->name ?? 'Requerimiento' }}
-                                        </a>
-                                    @endif
-                                    @if(!empty($navContext['task']))
-                                        <a href="{{ route('requirements.tasks.show', [$navContext['requirement']->id, $navContext['task']->id]) }}" @click="mobileMenuOpen = false"
-                                           class="ml-12 block rounded-md px-3 py-2 {{ empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                            <span class="mr-2 text-gray-400">└</span>{{ $navContext['task']->title ?? $navContext['task']->name ?? 'Tarea' }}
-                                        </a>
-                                    @endif
-                                    @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'requirement')
-                                        <a href="{{ route('assets.requirements.documents.index', [$navContext['asset']->id, $navContext['requirement']->id]) }}" @click="mobileMenuOpen = false"
-                                           class="ml-12 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
-                                            <span class="mr-2 text-gray-400">└</span>Documentos
-                                        </a>
-                                    @endif
-                                    @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'task')
-                                        <a href="{{ route('tasks.documents.index', $navContext['task']->id) }}" @click="mobileMenuOpen = false"
-                                           class="ml-16 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
-                                            <span class="mr-2 text-gray-400">└</span>Documentos
-                                        </a>
-                                    @endif
-                                    @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'asset')
-                                        <a href="{{ route('assets.extra-documents.index', $navContext['asset']->id) }}" @click="mobileMenuOpen = false"
-                                           class="ml-8 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
-                                            <span class="mr-2 text-gray-400">└</span>Info extra
-                                        </a>
-                                    @endif
-                                </div>
-                            </div>
-                        @endif
-
-                        @if(!$minimal && !$user?->isSuperAdmin() && $user?->isAdmin())
-                            <hr class="my-2 border-gray-100">
-                            <a href="{{ route('users.index') }}" @click="mobileMenuOpen = false"
-                               class="flex items-center gap-2 rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                </svg>
-                                Usuarios
-                            </a>
-                        @endif
-                    </nav>
-                </div>
-            </div>
-        </aside>
-
-        <div class="mx-auto flex min-h-0 w-full max-w-[1680px] flex-1 gap-8 px-4 py-4 sm:px-6 sm:py-6">
-            <aside class="hidden shrink-0 lg:block lg:w-[280px] xl:w-[250px]">
-                <div class="h-full rounded-xl bg-white p-4 shadow">
-                    <div class="mb-3 flex items-center gap-2 text-sm font-semibold text-[#1A428A]">
-                        <span>☰</span>
-                        <span>Menú</span>
-                    </div>
-
-                    <nav class="space-y-1 text-sm">
-                        @if($minimal)
-                            <a href="{{ route($homeModule['route']) }}"
-                               class="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 font-semibold text-[#1A428A]">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                                </svg>
-                                Volver a {{ $homeModule['label'] }}
-                            </a>
-                        @elseif($user?->isSuperAdmin())
-                            <p class="mb-1 px-3 text-xs font-bold uppercase tracking-wider text-gray-400">Sistema</p>
-                            <a href="{{ route('superadmin.dashboard') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Panel general</a>
-                            <a href="{{ route('superadmin.groups') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.groups') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Grupos</a>
-                            <a href="{{ route('superadmin.companies') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.companies') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Empresas</a>
-                            <a href="{{ route('superadmin.users') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('superadmin.users') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Usuarios</a>
-                        @elseif($currentModule === 'auditorias')
-                            @include('auditorias.partials.nav', ['mobile' => false])
-                        @elseif($currentModule === 'procesos')
-                            {{-- ── MÓDULO: PROCESOS ── --}}
-                            <a href="{{ route('processes.dashboard') }}" data-tour="nav-tablero"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
-
-                            <a href="{{ route('processes.index') }}" data-tour="nav-procedimientos"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Procedimientos</a>
-
-                            @if($pendingApprovalsCount > 0 || request()->routeIs('my-approvals.*'))
-                                <a href="{{ route('my-approvals.index') }}" data-tour="nav-mis-aprobaciones"
-                                   class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('my-approvals.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                    <span>Mis aprobaciones</span>
-                                    @if($pendingApprovalsCount > 0)
-                                        <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">{{ $pendingApprovalsCount }}</span>
-                                    @endif
-                                </a>
-                            @endif
-                        @else
-                            {{-- ── MÓDULO: CUMPLIMIENTO ── --}}
-                            <a href="{{ route('dashboard') }}"
-                               class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Tablero</a>
-
-                            @if($user?->isAdmin() || $user?->isOperative() || $user?->isReadOnly())
-                                <a href="{{ route('documents.index') }}"
-                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos generales</a>
-                                <a href="{{ route('investment-requests.index') }}"
-                                   class="flex items-center justify-between rounded-md px-3 py-2 {{ request()->routeIs('investment-requests.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                    <span>Solicitud de Inversiones</span>
-                                    @if($pendingInvestmentApprovalsCount > 0)
-                                        <span class="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold">{{ $pendingInvestmentApprovalsCount }}</span>
-                                    @endif
-                                </a>
-                            @endif
-
-                            @php $inCumplimiento = request()->routeIs('assets.*') || !empty($navContext['asset']); @endphp
-                            <div x-data="{ open: {{ $inCumplimiento ? 'true' : 'false' }} }">
-                                <button type="button" @click="open = !open"
-                                    class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm {{ $inCumplimiento ? 'font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                    <span>Cumplimiento</span>
-                                    <svg :class="{ 'rotate-180': open }" class="h-4 w-4 transition-transform duration-200"
-                                         xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-                                    </svg>
-                                </button>
-                                <div x-show="open" class="mt-1 space-y-1 pl-2">
-                                    <a href="{{ route('assets.index') }}"
-                                       class="block rounded-md px-3 py-2 {{ $inCumplimiento ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Energético</a>
-
-                                    @if(!empty($navContext['asset']))
-                                        <a href="{{ route('assets.show', $navContext['asset']) }}"
-                                           class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) && !(($navContext['documentOwner'] ?? null) === 'asset') ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                            <span class="mr-2 text-gray-400">└</span>{{ $navContext['asset']->name }}
-                                        </a>
-                                    @endif
-                                    @if(!empty($navContext['requirement']))
-                                        <a href="{{ route('assets.requirements.show', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
-                                           class="ml-8 block rounded-md px-3 py-2 {{ empty($navContext['task']) && empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                            <span class="mr-2 text-gray-400">└</span>{{ $navContext['requirement']->name ?? $navContext['requirement']->title ?? $navContext['requirement']->template?->name ?? 'Requerimiento' }}
-                                        </a>
-                                    @endif
-                                    @if(!empty($navContext['task']))
-                                        <a href="{{ route('requirements.tasks.show', [$navContext['requirement']->id, $navContext['task']->id]) }}"
-                                           class="ml-12 block rounded-md px-3 py-2 {{ empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                            <span class="mr-2 text-gray-400">└</span>{{ $navContext['task']->title ?? $navContext['task']->name ?? 'Tarea' }}
-                                        </a>
-                                    @endif
-                                    @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'requirement')
-                                        <a href="{{ route('assets.requirements.documents.index', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
-                                           class="ml-12 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
-                                            <span class="mr-2 text-gray-400">└</span>Documentos
-                                        </a>
-                                    @endif
-                                    @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'task')
-                                        <a href="{{ route('tasks.documents.index', $navContext['task']->id) }}"
-                                           class="ml-16 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
-                                            <span class="mr-2 text-gray-400">└</span>Documentos
-                                        </a>
-                                    @endif
-                                    @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'asset')
-                                        <a href="{{ route('assets.extra-documents.index', $navContext['asset']->id) }}"
-                                           class="ml-8 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
-                                            <span class="mr-2 text-gray-400">└</span>Info extra
-                                        </a>
-                                    @endif
-                                </div>
-                            </div>
-                        @endif
-                    </nav>
-                </div>
+        <div class="flex min-h-0 flex-1">
+            {{-- Menú lateral de escritorio: ancho con textos, o angosto con ícono y texto abajo. --}}
+            <aside class="hidden shrink-0 border-r border-gray-200 bg-white transition-[width] duration-200 lg:block"
+                   :class="collapsed ? 'w-[80px]' : 'w-[300px]'">
+                @include('layouts.partials.sidebar', ['mobile' => false])
             </aside>
 
-            <div class="min-h-0 flex-1 overflow-y-auto pr-0 sm:pr-1">
-                @isset($breadcrumb)
-                    <div class="mb-4 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1 text-sm text-gray-500">
-                        <span class="shrink-0 text-gray-400">⌂</span>
-                        {{ $breadcrumb }}
-                    </div>
-                @endisset
+            <div class="min-h-0 flex-1 overflow-y-auto">
+                <div class="px-4 py-6 sm:px-10 sm:py-10">
+                    @isset($breadcrumb)
+                        <div class="mb-6 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-gray-500">
+                            {{ $breadcrumb }}
+                        </div>
+                    @endisset
 
-                @if(session('success'))
-                    <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                        {{ session('success') }}
-                    </div>
-                @endif
+                    @if(session('success'))
+                        <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                            {{ session('success') }}
+                        </div>
+                    @endif
 
-                @if(session('session_notice'))
-                    <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                        {{ session('session_notice') }}
-                    </div>
-                @endif
+                    @if(session('error'))
+                        <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                            {{ session('error') }}
+                        </div>
+                    @endif
 
-                <main>
-                    {{ $slot }}
-                </main>
+                    @if(session('session_notice'))
+                        <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                            {{ session('session_notice') }}
+                        </div>
+                    @endif
+
+                    <main>
+                        {{ $slot }}
+                    </main>
+                </div>
             </div>
         </div>
+
+        {{-- Menú del celular: el mismo menú, siempre abierto, en un panel que se desliza. --}}
+        <div x-show="mobileMenuOpen" x-transition.opacity class="fixed inset-0 z-40 bg-black/40 lg:hidden"
+             @click="mobileMenuOpen = false" style="display: none;"></div>
+
+        <aside x-show="mobileMenuOpen"
+               x-transition:enter="transition ease-out duration-200"
+               x-transition:enter-start="-translate-x-full"
+               x-transition:enter-end="translate-x-0"
+               x-transition:leave="transition ease-in duration-150"
+               x-transition:leave-start="translate-x-0"
+               x-transition:leave-end="-translate-x-full"
+               class="fixed inset-y-0 left-0 z-50 w-[300px] max-w-[85vw] bg-white shadow-xl lg:hidden"
+               style="display: none;">
+            @include('layouts.partials.sidebar', ['mobile' => true])
+        </aside>
     </div>
 
-    @if($currentModule === 'procesos')
+    @if($currentModule === 'procesos' && $viewMode === 'gestion')
         @if($user->needsProcesosGuide())
             <x-processes-guide mode="mandatory" />
         @elseif(session()->pull('show_procesos_guide_reminder'))

@@ -232,6 +232,37 @@ class User extends Authenticatable
         return $this->canAccessModule('procesos') && is_null($this->procesos_guide_completed_at);
     }
 
+    /**
+     * La "Vista de auditado" (Mi espacio) va con la licencia de Procesos, igual que Auditorías.
+     */
+    public function canUseAuditeeView(): bool
+    {
+        return ! $this->isSuperAdmin() && $this->canUseProcesos();
+    }
+
+    /**
+     * Puede entrar a Procesos: module_access lo permite y la licencia lo incluye (mismo criterio
+     * que EnsureModuleAccess). Se memoriza porque el layout lo consulta en cada página y la
+     * licencia cuesta una consulta.
+     */
+    public function canUseProcesos(): bool
+    {
+        return $this->canUseProcesosCache ??= $this->canAccessModule('procesos')
+            && ($this->isSuperAdmin() || app(\App\Services\LicenseService::class)->hasProcesosAccessForUser($this));
+    }
+
+    /**
+     * Quien no es admin ni auditor solo ve la Vista de auditado; admins y auditores cambian entre
+     * Gestión y Auditado desde el encabezado de Auditorías. Sin licencia de Procesos no hay vista
+     * de auditado, así que esos usuarios se quedan con Gestión como hasta ahora.
+     */
+    public function isAuditeeOnly(): bool
+    {
+        return ! $this->isAdmin() && ! $this->isAuditor() && $this->canUseAuditeeView();
+    }
+
+    private ?bool $canUseProcesosCache = null;
+
     public function sendPasswordResetNotification($token): void
     {
         $this->notify(new ResetPasswordNotification($token));
