@@ -9,6 +9,8 @@
             editOpen: false,
             editUserId: null,
             editUserName: '',
+            editName: '',
+            selfNameOpen: false,
             editRole: '',
             editGroup: '',
             editCompanyIds: [],
@@ -51,6 +53,7 @@
             openEdit(id, name, roleId, groupId, companyIds, moduleAccess, positionIds) {
                 this.editUserId = id;
                 this.editUserName = name;
+                this.editName = name;
                 this.editRole = String(roleId ?? '');
                 this.editGroup = String(groupId ?? '');
                 this.editCompanyIds = (companyIds ?? []).map(String);
@@ -102,6 +105,15 @@
                     @method('PATCH')
 
                     <div class="px-6 py-5 space-y-4">
+
+                        {{-- Nombre --}}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                                Nombre <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="name" x-model="editName" required maxlength="255"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
+                        </div>
 
                         {{-- Rol --}}
                         <div>
@@ -241,6 +253,41 @@
                 </form>
             </template>
         </div>
+    </div>
+
+    {{-- Modal: el admin cambia su propio nombre --}}
+    <div x-show="selfNameOpen" x-transition.opacity
+         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4"
+         style="display:none;"
+         @click.self="selfNameOpen = false"
+         @keydown.escape.window="selfNameOpen = false">
+        <form method="POST" action="{{ route('users.update-own-name') }}"
+              class="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+            @csrf
+            @method('PATCH')
+            <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                <p class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-0.5">Mi usuario</p>
+                <h2 class="text-base font-semibold text-gray-900">Editar mi nombre</h2>
+            </div>
+            <div class="px-6 py-5">
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                    Nombre <span class="text-red-500">*</span>
+                </label>
+                <input type="text" name="name" value="{{ old('name', auth()->user()->name) }}" required maxlength="255"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
+                <p class="mt-1 text-xs text-gray-400">Tu rol y tus empresas solo los puede cambiar el superadministrador.</p>
+            </div>
+            <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50">
+                <button type="button" @click="selfNameOpen = false"
+                    class="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-100 transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit"
+                    class="px-5 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark transition-colors shadow-sm">
+                    Guardar
+                </button>
+            </div>
+        </form>
     </div>
 
     <div class="bg-white rounded-xl shadow p-6">
@@ -409,7 +456,11 @@
                                             @endif
                                         </div>
                                     @else
-                                        <span class="text-xs text-gray-400">Tú</span>
+                                        {{-- En su propia fila el admin solo puede cambiar su nombre. --}}
+                                        <button type="button" @click="selfNameOpen = true"
+                                            class="whitespace-nowrap px-3 py-1.5 rounded-md border border-brand bg-white text-brand text-sm font-semibold hover:bg-brand-50">
+                                            Editar nombre
+                                        </button>
                                     @endif
                                 </td>
                             @endif

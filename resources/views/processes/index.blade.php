@@ -72,16 +72,16 @@
                     </a>
                 @endif
 
-                {{-- Cargar documento por archivo — solo admins --}}
+                {{-- Cargar documento por archivo — solo admins. En la pestaña Anexos carga un anexo. --}}
                 @if($user->isAdmin())
-                    <a href="{{ route('processes.cargar', $selectedCompanyId ? ['company_id' => $selectedCompanyId] : []) }}" data-tour="btn-cargar"
+                    <a href="{{ route('processes.cargar', array_filter(['company_id' => $selectedCompanyId, 'anexo' => $showAnnexes ? 1 : null])) }}" data-tour="btn-cargar"
                        class="flex items-center gap-1.5 px-4 py-2 rounded-md border border-brand bg-white text-brand font-semibold text-sm hover:bg-brand-50">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                              viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round"
                                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                         </svg>
-                        Cargar proceso
+                        {{ $showAnnexes ? 'Cargar anexo' : 'Cargar proceso' }}
                     </a>
                 @endif
                 @if($user->isAdmin() || $user->isOperative())
@@ -315,6 +315,15 @@
             </button>
             @if($user->isAdmin())
                 <button type="button"
+                        @click="obsoleteConfirmOpen = true"
+                        title="Solo se envían los desactualizados de la selección"
+                        class="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                    <svg class="h-3.5 w-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2L19 8M10 12v4M14 12v4"/>
+                    </svg>
+                    Enviar a obsoleto
+                </button>
+                <button type="button"
                         @click="trashConfirmOpen = true"
                         class="flex items-center gap-1.5 rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
@@ -348,6 +357,44 @@
                     <input type="hidden" name="regulation_ids[]" :value="id">
                 </template>
             </form>
+
+            {{-- Formulario oculto para enviar a obsoleto --}}
+            <form x-ref="obsoleteForm" method="POST" action="{{ route('processes.obsoleto.move') }}" class="hidden">
+                @csrf
+                <template x-for="id in selected" :key="id">
+                    <input type="hidden" name="regulation_ids[]" :value="id">
+                </template>
+            </form>
+
+            {{-- Modal: confirmar envío a obsoleto --}}
+            <div x-show="obsoleteConfirmOpen"
+                 x-transition.opacity
+                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+                 style="display:none;">
+                <div @click.outside="obsoleteConfirmOpen = false"
+                     class="w-full max-w-md rounded-xl bg-white shadow-2xl">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-bold text-gray-900">Enviar a obsoleto</h3>
+                        <p class="mt-2 text-sm text-gray-600">
+                            Los desactualizados de la selección salen de esta lista y quedan en
+                            <span class="font-semibold">Obsoleto</span>, de donde puedes regresarlos cuando quieras.
+                            Los que no estén desactualizados se quedan como están.
+                        </p>
+                    </div>
+                    <div class="p-6 pt-4 flex items-center justify-end gap-3">
+                        <button type="button"
+                                @click="obsoleteConfirmOpen = false"
+                                class="px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 font-semibold text-sm hover:bg-gray-50">
+                            Cancelar
+                        </button>
+                        <button type="button"
+                                @click="$refs.obsoleteForm.submit()"
+                                class="px-4 py-2 rounded-md bg-brand text-white font-semibold text-sm hover:bg-brand-dark">
+                            Sí, enviar a obsoleto
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             {{-- Modal: confirmar envío a la papelera --}}
             <div x-show="trashConfirmOpen"
@@ -666,6 +713,12 @@
                                                 </svg>
                                                 <span>Aprobado</span>
                                             </div>
+                                        @elseif($regulation->approval_status === 'outdated')
+                                            {{-- Desactualizado: no se manda a flujo, se reemplaza o se envía a obsoleto --}}
+                                            <div class="text-xs border border-gray-200 rounded px-2 py-1 bg-gray-50 text-gray-600 w-full mb-1.5 flex items-center gap-1.5">
+                                                <span class="h-2 w-2 rounded-full bg-gray-400 shrink-0"></span>
+                                                <span>Desactualizado</span>
+                                            </div>
                                         @else
                                             {{-- Sin flujo aún: selector para configurarlo --}}
                                             <select
@@ -728,6 +781,11 @@
                                             <span class="inline-flex items-center gap-1 text-xs text-green-700">
                                                 <span class="h-2 w-2 rounded-full bg-green-500 shrink-0"></span>
                                                 Aprobado
+                                            </span>
+                                        @elseif($regulation->approval_status === 'outdated')
+                                            <span class="inline-flex items-center gap-1 text-xs text-gray-500">
+                                                <span class="h-2 w-2 rounded-full bg-gray-400 shrink-0"></span>
+                                                Desactualizado
                                             </span>
                                         @else
                                             <span class="text-xs text-gray-400">Sin flujo</span>
@@ -985,6 +1043,7 @@ function reportTable(allIds) {
         selected: [],
         allIds: allIds,
         trashConfirmOpen: false,
+        obsoleteConfirmOpen: false,
 
         get allSelected() {
             return this.allIds.length > 0 &&

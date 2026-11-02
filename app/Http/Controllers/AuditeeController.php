@@ -132,6 +132,7 @@ class AuditeeController extends Controller
             ->whereIn('company_id', $companies->pluck('id'))
             ->where('is_active', true)
             ->where('is_annex', false)
+            ->whereNull('obsoleted_at')
             ->where(fn ($q) => $q->whereIn('approval_status', ['approved', 'outdated'])
                 ->orWhereHas('currentVersion', fn ($v) => $v->whereNotNull('valid_until')))
             ->when($search !== '', function ($q) use ($search) {
