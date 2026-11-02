@@ -27,7 +27,7 @@
             </span>
         @endif
 
-        <button type="button" @click="editing = !editing" class="block text-xs text-[#1A428A] hover:underline">
+        <button type="button" @click="editing = !editing" class="block text-xs text-brand hover:underline">
             {{ $isActive ? 'Renovar' : 'Activar' }} licencia
         </button>
     </div>
@@ -36,11 +36,11 @@
         @csrf
         <label class="flex items-center gap-2 text-xs text-gray-700">
             <input type="checkbox" name="includes_procesos" value="1" x-model="includesProcesos"
-                   class="h-3.5 w-3.5 rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]">
+                   class="h-3.5 w-3.5 rounded border-gray-300 text-brand focus:ring-brand">
             Incluye módulo de Procesos (+${{ number_format(\App\Services\LicenseService::PROCESOS_ADDON_PRICE, 0) }}/mes)
         </label>
         <div class="flex gap-2">
-            <button type="submit" class="text-xs px-3 py-1.5 rounded bg-[#1A428A] text-white hover:bg-[#15356d]">
+            <button type="submit" class="text-xs px-3 py-1.5 rounded bg-brand text-white hover:bg-brand-dark">
                 Activar por 1 mes
             </button>
             <button type="button" @click="editing = false" class="text-xs text-gray-500 hover:underline">Cancelar</button>

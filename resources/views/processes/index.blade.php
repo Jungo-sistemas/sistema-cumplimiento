@@ -28,7 +28,7 @@
 
     {{-- HEADER --}}
     <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-[#1A428A]">
+        <h1 class="text-2xl font-semibold text-brand">
             {{ $cardView ? 'Procesos' : ($showAnnexes ? 'Anexos' : 'Procedimientos') }}
         </h1>
 
@@ -56,7 +56,7 @@
             @if($cardView)
                 {{-- Botón de reporte cross-empresa desde la vista de tarjetas --}}
                 <a href="{{ route('processes.index', ['report' => 1]) }}"
-                   class="flex items-center gap-2 px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50">
+                   class="flex items-center gap-2 px-4 py-2 rounded-md border border-brand bg-white text-brand font-semibold hover:bg-brand-50">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                          viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -67,7 +67,7 @@
             @else
                 @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
                     <a href="{{ route('processes.index') }}"
-                       class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50">
+                       class="px-4 py-2 rounded-md border border-brand bg-white text-brand font-semibold hover:bg-brand-50">
                         Volver
                     </a>
                 @endif
@@ -75,7 +75,7 @@
                 {{-- Cargar documento por archivo — solo admins --}}
                 @if($user->isAdmin())
                     <a href="{{ route('processes.cargar', $selectedCompanyId ? ['company_id' => $selectedCompanyId] : []) }}" data-tour="btn-cargar"
-                       class="flex items-center gap-1.5 px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold text-sm hover:bg-blue-50">
+                       class="flex items-center gap-1.5 px-4 py-2 rounded-md border border-brand bg-white text-brand font-semibold text-sm hover:bg-brand-50">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                              viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round"
@@ -86,7 +86,7 @@
                 @endif
                 @if($user->isAdmin() || $user->isOperative())
                     <a href="{{ route('processes.create', $selectedCompanyId ? ['company_id' => $selectedCompanyId] : []) }}" data-tour="btn-nuevo-procedimiento"
-                       class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                       class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark">
                         Nuevo procedimiento
                     </a>
                 @endif
@@ -100,12 +100,12 @@
         <div class="mt-4 flex items-center gap-1 border-b border-gray-200">
             <a href="{{ route('processes.index', array_filter(['company_id' => $selectedCompanyId, 'process_type_id' => request('process_type_id')])) }}"
                class="px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition
-                      {{ ! $showAnnexes ? 'border-[#1A428A] text-[#1A428A]' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                      {{ ! $showAnnexes ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
                 Procesos
             </a>
             <a href="{{ route('processes.index', array_filter(['company_id' => $selectedCompanyId, 'process_type_id' => request('process_type_id'), 'anexos' => 1])) }}"
                class="px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition
-                      {{ $showAnnexes ? 'border-[#1A428A] text-[#1A428A]' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                      {{ $showAnnexes ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
                 Anexos
             </a>
         </div>
@@ -123,7 +123,7 @@
             <div class="min-w-[200px]">
                 <label class="block text-xs text-gray-500 mb-1">Empresa</label>
                 <select name="company_id"
-                        class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                        class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                     <option value="">Todas las empresas</option>
                     @foreach($companies as $c)
                         <option value="{{ $c->id }}" @selected(request('company_id') == $c->id)>
@@ -147,7 +147,7 @@
                            name="q"
                            value="{{ request('q') }}"
                            placeholder="Código, nombre… en cualquier empresa"
-                           class="w-full rounded-md border-gray-300 text-sm pl-9 focus:border-[#1A428A] focus:ring-[#1A428A]">
+                           class="w-full rounded-md border-gray-300 text-sm pl-9 focus:border-brand focus:ring-brand">
                 </div>
             </div>
         @else
@@ -199,7 +199,7 @@
         @endif
 
         <button type="submit"
-                class="px-5 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                class="px-5 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
             Buscar
         </button>
 
@@ -241,12 +241,12 @@
                 @foreach($companiesWithCounts as $company)
                     <a href="{{ route('processes.index', ['company_id' => $company->id]) }}"
                        class="group flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm
-                              transition hover:border-[#1A428A] hover:shadow-md">
+                              transition hover:border-brand hover:shadow-md">
 
                         <div class="flex items-start gap-3">
                             <div class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center
                                         rounded-lg bg-blue-50 group-hover:bg-blue-100 transition">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#1A428A]"
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-brand"
                                      fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                                     <path stroke-linecap="round" stroke-linejoin="round"
                                           d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
@@ -254,7 +254,7 @@
                             </div>
 
                             <div class="flex-1 min-w-0">
-                                <p class="font-semibold text-gray-800 leading-snug group-hover:text-[#1A428A] transition">
+                                <p class="font-semibold text-gray-800 leading-snug group-hover:text-brand transition">
                                     {{ $company->name }}
                                 </p>
                             </div>
@@ -273,7 +273,7 @@
                             </span>
 
                             <svg xmlns="http://www.w3.org/2000/svg"
-                                 class="h-4 w-4 text-gray-400 group-hover:text-[#1A428A] transition"
+                                 class="h-4 w-4 text-gray-400 group-hover:text-brand transition"
                                  fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                             </svg>
@@ -298,14 +298,14 @@
              x-transition:enter="transition ease-out duration-150"
              x-transition:enter-start="opacity-0 -translate-y-1"
              x-transition:enter-end="opacity-100 translate-y-0"
-             class="mt-3 flex items-center gap-3 rounded-lg border border-[#1A428A] bg-blue-50 px-4 py-2.5"
+             class="mt-3 flex items-center gap-3 rounded-lg border border-brand bg-blue-50 px-4 py-2.5"
              style="display:none;">
-            <span class="text-sm font-semibold text-[#1A428A]">
+            <span class="text-sm font-semibold text-brand">
                 <span x-text="selected.length"></span> seleccionado<span x-show="selected.length !== 1">s</span>
             </span>
             <button type="button"
                     @click="submitReport()"
-                    class="ml-auto flex items-center gap-1.5 rounded-md bg-[#1A428A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#15356d]">
+                    class="ml-auto flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
                      viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -384,14 +384,14 @@
         @if($globalSearch)
             <div class="mt-4 flex items-center gap-2 text-sm text-gray-500">
                 @if(request()->boolean('report'))
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#1A428A] shrink-0" fill="none"
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-brand shrink-0" fill="none"
                          viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                               d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                     </svg>
                     <span>Modo reporte — mostrando procedimientos de <strong class="text-gray-700">todas las empresas</strong>. Selecciona los que quieres incluir y descarga el Excel.</span>
                 @else
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#1A428A] shrink-0" fill="none"
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-brand shrink-0" fill="none"
                          viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                               d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
@@ -410,7 +410,7 @@
                         <tr>
                             <th class="px-3 py-3 w-10">
                                 <input type="checkbox"
-                                       class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A] cursor-pointer"
+                                       class="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
                                        :checked="allSelected"
                                        :indeterminate.prop="selected.length > 0 && !allSelected"
                                        @change="toggleAll()"
@@ -446,7 +446,7 @@
                                 ondblclick="window.location.href='{{ route('processes.show', $regulation) }}'">
                                 <td class="px-3 py-3">
                                     <input type="checkbox"
-                                           class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A] cursor-pointer"
+                                           class="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
                                            :checked="selected.includes({{ $regulation->id }})"
                                            @change="toggle({{ $regulation->id }})">
                                 </td>
@@ -493,7 +493,7 @@
                                             x-ref="trigger"
                                             @click="toggleOpen()"
                                             class="flex items-center gap-1 text-xs px-2 py-1 rounded border transition"
-                                            :class="open ? 'border-[#1A428A] text-[#1A428A] bg-blue-50' : 'border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A]'">
+                                            :class="open ? 'border-brand text-brand bg-blue-50' : 'border-gray-200 text-gray-600 hover:border-brand hover:text-brand'">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 010 5.656l-4 4a4 4 0 01-5.656-5.656l1.5-1.5m4.828-4.828a4 4 0 015.656 0l4 4a4 4 0 01-5.656 5.656l-1.5-1.5"/>
                                         </svg>
@@ -556,7 +556,7 @@
                                                     @input="onSearchInput()"
                                                     @focus="search.trim() && fetchResults()"
                                                     placeholder="Buscar código para agregar…"
-                                                    class="w-full rounded border border-gray-300 text-xs px-2 py-1.5 focus:outline-none focus:border-[#1A428A] focus:ring-1 focus:ring-[#1A428A]"
+                                                    class="w-full rounded border border-gray-300 text-xs px-2 py-1.5 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
                                                 >
                                                 <div x-show="showDropdown"
                                                      @click.outside="showDropdown = false"
@@ -564,7 +564,7 @@
                                                     <template x-for="r in results" :key="r.id">
                                                         <button type="button"
                                                                 @click="selectAnnex(r)"
-                                                                class="w-full text-left px-2 py-1.5 text-xs hover:bg-blue-50 flex items-baseline gap-1.5">
+                                                                class="w-full text-left px-2 py-1.5 text-xs hover:bg-brand-50 flex items-baseline gap-1.5">
                                                             <span class="font-mono font-semibold text-gray-800 shrink-0" x-text="r.code || '—'"></span>
                                                             <span class="text-gray-500 truncate" x-text="r.name"></span>
                                                         </button>
@@ -577,7 +577,7 @@
                                                 <button type="button"
                                                         @click="save()"
                                                         :disabled="saving"
-                                                        class="px-2.5 py-1 rounded bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d] disabled:opacity-50">
+                                                        class="px-2.5 py-1 rounded bg-brand text-white text-xs font-semibold hover:bg-brand-dark disabled:opacity-50">
                                                     <span x-text="saving ? 'Guardando…' : 'Guardar'"></span>
                                                 </button>
                                                 <button type="button"
@@ -606,7 +606,7 @@
                                                     {{ $color === 'green'  ? 'bg-green-500' : '' }}
                                                     {{ $color === 'yellow' ? 'bg-yellow-400' : '' }}
                                                     {{ $color === 'red'    ? 'bg-red-500'   : '' }}
-                                                    {{ $color === 'blue'   ? 'bg-[#1A428A]' : '' }}
+                                                    {{ $color === 'blue'   ? 'bg-brand' : '' }}
                                                     {{ $color === 'gray'   ? 'bg-gray-400'  : '' }}">
                                                 </span>
                                                 <span class="text-xs {{ $color === 'red' ? 'text-red-600 font-medium' : ($color === 'yellow' ? 'text-yellow-600 font-medium' : 'text-gray-600') }}">
@@ -640,7 +640,7 @@
                                     @else
                                         <span class="inline-flex items-center gap-1.5 text-xs text-gray-400">
                                             <span class="inline-block h-2 w-2 rounded-full shrink-0
-                                                {{ $color === 'blue' ? 'bg-[#1A428A]' : ($color === 'gray' ? 'bg-gray-400' : 'bg-yellow-400') }}">
+                                                {{ $color === 'blue' ? 'bg-brand' : ($color === 'gray' ? 'bg-gray-400' : 'bg-yellow-400') }}">
                                             </span>
                                             {{ $color === 'blue' ? 'Sin archivo' : ($color === 'gray' ? 'Desactualizado' : 'Sin vigencia') }}
                                         </span>
@@ -712,7 +712,7 @@
                                                         @csrf
                                                         <button type="submit"
                                                                 onclick="return confirm('¿Aprobar «{{ addslashes($regulation->name) }}»?')"
-                                                                class="px-2 py-1 rounded bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d]">
+                                                                class="px-2 py-1 rounded bg-brand text-white text-xs font-semibold hover:bg-brand-dark">
                                                             Aprobar
                                                         </button>
                                                     </form>
@@ -760,7 +760,7 @@
                                             </a>
                                         @endif
                                         <a href="{{ route('processes.show', $regulation) }}"
-                                           class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d]">
+                                           class="px-3 py-1.5 rounded-md bg-brand text-white text-xs font-semibold hover:bg-brand-dark">
                                             Gestionar
                                         </a>
                                     </div>
@@ -789,7 +789,7 @@
             @else
                 {{ $regulations->total() }} {{ \Illuminate\Support\Str::plural($itemLabel, $regulations->total()) }} encontrados
             @endif
-            <span x-show="selected.length > 0" class="ml-2 font-medium text-[#1A428A]">
+            <span x-show="selected.length > 0" class="ml-2 font-medium text-brand">
                 · <span x-text="selected.length"></span> seleccionado<span x-show="selected.length !== 1">s</span>
             </span>
         </p>
@@ -837,7 +837,7 @@
              class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden">
 
             {{-- Header --}}
-            <div class="bg-[#1A428A] px-6 py-4 flex items-center justify-between">
+            <div class="bg-brand px-6 py-4 flex items-center justify-between">
                 <div>
                     <h3 class="text-white font-semibold text-base">Confirmar flujo de aprobación</h3>
                     <p class="text-blue-200 text-xs mt-0.5" x-text="regulationName"></p>
@@ -867,7 +867,7 @@
                     <div>
                         <p class="text-sm text-gray-700 mb-1">
                             Nivel seleccionado:
-                            <span class="font-semibold text-[#1A428A]" x-text="levelLabel"></span>
+                            <span class="font-semibold text-brand" x-text="levelLabel"></span>
                         </p>
                         <p class="text-xs text-gray-500 mb-4">
                             Asignar personas es opcional: si dejas un puesto vacío, aprueba cualquiera de ese puesto. Una vez confirmado, el flujo no podrá modificarse.
@@ -914,7 +914,7 @@
                                             @focus="open[pos.slug] = true"
                                             @input="open[pos.slug] = true"
                                             @keydown.escape="open[pos.slug] = false; search[pos.slug] = ''"
-                                            class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 pr-8 focus:outline-none focus:border-[#1A428A] focus:ring-1 focus:ring-[#1A428A]"
+                                            class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 pr-8 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
                                         >
                                         <button type="button"
                                                 x-show="search[pos.slug]"
@@ -933,8 +933,8 @@
                                             <template x-for="u in filtered(pos.slug)" :key="u.id">
                                                 <button type="button"
                                                         @click="selectUser(pos.slug, u)"
-                                                        class="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center gap-2">
-                                                    <span class="h-6 w-6 rounded-full bg-[#1A428A] text-white text-xs flex items-center justify-center shrink-0"
+                                                        class="w-full text-left px-3 py-2 text-sm hover:bg-brand-50 flex items-center gap-2">
+                                                    <span class="h-6 w-6 rounded-full bg-brand text-white text-xs flex items-center justify-center shrink-0"
                                                           x-text="u.name.charAt(0).toUpperCase()"></span>
                                                     <div>
                                                         <div class="font-medium text-gray-800" x-text="u.name"></div>
@@ -966,7 +966,7 @@
                         @click="confirmFlow()"
                         :disabled="!canConfirm"
                         :class="canConfirm
-                            ? 'bg-[#1A428A] hover:bg-[#15356d] text-white cursor-pointer'
+                            ? 'bg-brand hover:bg-brand-dark text-white cursor-pointer'
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
                         class="px-4 py-2 rounded-lg text-sm font-semibold transition">
                     <span x-text="removing ? 'Sí, eliminar flujo' : 'Confirmar flujo'"></span>

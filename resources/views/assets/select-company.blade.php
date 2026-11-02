@@ -9,7 +9,7 @@
     </x-slot>
 
     <div class="bg-white rounded-xl shadow p-6 max-w-xl">
-        <h1 class="text-2xl font-semibold text-[#1A428A]">Crear un activo</h1>
+        <h1 class="text-2xl font-semibold text-brand">Crear un activo</h1>
         <p class="mt-1 text-sm text-gray-500">
             Primero selecciona la empresa en la que quieres registrar el activo.
         </p>
@@ -34,7 +34,7 @@
                     Cancelar
                 </a>
                 <button type="submit"
-                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                        class="px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                     Continuar
                 </button>
             </div>

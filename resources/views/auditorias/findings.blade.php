@@ -63,18 +63,18 @@
     <div class="bg-white rounded-xl shadow p-6 space-y-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-semibold text-[#1A428A]">Hallazgos</h1>
+                <h1 class="text-2xl font-semibold text-brand">Hallazgos</h1>
                 <p class="mt-1 text-sm text-gray-600">Causas raíz, acciones y evidencias de cada hallazgo en un solo seguimiento.</p>
             </div>
             {{-- La ventana para registrar se construye más adelante; por ahora el botón no abre nada --}}
-            <button type="button" class="rounded-md bg-[#1A428A] px-4 py-2 text-sm font-medium text-white hover:bg-[#15366f]">+ Registrar hallazgo</button>
+            <button type="button" class="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark">+ Registrar hallazgo</button>
         </div>
 
         {{-- Pestañas --}}
         <div class="flex flex-wrap gap-6 border-b">
             @foreach($tabs as $key => $label)
                 <a href="{{ route('auditorias.findings.index', ['tab' => $key] + $filtros) }}"
-                   class="-mb-px border-b-2 pb-2 text-sm font-medium {{ $tab === $key ? 'border-[#1A428A] text-[#1A428A]' : 'border-transparent text-gray-500 hover:text-gray-700' }}">{{ $label }}</a>
+                   class="-mb-px border-b-2 pb-2 text-sm font-medium {{ $tab === $key ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-700' }}">{{ $label }}</a>
             @endforeach
         </div>
 
@@ -109,7 +109,7 @@
                 <input type="search" name="q" value="{{ $filtros['q'] ?? '' }}" placeholder="Código o título del hallazgo" class="w-full rounded-md border-gray-300 text-sm">
             </div>
 
-            <button type="submit" class="rounded-md bg-[#1A428A] px-4 py-2 text-sm font-medium text-white hover:bg-[#15366f]">Filtrar</button>
+            <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark">Filtrar</button>
 
             @if($filtros)
                 <a href="{{ route('auditorias.findings.index', ['tab' => $tab]) }}" class="py-2 text-sm text-gray-500 hover:underline">Limpiar</a>
@@ -145,7 +145,7 @@
                             <td class="px-4 py-3 whitespace-nowrap text-gray-700">{{ $h['compromiso'] }}</td>
                             <td class="px-4 py-3 text-right">
                                 {{-- El detalle y las revisiones se construyen más adelante; al crearlos se cambia el "#" --}}
-                                <a href="#" class="whitespace-nowrap rounded-md border border-[#1A428A] px-3 py-1.5 text-xs font-medium text-[#1A428A] hover:bg-blue-50">{{ $acciones[$h['seguimiento']] ?? 'Abrir' }}</a>
+                                <a href="#" class="whitespace-nowrap rounded-md border border-brand px-3 py-1.5 text-xs font-medium text-brand hover:bg-brand-50">{{ $acciones[$h['seguimiento']] ?? 'Abrir' }}</a>
                             </td>
                         </tr>
                     @empty

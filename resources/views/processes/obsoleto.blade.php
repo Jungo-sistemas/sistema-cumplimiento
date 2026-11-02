@@ -11,11 +11,11 @@
     {{-- HEADER --}}
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-semibold text-[#1A428A]">Obsoleto</h1>
+            <h1 class="text-2xl font-semibold text-brand">Obsoleto</h1>
             <p class="text-sm text-gray-500 mt-0.5">Regulaciones vencidas y versiones anteriores reemplazadas</p>
         </div>
         <a href="{{ route('processes.index') }}"
-           class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold text-sm hover:bg-blue-50">
+           class="px-4 py-2 rounded-md border border-brand bg-white text-brand font-semibold text-sm hover:bg-brand-50">
             Volver a Procesos
         </a>
     </div>
@@ -26,12 +26,12 @@
         <div class="min-w-[220px] flex-1">
             <label class="block text-xs text-gray-500 mb-1">Buscar procedimiento</label>
             <input type="text" name="q" value="{{ $search }}" placeholder="Nombre o código..."
-                   class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                   class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
         </div>
         <div class="min-w-[180px]">
             <label class="block text-xs text-gray-500 mb-1">Tipo de proceso</label>
             <select name="process_type_id"
-                    class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                    class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                 <option value="">Todos los tipos</option>
                 @foreach($processTypes as $pt)
                     <option value="{{ $pt->id }}" @selected((string) $selectedProcessTypeId === (string) $pt->id)>
@@ -44,7 +44,7 @@
         <div class="min-w-[180px]">
             <label class="block text-xs text-gray-500 mb-1">Empresa</label>
             <select name="company_id"
-                    class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                    class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                 <option value="">Todas las empresas</option>
                 @foreach($companies as $c)
                     <option value="{{ $c->id }}" @selected((string) $selectedCompanyId === (string) $c->id)>
@@ -55,7 +55,7 @@
         </div>
         @endif
         <button type="submit"
-                class="px-5 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                class="px-5 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
             Filtrar
         </button>
         <a href="{{ route('processes.obsoleto') }}"
@@ -126,7 +126,7 @@
                                     @if($cv)
                                         <a href="{{ route('regulation-versions.preview', $cv) }}"
                                            target="_blank"
-                                           class="inline-flex items-center gap-1 whitespace-nowrap text-xs px-2.5 py-1.5 rounded-md border border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A] transition">
+                                           class="inline-flex items-center gap-1 whitespace-nowrap text-xs px-2.5 py-1.5 rounded-md border border-gray-200 text-gray-600 hover:border-brand hover:text-brand transition">
                                             <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -135,7 +135,7 @@
                                         </a>
                                         @if($reg->allowsDownload())
                                             <a href="{{ route('regulation-versions.download', $cv) }}"
-                                               class="inline-flex items-center gap-1 whitespace-nowrap text-xs px-2.5 py-1.5 rounded-md border border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A] transition">
+                                               class="inline-flex items-center gap-1 whitespace-nowrap text-xs px-2.5 py-1.5 rounded-md border border-gray-200 text-gray-600 hover:border-brand hover:text-brand transition">
                                                 <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                                                 </svg>
@@ -144,7 +144,7 @@
                                         @endif
                                     @endif
                                     <a href="{{ route('processes.show', $reg) }}"
-                                       class="inline-flex items-center gap-1 whitespace-nowrap text-xs px-2.5 py-1.5 rounded-md bg-[#1A428A] text-white hover:bg-[#15356d] transition">
+                                       class="inline-flex items-center gap-1 whitespace-nowrap text-xs px-2.5 py-1.5 rounded-md bg-brand text-white hover:bg-brand-dark transition">
                                         Ir al proceso
                                         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/>

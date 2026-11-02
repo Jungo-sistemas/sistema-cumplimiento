@@ -4,10 +4,10 @@
     // externo que además no tiene por qué coincidir con el de cada despliegue.
     $platformUrl = route('processes.index');
 @endphp
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8>
+    @include('partials.brand-head')<meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Guía de Usuario VIGIA</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
 <style>
 /* Layout: two-pane manual. Fixed index of secciones/pasos on the left (chips on phone),
    one paso at a time on the right with figures, callouts and prev/next. */
@@ -30,8 +30,8 @@
   --ok:#1f7a4d;
   --ok-soft:#e3f4ea;
   --shadow:0 1px 2px rgba(13,44,107,.06),0 8px 24px rgba(13,44,107,.08);
-  --display:"Archivo",system-ui,"Segoe UI",sans-serif;
-  --body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --display:"Inter",system-ui,"Segoe UI",sans-serif;
+  --body:"Inter","Segoe UI",system-ui,sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){

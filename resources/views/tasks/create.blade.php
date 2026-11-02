@@ -38,7 +38,7 @@
         {{-- Header --}}
         <div class="flex items-start justify-between gap-6">
             <div>
-                <h1 class="text-2xl font-bold text-[#1A428A]">Nueva tarea</h1>
+                <h1 class="text-2xl font-bold text-brand">Nueva tarea</h1>
                 <div class="text-sm text-gray-500 mt-1">
                     Carpeta: <span class="font-semibold text-gray-700">{{ $title }}</span>
                     @if($asset)
@@ -198,7 +198,7 @@
             <div class="mt-6 flex items-center gap-3">
                 <button
                     type="submit"
-                    class="px-5 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d] transition"
+                    class="px-5 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark transition"
                 >
                     Guardar
                 </button>
@@ -322,7 +322,7 @@
 
         .select2-container--default .select2-results__option--highlighted[aria-selected] {
             background-color: rgb(239 246 255) !important;
-            color: #1A428A !important;
+            color: #5B1690 !important;
         }
 
         .select2-container--default .select2-results__option[aria-selected=true] {

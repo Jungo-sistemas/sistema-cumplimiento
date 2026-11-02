@@ -61,7 +61,7 @@
 
     <div class="bg-white rounded-xl shadow p-6 max-w-3xl" x-data="createUserData()">
 
-        <h1 class="text-2xl font-semibold text-[#1A428A]">Agregar usuario</h1>
+        <h1 class="text-2xl font-semibold text-brand">Agregar usuario</h1>
 
         @if ($errors->any())
             <div class="mt-4 rounded-lg border border-red-300 bg-red-50 p-4">
@@ -83,13 +83,13 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                     <input type="text" name="name" value="{{ old('name') }}" required
-                        class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
+                        class="w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand text-sm">
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
                     <input type="email" name="email" value="{{ old('email') }}" required
-                        class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
+                        class="w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand text-sm">
                 </div>
             </div>
 
@@ -105,7 +105,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Rol <span class="text-red-500">*</span></label>
                     <select name="role_id" x-model="selectedRole" required
-                        class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
+                        class="w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand text-sm">
                         <option value="">Selecciona un rol</option>
                         @foreach($roles as $role)
                             <option value="{{ $role->id }}">
@@ -155,7 +155,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Puesto</label>
                     <select name="job_position_id" x-model="selectedPosition"
-                        class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
+                        class="w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand text-sm">
                         <option value="">— Sin asignar —</option>
                         <template x-for="pos in availablePositions" :key="pos.id">
                             <option :value="pos.id" x-text="pos.name" :selected="selectedPosition == pos.id"></option>
@@ -219,7 +219,7 @@
                             </div>
                         @else
                             <select name="group_id" x-model="selectedGroup" required
-                                class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
+                                class="w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand text-sm">
                                 <option value="">Selecciona un grupo</option>
                                 @foreach($groups as $group)
                                     <option value="{{ $group->id }}">{{ $group->name }}</option>
@@ -235,7 +235,7 @@
                         {{-- Seleccionadas --}}
                         <div class="flex flex-wrap gap-1.5 mb-2" x-show="selectedCompanyIds.length > 0">
                             <template x-for="id in selectedCompanyIds" :key="id">
-                                <span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50 text-[#1A428A] text-xs font-medium border border-blue-200">
+                                <span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50 text-brand text-xs font-medium border border-blue-200">
                                     <span x-text="companyName(id)"></span>
                                     <button type="button" @click="removeCompany(id)" class="rounded-full hover:bg-blue-100 p-0.5">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
@@ -253,7 +253,7 @@
                                 @focus="companySearchOpen = true"
                                 placeholder="Buscar empresa para agregar…"
                                 autocomplete="off"
-                                class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
+                                class="w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand text-sm">
 
                             <div x-show="companySearchOpen && companySearchResults.length > 0"
                                  class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto"
@@ -307,7 +307,7 @@
 
                 <template x-if="!isAuditor">
                     <select name="module_access"
-                            class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A] text-sm">
+                            class="w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand text-sm">
                         <option value="all"         {{ old('module_access', 'all') === 'all'         ? 'selected' : '' }}>Ambos módulos</option>
                         <option value="cumplimiento" {{ old('module_access') === 'cumplimiento'       ? 'selected' : '' }}>Solo Cumplimiento</option>
                         <option value="procesos"     {{ old('module_access') === 'procesos'           ? 'selected' : '' }}>Solo Procesos</option>
@@ -329,7 +329,7 @@
                     Cancelar
                 </a>
                 <button type="submit"
-                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                        class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark">
                     Enviar invitación
                 </button>
             </div>

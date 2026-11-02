@@ -48,7 +48,7 @@
         {{-- Header --}}
         <div class="flex items-start justify-between gap-6">
             <div class="space-y-1">
-                <h1 class="text-2xl font-bold text-[#1A428A]">
+                <h1 class="text-2xl font-bold text-brand">
                     Evidencias: {{ $task->title }}
                 </h1>
 
@@ -80,7 +80,7 @@
 
             <div class="flex items-center gap-2">
                 <a href="{{ route('assets.requirements.show', [$asset,$requirement]) }}"
-                   class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+                   class="px-4 py-2 rounded-md border bg-white text-brand border-brand font-semibold hover:bg-brand-50">
                     Volver a la carpeta
                 </a>
             </div>
@@ -106,7 +106,7 @@
             @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
                 <div class="bg-white border rounded-xl overflow-hidden">
                     <div class="p-5 border-b">
-                        <div class="font-semibold text-[#1A428A]">
+                        <div class="font-semibold text-brand">
                             Subir evidencia
                         </div>
 
@@ -151,7 +151,7 @@
                                 </div>
 
                                 <button type="submit"
-                                    class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                                    class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark">
                                     Subir
                                 </button>
                             </form>
@@ -164,7 +164,7 @@
             <div class="bg-white border rounded-xl overflow-hidden">
                 <div class="p-5 border-b flex items-center justify-between">
                     <div>
-                        <div class="font-semibold text-[#1A428A]">
+                        <div class="font-semibold text-brand">
                             Documentos
                         </div>
 
@@ -191,12 +191,12 @@
                             <div class="flex items-center gap-2 shrink-0">
                                 <a href="{{ route('tasks.documents.preview', [$task,$doc]) }}"
                                    target="_blank"
-                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
                                     Ver
                                 </a>
 
                                 <a href="{{ route('documents.download',$doc) }}"
-                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
                                     Descargar
                                 </a>
 

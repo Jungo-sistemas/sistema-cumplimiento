@@ -53,7 +53,7 @@
         {{-- Header --}}
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
             <div class="space-y-1 min-w-0 flex-1">
-                <h1 class="text-2xl font-bold text-[#1A428A] break-words">
+                <h1 class="text-2xl font-bold text-brand break-words">
                     {{ $asset->name }} -
                     <x-truncate max="max-w-[700px]">
                         {{ $requirement->template?->name ?? $requirement->type }}
@@ -82,13 +82,13 @@
 
             <div class="flex items-center gap-2 shrink-0 flex-wrap lg:justify-end">
                 <a href="{{ route('assets.requirements.history', [$asset, $requirement]) }}"
-                   class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+                   class="px-4 py-2 rounded-md border bg-white text-brand border-brand font-semibold hover:bg-brand-50">
                     Ver historial
                 </a>
 
                 @if($canUploadOfficialDocument)
                     <a href="{{ route('assets.requirements.documents.index', [$asset, $requirement]) }}"
-                       class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+                       class="px-4 py-2 rounded-md border bg-white text-brand border-brand font-semibold hover:bg-brand-50">
                         Documentación oficial
                     </a>
                 @else
@@ -122,7 +122,7 @@
                 @endif
 
                 <a href="{{ route('assets.show', $asset) }}"
-                   class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+                   class="px-4 py-2 rounded-md border bg-white text-brand border-brand font-semibold hover:bg-brand-50">
                     Volver
                 </a>
             </div>
@@ -191,7 +191,7 @@
                             @if($canEditBodega)
                                 <button type="button"
                                         @click="editing = true; $nextTick(() => $refs.bodegaInput.focus())"
-                                        class="text-xs font-semibold text-[#1A428A] hover:underline">
+                                        class="text-xs font-semibold text-brand hover:underline">
                                     {{ $requirement->bodega ? 'Editar' : 'Agregar' }}
                                 </button>
                             @endif
@@ -218,7 +218,7 @@
                                 @enderror
                                 <div class="flex items-center gap-2">
                                     <button type="submit"
-                                            class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d]">
+                                            class="px-3 py-1.5 rounded-md bg-brand text-white text-xs font-semibold hover:bg-brand-dark">
                                         Guardar
                                     </button>
                                     <button type="button"
@@ -233,7 +233,7 @@
                 </div>
 
                 <div class="space-y-1">
-                    <div class="font-semibold text-[#1A428A] mb-2">
+                    <div class="font-semibold text-brand mb-2">
                         Vigencia del documento oficial
                     </div>
 
@@ -274,7 +274,7 @@
         {{-- Tareas --}}
         <div class="mt-8 bg-white border rounded-xl overflow-hidden">
             <div class="p-5 border-b flex items-center justify-between">
-                <div class="font-semibold text-[#1A428A]">Tareas</div>
+                <div class="font-semibold text-brand">Tareas</div>
 
                 @if((auth()->user()->isAdmin() || auth()->user()->isOperative()) && !$assetInactive)
                     <div class="flex items-center gap-2">
@@ -293,13 +293,13 @@
                         @else
                             <button type="button"
                                 onclick="document.getElementById('checkout-modal').showModal()"
-                                class="px-4 py-2 rounded-md border bg-white text-[#1A428A] font-semibold hover:bg-gray-50">
+                                class="px-4 py-2 rounded-md border bg-white text-brand font-semibold hover:bg-gray-50">
                                 Check out
                             </button>
                         @endif
 
                         <a href="{{ route('requirements.tasks.create', $requirement) }}"
-                           class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]
+                           class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark
                            {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
                             Añadir tarea
                         </a>
@@ -356,7 +356,7 @@
                                 @endunless
 
                                 @if($isRenewal)
-                                    <span class="text-xs px-2 py-0.5 rounded border bg-blue-50 text-[#1A428A] border-blue-200">
+                                    <span class="text-xs px-2 py-0.5 rounded border bg-blue-50 text-brand border-blue-200">
                                         Renovación
                                     </span>
                                 @endif
@@ -366,7 +366,7 @@
                                     @if($isRenewal)
                                         <a href="{{ route('assets.requirements.documents.index', [$asset, $requirement]) }}"
                                            class="px-4 py-2 rounded-md border font-semibold
-                                           {{ $assetInactive ? 'opacity-50 pointer-events-none bg-gray-100 text-gray-500 border-gray-300' : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                           {{ $assetInactive ? 'opacity-50 pointer-events-none bg-gray-100 text-gray-500 border-gray-300' : 'bg-white text-brand border-brand hover:bg-brand-50' }}">
                                             Documentación oficial
                                         </a>
 
@@ -384,7 +384,7 @@
                                         @endif
                                     @else
                                         <a href="{{ route('tasks.documents.index', $task) }}"
-                                           class="px-4 py-2 rounded-md border font-semibold bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                           class="px-4 py-2 rounded-md border font-semibold bg-white text-brand border-brand hover:bg-brand-50">
                                             {{ $hasDocs ? 'Ver evidencias (' . ($task->documents_count ?? 0) . ')' : 'Subir evidencia' }}
                                         </a>
 
@@ -395,7 +395,7 @@
                                                     @method('PATCH')
                                                     <button type="submit"
                                                         class="px-4 py-2 rounded-md font-semibold
-                                                        {{ ($assetInactive || !$hasDocs) ? 'bg-gray-100 text-gray-500 border border-gray-300 cursor-not-allowed' : 'bg-[#1A428A] text-white hover:bg-[#15356d]' }}"
+                                                        {{ ($assetInactive || !$hasDocs) ? 'bg-gray-100 text-gray-500 border border-gray-300 cursor-not-allowed' : 'bg-brand text-white hover:bg-brand-dark' }}"
                                                         {{ ($assetInactive || !$hasDocs) ? 'disabled' : '' }}>
                                                         Completar
                                                     </button>
@@ -405,7 +405,7 @@
                                                     @csrf
                                                     @method('PATCH')
                                                     <button type="submit"
-                                                        class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50
+                                                        class="px-4 py-2 rounded-md border bg-white text-brand border-brand font-semibold hover:bg-brand-50
                                                         {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
                                                         Reabrir
                                                     </button>
@@ -413,7 +413,7 @@
                                             @endif
 
                                             <a href="{{ route('requirements.tasks.edit', [$requirement, $task]) }}"
-                                               class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50
+                                               class="px-4 py-2 rounded-md border bg-white text-brand border-brand font-semibold hover:bg-brand-50
                                                {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
                                                 Editar
                                             </a>
@@ -449,7 +449,7 @@
               class="p-6 space-y-4">
             @csrf
 
-            <div class="text-lg font-semibold text-[#1A428A]">
+            <div class="text-lg font-semibold text-brand">
                 Check out de carpeta física
             </div>
 
@@ -465,7 +465,7 @@
                 <input type="date"
                        name="return_at"
                        required
-                       class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A]">
+                       class="w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand">
             </div>
 
             <div>
@@ -475,7 +475,7 @@
 
                 <select name="responsible_user_id"
                         required
-                        class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A]">
+                        class="w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand">
                     <option value="">Selecciona un responsable</option>
 
                     @foreach($responsibles as $responsible)
@@ -501,7 +501,7 @@
 
             <button type="submit"
                     form="checkout-form"
-                    class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                    class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark">
                 Confirmar check out
             </button>
         </div>

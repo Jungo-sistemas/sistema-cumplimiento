@@ -8,17 +8,17 @@
 
     {{-- HEADER --}}
     <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-[#1A428A]">Documentos</h1>
+        <h1 class="text-2xl font-semibold text-brand">Documentos</h1>
         <div class="flex items-center gap-3">
             @if($user->isAdmin() || $user->isOperative())
                 <button type="button"
                         x-data
                         @click="$dispatch('open-modal', 'create-document')"
-                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                        class="px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                     + Nuevo documento
                 </button>
                 <a href="{{ route('documents.report.weekly') }}"
-                   class="flex items-center gap-2 px-5 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                   class="flex items-center gap-2 px-5 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                          viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -29,7 +29,7 @@
             @endif
             @if($user->isAdmin())
                 <a href="{{ route('documents.trash.index') }}"
-                   class="flex items-center gap-2 px-5 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                   class="flex items-center gap-2 px-5 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                          viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -90,7 +90,7 @@
         </div>
 
         <button type="submit"
-                class="px-5 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                class="px-5 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
             Filtrar
         </button>
 
@@ -268,7 +268,7 @@
                   class="p-6">
                 @csrf
 
-                <h2 class="text-lg font-semibold text-[#1A428A] mb-4">Nuevo documento</h2>
+                <h2 class="text-lg font-semibold text-brand mb-4">Nuevo documento</h2>
 
                 <div class="space-y-4">
 
@@ -418,7 +418,7 @@
                         Cancelar
                     </button>
                     <button type="submit"
-                            class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                            class="px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                         Guardar
                     </button>
                 </div>

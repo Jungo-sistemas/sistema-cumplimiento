@@ -21,6 +21,11 @@ class ProcessesDashboardController extends Controller
     {
         $user = $request->user();
 
+        // Los roles que no son admin solo tienen la Vista de auditado.
+        if ($user->isAuditeeOnly()) {
+            return redirect()->route('mi-espacio.home');
+        }
+
         $scopeKey = match (true) {
             $user->hasCompanyScope() => "c{$user->company_id}",
             $user->hasMultipleCompanies() => 'm' . implode('-', $user->accessibleCompanyIds()),

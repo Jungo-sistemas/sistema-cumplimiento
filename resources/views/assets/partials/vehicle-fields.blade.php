@@ -6,7 +6,7 @@
 <div x-show="isVehicle" x-transition style="display:none" class="mt-6">
     <div class="rounded-lg border border-blue-200 bg-blue-50 p-5">
 
-        <h3 class="text-sm font-semibold text-[#1A428A] mb-4 flex items-center gap-2">
+        <h3 class="text-sm font-semibold text-brand mb-4 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                  viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round"
@@ -26,7 +26,7 @@
                        value="{{ old('no_economico', $asset->no_economico ?? '') }}"
                        :disabled="!isVehicle"
                        placeholder="Ej. ATQ-001"
-                       class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                       class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                 @error('no_economico')
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                 @enderror
@@ -39,7 +39,7 @@
                        value="{{ old('numero_serie', $asset->numero_serie ?? '') }}"
                        :disabled="!isVehicle"
                        placeholder="Ej. 3AKJHHDR0FSFK1234"
-                       class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                       class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                 @error('numero_serie')
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                 @enderror
@@ -53,7 +53,7 @@
                        @input="syncName()"
                        :disabled="!isVehicle"
                        placeholder="Ej. FREIGHTLINER"
-                       class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                       class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                 @error('marca')
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                 @enderror
@@ -67,7 +67,7 @@
                        @input="syncName()"
                        :disabled="!isVehicle"
                        placeholder="Ej. CASCADIA 2022"
-                       class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                       class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                 @error('modelo')
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                 @enderror
@@ -81,7 +81,7 @@
                        @input="syncName()"
                        :disabled="!isVehicle"
                        placeholder="Ej. ABC1234"
-                       class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] uppercase">
+                       class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand uppercase">
                 @error('placas')
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                 @enderror
@@ -94,7 +94,7 @@
                        value="{{ old('marca_recipiente', $asset->marca_recipiente ?? '') }}"
                        :disabled="!isVehicle"
                        placeholder="Ej. MEXITANK"
-                       class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                       class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                 @error('marca_recipiente')
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                 @enderror
@@ -107,7 +107,7 @@
                        value="{{ old('capacidad_litros', $asset->capacidad_litros ?? '') }}"
                        :disabled="!isVehicle"
                        placeholder="Ej. 10000"
-                       class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                       class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                 @error('capacidad_litros')
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                 @enderror
@@ -120,7 +120,7 @@
                        value="{{ old('serie_recipiente', $asset->serie_recipiente ?? '') }}"
                        :disabled="!isVehicle"
                        placeholder="Ej. REC-2022-00456"
-                       class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                       class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                 @error('serie_recipiente')
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                 @enderror

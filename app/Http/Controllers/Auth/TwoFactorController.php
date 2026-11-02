@@ -96,9 +96,11 @@ class TwoFactorController extends Controller
             return redirect()->route('superadmin.dashboard');
         }
 
-        $defaultRoute = ($user->module_access === 'procesos')
-            ? route('processes.dashboard')
-            : route('dashboard');
+        $defaultRoute = match (true) {
+            $user->isAuditeeOnly()                => route('mi-espacio.home'),
+            $user->module_access === 'procesos'   => route('processes.dashboard'),
+            default                               => route('dashboard'),
+        };
 
         return redirect()->intended($defaultRoute);
     }

@@ -28,7 +28,7 @@
             </span>
         @else
             <a href="{{ $paginator->previousPageUrl() }}" rel="prev"
-               class="inline-flex items-center px-3 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+               class="inline-flex items-center px-3 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
                 </svg>
@@ -45,7 +45,7 @@
 
         @if ($start > 1)
             <a href="{{ $paginator->url(1) }}"
-               class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold text-sm">1</a>
+               class="px-4 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold text-sm">1</a>
             @if ($start > 2)
                 <span class="px-1 py-2 text-gray-400 select-none text-sm">&hellip;</span>
             @endif
@@ -53,10 +53,10 @@
 
         @for ($page = $start; $page <= $end; $page++)
             @if ($page == $current)
-                <span class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold border border-[#1A428A] select-none text-sm">{{ $page }}</span>
+                <span class="px-4 py-2 rounded-md bg-brand text-white font-semibold border border-brand select-none text-sm">{{ $page }}</span>
             @else
                 <a href="{{ $paginator->url($page) }}"
-                   class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold text-sm">{{ $page }}</a>
+                   class="px-4 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold text-sm">{{ $page }}</a>
             @endif
         @endfor
 
@@ -65,13 +65,13 @@
                 <span class="px-1 py-2 text-gray-400 select-none text-sm">&hellip;</span>
             @endif
             <a href="{{ $paginator->url($last) }}"
-               class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold text-sm">{{ $last }}</a>
+               class="px-4 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold text-sm">{{ $last }}</a>
         @endif
 
         {{-- Siguiente --}}
         @if ($paginator->hasMorePages())
             <a href="{{ $paginator->nextPageUrl() }}" rel="next"
-               class="inline-flex items-center px-3 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+               class="inline-flex items-center px-3 py-2 rounded-md border border-brand text-brand bg-white hover:bg-brand-50 font-semibold">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                 </svg>

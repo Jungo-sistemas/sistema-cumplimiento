@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
+    @include('partials.brand-head')
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>QR — {{ $regulation->code }} — {{ $regulation->name }}</title>
     @vite(['resources/css/app.css'])
@@ -21,7 +22,7 @@
             Volver
         </a>
         <button onclick="window.print()"
-                class="px-4 py-1.5 rounded bg-white text-[#002060] text-sm font-semibold hover:bg-blue-50">
+                class="px-4 py-1.5 rounded bg-white text-[#002060] text-sm font-semibold hover:bg-brand-50">
             Imprimir
         </button>
     </div>
@@ -32,7 +33,7 @@
                 <p class="text-xs font-semibold tracking-wide text-gray-400 uppercase">
                     @if($regulation->code) {{ $regulation->code }} @endif
                 </p>
-                <h1 class="text-lg font-bold text-[#1A428A] mt-1">
+                <h1 class="text-lg font-bold text-brand mt-1">
                     {{ $regulation->name }}
                 </h1>
             </div>

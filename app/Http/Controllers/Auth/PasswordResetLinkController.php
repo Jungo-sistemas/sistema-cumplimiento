@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\View\View;
 
@@ -27,18 +28,25 @@ class PasswordResetLinkController extends Controller
     {
         $request->validate([
             'email' => ['required', 'email'],
+        ], [
+            'email.required' => 'Escribe tu correo electrónico.',
+            'email.email'    => 'Escribe un correo electrónico válido.',
         ]);
 
-        // We will send the password reset link to this user. Once we have attempted
-        // to send the link, we will examine the response then see the message we
-        // need to show to the user. Finally, we'll send out a proper response.
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+        // Siempre la misma respuesta, exista o no el correo (o si se pidió otro enlace hace menos
+        // de un minuto): antes el formulario decía "no encontramos ese usuario" y con eso
+        // cualquiera podía probar correos para saber cuáles tienen cuenta. Por la misma razón, si
+        // el envío falla se registra en el log en vez de mostrar un error que solo saldría con
+        // correos que sí existen.
+        try {
+            Password::sendResetLink($request->only('email'));
+        } catch (\Throwable $e) {
+            Log::error('No se pudo enviar el correo de restablecimiento de contraseña', [
+                'email' => $request->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
-        return $status == Password::RESET_LINK_SENT
-                    ? back()->with('status', __($status))
-                    : back()->withInput($request->only('email'))
-                        ->withErrors(['email' => __($status)]);
+        return back()->with('status', 'Si el correo está registrado, te enviamos un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada y la carpeta de correo no deseado.');
     }
 }

@@ -232,7 +232,7 @@ window.initProcesosGuide = function (steps, mode, completeUrl) {
             });
 
             const ring = document.createElement('div');
-            ring.style.cssText = `position:absolute;top:${rect.top - pad}px;left:${rect.left - pad}px;width:${rect.width + pad * 2}px;height:${rect.height + pad * 2}px;border:2px solid #1A428A;border-radius:8px;box-shadow:0 0 0 4px rgba(26,66,138,0.25);pointer-events:none;`;
+            ring.style.cssText = `position:absolute;top:${rect.top - pad}px;left:${rect.left - pad}px;width:${rect.width + pad * 2}px;height:${rect.height + pad * 2}px;border:2px solid #5B1690;border-radius:8px;box-shadow:0 0 0 4px rgba(91,22,144,0.25);pointer-events:none;`;
             overlay.appendChild(ring);
         } else {
             const dim = document.createElement('div');
@@ -244,16 +244,16 @@ window.initProcesosGuide = function (steps, mode, completeUrl) {
         const card = document.createElement('div');
         card.style.cssText = 'position:absolute;width:320px;max-width:90vw;background:#fff;border-radius:12px;box-shadow:0 20px 40px rgba(0,0,0,0.25);padding:20px;';
 
-        const dots = steps.map((_, i) => `<span style="height:6px;flex:1;border-radius:9999px;background:${i <= state.step ? '#1A428A' : '#e5e7eb'}"></span>`).join('');
+        const dots = steps.map((_, i) => `<span style="height:6px;flex:1;border-radius:9999px;background:${i <= state.step ? '#5B1690' : '#e5e7eb'}"></span>`).join('');
 
         card.innerHTML = `
             <div style="display:flex;gap:6px;">${dots}</div>
             <p style="margin:8px 0 0;font-size:12px;font-weight:600;color:#9ca3af;">Paso ${state.step + 1} de ${steps.length}</p>
-            <h2 style="margin:8px 0 0;font-size:16px;font-weight:600;color:#1A428A;">${step.title}</h2>
+            <h2 style="margin:8px 0 0;font-size:16px;font-weight:600;color:#5B1690;">${step.title}</h2>
             <p style="margin:8px 0 0;font-size:14px;color:#4b5563;">${step.body}</p>
             <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;">
                 <button type="button" data-action="prev" style="padding:8px 16px;border-radius:6px;border:1px solid #d1d5db;color:#4b5563;font-size:14px;font-weight:500;background:#fff;${state.step === 0 ? 'visibility:hidden' : ''}">Atrás</button>
-                <button type="button" data-action="${isLast ? 'finish' : 'next'}" style="padding:8px 16px;border-radius:6px;border:none;background:#1A428A;color:#fff;font-size:14px;font-weight:600;">
+                <button type="button" data-action="${isLast ? 'finish' : 'next'}" style="padding:8px 16px;border-radius:6px;border:none;background:#5B1690;color:#fff;font-size:14px;font-weight:600;">
                     ${isLast ? (mode === 'mandatory' ? 'Entendido, comenzar' : 'Cerrar') : 'Siguiente'}
                 </button>
             </div>
