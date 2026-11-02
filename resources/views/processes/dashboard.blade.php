@@ -172,7 +172,7 @@
                                     · {{ $regulation->processType->name }}
                                 @endif
                                 @if($regulation->approval_status)
-                                    · <span class="capitalize">{{ str_replace('_', ' ', $regulation->approval_status) }}</span>
+                                    · {{ $regulation->approvalStatusLabel() }}
                                 @endif
                             </div>
                         </div>

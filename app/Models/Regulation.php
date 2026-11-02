@@ -63,6 +63,8 @@ class Regulation extends Model
         'change_summary_mime_type',
         'change_summary_uploaded_by',
         'change_summary_uploaded_at',
+        'obsoleted_at',
+        'obsoleted_by',
     ];
 
     protected $casts = [
@@ -73,6 +75,7 @@ class Regulation extends Model
         'is_legacy'                   => 'boolean',
         'permanently_delete_at'       => 'datetime',
         'change_summary_uploaded_at'  => 'datetime',
+        'obsoleted_at'                => 'datetime',
     ];
 
     /*
@@ -109,6 +112,11 @@ class Regulation extends Model
     public function changeSummaryUploader()
     {
         return $this->belongsTo(User::class, 'change_summary_uploaded_by');
+    }
+
+    public function obsoletedBy()
+    {
+        return $this->belongsTo(User::class, 'obsoleted_by');
     }
 
     /**

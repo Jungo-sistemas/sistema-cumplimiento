@@ -470,7 +470,8 @@
         <x-modal name="edit-document" :show="$errors->editDocument->isNotEmpty()" focusable maxWidth="lg">
             <form method="POST"
                   action="{{ route('documents.update', $document) }}"
-                  x-data
+                  x-data="{ sending: false }"
+                  @submit="if (sending) { $event.preventDefault() } sending = true"
                   x-init="$nextTick(() => {
                       initPersonPicker($refs.responsibleUser);
                       initPersonPicker($refs.authorizedUsers);
@@ -638,9 +639,9 @@
                             class="px-4 py-2 rounded-md border border-gray-300 bg-white text-sm text-gray-700 font-semibold hover:bg-gray-50">
                         Cancelar
                     </button>
-                    <button type="submit"
-                            class="px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
-                        Guardar cambios
+                    <button type="submit" :disabled="sending"
+                            class="px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark disabled:opacity-60">
+                        <span x-text="sending ? 'Guardando…' : 'Guardar cambios'">Guardar cambios</span>
                     </button>
                 </div>
             </form>

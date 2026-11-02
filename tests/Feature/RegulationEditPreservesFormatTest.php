@@ -108,7 +108,8 @@ class RegulationEditPreservesFormatTest extends TestCase
             'change_justification'  => '1. Agregar mención al líder. 2. Referenciar P-OTRO-002.',
         ]);
 
-        $response->assertRedirect(route('processes.show', $regulation));
+        // El editor es admin y el documento estaba aprobado: se le manda a revisar el flujo.
+        $response->assertRedirect(route('processes.show', ['regulation' => $regulation->id, 'review_flow' => 1]));
 
         $regulation->refresh();
         $this->assertCount(2, $regulation->versions()->get());
