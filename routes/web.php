@@ -36,7 +36,6 @@ use App\Http\Controllers\ProcessReportController;
 use App\Http\Controllers\RegulationShareController;
 use App\Http\Controllers\RegulationPublicViewController;
 use App\Models\Regulation;
-use App\Notifications\ApprovalFlowMemberNotification;
 use App\Notifications\ApprovalOverdueEscalationNotification;
 use App\Notifications\ApprovalReminderNotification;
 use App\Notifications\ApprovalRequestedNotification;
@@ -236,6 +235,11 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::post('/processes/trash', [RegulationController::class, 'archive'])
         ->name('processes.trash.move');
 
+    Route::post('/processes/obsoleto', [RegulationController::class, 'markObsolete'])
+        ->name('processes.obsoleto.move');
+    Route::post('/processes/obsoleto/{regulation}/restore', [RegulationController::class, 'restoreObsolete'])
+        ->name('processes.obsoleto.restore');
+
     Route::get('/processes/trash', [RegulationTrashController::class, 'index'])
         ->name('processes.trash.index');
 
@@ -349,6 +353,7 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::get('/users/create', [UserController::class, 'create'])->name('users.create');
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
+    Route::patch('/users/me/name', [UserController::class, 'updateOwnName'])->name('users.update-own-name');
     Route::patch('/users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
     Route::post('/users/{user}/resend-invitation', [UserController::class, 'resendInvitation'])->name('users.resend-invitation');
@@ -507,7 +512,6 @@ if (app()->environment('local')) {
             'approval-requested'          => 'Aprobación requerida',
             'approval-reminder'           => 'Recordatorio de aprobación',
             'approval-overdue-escalation' => 'Escalación por aprobación vencida',
-            'approval-flow-member'        => 'Aviso de participación futura en el flujo',
             'regulation-approved'         => 'Documento aprobado',
             'regulation-rejected'         => 'Documento rechazado',
             'approval-step-unassigned'    => 'Flujo detenido — puesto sin asignar',
@@ -584,16 +588,6 @@ if (app()->environment('local')) {
 
             return view($mail->view, $mail->viewData);
         })->name('approval-overdue-escalation');
-
-        Route::get('/approval-flow-member', function () {
-            $regulation = Regulation::with('company')->latest()->first();
-            abort_unless($regulation, 404, 'No hay reglamentos para previsualizar.');
-
-            $mail = (new ApprovalFlowMemberNotification($regulation, (int) request('step', 2)))
-                ->toMail(auth()->user());
-
-            return view($mail->view, $mail->viewData);
-        })->name('approval-flow-member');
 
         Route::get('/regulation-approved', function () {
             $regulation = Regulation::with('company')->latest()->first();

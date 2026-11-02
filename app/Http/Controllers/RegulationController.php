@@ -46,7 +46,7 @@ class RegulationController extends Controller
                 ->when($user->hasMultipleCompanies(), fn ($q) => $q->whereIn('id', $user->accessibleCompanyIds()))
                 ->where('show_in_processes', true)
                 ->where('otras', false)
-                ->withCount(['regulations' => fn ($q) => $q->where('is_active', true)->where('is_annex', false)]);
+                ->withCount(['regulations' => fn ($q) => $q->where('is_active', true)->where('is_annex', false)->whereNull('obsoleted_at')]);
 
             return view('processes.index', [
                 'cardView'            => true,
@@ -81,7 +81,9 @@ class RegulationController extends Controller
         $query = Regulation::with(['processType', 'company', 'currentVersion', 'annexes'])
             ->where('group_id', $user->group_id)
             ->where('is_active', true)
-            ->where('is_annex', $showAnnexes);
+            ->where('is_annex', $showAnnexes)
+            // Los enviados a obsoleto solo se ven en la pantalla de Obsoleto.
+            ->whereNull('obsoleted_at');
 
         if ($selectedCompanyId) {
             $query->where('company_id', $selectedCompanyId);
@@ -750,6 +752,9 @@ class RegulationController extends Controller
             ->orderBy('sort_order')->orderBy('name')->get();
 
         return view('processes.cargar', [
+            // Desde la pestaña Anexos se carga un anexo; desde Procesos, un proceso. Ya no se
+            // pregunta en el formulario.
+            'isAnnex'           => $request->boolean('anexo'),
             'companies'         => $companies,
             'selectedCompanyId' => $selectedCompanyId,
             'processTypes'      => $processTypes,
@@ -848,8 +853,8 @@ class RegulationController extends Controller
         return redirect()
             ->route('processes.show', $regulation)
             ->with('success', $sendToFlow
-                ? 'Reglamento cargado correctamente. Asigna el flujo de aprobación desde la tabla de documentos.'
-                : 'Reglamento cargado correctamente y marcado como aprobado.');
+                ? ($regulation->is_annex ? 'Anexo' : 'Reglamento') . ' cargado correctamente. Asigna el flujo de aprobación desde la tabla de documentos.'
+                : ($regulation->is_annex ? 'Anexo' : 'Reglamento') . ' cargado correctamente y marcado como aprobado.');
     }
 
     public function edit(Regulation $regulation)
@@ -962,8 +967,13 @@ class RegulationController extends Controller
         abort_unless($user->isAdmin(), 403);
         abort_unless($user->canAccessCompany($regulation->company), 403);
 
+        // Un desactualizado no entra a flujo: se reemplaza con una versión nueva o se envía a obsoleto.
+        if ($regulation->approval_status === 'outdated') {
+            return back()->with('error', 'Los documentos desactualizados no se envían a flujo de aprobación.');
+        }
+
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'impact_level'    => ['nullable', 'string', 'in:' . implode(',', array_keys(Regulation::IMPACT_LEVELS))],
+            'impact_level'    =>['nullable', 'string', 'in:' . implode(',', array_keys(Regulation::IMPACT_LEVELS))],
             // Las personas por puesto son opcionales: un puesto sin nadie asignado toma a todos
             // los usuarios de ese puesto (ver ApprovalFlowService::resolveStepUsers()).
             'users'           => ['nullable', 'array'],
@@ -1056,6 +1066,67 @@ class RegulationController extends Controller
         return back()->with('success', $count . ' ' . \Illuminate\Support\Str::plural('procedimiento', $count) . ' enviado' . ($count === 1 ? '' : 's') . ' a la papelera.');
     }
 
+    /**
+     * Envía a Obsoleto los desactualizados seleccionados en el listado. Solo aplica a los
+     * desactualizados; los demás de la selección se dejan como están.
+     */
+    public function markObsolete(Request $request)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin(), 403);
+
+        $ids = array_filter(array_map('intval', $request->input('regulation_ids', [])));
+        abort_if(empty($ids), 422, 'Selecciona al menos un procedimiento.');
+
+        $regulations = $this->manageableRegulations($user, $ids)->whereNull('obsoleted_at')->get();
+        $outdated    = $regulations->where('approval_status', 'outdated');
+
+        foreach ($outdated as $regulation) {
+            $regulation->update(['obsoleted_at' => now(), 'obsoleted_by' => $user->id]);
+        }
+
+        $count   = $outdated->count();
+        $skipped = $regulations->count() - $count;
+
+        $message = $count === 1
+            ? '1 procedimiento desactualizado enviado a Obsoleto.'
+            : "{$count} procedimientos desactualizados enviados a Obsoleto.";
+
+        if ($skipped > 0) {
+            $message .= " {$skipped} no " . ($skipped === 1 ? 'se envió porque no está desactualizado' : 'se enviaron porque no están desactualizados') . '.';
+        }
+
+        return back()->with($count > 0 ? 'success' : 'error', $count > 0 ? $message : 'Solo se pueden enviar a Obsoleto los procedimientos desactualizados.');
+    }
+
+    /** Regresa a Procedimientos un desactualizado que se había enviado a Obsoleto. */
+    public function restoreObsolete(Regulation $regulation)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin(), 403);
+        abort_unless($this->manageableRegulations($user, [$regulation->id])->exists(), 403);
+
+        $regulation->update(['obsoleted_at' => null, 'obsoleted_by' => null]);
+
+        return back()->with('success', "«{$regulation->name}» regresó a Procedimientos.");
+    }
+
+    /** Mismo alcance que archive(): procesos activos del grupo y de las empresas del admin. */
+    private function manageableRegulations(User $user, array $ids)
+    {
+        $query = Regulation::whereIn('id', $ids)
+            ->where('group_id', $user->group_id)
+            ->where('is_active', true);
+
+        if ($user->hasCompanyScope()) {
+            $query->where('company_id', $user->company_id);
+        } elseif ($user->hasMultipleCompanies()) {
+            $query->whereIn('company_id', $user->accessibleCompanyIds());
+        }
+
+        return $query;
+    }
+
     public function obsoleto(Request $request)
     {
         $user = auth()->user();
@@ -1088,33 +1159,47 @@ class RegulationController extends Controller
         $search = trim((string) $request->q);
         $selectedProcessTypeId = $request->filled('process_type_id') ? (int) $request->process_type_id : null;
 
+        // Mismos filtros para las dos secciones: vencidas y desactualizados enviados a obsoleto.
+        $filtered = function () use ($user, $selectedCompanyId, $selectedProcessTypeId, $search) {
+            $query = Regulation::with(['currentVersion', 'company:id,name', 'processType:id,name'])
+                ->where('group_id', $user->group_id)
+                ->where('is_active', true);
+
+            if ($selectedCompanyId) {
+                $query->where('company_id', $selectedCompanyId);
+            } elseif ($user->hasMultipleCompanies()) {
+                $query->whereIn('company_id', $user->accessibleCompanyIds());
+            } elseif (! $user->hasGroupScope() && $user->company_id) {
+                $query->where('company_id', $user->company_id);
+            }
+
+            if ($selectedProcessTypeId) {
+                $query->where('process_type_id', $selectedProcessTypeId);
+            }
+
+            if ($search !== '') {
+                $like = '%' . Str::upper($search) . '%';
+                $query->where(function ($q) use ($like) {
+                    $q->where('name', 'like', $like)
+                      ->orWhere('code', 'like', $like);
+                });
+            }
+
+            return $query;
+        };
+
         // Regulaciones vencidas: versión actual con valid_until en el pasado
-        $expiredQuery = Regulation::with(['currentVersion', 'company:id,name', 'processType:id,name'])
-            ->where('group_id', $user->group_id)
-            ->where('is_active', true)
-            ->whereHas('currentVersion', fn ($q) => $q->where('valid_until', '<', now()));
+        $expiredRegulations = $filtered()
+            ->whereNull('obsoleted_at')
+            ->whereHas('currentVersion', fn ($q) => $q->where('valid_until', '<', now()))
+            ->orderBy('name')
+            ->get();
 
-        if ($selectedCompanyId) {
-            $expiredQuery->where('company_id', $selectedCompanyId);
-        } elseif ($user->hasMultipleCompanies()) {
-            $expiredQuery->whereIn('company_id', $user->accessibleCompanyIds());
-        } elseif (! $user->hasGroupScope() && $user->company_id) {
-            $expiredQuery->where('company_id', $user->company_id);
-        }
-
-        if ($selectedProcessTypeId) {
-            $expiredQuery->where('process_type_id', $selectedProcessTypeId);
-        }
-
-        if ($search !== '') {
-            $like = '%' . Str::upper($search) . '%';
-            $expiredQuery->where(function ($q) use ($like) {
-                $q->where('name', 'like', $like)
-                  ->orWhere('code', 'like', $like);
-            });
-        }
-
-        $expiredRegulations = $expiredQuery->orderBy('name')->get();
+        $obsoletedRegulations = $filtered()
+            ->with('obsoletedBy:id,name')
+            ->whereNotNull('obsoleted_at')
+            ->orderByDesc('obsoleted_at')
+            ->get();
 
         return view('processes.obsoleto', [
             'companies'             => $companies,
@@ -1123,6 +1208,7 @@ class RegulationController extends Controller
             'selectedProcessTypeId' => $selectedProcessTypeId,
             'search'                => $search,
             'expiredRegulations'    => $expiredRegulations,
+            'obsoletedRegulations'  => $obsoletedRegulations,
         ]);
     }
 

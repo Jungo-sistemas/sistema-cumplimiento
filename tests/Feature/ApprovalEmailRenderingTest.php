@@ -10,7 +10,6 @@ use App\Models\Regulation;
 use App\Models\RegulationVersion;
 use App\Models\Role;
 use App\Models\User;
-use App\Notifications\ApprovalFlowMemberNotification;
 use App\Notifications\ApprovalOverdueEscalationNotification;
 use App\Notifications\ApprovalReminderNotification;
 use App\Notifications\ApprovalRequestedNotification;
@@ -77,7 +76,6 @@ class ApprovalEmailRenderingTest extends TestCase
 
         $cases = [
             'approval-requested'          => new ApprovalRequestedNotification($regulation->fresh()),
-            'approval-flow-member'        => new ApprovalFlowMemberNotification($regulation, 2),
             'regulation-approved'         => new RegulationApprovedNotification($regulation),
             'regulation-rejected'         => new RegulationRejectedNotification($regulation, 'Falta información', $lider),
             'regulation-ready-to-resubmit' => new RegulationReadyToResubmitNotification($regulation),

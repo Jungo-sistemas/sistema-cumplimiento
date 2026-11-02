@@ -189,6 +189,39 @@
             </div>
         @endif
 
+        {{-- Síntesis de cambios adjunta al establecer el flujo: la misma que se ve en "Mis aprobaciones",
+             para que el aprobador la consulte también desde el detalle. --}}
+        @if($regulation->change_summary_path)
+            <div x-data="{ open: {{ $pendingApprovalForUser ? 'true' : 'false' }} }" class="mt-6 rounded-xl border border-gray-200 bg-white">
+                <div class="flex items-center justify-between gap-3 flex-wrap px-5 py-4">
+                    <div class="min-w-0">
+                        <p class="text-sm font-semibold text-gray-800">Síntesis de cambios</p>
+                        <p class="text-xs text-gray-500 truncate">
+                            {{ $regulation->change_summary_original_name }}
+                            · Subido por {{ $regulation->changeSummaryUploader?->name ?? '—' }}
+                            · {{ $regulation->change_summary_uploaded_at?->format('d/m/Y H:i') }}
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3 shrink-0">
+                        <a href="{{ route('processes.changeSummary.show', $regulation) }}" target="_blank"
+                           class="text-xs font-semibold text-brand hover:underline">
+                            Abrir en pestaña nueva
+                        </a>
+                        <button type="button" @click="open = !open"
+                                class="px-3 py-1.5 rounded-lg border border-brand text-brand text-xs font-semibold hover:bg-brand-50"
+                                x-text="open ? 'Ocultar' : 'Ver síntesis'"></button>
+                    </div>
+                </div>
+                <template x-if="open">
+                    <div class="border-t px-5 py-4">
+                        <iframe src="{{ route('processes.changeSummary.show', $regulation) }}"
+                                title="Síntesis de cambios"
+                                class="w-full h-[600px] rounded-lg border bg-gray-100"></iframe>
+                    </div>
+                </template>
+            </div>
+        @endif
+
         {{-- ===== TABLA DEL FLUJO POR PASO ===== --}}
         <div class="mt-6">
             @if($approvals->isNotEmpty())
