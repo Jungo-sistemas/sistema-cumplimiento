@@ -39,18 +39,18 @@
             ));
 
         $severidades = [
-            'Crítico' => 'bg-red-100 text-red-800',
-            'Mayor'   => 'bg-amber-100 text-amber-800',
-            'Menor'   => 'bg-purple-100 text-purple-800',
+            'Crítico' => 'bg-red-50 text-red-700',
+            'Mayor'   => 'bg-amber-50 text-amber-700',
+            'Menor'   => 'bg-brand-50 text-brand',
         ];
 
         $seguimientos = [
             'Por enviar'             => 'bg-gray-100 text-gray-700',
-            'Causa raíz por revisar' => 'bg-blue-100 text-blue-800',
-            'Rechazada'              => 'bg-red-100 text-red-800',
-            'Sin cargar'             => 'bg-amber-100 text-amber-800',
-            'Evidencia por revisar'  => 'bg-blue-100 text-blue-800',
-            'Cerrado'                => 'bg-green-100 text-green-800',
+            'Causa raíz por revisar' => 'bg-brand-50 text-brand',
+            'Rechazada'              => 'bg-red-50 text-red-700',
+            'Sin cargar'             => 'bg-amber-50 text-amber-700',
+            'Evidencia por revisar'  => 'bg-brand-50 text-brand',
+            'Cerrado'                => 'bg-green-50 text-green-700',
         ];
 
         // El botón de cada fila cambia según lo que le toca hacer al auditor; si no le toca nada, "Abrir".
@@ -60,92 +60,84 @@
         ];
     @endphp
 
-    <div class="bg-white rounded-xl shadow p-6 space-y-6">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-semibold text-brand">Hallazgos</h1>
-                <p class="mt-1 text-sm text-gray-600">Causas raíz, acciones y evidencias de cada hallazgo en un solo seguimiento.</p>
-            </div>
-            {{-- La ventana para registrar se construye más adelante; por ahora el botón no abre nada --}}
-            <button type="button" class="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark">+ Registrar hallazgo</button>
-        </div>
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        @include('mi-espacio.partials.header', [
+            'title'    => 'Hallazgos',
+            'subtitle' => 'Causas raíz, acciones y evidencias de cada hallazgo en un solo seguimiento.',
+        ])
+        {{-- La ventana para registrar se construye más adelante; por ahora el botón no abre nada --}}
+        <button type="button" class="rounded-lg bg-brand px-5 py-3 text-[15px] font-semibold text-white hover:bg-brand-dark">+ Registrar hallazgo</button>
+    </div>
 
-        {{-- Pestañas --}}
-        <div class="flex flex-wrap gap-6 border-b">
-            @foreach($tabs as $key => $label)
-                <a href="{{ route('auditorias.findings.index', ['tab' => $key] + $filtros) }}"
-                   class="-mb-px border-b-2 pb-2 text-sm font-medium {{ $tab === $key ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-700' }}">{{ $label }}</a>
+    {{-- Pestañas --}}
+    <div class="mb-7 flex flex-wrap gap-6 border-b border-gray-200">
+        @foreach($tabs as $key => $label)
+            <a href="{{ route('auditorias.findings.index', ['tab' => $key] + $filtros) }}"
+                class="-mb-px border-b-2 pb-3 text-base font-semibold {{ $tab === $key ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-700' }}">{{ $label }}</a>
+        @endforeach
+    </div>
+
+    {{-- Filtros: las listas se envían solas al cambiar (onchange) y la búsqueda con Enter --}}
+    <form method="GET" action="{{ route('auditorias.findings.index') }}" class="mb-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <input type="hidden" name="tab" value="{{ $tab }}">
+
+        <select name="empresa" onchange="this.form.submit()"
+                class="h-14 shrink-0 rounded-xl border-gray-200 pr-10 text-[15px] focus:border-brand focus:ring-brand sm:w-64">
+            <option value="">Todas</option>
+            @foreach($empresas as $empresa)
+                <option value="{{ $empresa }}" @selected(($filtros['empresa'] ?? '') === $empresa)>{{ $empresa }}</option>
             @endforeach
-        </div>
+        </select>
 
-        {{-- Filtros --}}
-        <form method="GET" action="{{ route('auditorias.findings.index') }}" class="flex flex-wrap items-end gap-3">
-            <input type="hidden" name="tab" value="{{ $tab }}">
+        <input type="search" name="q" value="{{ $filtros['q'] ?? '' }}" placeholder="Buscar por código o título..."
+               class="h-14 w-full rounded-xl border-gray-200 px-4 text-[15px] focus:border-brand focus:ring-brand">
 
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">Empresa</label>
-                <select name="empresa" class="rounded-md border-gray-300 text-sm">
-                    <option value="">Todas</option>
-                    @foreach($empresas as $empresa)
-                        <option value="{{ $empresa }}" @selected(($filtros['empresa'] ?? '') === $empresa)>{{ $empresa }}</option>
-                    @endforeach
-                </select>
-            </div>
+        @if($tab === 'todos')
+            <select name="seguimiento" onchange="this.form.submit()"
+                    class="h-14 shrink-0 rounded-xl border-gray-200 pr-10 text-[15px] focus:border-brand focus:ring-brand sm:w-64">
+                <option value="">Todos</option>
+                @foreach(array_keys($seguimientos) as $seguimiento)
+                    <option value="{{ $seguimiento }}" @selected(($filtros['seguimiento'] ?? '') === $seguimiento)>{{ $seguimiento }}</option>
+                @endforeach
+            </select>
+        @endif
 
-            @if($tab === 'todos')
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Seguimiento</label>
-                    <select name="seguimiento" class="rounded-md border-gray-300 text-sm">
-                        <option value="">Todos</option>
-                        @foreach(array_keys($seguimientos) as $seguimiento)
-                            <option value="{{ $seguimiento }}" @selected(($filtros['seguimiento'] ?? '') === $seguimiento)>{{ $seguimiento }}</option>
-                        @endforeach
-                    </select>
-                </div>
-            @endif
+        @if($filtros)
+            <a href="{{ route('auditorias.findings.index', ['tab' => $tab]) }}" class="shrink-0 text-sm font-semibold text-brand hover:underline">Limpiar</a>
+        @endif
+    </form>
 
-            <div class="flex-1 min-w-[200px]">
-                <label class="block text-xs text-gray-500 mb-1">Buscar</label>
-                <input type="search" name="q" value="{{ $filtros['q'] ?? '' }}" placeholder="Código o título del hallazgo" class="w-full rounded-md border-gray-300 text-sm">
-            </div>
-
-            <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark">Filtrar</button>
-
-            @if($filtros)
-                <a href="{{ route('auditorias.findings.index', ['tab' => $tab]) }}" class="py-2 text-sm text-gray-500 hover:underline">Limpiar</a>
-            @endif
-        </form>
-
-        <div class="overflow-x-auto border rounded-lg">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 text-left text-xs text-gray-500">
+    <div class="rounded-2xl border border-gray-200 bg-white p-4 sm:p-8">
+        <div class="overflow-x-auto rounded-xl border border-gray-200">
+            <table class="w-full text-left">
+                <thead class="bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-500">
                     <tr>
-                        <th class="px-4 py-3">Hallazgo</th>
-                        <th class="px-4 py-3">Responsable</th>
-                        <th class="px-4 py-3">Severidad</th>
-                        <th class="px-4 py-3">Seguimiento</th>
-                        <th class="px-4 py-3">Compromiso</th>
-                        <th class="px-4 py-3"></th>
+                        <th class="px-4 py-5">Hallazgo</th>
+                        <th class="px-4 py-5">Responsable</th>
+                        <th class="px-4 py-5">Severidad</th>
+                        <th class="px-4 py-5">Seguimiento</th>
+                        <th class="px-4 py-5">Compromiso</th>
+                        <th class="px-4 py-5"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y">
                     @forelse($filas as $h)
                         <tr>
-                            <td class="px-4 py-3">
-                                <div class="font-medium text-gray-800">{{ $h['titulo'] }}</div>
-                                <div class="text-xs text-gray-500">{{ $h['empresa'] }} · {{ $h['codigo'] }}</div>
+                            <td class="px-4 py-5">
+                                <div class="font-semibold text-gray-900">{{ $h['titulo'] }}</div>
+                                <div class="mt-1 text-sm text-gray-500">{{ $h['empresa'] }} · {{ $h['codigo'] }}</div>
                             </td>
-                            <td class="px-4 py-3 text-gray-700">{{ $h['responsable'] }}</td>
-                            <td class="px-4 py-3">
-                                <span class="rounded-full px-2.5 py-0.5 text-xs font-medium {{ $severidades[$h['severidad']] }}">{{ $h['severidad'] }}</span>
+                            <td class="px-4 py-5 text-gray-700">{{ $h['responsable'] }}</td>
+                            <td class="px-4 py-5">
+                                <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $severidades[$h['severidad']] }}">{{ $h['severidad'] }}</span>
                             </td>
-                            <td class="px-4 py-3">
-                                <span class="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium {{ $seguimientos[$h['seguimiento']] }}">{{ $h['seguimiento'] }}</span>
+                            <td class="px-4 py-5">
+                                <span class="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold {{ $seguimientos[$h['seguimiento']] }}">{{ $h['seguimiento'] }}</span>
                             </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-gray-700">{{ $h['compromiso'] }}</td>
-                            <td class="px-4 py-3 text-right">
+                            <td class="px-4 py-5 whitespace-nowrap text-gray-700">{{ $h['compromiso'] }}</td>
+                            <td class="px-4 py-5 text-right">
                                 {{-- El detalle y las revisiones se construyen más adelante; al crearlos se cambia el "#" --}}
-                                <a href="#" class="whitespace-nowrap rounded-md border border-brand px-3 py-1.5 text-xs font-medium text-brand hover:bg-brand-50">{{ $acciones[$h['seguimiento']] ?? 'Abrir' }}</a>
+                                <a href="#" class="whitespace-nowrap inline-flex rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">{{ $acciones[$h['seguimiento']] ?? 'Abrir' }}</a>
                             </td>
                         </tr>
                     @empty
