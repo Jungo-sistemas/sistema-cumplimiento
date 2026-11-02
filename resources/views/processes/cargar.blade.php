@@ -1,4 +1,4 @@
-<x-layouts.vigia title="Cargar Proceso">
+<x-layouts.vigia :title="$isAnnex ? 'Cargar anexo' : 'Cargar proceso'">
 
     <x-slot name="breadcrumb">
         <a href="{{ route('processes.index') }}" class="text-gray-500 hover:underline">Procesos</a>
@@ -9,14 +9,14 @@
             </a>
             <span class="mx-2 text-gray-400">/</span>
         @endif
-        <span class="text-gray-700 font-medium">Cargar Proceso</span>
+        <span class="text-gray-700 font-medium">{{ $isAnnex ? 'Cargar anexo' : 'Cargar proceso' }}</span>
     </x-slot>
 
     <div x-data="{ fileName: '', approvalMode: '{{ old('approval_mode', 'approved') }}' }">
 
         {{-- ENCABEZADO --}}
         <div class="mb-6">
-            <h1 class="text-2xl font-semibold text-brand">Cargar proceso existente</h1>
+            <h1 class="text-2xl font-semibold text-brand">{{ $isAnnex ? 'Cargar anexo existente' : 'Cargar proceso existente' }}</h1>
             <p class="text-sm text-gray-500 mt-1">
                 Para documentos ya redactados fuera del sistema — indica abajo si ya fue aprobado antes de
                 subirlo, o si necesita pasar por el flujo de aprobación de aquí.
@@ -95,25 +95,10 @@
                             </div>
                         </div>
 
-                        {{-- is_annex --}}
-                        <div class="flex items-start gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
-                            <input
-                                type="checkbox"
-                                id="is_annex"
-                                name="is_annex"
-                                value="1"
-                                {{ old('is_annex') ? 'checked' : '' }}
-                                class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand"
-                            >
-                            <label for="is_annex" class="text-xs text-gray-600">
-                                <span class="font-medium uppercase tracking-wide text-gray-500">Es un anexo</span>
-                                <span class="block text-xs text-gray-400 mt-0.5 normal-case">
-                                    Documento que existe para ser referenciado por otros procesos (formatos,
-                                    tabuladores, etc.), no un procedimiento en sí. No aparece en el listado
-                                    principal por defecto.
-                                </span>
-                            </label>
-                        </div>
+                        {{-- Si es anexo lo decide la pestaña desde la que se entró (Procesos o Anexos). --}}
+                        @if($isAnnex)
+                            <input type="hidden" name="is_annex" value="1">
+                        @endif
 
                         {{-- Nombre --}}
                         <div>
@@ -123,7 +108,7 @@
                             <input type="text"
                                    name="nombre"
                                    value="{{ old('nombre') }}"
-                                   placeholder="Ej: Procedimiento de Alta de Proveedores"
+                                   placeholder="{{ $isAnnex ? 'Ej: Formato de Alta de Proveedores' : 'Ej: Procedimiento de Alta de Proveedores' }}"
                                    class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('nombre') border-red-400 @enderror">
                             @error('nombre')
                                 <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
@@ -312,13 +297,13 @@
 
             {{-- ── ACCIONES ── --}}
             <div class="mt-6 flex items-center justify-end gap-3">
-                <a href="{{ route('processes.index', $selectedCompanyId ? ['company_id' => $selectedCompanyId] : []) }}"
+                <a href="{{ route('processes.index', array_filter(['company_id' => $selectedCompanyId, 'anexos' => $isAnnex ? 1 : null])) }}"
                    class="px-5 py-2 rounded-md border border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50">
                     Cancelar
                 </a>
                 <button type="submit"
                         class="px-6 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
-                    Guardar procedimiento
+                    {{ $isAnnex ? 'Guardar anexo' : 'Guardar procedimiento' }}
                 </button>
             </div>
 

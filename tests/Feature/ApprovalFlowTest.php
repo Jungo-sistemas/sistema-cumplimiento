@@ -9,7 +9,6 @@ use App\Models\ProcessType;
 use App\Models\Regulation;
 use App\Models\Role;
 use App\Models\User;
-use App\Notifications\ApprovalFlowMemberNotification;
 use App\Notifications\ApprovalRequestedNotification;
 use App\Notifications\ApprovalStepUnassignedNotification;
 use App\Notifications\RegulationApprovedNotification;
@@ -352,16 +351,14 @@ class ApprovalFlowTest extends TestCase
         Notification::assertSentTo($this->users['lider'], ApprovalRequestedNotification::class);
     }
 
-    public function test_initflow_notifica_de_forma_informativa_a_puestos_de_pasos_futuros(): void
+    public function test_initflow_no_avisa_a_los_puestos_de_pasos_futuros(): void
     {
         $this->makeRegulation('alto');
 
-        // jefe/gerente/direccion participan en pasos 2-4 — deben enterarse desde ya (informativo),
-        // sin que eso los ponga "pending" antes de tiempo.
-        Notification::assertSentTo($this->users['jefe'], ApprovalFlowMemberNotification::class);
-        Notification::assertSentTo($this->users['gerente'], ApprovalFlowMemberNotification::class);
-        Notification::assertSentTo($this->users['direccion'], ApprovalFlowMemberNotification::class);
-        Notification::assertNotSentTo($this->users['jefe'], ApprovalRequestedNotification::class);
+        // jefe/gerente/direccion participan en pasos 2-4: reciben el correo hasta que les toca votar.
+        Notification::assertNothingSentTo($this->users['jefe']);
+        Notification::assertNothingSentTo($this->users['gerente']);
+        Notification::assertNothingSentTo($this->users['direccion']);
     }
 
     public function test_aprobacion_final_notifica_al_creador_y_a_todos_los_que_aprobaron(): void

@@ -275,6 +275,7 @@ class UserController extends Controller
         }
 
         $request->validate([
+            'name'             => ['sometimes', 'required', 'string', 'max:255'],
             'role_id'          => ['required', 'exists:roles,id'],
             'company_id'       => ['nullable', 'array'],
             'company_id.*'     => ['exists:companies,id'],
@@ -305,6 +306,7 @@ class UserController extends Controller
                 : 'all');
 
         $user->update([
+            'name'          => $request->filled('name') ? trim($request->name) : $user->name,
             'role_id'       => $role->id,
             'company_id'    => $companyId,
             'group_id'      => $groupId,
@@ -319,6 +321,28 @@ class UserController extends Controller
         return redirect()
             ->route('users.index')
             ->with('success', "Usuario «{$user->name}» actualizado correctamente.");
+    }
+
+    /**
+     * El admin no puede cambiarse el rol ni las empresas (ver update()), pero sí su propio nombre.
+     */
+    public function updateOwnName(Request $request)
+    {
+        $authUser = auth()->user();
+        abort_unless($authUser->isAdmin(), 403);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ], [
+            'name.required' => 'Escribe tu nombre.',
+            'name.max'      => 'El nombre no puede pasar de 255 caracteres.',
+        ]);
+
+        $authUser->update(['name' => trim($data['name'])]);
+
+        return redirect()
+            ->route('users.index')
+            ->with('success', 'Tu nombre se actualizó correctamente.');
     }
 
     public function destroy(User $user)

@@ -160,4 +160,77 @@
         @endif
     </div>
 
+    {{-- SECCIÓN 2: Desactualizados enviados a obsoleto desde el listado --}}
+    <div class="mt-8">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 shrink-0">
+                <svg class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2L19 8M10 12v4M14 12v4"/>
+                </svg>
+            </div>
+            <h2 class="text-base font-semibold text-gray-800">Desactualizados enviados a obsoleto</h2>
+            <span class="text-xs text-gray-400 font-normal">(ya no aparecen en Procedimientos)</span>
+            <span class="ml-auto text-xs font-medium text-gray-500">{{ $obsoletedRegulations->count() }}</span>
+        </div>
+
+        @if($obsoletedRegulations->isEmpty())
+            <div class="rounded-xl border border-dashed border-gray-200 bg-white px-6 py-8 text-center">
+                <p class="text-sm text-gray-400">No hay desactualizados enviados a obsoleto{{ $selectedCompanyId ? ' para esta empresa' : '' }}.</p>
+            </div>
+        @else
+            <div class="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-100 bg-gray-50">
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Procedimiento</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Código</th>
+                            @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Empresa</th>
+                            @endif
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo de proceso</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Enviado</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach($obsoletedRegulations as $reg)
+                        @php $cv = $reg->currentVersion; @endphp
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-3 font-medium text-gray-800">{{ $reg->name }}</td>
+                            <td class="px-4 py-3 text-gray-500 font-mono text-xs">{{ $reg->code ?? '—' }}</td>
+                            @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
+                            <td class="px-4 py-3 text-gray-600">{{ $reg->company?->name ?? '—' }}</td>
+                            @endif
+                            <td class="px-4 py-3 text-gray-600">{{ $reg->processType?->name ?? '—' }}</td>
+                            <td class="px-4 py-3 text-xs text-gray-600">
+                                {{ $reg->obsoleted_at->format('d/m/Y') }}
+                                <span class="block text-gray-400">{{ $reg->obsoletedBy?->name ?? '—' }}</span>
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    @if($cv)
+                                        <a href="{{ route('regulation-versions.preview', $cv) }}"
+                                           target="_blank"
+                                           class="inline-flex items-center gap-1 whitespace-nowrap text-xs px-2.5 py-1.5 rounded-md border border-gray-200 text-gray-600 hover:border-brand hover:text-brand transition">
+                                            Ver
+                                        </a>
+                                    @endif
+                                    <form method="POST" action="{{ route('processes.obsoleto.restore', $reg) }}"
+                                          onsubmit="return confirm('¿Regresar «{{ addslashes($reg->name) }}» a Procedimientos?');">
+                                        @csrf
+                                        <button type="submit"
+                                                class="inline-flex items-center gap-1 whitespace-nowrap text-xs px-2.5 py-1.5 rounded-md border border-brand text-brand hover:bg-brand-50 transition">
+                                            Regresar a Procedimientos
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </div>
+
 </x-layouts.vigia>

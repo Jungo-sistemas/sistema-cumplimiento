@@ -6,7 +6,6 @@ use App\Models\JobPosition;
 use App\Models\Regulation;
 use App\Models\RegulationApproval;
 use App\Models\User;
-use App\Notifications\ApprovalFlowMemberNotification;
 use App\Notifications\ApprovalRequestedNotification;
 use App\Notifications\ApprovalStepUnassignedNotification;
 use App\Notifications\RegulationApprovedNotification;
@@ -81,7 +80,6 @@ class ApprovalFlowService
         }
 
         $this->notifyPendingApprovers($regulation, 1);
-        $this->notifyFutureFlowMembers($regulation, $userMap);
     }
 
     /**
@@ -165,7 +163,6 @@ class ApprovalFlowService
         });
 
         $this->notifyPendingApprovers($regulation, 1);
-        $this->notifyFutureFlowMembers($regulation, $userMap);
     }
 
     /**
@@ -319,9 +316,7 @@ class ApprovalFlowService
     /**
      * Resuelve qué usuarios corresponden a un paso del flujo: si el admin asignó usuarios
      * específicos por puesto (flow_user_map) se usan solo esos, si no, todos los usuarios
-     * activos de cada puesto involucrado. Compartido entre createStepRecords() (que sí crea el
-     * registro de aprobación) y notifyFutureFlowMembers() (que solo necesita saber a quién avisar
-     * de un paso que todavía no existe como registro en BD).
+     * activos de cada puesto involucrado.
      *
      * @return Collection<int, User>  cada User trae "pivot_job_position_id" con el puesto resuelto.
      */
@@ -403,39 +398,6 @@ class ApprovalFlowService
 
         foreach ($users as $user) {
             $user->notify(new ApprovalRequestedNotification($regulation));
-        }
-    }
-
-    /**
-     * Avisa, de forma solo informativa, a quienes participan en pasos POSTERIORES al primero —
-     * el primer paso ya recibe el correo accionable de notifyPendingApprovers(). Se manda una
-     * sola vez, al iniciar o reiniciar el flujo completo (no en cada avance de paso: ahí el paso
-     * que se desbloquea ya recibe el correo accionable, no el informativo).
-     */
-    private function notifyFutureFlowMembers(Regulation $regulation, array $userMap): void
-    {
-        $flow = self::FLOWS[$regulation->impact_level] ?? [];
-
-        // Quien ya participa en el paso 1 recibió el correo accionable — si esa misma persona
-        // también está asignada a un puesto de un paso posterior (ej. es líder Y gerente), no
-        // tiene caso mandarle además el informativo de "tu voto se pedirá más adelante".
-        $notifiedIds = isset($flow[1])
-            ? $this->resolveStepUsers($regulation, $flow[1], $userMap)->pluck('id')->all()
-            : [];
-
-        foreach ($flow as $step => $stepDef) {
-            if ($step === 1) {
-                continue;
-            }
-
-            foreach ($this->resolveStepUsers($regulation, $stepDef, $userMap) as $user) {
-                if (in_array($user->id, $notifiedIds, true)) {
-                    continue;
-                }
-
-                $notifiedIds[] = $user->id;
-                $user->notify(new ApprovalFlowMemberNotification($regulation, $step));
-            }
         }
     }
 

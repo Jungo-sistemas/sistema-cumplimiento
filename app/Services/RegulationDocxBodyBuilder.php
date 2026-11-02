@@ -44,15 +44,63 @@ class RegulationDocxBodyBuilder
         $before = substr($html, 0, $offset);
         $after = substr($html, $offset + strlen($tag));
 
-        if ($before !== '') {
+        [$before, $after] = $this->balanceAroundImage($before, $after);
+
+        if (trim($before) !== '') {
             WordHtml::addHtml($section, $before, false, false);
         }
 
         $this->addImageInPt($section, $tag, $base64, $extension);
 
-        if ($after !== '') {
+        if (trim($after) !== '') {
             WordHtml::addHtml($section, $after, false, false);
         }
+    }
+
+    /**
+     * Al cortar el HTML en el <img>, cada mitad debe ser XML válido para addHtml(). El editor deja
+     * el diagrama dentro de un párrafo (<p style="text-align:center"><img></p>), y cortar ahí
+     * dejaba un <p> sin cerrar en una mitad y un </p> suelto en la otra (error 500 al guardar).
+     * Primero se quitan los envoltorios que solo contienen la imagen; si alguno trae más texto,
+     * se cierra antes de la imagen y se vuelve a abrir después.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function balanceAroundImage(string $before, string $after): array
+    {
+        while (preg_match('/<([a-z][a-z0-9]*)\b[^>]*>\s*$/i', $before, $open)
+            && preg_match('/^\s*<\/' . preg_quote($open[1], '/') . '\s*>/i', $after, $close)
+        ) {
+            $before = substr($before, 0, -strlen($open[0]));
+            $after = substr($after, strlen($close[0]));
+        }
+
+        $stack = [];
+        preg_match_all('/<(\/?)([a-z][a-z0-9]*)\b[^>]*?(\/?)>/i', $before, $tags, PREG_SET_ORDER);
+        foreach ($tags as $t) {
+            $name = strtolower($t[2]);
+            if ($t[3] === '/' || in_array($name, ['br', 'hr', 'img', 'col', 'input', 'meta'], true)) {
+                continue;
+            }
+            if ($t[1] === '/') {
+                // Cierra la última apertura con ese nombre (HTML del editor, bien anidado).
+                for ($i = count($stack) - 1; $i >= 0; $i--) {
+                    if ($stack[$i]['name'] === $name) {
+                        array_splice($stack, $i);
+                        break;
+                    }
+                }
+            } else {
+                $stack[] = ['name' => $name, 'open' => $t[0]];
+            }
+        }
+
+        foreach (array_reverse($stack) as $t) {
+            $before .= '</' . $t['name'] . '>';
+        }
+        $after = implode('', array_column($stack, 'open')) . $after;
+
+        return [$before, $after];
     }
 
     private function addImageInPt(Section $section, string $tag, string $base64, string $extension): void

@@ -139,18 +139,26 @@ class DocumentController extends Controller
         abort_if(($user->hasGroupScope() || $user->hasMultipleCompanies()) && ! $companyId, 422, 'Debes seleccionar una empresa.');
         abort_unless($user->canAccessCompany(Company::find($companyId)), 403);
 
-        $document->update([
-            'company_id'       => $companyId,
-            'name'             => Str::upper($data['name']),
-            'description'      => $data['description'] ?? null,
-            'reference'        => $data['reference'] ?? null,
-            'bodega'           => $data['bodega'] ?? null,
-            'document_type'    => $data['document_type'],
-            'responsible_name' => $this->joinResponsibleNames($data['responsible_names'] ?? []),
-            'is_required'      => true,
-        ]);
+        // Si el formulario llega dos veces casi al mismo tiempo (doble clic en Guardar), las dos
+        // peticiones veían que la persona autorizada aún no estaba y ambas la insertaban: la
+        // segunda tronaba con "duplicate key" en document_authorized_users. Con el candado de
+        // la fila, la segunda espera a que termine la primera y su sync() ya no inserta nada.
+        \Illuminate\Support\Facades\DB::transaction(function () use ($document, $data, $companyId) {
+            Document::whereKey($document->id)->lockForUpdate()->first();
 
-        $document->authorizedUsers()->sync($data['authorized_user_ids'] ?? []);
+            $document->update([
+                'company_id'       => $companyId,
+                'name'             => Str::upper($data['name']),
+                'description'      => $data['description'] ?? null,
+                'reference'        => $data['reference'] ?? null,
+                'bodega'           => $data['bodega'] ?? null,
+                'document_type'    => $data['document_type'],
+                'responsible_name' => $this->joinResponsibleNames($data['responsible_names'] ?? []),
+                'is_required'      => true,
+            ]);
+
+            $document->authorizedUsers()->sync($data['authorized_user_ids'] ?? []);
+        });
 
         return redirect()
             ->route('documents.show', $document)
