@@ -7,13 +7,13 @@
 
     <div class="bg-white rounded-xl shadow p-6 space-y-6">
         <div class="space-y-2">
-            <h1 class="text-2xl font-semibold text-[#1A428A]">Ayuda</h1>
+            <h1 class="text-2xl font-semibold text-brand">Ayuda</h1>
             <p class="text-sm text-gray-600">Auditorías realizadas durante una llamada de Teams.</p>
         </div>
 
         <div class="divide-y border-y">
             <details class="py-4" open>
-                <summary class="cursor-pointer text-sm font-semibold text-[#1A428A]">Capturar checklist</summary>
+                <summary class="cursor-pointer text-sm font-semibold text-brand">Capturar checklist</summary>
                 <p class="mt-2 text-sm text-gray-700">
                     El auditor asignado captura respuestas, puntajes y observaciones durante la llamada.
                     Puede guardar avance y finalizar para publicar el resultado.
@@ -21,7 +21,7 @@
             </details>
 
             <details class="py-4" open>
-                <summary class="cursor-pointer text-sm font-semibold text-[#1A428A]">Hallazgos y acciones correctivas</summary>
+                <summary class="cursor-pointer text-sm font-semibold text-brand">Hallazgos y acciones correctivas</summary>
                 <p class="mt-2 text-sm text-gray-700">
                     El auditor registra los hallazgos. Su seguimiento conserva las causas raíz, acciones y
                     evidencias en la actividad correspondiente.

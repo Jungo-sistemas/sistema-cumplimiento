@@ -113,11 +113,11 @@
 
         {{-- Header --}}
         <div class="mb-6 flex items-center justify-between">
-            <h1 class="text-2xl font-bold text-[#1A428A]">Usuarios del Sistema</h1>
+            <h1 class="text-2xl font-bold text-brand">Usuarios del Sistema</h1>
             <button
                 type="button"
                 @click="showForm = !showForm"
-                class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d] text-sm"
+                class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark text-sm"
             >
                 + Nuevo usuario
             </button>
@@ -148,7 +148,7 @@
                             name="name"
                             value="{{ old('name') }}"
                             required
-                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]"
+                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                             placeholder="Nombre completo"
                         >
                         @error('name')
@@ -167,7 +167,7 @@
                             name="email"
                             value="{{ old('email') }}"
                             required
-                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]"
+                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                             placeholder="correo@ejemplo.com"
                         >
                         @error('email')
@@ -185,7 +185,7 @@
                             name="role_id"
                             required
                             x-model="selectedRole"
-                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]"
+                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                         >
                             <option value="">Seleccionar rol…</option>
                             @foreach($roles as $role)
@@ -211,7 +211,7 @@
                             name="group_id"
                             x-model="selectedGroup"
                             @change="selectedCompanies = []; selectedPositions = []"
-                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]"
+                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                         >
                             <option value="">Seleccionar grupo…</option>
                             @foreach($groups as $group)
@@ -231,7 +231,7 @@
 
                         <div class="flex flex-wrap gap-1.5 mb-2" x-show="selectedCompanies.length > 0">
                             <template x-for="id in selectedCompanies" :key="id">
-                                <span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50 text-[#1A428A] text-xs font-medium border border-blue-200">
+                                <span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50 text-brand text-xs font-medium border border-blue-200">
                                     <span x-text="createCompanyName(id)"></span>
                                     <button type="button" @click="removeCreateCompany(id)" class="rounded-full hover:bg-blue-100 p-0.5">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
@@ -248,7 +248,7 @@
                                 @focus="createCompanySearchOpen = true"
                                 placeholder="Buscar empresa para agregar…"
                                 autocomplete="off"
-                                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
 
                             <div x-show="createCompanySearchOpen && createCompanySearchResults.length > 0"
                                  class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto"
@@ -288,7 +288,7 @@
                             <template x-for="pos in createPositions" :key="pos.id">
                                 <label class="inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded-lg border text-sm transition"
                                        :class="selectedPositions.includes(String(pos.id))
-                                           ? 'border-[#1A428A] bg-blue-50 text-[#1A428A] font-medium'
+                                           ? 'border-brand bg-blue-50 text-brand font-medium'
                                            : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'">
                                     <input type="checkbox" class="sr-only"
                                            :value="pos.id"
@@ -311,7 +311,7 @@
                             <span x-text="isAdminCreate ? 'Vista predeterminada' : 'Módulos visibles'"></span>
                         </label>
                         <select name="module_access" x-model="selectedModuleAccess"
-                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
                             <option value="all">Ambos módulos</option>
                             <option value="cumplimiento">Solo Cumplimiento</option>
                             <option value="procesos">Solo Procesos</option>
@@ -334,7 +334,7 @@
                     <div>
                         <label class="mb-1 block text-sm font-medium text-gray-700">Notificaciones</label>
                         <select name="notification_modules" x-model="selectedNotificationModules"
-                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
                             <option value="all">Ambas áreas</option>
                             <option value="cumplimiento">Solo Cumplimiento</option>
                             <option value="procesos">Solo Procesos</option>
@@ -348,7 +348,7 @@
                 <div class="mt-4 flex gap-2">
                     <button
                         type="submit"
-                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d] text-sm"
+                        class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark text-sm"
                     >
                         Invitar usuario
                     </button>
@@ -408,7 +408,7 @@
                                     Rol <span class="text-red-500">*</span>
                                 </label>
                                 <select name="role_id" x-model="editRole" required
-                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
                                     <option value="">Seleccionar rol…</option>
                                     @foreach($roles as $role)
                                         <option value="{{ $role->id }}" data-slug="{{ $role->slug }}">{{ $role->name }}</option>
@@ -424,7 +424,7 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Grupo</label>
                                 <select name="group_id" x-model="editGroup"
                                     @change="editCompanyIds = []; editPositionIds = []"
-                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
                                     <option value="">Sin grupo</option>
                                     @foreach($groups as $group)
                                         <option value="{{ $group->id }}">{{ $group->name }}</option>
@@ -441,7 +441,7 @@
 
                                 <div class="flex flex-wrap gap-1.5 mb-2" x-show="editCompanyIds.length > 0">
                                     <template x-for="id in editCompanyIds" :key="id">
-                                        <span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50 text-[#1A428A] text-xs font-medium border border-blue-200">
+                                        <span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50 text-brand text-xs font-medium border border-blue-200">
                                             <span x-text="editCompanyName(id)"></span>
                                             <button type="button" @click="removeEditCompany(id)" class="rounded-full hover:bg-blue-100 p-0.5">
                                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
@@ -458,7 +458,7 @@
                                         @focus="editCompanySearchOpen = true"
                                         placeholder="Buscar empresa para agregar…"
                                         autocomplete="off"
-                                        class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                        class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
 
                                     <div x-show="editCompanySearchOpen && editCompanySearchResults.length > 0"
                                          class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto"
@@ -496,7 +496,7 @@
                                     <template x-for="pos in editPositions" :key="pos.id">
                                         <label class="inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded-lg border text-sm transition"
                                                :class="hasEditPos(String(pos.id))
-                                                   ? 'border-[#1A428A] bg-blue-50 text-[#1A428A] font-medium'
+                                                   ? 'border-brand bg-blue-50 text-brand font-medium'
                                                    : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'">
                                             <input type="checkbox" class="sr-only"
                                                    :value="pos.id"
@@ -521,7 +521,7 @@
                                     <span x-text="isAdminEdit ? 'Vista predeterminada' : 'Módulos visibles'"></span>
                                 </label>
                                 <select name="module_access" x-model="editModuleAccess"
-                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
                                     <option value="all">Ambos módulos</option>
                                     <option value="cumplimiento">Solo Cumplimiento</option>
                                     <option value="procesos">Solo Procesos</option>
@@ -549,7 +549,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Notificaciones</label>
                                 <select name="notification_modules" x-model="editNotificationModules"
-                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-[#1A428A] focus:outline-none focus:ring-2 focus:ring-[#1A428A]/20 transition-colors">
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
                                     <option value="all">Ambas áreas</option>
                                     <option value="cumplimiento">Solo Cumplimiento</option>
                                     <option value="procesos">Solo Procesos</option>
@@ -567,7 +567,7 @@
                                 Cancelar
                             </button>
                             <button type="submit"
-                                class="px-5 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d] transition-colors shadow-sm">
+                                class="px-5 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark transition-colors shadow-sm">
                                 Guardar cambios
                             </button>
                         </div>
@@ -581,11 +581,11 @@
             <div class="flex-1 min-w-[180px]">
                 <label class="mb-1 block text-xs font-medium text-gray-500">Buscar</label>
                 <input type="text" name="q" value="{{ $search }}" placeholder="Nombre o correo..."
-                    class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                    class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
             </div>
             <div class="w-44">
                 <label class="mb-1 block text-xs font-medium text-gray-500">Grupo</label>
-                <select name="group_id" class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                <select name="group_id" class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
                     <option value="">Todos</option>
                     @foreach($groups as $g)
                         <option value="{{ $g->id }}" @selected((string) $groupId === (string) $g->id)>{{ $g->name }}</option>
@@ -594,7 +594,7 @@
             </div>
             <div class="w-44">
                 <label class="mb-1 block text-xs font-medium text-gray-500">Empresa</label>
-                <select name="company_id" class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-[#1A428A] focus:outline-none focus:ring-1 focus:ring-[#1A428A]">
+                <select name="company_id" class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
                     <option value="">Todas</option>
                     @foreach($companies as $c)
                         <option value="{{ $c->id }}" @selected((string) $companyId === (string) $c->id)>{{ $c->name }}</option>
@@ -602,7 +602,7 @@
                 </select>
             </div>
             <div class="flex gap-2">
-                <button type="submit" class="px-4 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                <button type="submit" class="px-4 py-1.5 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                     Buscar
                 </button>
                 @if($search !== '' || $groupId || $companyId)
@@ -673,7 +673,7 @@
                                         <div class="inline-flex gap-1">
                                             <button type="button"
                                                 @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', {{ Js::from($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])) }}, '{{ $user->module_access ?? 'all' }}', {{ Js::from($user->jobPositions->pluck('id')) }}, '{{ $user->notification_modules ?? 'all' }}')"
-                                                class="px-2 py-1 rounded-md bg-[#1A428A] text-white text-[11px] font-semibold hover:bg-[#15356d]">
+                                                class="px-2 py-1 rounded-md bg-brand text-white text-[11px] font-semibold hover:bg-brand-dark">
                                                 Editar
                                             </button>
                                             @if($user->status === 'invited')
@@ -681,7 +681,7 @@
                                                 onsubmit="return confirm('¿Reenviar la invitación a {{ addslashes($user->email) }}?');">
                                                 @csrf
                                                 <button type="submit" title="Reenviar invitación"
-                                                    class="px-2 py-1 rounded-md border border-[#1A428A] bg-white text-[#1A428A] text-[11px] font-semibold hover:bg-blue-50">
+                                                    class="px-2 py-1 rounded-md border border-brand bg-white text-brand text-[11px] font-semibold hover:bg-brand-50">
                                                     Reenviar
                                                 </button>
                                             </form>

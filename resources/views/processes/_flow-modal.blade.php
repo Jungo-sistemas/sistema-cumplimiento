@@ -29,7 +29,7 @@
          class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden">
 
         {{-- Header --}}
-        <div class="bg-[#1A428A] px-6 py-4 flex items-center justify-between">
+        <div class="bg-brand px-6 py-4 flex items-center justify-between">
             <div>
                 <h3 class="text-white font-semibold text-base">Confirmar flujo de aprobación</h3>
                 <p class="text-blue-200 text-xs mt-0.5" x-text="regulationName"></p>
@@ -55,7 +55,7 @@
                 <div>
                     <p class="text-sm text-gray-700 mb-1">
                         Nivel seleccionado:
-                        <span class="font-semibold text-[#1A428A]" x-text="levelLabel"></span>
+                        <span class="font-semibold text-brand" x-text="levelLabel"></span>
                     </p>
                     <p class="text-xs text-gray-500 mb-4">
                         Asigna un responsable por cada puesto. Una vez confirmado, el flujo quedará activo.
@@ -93,7 +93,7 @@
                                            @focus="open[pos.slug] = true"
                                            @input="open[pos.slug] = true"
                                            @keydown.escape="open[pos.slug] = false; search[pos.slug] = ''"
-                                           class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 pr-8 focus:outline-none focus:border-[#1A428A] focus:ring-1 focus:ring-[#1A428A]">
+                                           class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 pr-8 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand">
                                     <button type="button"
                                             x-show="search[pos.slug]"
                                             @click="search[pos.slug] = ''; open[pos.slug] = false"
@@ -109,8 +109,8 @@
                                         <template x-for="u in filtered(pos.slug)" :key="u.id">
                                             <button type="button"
                                                     @click="selectUser(pos.slug, u)"
-                                                    class="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center gap-2">
-                                                <span class="h-6 w-6 rounded-full bg-[#1A428A] text-white text-xs flex items-center justify-center shrink-0"
+                                                    class="w-full text-left px-3 py-2 text-sm hover:bg-brand-50 flex items-center gap-2">
+                                                <span class="h-6 w-6 rounded-full bg-brand text-white text-xs flex items-center justify-center shrink-0"
                                                       x-text="u.name.charAt(0).toUpperCase()"></span>
                                                 <div>
                                                     <div class="font-medium text-gray-800" x-text="u.name"></div>
@@ -139,7 +139,7 @@
                     @click="confirmFlow()"
                     :disabled="!canConfirm"
                     :class="canConfirm
-                        ? 'bg-[#1A428A] hover:bg-[#15356d] text-white cursor-pointer'
+                        ? 'bg-brand hover:bg-brand-dark text-white cursor-pointer'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
                     class="px-4 py-2 rounded-lg text-sm font-semibold transition">
                 <span x-text="removing ? 'Sí, eliminar flujo' : 'Confirmar flujo'"></span>

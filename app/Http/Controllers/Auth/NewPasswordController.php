@@ -34,6 +34,13 @@ class NewPasswordController extends Controller
             'token' => ['required'],
             'email' => ['required', 'email'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ], [
+            'token.required'     => 'El enlace no es válido. Solicita uno nuevo.',
+            'email.required'     => 'Escribe tu correo electrónico.',
+            'email.email'        => 'Escribe un correo electrónico válido.',
+            'password.required'  => 'Escribe la nueva contraseña.',
+            'password.confirmed' => 'Las contraseñas no coinciden.',
+            'password.min'       => 'La contraseña debe tener al menos :min caracteres.',
         ]);
 
         // Here we will attempt to reset the user's password. If it is successful we
@@ -51,12 +58,14 @@ class NewPasswordController extends Controller
             }
         );
 
-        // If the password was successfully reset, we will redirect the user back to
-        // the application's home authenticated view. If there is an error we can
-        // redirect them back to where they came from with their error message.
-        return $status == Password::PASSWORD_RESET
-                    ? redirect()->route('login')->with('status', __($status))
-                    : back()->withInput($request->only('email'))
-                        ->withErrors(['email' => __($status)]);
+        if ($status == Password::PASSWORD_RESET) {
+            return redirect()->route('login')->with('status', 'Tu contraseña se actualizó. Ya puedes iniciar sesión.');
+        }
+
+        // "Usuario no encontrado" y "enlace inválido" dan el mismo mensaje, para no revelar qué
+        // correos tienen cuenta.
+        return back()->withInput($request->only('email'))->withErrors([
+            'email' => 'El enlace para restablecer la contraseña no es válido o ya expiró, o el correo no coincide. Solicita un enlace nuevo.',
+        ]);
     }
 }

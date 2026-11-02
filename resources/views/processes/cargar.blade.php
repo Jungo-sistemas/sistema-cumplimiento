@@ -16,7 +16,7 @@
 
         {{-- ENCABEZADO --}}
         <div class="mb-6">
-            <h1 class="text-2xl font-semibold text-[#1A428A]">Cargar proceso existente</h1>
+            <h1 class="text-2xl font-semibold text-brand">Cargar proceso existente</h1>
             <p class="text-sm text-gray-500 mt-1">
                 Para documentos ya redactados fuera del sistema — indica abajo si ya fue aprobado antes de
                 subirlo, o si necesita pasar por el flujo de aprobación de aquí.
@@ -43,7 +43,7 @@
 
                 {{-- ── COLUMNA IZQUIERDA: Identificación ── --}}
                 <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
-                    <div class="px-5 py-3.5 border-b bg-[#1A428A]">
+                    <div class="px-5 py-3.5 border-b bg-brand">
                         <h2 class="text-sm font-semibold text-white">Identificación del documento</h2>
                     </div>
                     <div class="p-5 space-y-4">
@@ -64,7 +64,7 @@
                                     Tipo de proceso <span class="text-red-500">*</span>
                                 </label>
                                 <select name="process_type_id"
-                                        class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('process_type_id') border-red-400 @enderror">
+                                        class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('process_type_id') border-red-400 @enderror">
                                     <option value="">— Seleccionar —</option>
                                     @foreach($processTypes as $pt)
                                         <option value="{{ $pt->id }}" {{ old('process_type_id') == $pt->id ? 'selected' : '' }}>
@@ -81,7 +81,7 @@
                                     Tipo de documento <span class="text-red-500">*</span>
                                 </label>
                                 <select name="document_type"
-                                        class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('document_type') border-red-400 @enderror">
+                                        class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('document_type') border-red-400 @enderror">
                                     <option value="">— Seleccionar —</option>
                                     @foreach($documentTypes as $dt)
                                         <option value="{{ $dt }}" {{ old('document_type') === $dt ? 'selected' : '' }}>
@@ -103,7 +103,7 @@
                                 name="is_annex"
                                 value="1"
                                 {{ old('is_annex') ? 'checked' : '' }}
-                                class="mt-0.5 rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]"
+                                class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand"
                             >
                             <label for="is_annex" class="text-xs text-gray-600">
                                 <span class="font-medium uppercase tracking-wide text-gray-500">Es un anexo</span>
@@ -124,7 +124,7 @@
                                    name="nombre"
                                    value="{{ old('nombre') }}"
                                    placeholder="Ej: Procedimiento de Alta de Proveedores"
-                                   class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('nombre') border-red-400 @enderror">
+                                   class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('nombre') border-red-400 @enderror">
                             @error('nombre')
                                 <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                             @enderror
@@ -139,7 +139,7 @@
                                    name="codigo"
                                    value="{{ old('codigo') }}"
                                    placeholder="Ej: P-COM-001"
-                                   class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('codigo') border-red-400 @enderror">
+                                   class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('codigo') border-red-400 @enderror">
                             @error('codigo')
                                 <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                             @enderror
@@ -155,7 +155,7 @@
                                        name="quien_elabora"
                                        value="{{ old('quien_elabora') }}"
                                        placeholder="Ej: Juan Pérez — Jefe de Compras"
-                                       class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('quien_elabora') border-red-400 @enderror">
+                                       class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('quien_elabora') border-red-400 @enderror">
                                 @error('quien_elabora')
                                     <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                                 @enderror
@@ -168,7 +168,7 @@
                                        name="quien_aprueba"
                                        value="{{ old('quien_aprueba') }}"
                                        placeholder="Ej: María López — Directora de Operaciones"
-                                       class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('quien_aprueba') border-red-400 @enderror">
+                                       class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('quien_aprueba') border-red-400 @enderror">
                                 @error('quien_aprueba')
                                     <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                                 @enderror
@@ -183,12 +183,12 @@
 
                             <div class="inline-flex rounded-lg border border-gray-300 p-1 gap-1">
                                 <label class="flex items-center px-3 py-2 rounded-md text-sm font-semibold cursor-pointer transition"
-                                       :class="approvalMode === 'approved' ? 'bg-[#1A428A] text-white' : 'text-gray-600 hover:bg-gray-50'">
+                                       :class="approvalMode === 'approved' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-gray-50'">
                                     <input type="radio" name="approval_mode" value="approved" x-model="approvalMode" class="sr-only">
                                     Ya está aprobado
                                 </label>
                                 <label class="flex items-center px-3 py-2 rounded-md text-sm font-semibold cursor-pointer transition"
-                                       :class="approvalMode === 'flow' ? 'bg-[#1A428A] text-white' : 'text-gray-600 hover:bg-gray-50'">
+                                       :class="approvalMode === 'flow' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-gray-50'">
                                     <input type="radio" name="approval_mode" value="flow" x-model="approvalMode" class="sr-only">
                                     Enviar a flujo de aprobación
                                 </label>
@@ -215,7 +215,7 @@
 
                 {{-- ── COLUMNA DERECHA: Archivo y vigencia ── --}}
                 <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
-                    <div class="px-5 py-3.5 border-b bg-[#1A428A]">
+                    <div class="px-5 py-3.5 border-b bg-brand">
                         <h2 class="text-sm font-semibold text-white">Archivo y vigencia</h2>
                         <p class="text-blue-200 text-xs mt-0.5">Sube el PDF y define las fechas de vigencia.</p>
                     </div>
@@ -227,8 +227,8 @@
                                 Archivo (PDF o imagen) <span class="text-red-500">*</span>
                             </label>
                             <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition
-                                          border-gray-300 bg-gray-50 hover:bg-blue-50 hover:border-[#1A428A]"
-                                   :class="fileName ? 'border-[#1A428A] bg-blue-50' : ''">
+                                          border-gray-300 bg-gray-50 hover:bg-brand-50 hover:border-brand"
+                                   :class="fileName ? 'border-brand bg-blue-50' : ''">
                                 <div class="flex flex-col items-center gap-1.5 text-center px-4">
                                     <template x-if="!fileName">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-gray-400" fill="none"
@@ -238,14 +238,14 @@
                                         </svg>
                                     </template>
                                     <template x-if="fileName">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-[#1A428A]" fill="none"
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-brand" fill="none"
                                              viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                             <path stroke-linecap="round" stroke-linejoin="round"
                                                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                         </svg>
                                     </template>
                                     <span class="text-sm font-medium"
-                                          :class="fileName ? 'text-[#1A428A]' : 'text-gray-500'"
+                                          :class="fileName ? 'text-brand' : 'text-gray-500'"
                                           x-text="fileName || 'Haz clic para seleccionar archivo'"></span>
                                     <span x-show="!fileName" class="text-xs text-gray-400">PDF, Word, Excel o PowerPoint — máx. 10 MB</span>
                                 </div>
@@ -270,7 +270,7 @@
                                 <input type="date"
                                        name="issued_at"
                                        value="{{ old('issued_at') }}"
-                                       class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('issued_at') border-red-400 @enderror">
+                                       class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('issued_at') border-red-400 @enderror">
                                 @error('issued_at')
                                     <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                                 @enderror
@@ -284,7 +284,7 @@
                                        name="valid_until"
                                        value="{{ old('valid_until') }}"
                                        :required="approvalMode === 'approved'"
-                                       class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('valid_until') border-red-400 @enderror">
+                                       class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('valid_until') border-red-400 @enderror">
                                 @error('valid_until')
                                     <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                                 @enderror
@@ -317,7 +317,7 @@
                     Cancelar
                 </a>
                 <button type="submit"
-                        class="px-6 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                        class="px-6 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                     Guardar procedimiento
                 </button>
             </div>

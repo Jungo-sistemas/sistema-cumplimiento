@@ -11,11 +11,11 @@
     {{-- HEADER --}}
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-semibold text-[#1A428A]">Obsoleto</h1>
+            <h1 class="text-2xl font-semibold text-brand">Obsoleto</h1>
             <p class="text-sm text-gray-500 mt-0.5">Regulaciones vencidas y versiones anteriores del módulo de Procesos</p>
         </div>
         <a href="{{ route('documents.index') }}"
-           class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold text-sm hover:bg-blue-50">
+           class="px-4 py-2 rounded-md border border-brand bg-white text-brand font-semibold text-sm hover:bg-brand-50">
             Volver
         </a>
     </div>
@@ -27,7 +27,7 @@
         <div class="min-w-[180px]">
             <label class="block text-xs text-gray-500 mb-1">Empresa</label>
             <select name="company_id"
-                    class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]">
+                    class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
                 <option value="">Todas las empresas</option>
                 @foreach($companies as $c)
                     <option value="{{ $c->id }}" @selected((string) $selectedCompanyId === (string) $c->id)>
@@ -37,7 +37,7 @@
             </select>
         </div>
         <button type="submit"
-                class="px-5 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                class="px-5 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
             Filtrar
         </button>
         <a href="{{ route('documents.folders.show', $folder) }}"
@@ -115,18 +115,18 @@
                                     @if($cv)
                                         <a href="{{ route('regulation-versions.preview', $cv) }}"
                                            target="_blank"
-                                           class="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A] transition">
+                                           class="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:border-brand hover:text-brand transition">
                                             Ver
                                         </a>
                                         @if($reg->allowsDownload())
                                             <a href="{{ route('regulation-versions.download', $cv) }}"
-                                               class="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A] transition">
+                                               class="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:border-brand hover:text-brand transition">
                                                 Descargar
                                             </a>
                                         @endif
                                     @endif
                                     <a href="{{ route('processes.show', $reg) }}"
-                                       class="text-xs px-2.5 py-1 rounded bg-[#1A428A] text-white hover:bg-[#15356d] transition">
+                                       class="text-xs px-2.5 py-1 rounded bg-brand text-white hover:bg-brand-dark transition">
                                         Ir al proceso
                                     </a>
                                 </div>
@@ -200,17 +200,17 @@
                                 <div class="flex items-center justify-end gap-2">
                                     <a href="{{ route('regulation-versions.preview', $v) }}"
                                        target="_blank"
-                                       class="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A] transition">
+                                       class="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:border-brand hover:text-brand transition">
                                         Ver
                                     </a>
                                     @if($v->regulation?->allowsDownload())
                                         <a href="{{ route('regulation-versions.download', $v) }}"
-                                           class="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A] transition">
+                                           class="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:border-brand hover:text-brand transition">
                                             Descargar
                                         </a>
                                     @endif
                                     <a href="{{ route('processes.show', $v->regulation_id) }}"
-                                       class="text-xs px-2.5 py-1 rounded bg-[#1A428A] text-white hover:bg-[#15356d] transition">
+                                       class="text-xs px-2.5 py-1 rounded bg-brand text-white hover:bg-brand-dark transition">
                                         Ir al proceso
                                     </a>
                                 </div>

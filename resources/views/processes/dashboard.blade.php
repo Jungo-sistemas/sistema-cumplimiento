@@ -4,17 +4,17 @@
     </x-slot>
 
     <div class="bg-white rounded-xl shadow p-6 space-y-8">
-        <h1 class="text-2xl font-semibold text-[#1A428A]">Tablero de procesos</h1>
+        <h1 class="text-2xl font-semibold text-brand">Tablero de procesos</h1>
 
         {{-- Cards de resumen --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" data-tour="dashboard-summary">
             <div class="bg-white border rounded-lg shadow-sm p-4">
-                <div class="text-sm font-semibold text-[#1A428A]">Total procedimientos</div>
+                <div class="text-sm font-semibold text-brand">Total procedimientos</div>
                 <div class="mt-2 text-2xl font-bold text-gray-800">{{ $stats['total'] }}</div>
             </div>
 
             <div class="bg-white border rounded-lg shadow-sm p-4">
-                <div class="text-sm font-semibold text-[#1A428A]">Aprobados</div>
+                <div class="text-sm font-semibold text-brand">Aprobados</div>
                 <div class="mt-2 text-2xl font-bold text-gray-800">{{ $stats['approved'] }}</div>
             </div>
 
@@ -30,7 +30,7 @@
                 </div>
             @else
                 <div class="bg-white border rounded-lg shadow-sm p-4">
-                    <div class="text-sm font-semibold text-[#1A428A]">Pendientes de mi aprobación</div>
+                    <div class="text-sm font-semibold text-brand">Pendientes de mi aprobación</div>
                     <div class="mt-2 text-2xl font-bold text-gray-400">0</div>
                 </div>
             @endif
@@ -100,7 +100,7 @@
                                     <td class="px-4 py-2.5 text-gray-400 text-xs">{{ $i + 1 }}</td>
                                     <td class="px-4 py-2.5 font-medium text-gray-800">
                                         <div class="flex items-center gap-2">
-                                            <span class="h-6 w-6 rounded-full bg-[#1A428A] text-white text-xs flex items-center justify-center shrink-0">
+                                            <span class="h-6 w-6 rounded-full bg-brand text-white text-xs flex items-center justify-center shrink-0">
                                                 {{ mb_substr($person['name'], 0, 1) }}
                                             </span>
                                             {{ $person['name'] }}
@@ -149,7 +149,7 @@
                                 </div>
                             </div>
                             <a href="{{ route('processes.show', $approval->regulation) }}"
-                               class="shrink-0 text-sm font-medium text-[#1A428A] hover:underline">
+                               class="shrink-0 text-sm font-medium text-brand hover:underline">
                                 Revisar
                             </a>
                         </div>
@@ -177,7 +177,7 @@
                             </div>
                         </div>
                         <a href="{{ route('processes.show', $regulation) }}"
-                           class="shrink-0 text-sm font-medium text-[#1A428A] hover:underline">
+                           class="shrink-0 text-sm font-medium text-brand hover:underline">
                             Abrir
                         </a>
                     </div>
@@ -194,7 +194,7 @@
         const cd = @json($chartData ?? []);
 
         // ── Paleta de colores ────────────────────────────────────────────────────
-        const BLUE   = '#1A428A';
+        const BLUE   = '#5B1690';
         const YELLOW = '#FFB529';
         const RED    = '#DB0000';
         const GREEN  = '#22C55E';

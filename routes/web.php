@@ -12,6 +12,7 @@ use App\Http\Controllers\ComplianceDashboardController;
 use App\Http\Controllers\AssetRequirementDocumentController;
 use App\Http\Controllers\AssetExtraDocumentController;
 use App\Http\Controllers\RequirementAuditLogController;
+use App\Http\Controllers\AuditeeController;
 use App\Http\Controllers\RequirementHistoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
@@ -162,6 +163,24 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
 
     Route::post('/investment-requests/{investmentRequest}/reject', [InvestmentRequestController::class, 'reject'])
         ->name('investment-requests.reject');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Vista de auditado (Mi espacio) — la de todos los roles; los admins además tienen Gestión
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('mi-espacio')->name('mi-espacio.')->controller(AuditeeController::class)->group(function () {
+        Route::get('/', 'home')->name('home');
+        Route::get('/solicitudes', 'requests')->name('requests');
+        Route::get('/documentos', 'documents')->name('documents');
+        Route::get('/auditorias', 'audits')->name('audits');
+        Route::get('/actividades', 'activities')->name('activities');
+        Route::get('/ayuda', 'help')->name('help');
+    });
+
+    Route::get('/vista/{mode}', [AuditeeController::class, 'switchView'])
+        ->whereIn('mode', ['gestion', 'auditado'])
+        ->name('view-mode.switch');
 
     /*
     |--------------------------------------------------------------------------

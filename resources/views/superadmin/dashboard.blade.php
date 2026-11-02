@@ -1,7 +1,7 @@
 <x-layouts.vigia title="Panel de Administración">
 
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-[#1A428A]">Panel de Administración</h1>
+        <h1 class="text-2xl font-bold text-brand">Panel de Administración</h1>
         <div class="flex items-center gap-3">
 <a href="{{ route('superadmin.api-tokens.index') }}"
                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-600 text-sm hover:bg-gray-50">
@@ -18,15 +18,15 @@
     <div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <p class="text-sm text-gray-500">Grupos</p>
-            <p class="mt-1 text-3xl font-bold text-[#1A428A]">{{ $stats['groups'] }}</p>
+            <p class="mt-1 text-3xl font-bold text-brand">{{ $stats['groups'] }}</p>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <p class="text-sm text-gray-500">Empresas</p>
-            <p class="mt-1 text-3xl font-bold text-[#1A428A]">{{ $stats['companies'] }}</p>
+            <p class="mt-1 text-3xl font-bold text-brand">{{ $stats['companies'] }}</p>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <p class="text-sm text-gray-500">Usuarios totales</p>
-            <p class="mt-1 text-3xl font-bold text-[#1A428A]">{{ $stats['users'] }}</p>
+            <p class="mt-1 text-3xl font-bold text-brand">{{ $stats['users'] }}</p>
         </div>
     </div>
 

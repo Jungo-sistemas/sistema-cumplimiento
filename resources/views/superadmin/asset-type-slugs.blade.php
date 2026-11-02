@@ -8,7 +8,7 @@
 
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-semibold text-[#1A428A]">IDs de tipos de activo</h1>
+            <h1 class="text-2xl font-semibold text-brand">IDs de tipos de activo</h1>
             <p class="mt-1 text-sm text-gray-500">
                 Configura el identificador único que se usará en la API para consultar requerimientos por tipo.
             </p>
@@ -44,7 +44,7 @@
                     </svg>
                 </span>
                 <input type="text" x-model="search" placeholder="Buscar tipo o empresa…"
-                       class="w-full rounded-md border-gray-300 text-xs pl-8 py-1.5 focus:border-[#1A428A] focus:ring-[#1A428A]">
+                       class="w-full rounded-md border-gray-300 text-xs pl-8 py-1.5 focus:border-brand focus:ring-brand">
             </div>
         </div>
 
@@ -78,9 +78,9 @@
                                        placeholder="ej: vehiculo"
                                        pattern="[a-z0-9\-]+"
                                        title="Solo minúsculas, números y guiones"
-                                       class="w-full rounded-md border-gray-300 text-xs font-mono focus:border-[#1A428A] focus:ring-[#1A428A] py-1.5">
+                                       class="w-full rounded-md border-gray-300 text-xs font-mono focus:border-brand focus:ring-brand py-1.5">
                                 <button type="submit"
-                                        class="shrink-0 px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d]">
+                                        class="shrink-0 px-3 py-1.5 rounded-md bg-brand text-white text-xs font-semibold hover:bg-brand-dark">
                                     Guardar
                                 </button>
                             </form>

@@ -51,7 +51,7 @@
         {{-- Header --}}
         <div class="flex items-start justify-between gap-6">
             <div class="space-y-1">
-                <h1 class="text-2xl font-bold text-[#1A428A]">
+                <h1 class="text-2xl font-bold text-brand">
                     Documento oficial
                 </h1>
 
@@ -88,7 +88,7 @@
 
             <div class="flex items-center gap-2">
                 <a href="{{ route('assets.requirements.show', [$asset, $requirement]) }}"
-                   class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+                   class="px-4 py-2 rounded-md border bg-white text-brand border-brand font-semibold hover:bg-brand-50">
                     Volver
                 </a>
             </div>
@@ -126,7 +126,7 @@
                                 <input type="hidden" name="responsible_user_id" value="{{ $rSug['responsible_user_id'] }}">
                             @endif
                             <button type="submit"
-                                    class="px-4 py-1.5 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                    class="px-4 py-1.5 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                                 Crear tarea
                             </button>
                         </form>
@@ -144,7 +144,7 @@
             {{-- Subir / Reemplazar --}}
             <div class="bg-white border rounded-xl overflow-hidden">
                 <div class="p-5 border-b">
-                    <div class="font-semibold text-[#1A428A]">
+                    <div class="font-semibold text-brand">
                         {{ $currentDoc ? 'Subir nueva versión' : 'Subir documento' }}
                     </div>
 
@@ -184,7 +184,7 @@
                                     <div class="grid grid-cols-3 gap-2">
                                         <button type="button" @click="mode = 'no_dates'"
                                                 :class="mode === 'no_dates'
-                                                    ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                                    ? 'bg-brand text-white border-brand'
                                                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
                                                 class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
                                             Sin fechas<br>
@@ -192,7 +192,7 @@
                                         </button>
                                         <button type="button" @click="mode = 'no_renewal'"
                                                 :class="mode === 'no_renewal'
-                                                    ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                                    ? 'bg-brand text-white border-brand'
                                                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
                                                 class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
                                             Sin renovación<br>
@@ -200,7 +200,7 @@
                                         </button>
                                         <button type="button" @click="mode = 'renewal'"
                                                 :class="mode === 'renewal'
-                                                    ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                                    ? 'bg-brand text-white border-brand'
                                                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
                                                 class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
                                             Con renovación<br>
@@ -263,8 +263,8 @@
                                                    required
                                                    class="block flex-1 rounded-md border border-gray-300 text-sm text-gray-700
                                                           file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0
-                                                          file:text-sm file:font-medium file:bg-[#1A428A] file:text-white
-                                                          hover:file:bg-[#15356d] focus:outline-none">
+                                                          file:text-sm file:font-medium file:bg-brand file:text-white
+                                                          hover:file:bg-brand-dark focus:outline-none">
                                             <button type="button"
                                                     @click="removeSlot(slotId)"
                                                     x-show="slots.length > 1"
@@ -280,7 +280,7 @@
                                 <button type="button"
                                         @click="addSlot()"
                                         x-show="slots.length < 5"
-                                        class="mt-2 flex items-center gap-1.5 text-sm text-[#1A428A] hover:underline font-medium">
+                                        class="mt-2 flex items-center gap-1.5 text-sm text-brand hover:underline font-medium">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
                                     </svg>
@@ -297,7 +297,7 @@
                             </div>
 
                             <button type="submit"
-                                    class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                                    class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark">
                                 {{ $currentDoc ? 'Subir nueva versión' : 'Subir documento' }}
                             </button>
                         </form>
@@ -308,7 +308,7 @@
             {{-- Documento actual --}}
             <div class="bg-white border rounded-xl overflow-hidden">
                 <div class="p-5 border-b">
-                    <div class="font-semibold text-[#1A428A]">Documento actual</div>
+                    <div class="font-semibold text-brand">Documento actual</div>
                     <div class="text-sm text-gray-500">
                        Se muestra la versión actual del documento oficial. Las versiones anteriores permanecen en el historial.
                     </div>
@@ -348,12 +348,12 @@
                             <div class="flex items-center gap-2 shrink-0">
                                 <a href="{{ route('assets.requirements.documents.preview', [$asset, $requirement, $currentDoc]) }}"
                                    target="_blank"
-                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
                                     Ver
                                 </a>
 
                                 <a href="{{ route('assets.requirements.documents.download', [$asset, $requirement, $currentDoc]) }}"
-                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
                                     Descargar
                                 </a>
 
@@ -365,7 +365,7 @@
                                             @js(optional($currentDoc->issued_at)->format('Y-m-d')),
                                             @js(optional($currentDoc->expires_at)->format('Y-m-d'))
                                         )"
-                                        class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                        class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
                                         Editar fechas
                                     </button>
                                 @endif
@@ -400,14 +400,14 @@
         <div class="mt-8 bg-white border rounded-xl overflow-hidden">
             <div class="p-5 border-b flex items-center justify-between">
                 <div>
-                    <div class="font-semibold text-[#1A428A]">Histórico documental</div>
+                    <div class="font-semibold text-brand">Histórico documental</div>
                     <div class="text-sm text-gray-500">
                         Versiones del documento oficial registradas para este requerimiento.
                     </div>
                 </div>
                 @if($hasMoreHistory)
                     <a href="{{ route('assets.requirements.documents.history', [$asset, $requirement]) }}"
-                       class="shrink-0 text-sm font-semibold text-[#1A428A] hover:underline">
+                       class="shrink-0 text-sm font-semibold text-brand hover:underline">
                         Ver historial completo ({{ $documentHistory->count() }})
                     </a>
                 @endif
@@ -458,12 +458,12 @@
                                 <div class="flex items-center gap-2 shrink-0">
                                     <a href="{{ route('assets.requirements.documents.preview', [$asset, $requirement, $historyDoc]) }}"
                                        target="_blank"
-                                       class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                       class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
                                         Ver
                                     </a>
 
                                     <a href="{{ route('assets.requirements.documents.download', [$asset, $requirement, $historyDoc]) }}"
-                                       class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                       class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
                                         Descargar
                                     </a>
 
@@ -489,7 +489,7 @@
                 @if($hasMoreHistory)
                     <div class="mt-3 text-center">
                         <a href="{{ route('assets.requirements.documents.history', [$asset, $requirement]) }}"
-                           class="text-sm font-semibold text-[#1A428A] hover:underline">
+                           class="text-sm font-semibold text-brand hover:underline">
                             Ver {{ $documentHistory->count() - 5 }} versión(es) más →
                         </a>
                     </div>
@@ -518,7 +518,7 @@
             </div>
 
             <div class="p-6 space-y-4">
-                <div class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-[#1A428A]">
+                <div class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-brand">
                     Esta acción eliminará el documento seleccionado. Úsala solo si el archivo fue cargado por error.
                 </div>
 
@@ -563,7 +563,7 @@
                         id="deleteDocumentSubmitButton"
                         type="submit"
                         disabled
-                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold opacity-50 cursor-not-allowed disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="px-4 py-2 rounded-md bg-brand text-white font-semibold opacity-50 cursor-not-allowed disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Confirmar eliminación
                     </button>
@@ -621,7 +621,7 @@
 
                     <button
                         type="submit"
-                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]"
+                        class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark"
                     >
                         Guardar
                     </button>

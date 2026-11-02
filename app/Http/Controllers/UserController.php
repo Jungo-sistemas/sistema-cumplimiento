@@ -20,6 +20,8 @@ class UserController extends Controller
 
         $authUser = auth()->user();
         $search   = trim((string) $request->query('q', ''));
+        $filterCompanyId = $request->integer('company_id') ?: null;
+        $filterRoleId    = $request->integer('role_id') ?: null;
 
         $users = User::with(['role', 'company', 'group', 'jobPositions', 'companies'])
             // Mismo criterio que la búsqueda del superadmin; va aparte del filtro de alcance de
@@ -28,6 +30,13 @@ class UserController extends Controller
                 fn ($q) => $q->where('name', 'ilike', "%{$search}%")
                     ->orWhere('email', 'ilike', "%{$search}%")
             ))
+            // Empresa: la suya o una de sus varias empresas (user_companies). Los de alcance de
+            // grupo no tienen empresa, así que no salen al filtrar por una.
+            ->when($filterCompanyId, fn ($query, $companyId) => $query->where(
+                fn ($q) => $q->where('company_id', $companyId)
+                    ->orWhereHas('companies', fn ($c) => $c->where('companies.id', $companyId))
+            ))
+            ->when($filterRoleId, fn ($query, $roleId) => $query->where('role_id', $roleId))
             ->when($authUser->isGlobalScope(), function ($query) {
                 // global-scope admins see all users except superadmins
                 $query->whereHas('role', fn ($q) => $q->where('slug', '!=', 'superadmin'));
@@ -73,7 +82,15 @@ class UserController extends Controller
             ->groupBy('group_id')
             ->map->values();
 
-        return view('users.index', compact('users', 'roles', 'adminRoleId', 'positionsByGroup', 'companiesByGroup', 'search'));
+        // Opciones de los filtros: las empresas que este admin puede ver y todos los roles que
+        // pueden aparecer en su lista (incluido admin, aunque no pueda asignarlo).
+        $filterCompanies = $companiesByGroup->flatten()->sortBy('name')->values();
+        $filterRoles = Role::where('slug', '!=', 'superadmin')->orderBy('name')->get(['id', 'name']);
+
+        return view('users.index', compact(
+            'users', 'roles', 'adminRoleId', 'positionsByGroup', 'companiesByGroup', 'search',
+            'filterCompanies', 'filterRoles', 'filterCompanyId', 'filterRoleId'
+        ));
     }
 
     public function create()

@@ -5,18 +5,18 @@
 
     <div class="bg-white rounded-xl shadow p-6">
         <div class="flex items-center justify-between gap-4">
-            <h1 class="text-2xl font-semibold text-[#1A428A]">Tablero de cumplimiento</h1>
+            <h1 class="text-2xl font-semibold text-brand">Tablero de cumplimiento</h1>
         </div>
 
         {{-- Cards --}}
         <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div class="bg-white border rounded-lg shadow-sm p-4">
-                <div class="text-sm font-semibold text-[#1A428A]">Activos</div>
+                <div class="text-sm font-semibold text-brand">Activos</div>
                 <div class="mt-2 text-2xl font-bold text-gray-800">{{ $stats['assets'] ?? 0 }}</div>
             </div>
 
             <div class="bg-white border rounded-lg shadow-sm p-4">
-                <div class="text-sm font-semibold text-[#1A428A]">Tareas pendientes</div>
+                <div class="text-sm font-semibold text-brand">Tareas pendientes</div>
                 <div class="mt-2 text-2xl font-bold text-gray-800">{{ $stats['tasks'] ?? 0 }}</div>
             </div>
 
@@ -37,7 +37,7 @@
                 <div class="flex gap-2">
                     <button
                         type="button"
-                        class="dashboard-tab-btn px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold"
+                        class="dashboard-tab-btn px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold"
                         data-tab="requirements"
                     >
                         Requerimientos
@@ -65,7 +65,7 @@
                             value="1"
                             {{ $showAllTasks ? 'checked' : '' }}
                             onchange="this.form.submit()"
-                            class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]"
+                            class="rounded border-gray-300 text-brand focus:ring-brand"
                         >
                     </form>
                 </div>
@@ -95,7 +95,7 @@
                                         <div class="mt-2">
                                             <a
                                                 href="{{ route('assets.requirements.show', [$r->asset, $r]) }}"
-                                                class="text-sm font-medium text-[#1A428A] hover:underline"
+                                                class="text-sm font-medium text-brand hover:underline"
                                             >
                                                 Abrir
                                             </a>
@@ -140,7 +140,7 @@
                                         <div class="mt-2">
                                             <a
                                                 href="{{ route('assets.requirements.show', [$r->asset, $r]) }}"
-                                                class="text-sm font-medium text-[#1A428A] hover:underline"
+                                                class="text-sm font-medium text-brand hover:underline"
                                             >
                                                 Abrir
                                             </a>
@@ -162,7 +162,7 @@
                 <div class="flex flex-wrap gap-2 mb-4">
                     <button
                         type="button"
-                        class="task-subtab-btn px-3 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold"
+                        class="task-subtab-btn px-3 py-2 rounded-md bg-brand text-white text-sm font-semibold"
                         data-subtab="pending"
                     >
                         En tiempo
@@ -204,7 +204,7 @@
                                     <div class="mt-2">
                                         <a
                                             href="{{ route('assets.requirements.show', [$task->requirement->asset, $task->requirement]) }}"
-                                            class="text-sm font-medium text-[#1A428A] hover:underline"
+                                            class="text-sm font-medium text-brand hover:underline"
                                         >
                                             Abrir
                                         </a>
@@ -238,7 +238,7 @@
                                     <div class="mt-2">
                                         <a
                                             href="{{ route('assets.requirements.show', [$task->requirement->asset, $task->requirement]) }}"
-                                            class="text-sm font-medium text-[#1A428A] hover:underline"
+                                            class="text-sm font-medium text-brand hover:underline"
                                         >
                                             Abrir
                                         </a>
@@ -272,7 +272,7 @@
                                     <div class="mt-2">
                                         <a
                                             href="{{ route('assets.requirements.show', [$task->requirement->asset, $task->requirement]) }}"
-                                            class="text-sm font-medium text-[#1A428A] hover:underline"
+                                            class="text-sm font-medium text-brand hover:underline"
                                         >
                                             Abrir
                                         </a>
@@ -305,12 +305,12 @@
                 tasksSwitchWrapper.classList.toggle('hidden', isRequirements);
 
                 dashboardTabButtons.forEach(b => {
-                    b.classList.remove('bg-[#1A428A]', 'text-white');
+                    b.classList.remove('bg-brand', 'text-white');
                     b.classList.add('border', 'text-gray-700');
                 });
 
                 btn.classList.remove('border', 'text-gray-700');
-                btn.classList.add('bg-[#1A428A]', 'text-white');
+                btn.classList.add('bg-brand', 'text-white');
             });
         });
 
@@ -328,12 +328,12 @@
                 overdueTab.classList.toggle('hidden', target !== 'overdue');
 
                 taskSubtabButtons.forEach(b => {
-                    b.classList.remove('bg-[#1A428A]', 'text-white');
+                    b.classList.remove('bg-brand', 'text-white');
                     b.classList.add('border', 'text-gray-700');
                 });
 
                 btn.classList.remove('border', 'text-gray-700');
-                btn.classList.add('bg-[#1A428A]', 'text-white');
+                btn.classList.add('bg-brand', 'text-white');
             });
         });
 

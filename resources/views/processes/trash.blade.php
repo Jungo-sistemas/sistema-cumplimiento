@@ -136,7 +136,7 @@
                                           action="{{ route('processes.trash.restore', $regulation->id) }}">
                                         @csrf
                                         <button type="submit"
-                                                class="px-3 py-1.5 rounded-md bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d]"
+                                                class="px-3 py-1.5 rounded-md bg-brand text-white text-xs font-semibold hover:bg-brand-dark"
                                                 onclick="return confirm('¿Restaurar el procedimiento \"{{ addslashes($regulation->name) }}\"?')">
                                             Restaurar
                                         </button>

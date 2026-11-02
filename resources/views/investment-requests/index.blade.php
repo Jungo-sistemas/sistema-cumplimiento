@@ -8,13 +8,13 @@
 
     {{-- HEADER --}}
     <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-[#1A428A]">Solicitud de Inversiones</h1>
+        <h1 class="text-2xl font-semibold text-brand">Solicitud de Inversiones</h1>
         <div class="flex items-center gap-3">
             @if($user->isAdmin() || $user->isOperative())
                 <button type="button"
                         x-data
                         @click="$dispatch('open-modal', 'create-investment-request')"
-                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                        class="px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                     + Nueva solicitud
                 </button>
             @endif
@@ -49,7 +49,7 @@
         @endif
 
         <button type="submit"
-                class="px-5 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                class="px-5 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
             Filtrar
         </button>
 
@@ -132,7 +132,7 @@
                                         {{ $done }} de {{ $investmentRequest->approvals->count() }} aprobaciones
                                     </div>
                                     @if($myTurn)
-                                        <div class="text-xs font-semibold text-[#1A428A] mt-0.5 whitespace-nowrap">Es tu turno de aprobar</div>
+                                        <div class="text-xs font-semibold text-brand mt-0.5 whitespace-nowrap">Es tu turno de aprobar</div>
                                     @endif
                                 @endif
                             </td>
@@ -203,7 +203,7 @@
                   class="p-6">
                 @csrf
 
-                <h2 class="text-lg font-semibold text-[#1A428A] mb-4">Nueva solicitud de inversión</h2>
+                <h2 class="text-lg font-semibold text-brand mb-4">Nueva solicitud de inversión</h2>
 
                 <div class="space-y-4">
 
@@ -319,7 +319,7 @@
                         <div class="mt-3 space-y-2">
                             @for($i = 1; $i <= $maxApprovers; $i++)
                                 <div x-show="{{ $i }} <= approverCount" class="flex items-center gap-3">
-                                    <span class="h-6 w-6 shrink-0 rounded-full bg-[#1A428A] text-white text-xs font-semibold flex items-center justify-center">{{ $i }}</span>
+                                    <span class="h-6 w-6 shrink-0 rounded-full bg-brand text-white text-xs font-semibold flex items-center justify-center">{{ $i }}</span>
                                     <div class="flex-1 min-w-0">
                                         <select name="approver_ids[]" data-approver-picker>
                                             <option value="">— Persona {{ $i }} —</option>
@@ -368,7 +368,7 @@
                         Cancelar
                     </button>
                     <button type="submit"
-                            class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                            class="px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                         Guardar
                     </button>
                 </div>

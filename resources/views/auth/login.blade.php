@@ -1,84 +1,34 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+<x-layouts.auth title="Iniciar sesión" heading="Iniciar sesión" subtitle="Ingresa con tu correo y contraseña.">
+    <form method="POST" action="{{ route('login') }}" class="space-y-5">
+        @csrf
 
-    <title>Iniciar Sesión - VIGIA</title>
+        <div>
+            <label for="email" class="mb-1.5 block text-sm font-medium text-gray-700">Correo</label>
+            <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username"
+                   class="h-12 w-full rounded-xl border-gray-300 px-4 focus:border-brand focus:ring-brand">
+            @error('email')
+                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+            @enderror
+        </div>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="min-h-screen bg-[#123B82] flex items-center justify-center">
-
-    <div class="w-full max-w-5xl flex flex-col items-center">
-
-        <div class="w-full max-w-md bg-white rounded-2xl shadow-xl p-10">
-
-            <div class="flex flex-col items-center mb-8">
-                <img src="{{ asset('images/vigia-logo.svg') }}" alt="VIGIA" class="h-12 mb-4">
-                <h1 class="text-2xl font-semibold text-gray-800">
-                    Iniciar Sesión
-                </h1>
+        <div>
+            <div class="mb-1.5 flex items-center justify-between">
+                <label for="password" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                <a href="{{ route('password.request') }}" class="text-sm font-medium text-brand hover:underline">¿Olvidaste tu contraseña?</a>
             </div>
-
-            @if (session('status'))
-                <div class="mb-4 text-sm px-3 py-2 rounded border bg-green-50 text-green-800">
-                    {{ session('status') }}
-                </div>
-            @endif
-
-            <form method="POST" action="{{ route('login') }}" class="space-y-6">
-                @csrf
-
-                <div>
-                    <label class="block text-sm text-gray-700 mb-1">Correo</label>
-                    <input
-                        type="email"
-                        name="email"
-                        value="{{ old('email') }}"
-                        required
-                        autofocus
-                        class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600"
-                    >
-                    @error('email')
-                        <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <div class="flex items-center justify-between mb-1">
-                        <label class="block text-sm text-gray-700">Contraseña</label>
-                        <a href="{{ route('password.request') }}"
-                           class="text-xs text-[#1F3F82] hover:underline">
-                            ¿Olvidaste tu contraseña?
-                        </a>
-                    </div>
-                    <input
-                        type="password"
-                        name="password"
-                        required
-                        class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600"
-                    >
-                    @error('password')
-                        <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <button
-                    type="submit"
-                    class="w-full py-3 bg-[#1F3F82] text-white rounded-md font-semibold hover:bg-[#173066] transition"
-                >
-                    Iniciar Sesión
-                </button>
-            </form>
+            <input id="password" type="password" name="password" required autocomplete="current-password"
+                   class="h-12 w-full rounded-xl border-gray-300 px-4 focus:border-brand focus:ring-brand">
+            @error('password')
+                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+            @enderror
         </div>
 
-        <div class="mt-8 text-center text-xs text-white/80">
-            <a href="#" class="underline">Política de Privacidad</a>
-            <div class="mt-2">© {{ date('Y') }} Grupo Vigia. Todos los derechos reservados.</div>
-        </div>
+        <button type="submit" class="h-12 w-full rounded-xl bg-brand font-semibold text-white transition hover:bg-brand-dark">
+            Iniciar sesión
+        </button>
+    </form>
 
-    </div>
-
-</body>
-</html>
+    <x-slot:footer>
+        <a href="#" class="underline hover:text-white">Política de Privacidad</a>
+    </x-slot:footer>
+</x-layouts.auth>
