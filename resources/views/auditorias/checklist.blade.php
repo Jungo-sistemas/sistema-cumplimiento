@@ -98,7 +98,6 @@
             <button type="button" @click="guardado = true; setTimeout(() => guardado = false, 3000)"
                     class="rounded-lg border-2 border-brand px-5 py-2.5 text-sm font-semibold text-brand hover:bg-brand-50">Guardar avance</button>
 
-            {{-- Al construir la pantalla de Resultado, "Finalizar" llevará ahí --}}
             <button type="button" :disabled="capturados < {{ count($criterios) }}"
                     class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50">Finalizar</button>
         </div>
