@@ -3,13 +3,38 @@
 @php
     // Datos de ejemplo: las auditorías finalizadas, que es de donde salen los hallazgos.
     $auditoriasHallazgo = [
-        3 => ['nombre' => 'Manejo de residuos peligrosos · Asesorías Daval', 'responsable' => 'Ana Torres'],
-        4 => ['nombre' => 'Control de documentos · Vigía',                  'responsable' => 'Luis Herrera'],
+        3 => [
+            'nombre' => 'Manejo de residuos peligrosos · Asesorías Daval', 'responsable' => 'Ana Torres',
+            'criterios' => [
+                'Los contenedores están identificados con su etiqueta.',
+                'El almacén temporal cuenta con bitácora de entradas.',
+                'El manifiesto de entrega está firmado por el transportista.',
+            ],
+        ],
+        4 => [
+            'nombre' => 'Control de documentos · Vigía', 'responsable' => 'Luis Herrera',
+            'criterios' => [
+                'Los documentos en planta están en su versión vigente.',
+                'Los cambios tienen registro de aprobación.',
+                'Los documentos obsoletos están retirados del área.',
+            ],
+        ],
     ];
 @endphp
 
-<div x-data="{ abierto: false }"
-     @registrar-hallazgo.window="abierto = true"
+<div x-data="{
+        abierto: false,
+        auditoria: '',
+        criterio: '',
+        auditorias: @js($auditoriasHallazgo),
+        get elegida() { return this.auditorias[this.auditoria] ?? null },
+        abrir(detalle) {
+            this.abierto = true;
+            this.auditoria = detalle.auditoria ? String(detalle.auditoria) : '';
+            this.criterio = '';
+        },
+     }"
+     @registrar-hallazgo.window="abrir($event.detail)"
      @keydown.escape.window="abierto = false"
      x-show="abierto" x-cloak
      class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 backdrop-blur-sm sm:py-10">
@@ -26,7 +51,7 @@
         <form @submit.prevent class="mt-5 space-y-5 rounded-2xl border border-gray-200 bg-gray-50 p-5">
             <div>
                 <label for="hallazgo-auditoria" class="mb-2 block text-sm font-semibold text-gray-900">Auditoría</label>
-                <select id="hallazgo-auditoria" name="auditoria"
+                <select id="hallazgo-auditoria" name="auditoria" x-model="auditoria" @change="criterio = ''"
                         class="h-12 w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand">
                     <option value="">Selecciona</option>
                     @foreach($auditoriasHallazgo as $id => $a)
@@ -37,11 +62,14 @@
 
             <div>
                 <label for="hallazgo-criterio" class="mb-2 block text-sm font-semibold text-gray-900">Criterio del checklist</label>
-                {{-- En el siguiente paso, esta lista muestra solo los criterios de la auditoría elegida --}}
-                <select id="hallazgo-criterio" name="criterio" disabled
+                <select id="hallazgo-criterio" name="criterio" x-model="criterio" :disabled="! elegida"
                         class="h-12 w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand disabled:bg-gray-100 disabled:text-gray-400">
-                    <option value="">Elige primero una auditoría</option>
+                    <option value="" x-text="elegida ? 'Selecciona' : 'Elige primero una auditoría'"></option>
+                    <template x-for="(texto, i) in (elegida ? elegida.criterios : [])" :key="i">
+                        <option :value="i" x-text="(i + 1) + '. ' + texto"></option>
+                    </template>
                 </select>
+
             </div>
 
             <div>
@@ -75,8 +103,10 @@
                 </div>
             </div>
 
-            {{-- En el siguiente paso, aquí aparece la persona auditada de la auditoría elegida --}}
-            <p class="text-sm text-gray-600">Responsable: <span class="text-gray-400">se muestra al elegir la auditoría</span></p>
+            <p class="text-sm text-gray-600">Responsable:
+                <span x-text="elegida ? elegida.responsable : 'se muestra al elegir la auditoría'"
+                      :class="elegida ? 'font-semibold text-gray-900' : 'text-gray-400'"></span>
+            </p>
 
             <div>
                 <label for="hallazgo-soporte" class="mb-2 block text-sm font-semibold text-gray-900">Adjuntar soporte (opcional)</label>

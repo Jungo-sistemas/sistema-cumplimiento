@@ -114,6 +114,7 @@
 
     {{-- Al construir la ventana de "Registrar hallazgo", este botón la abrirá con esta auditoría ya elegida --}}
     <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
-        <button type="button" class="rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">Registrar hallazgo</button>
+        <button type="button" @click="$dispatch('registrar-hallazgo', { auditoria: {{ $audit }} })" class="rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">Registrar hallazgo</button>
     </div>
+    @include('auditorias.partials.register-finding-modal')
 </x-layouts.vigia>
