@@ -108,7 +108,7 @@
                             <td class="px-4 py-5 text-gray-700">{{ $audit['calificacion'] !== null ? $audit['calificacion'].' / 100' : '—' }}</td>
                             <td class="px-4 py-5 text-right">
                                 {{-- "Ver resultado" todavía no existe; al crearlo se cambia el "#" por su ruta --}}
-                                <a href="{{ $tab === 'finalizadas' ? '#' : route('auditorias.audits.checklist', $audit['id']) }}" class="inline-flex rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">{{ $tab === 'finalizadas' ? 'Ver resultado' : 'Consultar' }}</a>
+                                <a href="{{ $tab === 'finalizadas' ? route('auditorias.audits.result', $audit['id']) : route('auditorias.audits.checklist', $audit['id']) }}" class="inline-flex rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">{{ $tab === 'finalizadas' ? 'Ver resultado' : 'Consultar' }}</a>
                             </td>
                         </tr>
                     @empty
