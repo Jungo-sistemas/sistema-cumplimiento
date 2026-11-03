@@ -52,7 +52,7 @@
         severidad: '',
         fecha: '',
         guardado: false,
-         comentario: '',
+        comentario: '',
         errorComentario: '',
         mensaje: '',
         auditor: @js(auth()->user()->name),
@@ -91,7 +91,8 @@
             let texto;
             if (! acepta) {
                 texto = 'Solicitó otra corrección: ' + this.comentario.trim();
-                this.h.seguimiento = 'Rechazada';
+                // Rechazar el plan lo regresa a escribirse; rechazar la evidencia solo pide otra prueba.
+                this.h.seguimiento = this.revision === 'causa' ? 'Rechazada' : 'Sin cargar';
             } else if (this.revision === 'causa') {
                 texto = 'Causa raíz y acción aceptadas.';
                 this.h.seguimiento = 'Sin cargar';
@@ -123,6 +124,7 @@
             <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="colores.seguimiento[h.seguimiento]" x-text="h.seguimiento"></span>
             <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700" x-text="h.empresa"></span>
         </div>
+        <p x-show="mensaje" x-transition class="text-sm font-semibold text-green-700" x-text="mensaje"></p>
 
         {{-- Clasificar no conformidad --}}
         <div class="rounded-2xl border border-gray-200 p-5">
@@ -215,5 +217,4 @@
             </ul>
         </div>
     </div>
-    <p x-show="mensaje" x-transition class="text-sm font-semibold text-green-700" x-text="mensaje"></p>
 </div>
