@@ -135,8 +135,7 @@
                             </td>
                             <td class="px-4 py-5 whitespace-nowrap text-gray-700">{{ $h['compromiso'] }}</td>
                             <td class="px-4 py-5 text-right">
-                                {{-- El detalle y las revisiones se construyen más adelante; al crearlos se cambia el "#" --}}
-                                <a href="#" class="whitespace-nowrap inline-flex rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">{{ $acciones[$h['seguimiento']] ?? 'Abrir' }}</a>
+                                <button type="button" @click="$dispatch('abrir-hallazgo', @js($h))" class="whitespace-nowrap inline-flex rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">{{ $acciones[$h['seguimiento']] ?? 'Abrir' }}</button>
                             </td>
                         </tr>
                     @empty
@@ -150,4 +149,5 @@
     </div>
 
     @include('auditorias.partials.register-finding-modal')
+    @include('auditorias.partials.finding-detail-modal')
 </x-layouts.vigia>
