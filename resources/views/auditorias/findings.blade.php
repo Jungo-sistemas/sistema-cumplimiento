@@ -65,8 +65,7 @@
             'title'    => 'Hallazgos',
             'subtitle' => 'Causas raíz, acciones y evidencias de cada hallazgo en un solo seguimiento.',
         ])
-        {{-- La ventana para registrar se construye más adelante; por ahora el botón no abre nada --}}
-        <button type="button" class="rounded-lg bg-brand px-5 py-3 text-[15px] font-semibold text-white hover:bg-brand-dark">+ Registrar hallazgo</button>
+        <button type="button" @click="$dispatch('registrar-hallazgo')" class="rounded-lg bg-brand px-5 py-3 text-[15px] font-semibold text-white hover:bg-brand-dark">+ Registrar hallazgo</button>
     </div>
 
     {{-- Pestañas --}}
@@ -149,4 +148,6 @@
             </table>
         </div>
     </div>
+
+    @include('auditorias.partials.register-finding-modal')
 </x-layouts.vigia>
