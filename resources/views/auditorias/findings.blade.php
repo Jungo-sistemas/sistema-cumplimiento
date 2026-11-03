@@ -1,3 +1,4 @@
+@use('Illuminate\Support\Carbon')
 <x-layouts.vigia title="Hallazgos · Auditorías">
     <x-slot name="breadcrumb">
         <span>Auditorías</span>
@@ -16,12 +17,12 @@
 
         // Datos de ejemplo para la demo. Cuando existan las tablas, esto lo manda el controlador.
         $hallazgos = [
-            ['codigo' => 'HAL-001', 'titulo' => 'Bitácora de maniobras sin firma del supervisor', 'empresa' => 'Asesorías Daval', 'responsable' => 'Laura Méndez',  'severidad' => 'Mayor',   'seguimiento' => 'Causa raíz por revisar', 'compromiso' => '25 sep 2026'],
-            ['codigo' => 'HAL-002', 'titulo' => 'Equipo de protección incompleto en patio',       'empresa' => 'Asesorías Daval', 'responsable' => 'Laura Méndez',  'severidad' => 'Crítico', 'seguimiento' => 'Por enviar',             'compromiso' => '18 sep 2026'],
-            ['codigo' => 'HAL-003', 'titulo' => 'Registro de temperatura sin capturar',           'empresa' => 'Vigía',           'responsable' => 'Jorge Salinas', 'severidad' => 'Menor',   'seguimiento' => 'Evidencia por revisar',  'compromiso' => '30 sep 2026'],
-            ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta',          'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres',    'severidad' => 'Mayor',   'seguimiento' => 'Rechazada',              'compromiso' => '10 sep 2026'],
-            ['codigo' => 'HAL-005', 'titulo' => 'Capacitación de montacarguistas vencida',        'empresa' => 'Vigía',           'responsable' => 'Jorge Salinas', 'severidad' => 'Crítico', 'seguimiento' => 'Sin cargar',             'compromiso' => '15 oct 2026'],
-            ['codigo' => 'HAL-006', 'titulo' => 'Versión obsoleta del procedimiento en planta',   'empresa' => 'Vigía',           'responsable' => 'Luis Herrera',  'severidad' => 'Menor',   'seguimiento' => 'Cerrado',                'compromiso' => '05 sep 2026'],
+            ['codigo' => 'HAL-001', 'titulo' => 'Bitácora de maniobras sin firma del supervisor', 'empresa' => 'Asesorías Daval', 'responsable' => 'Laura Méndez',  'severidad' => 'Mayor',   'seguimiento' => 'Causa raíz por revisar', 'compromiso' => '2026-11-25'],
+            ['codigo' => 'HAL-002', 'titulo' => 'Equipo de protección incompleto en patio',       'empresa' => 'Asesorías Daval', 'responsable' => 'Laura Méndez',  'severidad' => 'Crítico', 'seguimiento' => 'Por enviar',             'compromiso' => '2026-12-20'],
+            ['codigo' => 'HAL-003', 'titulo' => 'Registro de temperatura sin capturar',           'empresa' => 'Vigía',           'responsable' => 'Jorge Salinas', 'severidad' => 'Menor',   'seguimiento' => 'Evidencia por revisar',  'compromiso' => '2026-09-30'],
+            ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta',          'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres',    'severidad' => 'Mayor',   'seguimiento' => 'Rechazada',              'compromiso' => '2026-09-10'],
+            ['codigo' => 'HAL-005', 'titulo' => 'Capacitación de montacarguistas vencida',        'empresa' => 'Vigía',           'responsable' => 'Jorge Salinas', 'severidad' => 'Crítico', 'seguimiento' => 'Sin cargar',             'compromiso' => '2026-10-15'],
+            ['codigo' => 'HAL-006', 'titulo' => 'Versión obsoleta del procedimiento en planta',   'empresa' => 'Vigía',           'responsable' => 'Luis Herrera',  'severidad' => 'Menor',   'seguimiento' => 'Cerrado',                'compromiso' => '2026-09-05'],
         ];
 
         $filtros  = array_filter(request()->only(['empresa', 'seguimiento', 'q']));
@@ -36,7 +37,9 @@
             ->when($tab === 'todos' ? ($filtros['seguimiento'] ?? null) : null, fn ($c, $seguimiento) => $c->where('seguimiento', $seguimiento))
             ->when($filtros['q'] ?? null, fn ($c, $q) => $c->filter(
                 fn ($h) => str_contains(mb_strtolower($h['codigo'].' '.$h['titulo']), mb_strtolower($q))
-            ));
+            ))
+            // Vencido: sigue abierto y su fecha compromiso ya pasó (antes de hoy).
+            ->map(fn ($h) => $h + ['vencido' => $h['seguimiento'] !== 'Cerrado' && Carbon::parse($h['compromiso'])->lt(today())]);
 
         $severidades = [
             'Crítico' => 'bg-red-50 text-red-700',
@@ -133,7 +136,12 @@
                             <td class="px-4 py-5">
                                 <span class="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold {{ $seguimientos[$h['seguimiento']] }}">{{ $h['seguimiento'] }}</span>
                             </td>
-                            <td class="px-4 py-5 whitespace-nowrap text-gray-700">{{ $h['compromiso'] }}</td>
+                            <td class="px-4 py-5 whitespace-nowrap">
+                                <div class="{{ $h['vencido'] ? 'font-semibold text-red-700' : 'text-gray-700' }}">{{ Carbon::parse($h['compromiso'])->locale('es')->isoFormat('DD MMM YYYY') }}</div>
+                                @if($h['vencido'])
+                                    <span class="mt-1 inline-flex rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">Vencido</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-5 text-right">
                                 <button type="button" @click="$dispatch('abrir-hallazgo', @js($h))" class="whitespace-nowrap inline-flex rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">{{ $acciones[$h['seguimiento']] ?? 'Abrir' }}</button>
                             </td>

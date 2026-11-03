@@ -4,14 +4,14 @@
     // Datos de ejemplo que la lista no muestra. Con la base de datos vendrán del mismo hallazgo.
     $detallesHallazgo = [
         'HAL-001' => [
-            'registro' => '11 sep 2026', 'limite' => '18 sep 2026', 'fecha' => '2026-09-25', 'clausula' => '7.5.3', 'cierre' => 'Inicia al aceptar el plan',
+            'registro' => '11 sep 2026', 'limite' => '18 sep 2026', 'fecha' => '2026-11-25', 'clausula' => '7.5.3', 'cierre' => 'Inicia al aceptar el plan',
             'causa'    => 'El supervisor del turno no sabía que debía firmar la bitácora antes de iniciar las maniobras.',
             'accion'   => 'Agregar la firma del supervisor al formato de la bitácora y capacitar a los supervisores de turno.',
             'evidencia' => null,
             'historial' => ['11 sep 2026 · Daniel Ruiz: Hallazgo registrado.', '16 sep 2026 · Laura Méndez: Causa raíz y acción correctiva enviadas.'],
         ],
         'HAL-002' => [
-            'registro' => '11 sep 2026', 'limite' => '18 sep 2026', 'fecha' => '2026-09-18', 'clausula' => '8.1', 'cierre' => 'Inicia al aceptar el plan',
+            'registro' => '11 sep 2026', 'limite' => '18 sep 2026', 'fecha' => '2026-12-20', 'clausula' => '8.1', 'cierre' => 'Inicia al aceptar el plan',
             'causa' => null, 'accion' => null, 'evidencia' => null,
             'historial' => ['11 sep 2026 · Daniel Ruiz: Hallazgo registrado.'],
         ],
