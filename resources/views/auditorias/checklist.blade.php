@@ -38,6 +38,7 @@
     {{-- Todo lo de adentro comparte estos datos "vivos" de Alpine --}}
     <div x-data="{
             respuestas: @js(array_fill(0, count($criterios), ['resultado' => '', 'calificacion' => ''])),
+            guardado: false,
             tieneCalificacion(r) { return r.calificacion !== '' && r.calificacion !== null },
             fueraDeRango(r) { return this.tieneCalificacion(r) && (r.calificacion < 0 || r.calificacion > 100) },
             capturado(r) { return r.resultado !== '' && this.tieneCalificacion(r) && ! this.fueraDeRango(r) },
@@ -88,6 +89,18 @@
                     </div>
                 </div>
             @endforeach
+        </div>
+        {{-- Botones. En la demo todavía no guardan en la base de datos. --}}
+        <div class="mt-6 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-gray-200 bg-white p-6">
+            <span x-show="guardado" x-cloak x-transition class="mr-auto text-sm font-semibold text-green-700">Avance guardado (demo: todavía no se guarda en la base de datos).</span>
+            <span x-show="! guardado && capturados < {{ count($criterios) }}" class="mr-auto text-sm text-gray-600">Para finalizar, captura resultado y calificación en todos los criterios.</span>
+
+            <button type="button" @click="guardado = true; setTimeout(() => guardado = false, 3000)"
+                    class="rounded-lg border-2 border-brand px-5 py-2.5 text-sm font-semibold text-brand hover:bg-brand-50">Guardar avance</button>
+
+            {{-- Al construir la pantalla de Resultado, "Finalizar" llevará ahí --}}
+            <button type="button" :disabled="capturados < {{ count($criterios) }}"
+                    class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50">Finalizar</button>
         </div>
     </div>
 </x-layouts.vigia>
