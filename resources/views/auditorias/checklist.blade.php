@@ -39,10 +39,13 @@
     <div x-data="{
             respuestas: @js(array_fill(0, count($criterios), ['resultado' => '', 'calificacion' => ''])),
             guardado: false,
+            confirmando: false,
+            finalizada: false,
             tieneCalificacion(r) { return r.calificacion !== '' && r.calificacion !== null },
             fueraDeRango(r) { return this.tieneCalificacion(r) && (r.calificacion < 0 || r.calificacion > 100) },
             capturado(r) { return r.resultado !== '' && this.tieneCalificacion(r) && ! this.fueraDeRango(r) },
             get capturados() { return this.respuestas.filter(r => this.capturado(r)).length },
+            get promedio() { return Math.round(this.respuestas.reduce((suma, r) => suma + r.calificacion, 0) / this.respuestas.length) },
          }">
 
         {{-- Sesión de Teams y avance --}}
@@ -55,7 +58,7 @@
         </div>
 
         {{-- Un bloque por criterio --}}
-        <div class="space-y-6">
+        <fieldset :disabled="confirmando || finalizada" class="space-y-6">
             @foreach($criterios as $i => $criterio)
                 <div class="rounded-2xl border border-gray-200 bg-white p-6">
                     <h3 class="text-lg font-semibold text-gray-900">{{ $i + 1 }}. {{ $criterio['texto'] }}</h3>
@@ -89,9 +92,9 @@
                     </div>
                 </div>
             @endforeach
-        </div>
+        </fieldset>
         {{-- Botones. En la demo todavía no guardan en la base de datos. --}}
-        <div class="mt-6 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-gray-200 bg-white p-6">
+        <div class="mt-6 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-gray-200 bg-white p-6" x-show="! confirmando && ! finalizada">
             <span x-show="guardado" x-cloak x-transition class="mr-auto text-sm font-semibold text-green-700">Avance guardado (demo: todavía no se guarda en la base de datos).</span>
             <span x-show="! guardado && capturados < {{ count($criterios) }}" class="mr-auto text-sm text-gray-600">Para finalizar, captura resultado y calificación en todos los criterios.</span>
 
@@ -99,7 +102,24 @@
                     class="rounded-lg border-2 border-brand px-5 py-2.5 text-sm font-semibold text-brand hover:bg-brand-50">Guardar avance</button>
 
             <button type="button" :disabled="capturados < {{ count($criterios) }}"
-                    class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50">Finalizar</button>
+                    class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50" @click="confirmando = true">Finalizar</button>
+        </div>
+
+        {{-- Pregunta antes de finalizar --}}
+        <div x-show="confirmando" x-cloak x-transition class="mt-6 rounded-2xl border-2 border-brand-100 bg-brand-50 p-6">
+            <p class="font-semibold text-brand-ink">¿Finalizar la auditoría?</p>
+            <p class="mt-1 text-sm text-gray-600">Ya no podrás cambiar las respuestas. La calificación final será de <span class="font-semibold text-gray-900" x-text="promedio"></span> / 100.</p>
+            <div class="mt-4 flex justify-end gap-3">
+                <button type="button" @click="confirmando = false" class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancelar</button>
+                <button type="button" @click="finalizada = true; confirmando = false" class="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">Sí, finalizar</button>
+            </div>
+        </div>
+
+        {{-- Ya finalizada (demo): con la base de datos, aquí ya se habrá guardado --}}
+        <div x-show="finalizada" x-cloak class="mt-6 rounded-2xl border border-green-200 bg-green-50 p-6">
+            <p class="font-semibold text-green-800">Auditoría finalizada (demo). Calificación final: <span x-text="promedio"></span> / 100.</p>
+            <p class="mt-1 text-sm text-green-700">Cuando exista la base de datos, se guardará y aparecerá en la pestaña Finalizadas.</p>
+            <a href="{{ route('auditorias.audits.index', ['tab' => 'finalizadas']) }}" class="mt-4 inline-flex rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">Ir a Finalizadas</a>
         </div>
     </div>
 </x-layouts.vigia>
