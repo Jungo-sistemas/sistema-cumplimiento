@@ -189,6 +189,8 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::prefix('auditorias')->name('auditorias.')->group(function () {
         Route::view('/', 'auditorias.home')->name('home');
         Route::view('/lista', 'auditorias.audits')->name('audits.index');
+        Route::view('/{audit}/checklist', 'auditorias.checklist')->whereNumber('audit')->name('audits.checklist');
+        Route::view('/{audit}/resultado', 'auditorias.result')->whereNumber('audit')->name('audits.result');
         Route::view('/hallazgos', 'auditorias.findings')->name('findings.index');
         Route::view('/ayuda', 'auditorias.help')->name('help');
     });

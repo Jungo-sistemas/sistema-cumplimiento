@@ -1,62 +1,54 @@
 <x-layouts.vigia title="Inicio · Auditorías">
-    <x-slot name="breadcrumb">
-        <span>Auditorías</span>
-        <span class="text-gray-400">›</span>
-        <span class="text-gray-700 font-medium">Inicio</span>
-    </x-slot>
-
     @php
         // Datos de ejemplo para la demo. Cuando existan las tablas, esto lo manda el controlador.
         $cards = [
-            ['label' => 'Auditorías en ejecución', 'valor' => 2, 'boton' => 'Ver auditorías',       'url' => route('auditorias.audits.index', ['tab' => 'ejecucion'])],
-            ['label' => 'Hallazgos abiertos',      'valor' => 5, 'boton' => 'Ver hallazgos',        'url' => route('auditorias.findings.index')],
-            ['label' => 'Auditorías finalizadas',  'valor' => 2, 'boton' => 'Consultar auditorías', 'url' => route('auditorias.audits.index', ['tab' => 'finalizadas'])],
+            ['label' => 'Auditorías en ejecución', 'valor' => 2, 'texto' => 'Captura del checklist durante la llamada de Teams.',  'boton' => 'Ver auditorías',       'url' => route('auditorias.audits.index', ['tab' => 'ejecucion'])],
+            ['label' => 'Hallazgos abiertos',      'valor' => 5, 'texto' => 'Seguimiento de causas raíz y acciones correctivas.', 'boton' => 'Ver hallazgos',        'url' => route('auditorias.findings.index')],
+            ['label' => 'Auditorías finalizadas',  'valor' => 2, 'texto' => 'Resultados publicados de tus auditorías asignadas.', 'boton' => 'Consultar auditorías', 'url' => route('auditorias.audits.index', ['tab' => 'finalizadas'])],
         ];
 
         $pendientes = [
-            ['procedimiento' => 'Control de maniobras y seguridad', 'empresa' => 'Asesorías Daval', 'estado' => 'En captura'],
-            ['procedimiento' => 'Recepción de materia prima',       'empresa' => 'Vigía',           'estado' => 'Programada'],
+            ['id' => 1, 'procedimiento' => 'Control de maniobras y seguridad', 'estado' => 'En captura'],
+            ['id' => 2, 'procedimiento' => 'Recepción de materia prima',       'estado' => 'Programada'],
         ];
     @endphp
 
-    <div class="bg-white rounded-xl shadow p-6 space-y-8">
-        <div>
-            <h1 class="text-2xl font-semibold text-brand">Hola, {{ auth()->user()->name }}</h1>
-            <p class="mt-1 text-sm text-gray-600">Continúa las auditorías que tienes asignadas.</p>
-        </div>
+    {{-- Mismo título de página que usa la vista de auditado --}}
+    @include('mi-espacio.partials.header', [
+        'title'    => 'Inicio',
+        'subtitle' => 'Hola, ' . \Illuminate\Support\Str::of(auth()->user()->name)->before(' ') . '. Continúa las auditorías que tienes asignadas.',
+    ])
 
-        {{-- Tarjetas resumen --}}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            @foreach($cards as $card)
-                <div class="border rounded-lg shadow-sm p-4 flex flex-col">
-                    <div class="text-sm font-semibold text-brand">{{ $card['label'] }}</div>
-                    <div class="mt-2 text-3xl font-bold text-gray-800">{{ $card['valor'] }}</div>
-                    <a href="{{ $card['url'] }}" class="mt-4 text-sm font-medium text-brand hover:underline">{{ $card['boton'] }} →</a>
+    {{-- Tarjetas resumen --}}
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+        @foreach($cards as $card)
+            <div class="flex flex-col rounded-2xl border border-gray-200 bg-white p-7">
+                <h2 class="text-lg font-semibold text-gray-900">{{ $card['label'] }}</h2>
+                <div class="mt-4 text-5xl font-extrabold text-brand-ink">{{ $card['valor'] }}</div>
+                <p class="mt-5 text-[15px] text-gray-600">{{ $card['texto'] }}</p>
+                <div class="mt-6">
+                    <a href="{{ $card['url'] }}" class="inline-flex rounded-lg bg-brand-50 px-5 py-3 text-[15px] font-semibold text-brand hover:bg-brand-100">{{ $card['boton'] }}</a>
                 </div>
-            @endforeach
-        </div>
-
-        {{-- Continuar auditoría --}}
-        <div>
-            <h2 class="text-lg font-semibold text-gray-800 mb-3">Continuar auditoría</h2>
-
-            <div class="border rounded-lg divide-y">
-                @forelse($pendientes as $audit)
-                    <div class="flex items-center justify-between gap-4 p-4">
-                        <div>
-                            <div class="font-medium text-gray-800">{{ $audit['procedimiento'] }}</div>
-                            <div class="text-xs text-gray-500">{{ $audit['empresa'] }}</div>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="rounded-full px-2.5 py-0.5 text-xs font-medium {{ $audit['estado'] === 'En captura' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700' }}">{{ $audit['estado'] }}</span>
-                            {{-- Todavía no existe la pantalla del checklist; al crearla se cambia el "#" por su ruta --}}
-                            <a href="#" class="rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">Continuar checklist</a>
-                        </div>
-                    </div>
-                @empty
-                    <p class="p-4 text-sm text-gray-500">No tienes auditorías pendientes.</p>
-                @endforelse
             </div>
+        @endforeach
+    </div>
+
+    {{-- Continuar auditoría --}}
+    <div class="mt-8 rounded-2xl border border-gray-200 bg-white p-7">
+        <h2 class="text-xl font-semibold text-gray-900">Continuar auditoría</h2>
+
+        <div class="mt-3 divide-y divide-gray-200">
+            @forelse($pendientes as $audit)
+                <div class="flex flex-wrap items-center justify-between gap-4 py-5">
+                    <div>
+                        <div class="text-lg font-semibold text-gray-900">{{ $audit['procedimiento'] }}</div>
+                        <div class="mt-2 text-[15px] text-gray-600">{{ $audit['estado'] }}</div>
+                    </div>
+                    <a href="{{ route('auditorias.audits.checklist', $audit['id']) }}" class="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">Continuar checklist</a>
+                </div>
+            @empty
+                <p class="mt-5 text-[15px] text-gray-600">No tienes auditorías pendientes.</p>
+            @endforelse
         </div>
     </div>
 </x-layouts.vigia>

@@ -2,31 +2,23 @@
     <x-slot name="breadcrumb">
         <span>Auditorías</span>
         <span class="text-gray-400">›</span>
-        <span class="text-gray-700 font-medium">Ayuda</span>
+        <span class="font-medium text-gray-700">Ayuda</span>
     </x-slot>
 
-    <div class="bg-white rounded-xl shadow p-6 space-y-6">
-        <div class="space-y-2">
-            <h1 class="text-2xl font-semibold text-brand">Ayuda</h1>
-            <p class="text-sm text-gray-600">Auditorías realizadas durante una llamada de Teams.</p>
-        </div>
+    @include('mi-espacio.partials.header', [
+        'title'    => 'Ayuda',
+        'subtitle' => 'Auditorías realizadas durante una llamada de Teams.',
+    ])
 
-        <div class="divide-y border-y">
-            <details class="py-4" open>
-                <summary class="cursor-pointer text-sm font-semibold text-brand">Capturar checklist</summary>
-                <p class="mt-2 text-sm text-gray-700">
-                    El auditor asignado captura respuestas, puntajes y observaciones durante la llamada.
-                    Puede guardar avance y finalizar para publicar el resultado.
-                </p>
+    <div class="divide-y divide-gray-200 rounded-2xl border border-gray-200 bg-white px-8">
+        @foreach([
+            'Capturar checklist'               => 'El auditor asignado captura respuestas, puntajes y observaciones durante la llamada. Puede guardar avance y finalizar para publicar el resultado.',
+            'Hallazgos y acciones correctivas' => 'El auditor registra los hallazgos. Su seguimiento conserva las causas raíz, acciones y evidencias en la actividad correspondiente.',
+        ] as $seccion => $texto)
+            <details class="py-5" open>
+                <summary class="cursor-pointer text-base font-semibold text-brand">{{ $seccion }}</summary>
+                <p class="mt-2 text-[15px] text-gray-700">{{ $texto }}</p>
             </details>
-
-            <details class="py-4" open>
-                <summary class="cursor-pointer text-sm font-semibold text-brand">Hallazgos y acciones correctivas</summary>
-                <p class="mt-2 text-sm text-gray-700">
-                    El auditor registra los hallazgos. Su seguimiento conserva las causas raíz, acciones y
-                    evidencias en la actividad correspondiente.
-                </p>
-            </details>
-        </div>
+        @endforeach
     </div>
 </x-layouts.vigia>
