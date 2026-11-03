@@ -61,4 +61,59 @@
             <div class="mt-2 text-xl font-bold text-brand-ink">{{ auth()->user()->name }}</div>
         </div>
     </div>
+
+    {{-- Qué necesitas corregir: solo los criterios "No cumple" --}}
+    <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
+        <h2 class="text-lg font-semibold text-gray-900">Qué necesitas corregir</h2>
+
+        <div class="mt-3 divide-y divide-gray-200">
+            @forelse($incumplimientos as $i => $criterio)
+                <div class="flex flex-wrap items-start justify-between gap-4 py-5">
+                    <div>
+                        <div class="font-semibold text-gray-900">{{ $i + 1 }}. {{ $criterio['texto'] }}</div>
+                        <p class="mt-1 text-[15px] text-gray-700">{{ $criterio['observacion'] }}</p>
+                        <p class="mt-3 text-sm text-gray-500">Calificación del criterio: {{ $criterio['calificacion'] }} / 100</p>
+                    </div>
+                    <span class="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">No cumple</span>
+                </div>
+            @empty
+                <p class="py-5 text-[15px] text-gray-600">Todos los criterios se cumplieron. No hay nada que corregir.</p>
+            @endforelse
+        </div>
+    </div>
+
+    {{-- Evaluación completa: se abre y se cierra con un clic --}}
+    <details class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
+        <summary class="cursor-pointer text-base font-semibold text-brand">Consultar evaluación completa</summary>
+
+        <div class="mt-4 overflow-x-auto rounded-xl border border-gray-200">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-500">
+                    <tr>
+                        <th class="px-4 py-4">Criterio</th>
+                        <th class="px-4 py-4">Resultado</th>
+                        <th class="px-4 py-4 text-right">Calificación</th>
+                        <th class="px-4 py-4">Observación del auditor</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    @foreach($criterios as $criterio)
+                        <tr>
+                            <td class="px-4 py-4 text-gray-900">{{ $criterio['texto'] }}</td>
+                            <td class="px-4 py-4">
+                                <span class="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold {{ $criterio['resultado'] === 'cumple' ? 'bg-gray-100 text-gray-700' : 'bg-red-50 text-red-700' }}">{{ $criterio['resultado'] === 'cumple' ? 'Cumple' : 'No cumple' }}</span>
+                            </td>
+                            <td class="px-4 py-4 text-right text-gray-900">{{ $criterio['calificacion'] }}</td>
+                            <td class="px-4 py-4 text-gray-700">{{ $criterio['observacion'] }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </details>
+
+    {{-- Al construir la ventana de "Registrar hallazgo", este botón la abrirá con esta auditoría ya elegida --}}
+    <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
+        <button type="button" class="rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">Registrar hallazgo</button>
+    </div>
 </x-layouts.vigia>
