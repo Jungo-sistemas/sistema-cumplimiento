@@ -52,6 +52,16 @@
         severidad: '',
         fecha: '',
         guardado: false,
+         comentario: '',
+        errorComentario: '',
+        mensaje: '',
+        auditor: @js(auth()->user()->name),
+        get revision() {
+            // Qué le toca revisar al auditor en este hallazgo (o nada)
+            if (this.h.seguimiento === 'Causa raíz por revisar') return 'causa';
+            if (this.h.seguimiento === 'Evidencia por revisar') return 'evidencia';
+            return null;
+        },
         detalles: @js($detallesHallazgo),
         colores: @js(['severidad' => $severidades, 'seguimiento' => $seguimientos]),
         abrir(fila) {
@@ -60,12 +70,39 @@
             this.severidad = this.h.severidad;
             this.fecha = this.h.fecha ?? '';
             this.guardado = false;
+            this.comentario = '';
+            this.errorComentario = '';
+            this.mensaje = '';
             this.abierto = true;
         },
         guardarClasificacion() {
             this.h.severidad = this.severidad;
             this.guardado = true;
             setTimeout(() => this.guardado = false, 3000);
+        },
+        decidir(acepta) {
+            this.errorComentario = '';
+            if (! acepta && ! this.comentario.trim()) {
+                this.errorComentario = 'Escribe un comentario para explicar qué debe corregir.';
+                return;
+            }
+
+            const hoy = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+            let texto;
+            if (! acepta) {
+                texto = 'Solicitó otra corrección: ' + this.comentario.trim();
+                this.h.seguimiento = 'Rechazada';
+            } else if (this.revision === 'causa') {
+                texto = 'Causa raíz y acción aceptadas.';
+                this.h.seguimiento = 'Sin cargar';
+            } else {
+                texto = 'Evidencia aceptada. Hallazgo cerrado.';
+                this.h.seguimiento = 'Cerrado';
+            }
+
+            this.h.historial = [...(this.h.historial ?? []), hoy + ' · ' + this.auditor + ': ' + texto];
+            this.comentario = '';
+            this.mensaje = 'Decisión registrada (demo).';
         },
      }"
      @abrir-hallazgo.window="abrir($event.detail)"
@@ -150,6 +187,24 @@
             <p x-show="! h.evidencia" class="mt-2 text-[15px] text-gray-500">Sin evidencia cargada.</p>
         </div>
 
+        {{-- Decisión del auditor: solo cuando le toca revisar la causa raíz o la evidencia --}}
+        <div x-show="revision" class="rounded-2xl border-2 border-brand-100 bg-brand-50 p-5">
+            <h3 class="font-semibold text-gray-900" x-text="revision === 'causa' ? 'Decisión del auditor: causa raíz y acción correctiva' : 'Decisión del auditor: evidencia de la corrección'"></h3>
+
+            <label for="detalle-comentario" class="mb-2 mt-4 block text-sm font-semibold text-gray-900">Comentarios</label>
+            <textarea id="detalle-comentario" x-model="comentario" rows="3" placeholder="Obligatorio si solicitas otra corrección"
+                      class="w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand"></textarea>
+            <p x-show="errorComentario" x-text="errorComentario" class="mt-1 text-sm text-red-600"></p>
+
+            <div class="mt-4 flex flex-wrap gap-3">
+                <button type="button" @click="decidir(false)"
+                        class="rounded-lg border-2 border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-brand-ink hover:bg-gray-50">Solicitar otra corrección</button>
+                <button type="button" @click="decidir(true)"
+                        class="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
+                        x-text="revision === 'causa' ? 'Aceptar causa raíz y acción' : 'Aceptar evidencia'"></button>
+            </div>
+        </div>
+
         {{-- Seguimiento --}}
         <div class="rounded-2xl border border-gray-200 p-5">
             <h3 class="font-semibold text-gray-900">Seguimiento</h3>
@@ -160,4 +215,5 @@
             </ul>
         </div>
     </div>
+    <p x-show="mensaje" x-transition class="text-sm font-semibold text-green-700" x-text="mensaje"></p>
 </div>
