@@ -188,6 +188,89 @@ class ProcessFlowAdjustmentsTest extends TestCase
         $this->assertSame('medio', Regulation::where('code', 'ALC-900')->value('evaluation_impact'));
     }
 
+    public function test_mis_aprobaciones_siempre_visible_y_aprobar_dos_veces_no_truena(): void
+    {
+        Notification::fake();
+        $regulation = $this->regulation('pending_review');
+        $lider = $this->liderWithFlow($regulation);
+        app(\App\Services\ApprovalFlowService::class)->resubmit($regulation->fresh(), notify: false);
+
+        $this->actingAs($lider)->post(route('processes.approve', $regulation))->assertSessionHas('success');
+
+        // Segundo envío (doble clic / recarga): ya no hay pendiente, regresa a la lista sin 403.
+        $this->actingAs($lider)->post(route('processes.approve', $regulation))
+            ->assertRedirect(route('my-approvals.index'));
+
+        // Sin pendientes: el menú sigue mostrando la liga y la pantalla dice "Todo al día".
+        $this->actingAs($lider)->get(route('my-approvals.index'))
+            ->assertOk()
+            ->assertSee('Todo al día')
+            ->assertSee(route('my-approvals.index'), false);
+
+        $this->actingAs($lider)->get(route('mi-espacio.home'))
+            ->assertOk()
+            ->assertSee(route('my-approvals.index'), false);
+    }
+
+    public function test_evidencias_de_apoyo_al_reenviar_maximo_tres_y_se_pueden_quitar(): void
+    {
+        Storage::fake('private');
+        Notification::fake();
+        $regulation = $this->regulation('rejected');
+        $img = fn (string $n) => UploadedFile::fake()->image($n);
+
+        $this->actingAs($this->admin)->post(route('processes.resubmit', $regulation), [
+            'change_evidences' => [$img('aprobo-ana.png'), $img('aprobo-beto.png')],
+        ])->assertSessionHas('success');
+        $this->assertSame(2, $regulation->changeEvidences()->count());
+
+        // Dos más darían 4: se rechaza sin tocar nada.
+        Regulation::whereKey($regulation->id)->update(['approval_status' => 'rejected']);
+        $this->actingAs($this->admin)->post(route('processes.resubmit', $regulation), [
+            'change_evidences' => [$img('c.png'), $img('d.png')],
+        ])->assertSessionHas('error');
+        $this->assertSame(2, $regulation->changeEvidences()->count());
+        $this->assertSame('rejected', $regulation->fresh()->approval_status);
+
+        // Quitar una y agregar dos queda en 3.
+        $first = $regulation->changeEvidences()->first();
+        $this->actingAs($this->admin)->post(route('processes.resubmit', $regulation), [
+            'change_evidences' => [$img('c.png'), $img('d.png')],
+            'remove_evidences' => [$first->id],
+        ])->assertSessionHas('success');
+        $this->assertSame(3, $regulation->changeEvidences()->count());
+        Storage::disk('private')->assertMissing($first->path);
+
+        // Word no se acepta como evidencia.
+        Regulation::whereKey($regulation->id)->update(['approval_status' => 'rejected']);
+        $this->actingAs($this->admin)->post(route('processes.resubmit', $regulation), [
+            'change_evidences' => [UploadedFile::fake()->create('x.docx', 10)],
+            'remove_evidences' => $regulation->changeEvidences()->pluck('id')->all(),
+        ])->assertSessionHas('error');
+    }
+
+    public function test_aprobador_ve_las_evidencias_en_mis_aprobaciones(): void
+    {
+        Storage::fake('private');
+        Notification::fake();
+        $regulation = $this->regulation('pending_review');
+        $lider = $this->liderWithFlow($regulation);
+
+        $this->actingAs($this->admin)->patch(route('processes.setFlow', $regulation), [
+            'impact_level'     => 'bajo',
+            'change_evidences' => [UploadedFile::fake()->image('aprobo-ana.png')],
+        ])->assertSessionHas('success');
+
+        $evidence = $regulation->changeEvidences()->firstOrFail();
+
+        $this->actingAs($lider)->get(route('my-approvals.index'))
+            ->assertOk()
+            ->assertSee('Evidencia 1')
+            ->assertSee('aprobo-ana.png');
+
+        $this->actingAs($lider)->get(route('processes.changeEvidence.show', [$regulation, $evidence]))->assertOk();
+    }
+
     public function test_enviar_a_papelera_cancela_las_aprobaciones_abiertas(): void
     {
         $regulation = $this->regulation('pending_review');
