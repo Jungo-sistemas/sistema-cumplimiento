@@ -172,7 +172,7 @@
                                 <td class="px-5 py-3 text-right">
                                     @if($group->companies_count === 0)
                                         <form method="POST" action="{{ route('superadmin.groups.destroy', $group) }}" class="inline"
-                                            onsubmit="return confirm('¿Eliminar el grupo «{{ $group->name }}»?')">
+                                            data-confirm="¿Eliminar el grupo «{{ $group->name }}»?" data-confirm-danger data-confirm-button="Sí, eliminar">
                                             @csrf @method('DELETE')
                                             <button type="submit"
                                                 class="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm font-semibold hover:bg-red-700">

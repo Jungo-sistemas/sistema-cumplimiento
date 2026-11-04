@@ -372,7 +372,7 @@
 
                                         @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
                                             <form method="POST" action="{{ route('requirements.tasks.destroy', [$requirement, $task]) }}"
-                                                  onsubmit="return confirm('¿Eliminar esta tarea?')">
+                                                  data-confirm="¿Eliminar esta tarea?" data-confirm-danger data-confirm-button="Sí, eliminar">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit"
@@ -419,7 +419,7 @@
                                             </a>
 
                                             <form method="POST" action="{{ route('requirements.tasks.destroy', [$requirement, $task]) }}"
-                                                  onsubmit="return confirm('¿Eliminar esta tarea?')">
+                                                  data-confirm="¿Eliminar esta tarea?" data-confirm-danger data-confirm-button="Sí, eliminar">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit"

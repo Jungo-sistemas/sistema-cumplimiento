@@ -39,12 +39,24 @@ class RegulationApprovalController extends Controller
         return back()->with('success', 'Rechazo registrado. El creador será notificado.');
     }
 
-    public function resubmit(Regulation $regulation)
+    public function resubmit(Request $request, Regulation $regulation)
     {
         $user = auth()->user();
         abort_unless($user->isAdmin(), 403);
         abort_unless($user->canAccessCompany($regulation->company), 403);
         abort_unless($regulation->approval_status === 'rejected', 403, 'Solo se puede re-enviar un reglamento rechazado.');
+
+        $request->validate([
+            'change_summary' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png', 'max:20480'],
+        ], [
+            'change_summary.mimes' => 'La síntesis de cambios debe ser PDF, Word, Excel o imagen (JPG/PNG).',
+            'change_summary.max'   => 'La síntesis de cambios no puede pesar más de 20 MB.',
+        ]);
+
+        // Se reemplaza antes de reiniciar para que los aprobadores del paso 1 ya vean la nueva.
+        if ($request->hasFile('change_summary')) {
+            $regulation->replaceChangeSummary($request->file('change_summary'), $user);
+        }
 
         $this->flowService->resubmit($regulation);
 

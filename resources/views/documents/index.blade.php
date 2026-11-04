@@ -226,7 +226,7 @@
                                             @method('DELETE')
                                             <button type="submit"
                                                     class="font-semibold text-red-500 hover:text-red-700"
-                                                    onclick="return confirm('¿Mover «{{ addslashes($document->name) }}» a la papelera? Podrás restaurarlo en los próximos 2 meses.')">
+                                                    data-confirm="¿Mover «{{ $document->name }}» a la papelera? Podrás restaurarlo en los próximos 2 meses." data-confirm-danger data-confirm-button="Sí, mover">
                                                 Eliminar
                                             </button>
                                         </form>

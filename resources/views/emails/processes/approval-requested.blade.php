@@ -24,10 +24,6 @@
         .badge-blue { background: #dbeafe; color: #1e40af; }
         .badge-gray { background: #f3f4f6; color: #374151; }
         .btn { display: inline-block; background: #1A428A; color: #fff !important; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: 600; font-size: 14px; margin-top: 8px; }
-        .change-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 14px 16px; margin: 16px 0; }
-        .change-box p { margin: 0 0 6px; font-size: 14px; color: #92400e; }
-        .change-box .change-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #92400e; margin-bottom: 8px; }
-        .change-box a { color: #92400e; font-weight: 600; font-size: 13px; text-decoration: underline; margin-right: 16px; }
         .footer { background: #f9fafb; padding: 16px 32px; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
     </style>
 </head>
@@ -80,25 +76,6 @@
                         </tr>
                     @endforeach
                 </table>
-            @endif
-
-            @if($currentVersion && ($currentVersion->change_description || $currentVersion->change_justification))
-                <div class="change-box">
-                    <p class="change-label">Qué cambió en esta versión</p>
-                    @if($currentVersion->change_description)
-                        <p>{{ $currentVersion->change_description }}</p>
-                    @endif
-                    @if($currentVersion->change_justification)
-                        <p><strong>Justificación:</strong> {{ $currentVersion->change_justification }}</p>
-                    @endif
-
-                    <p style="margin-top: 10px;">
-                        @if($previousVersion)
-                            <a href="{{ route('regulation-versions.preview', $previousVersion) }}">Ver versión anterior completa</a>
-                        @endif
-                        <a href="{{ route('regulation-versions.preview', $currentVersion) }}">Ver esta versión completa</a>
-                    </p>
-                </div>
             @endif
 
             <p>Ingresa al sistema para revisar el documento completo y emitir tu decisión.</p>

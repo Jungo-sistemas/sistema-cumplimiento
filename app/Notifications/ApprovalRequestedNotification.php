@@ -21,9 +21,6 @@ class ApprovalRequestedNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $currentVersion  = $this->regulation->currentVersion;
-        $previousVersion = $currentVersion?->previousVersion();
-
         return (new MailMessage)
             ->subject('Aprobación requerida: ' . $this->regulation->name)
             ->view('emails.processes.approval-requested', [
@@ -39,13 +36,9 @@ class ApprovalRequestedNotification extends Notification implements ShouldQueue
                     ->orderBy('step_number')
                     ->orderBy('id')
                     ->get(),
-                // Qué cambió en esta versión respecto a la anterior — solo el resumen corto que
-                // ya se captura al editar (change_description/change_justification). La tabla de
-                // antes/después sección por sección (RegulationChangeDiffService) se decidió que
-                // solo se vea dentro de la plataforma ("Mis aprobaciones"), nunca en el correo —
-                // puede salir muy larga y no es cómodo de leer en un cliente de correo.
-                'currentVersion'     => $currentVersion,
-                'previousVersion'    => $previousVersion,
+                // Qué cambió en la versión (descripción, justificación, síntesis, antes/después)
+                // solo se ve dentro de la plataforma ("Mis aprobaciones" / flujo), nunca en el
+                // correo.
             ]);
     }
 

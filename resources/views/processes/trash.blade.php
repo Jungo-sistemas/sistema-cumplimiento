@@ -137,7 +137,7 @@
                                         @csrf
                                         <button type="submit"
                                                 class="px-3 py-1.5 rounded-md bg-brand text-white text-xs font-semibold hover:bg-brand-dark"
-                                                onclick="return confirm('¿Restaurar el procedimiento \"{{ addslashes($regulation->name) }}\"?')">
+                                                data-confirm="¿Restaurar el procedimiento «{{ $regulation->name }}»?" data-confirm-button="Sí, restaurar">
                                             Restaurar
                                         </button>
                                     </form>
@@ -149,7 +149,7 @@
                                         @method('DELETE')
                                         <button type="submit"
                                                 class="px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-700 text-xs font-semibold hover:bg-gray-50"
-                                                onclick="return confirm('Esta acción es irreversible. ¿Eliminar permanentemente el procedimiento \"{{ addslashes($regulation->name) }}\" y todos sus archivos?')">
+                                                data-confirm="Esta acción es irreversible. ¿Eliminar permanentemente el procedimiento «{{ $regulation->name }}» y todos sus archivos?" data-confirm-danger data-confirm-button="Sí, eliminar">
                                             Eliminar
                                         </button>
                                     </form>

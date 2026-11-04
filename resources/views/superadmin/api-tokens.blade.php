@@ -170,7 +170,7 @@
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit"
-                                                    onclick="return confirm('¿Revocar «{{ addslashes($token->name) }}»?')"
+                                                    data-confirm="¿Revocar «{{ $token->name }}»?" data-confirm-danger data-confirm-button="Sí, revocar"
                                                     class="px-3 py-1.5 rounded border border-red-200 text-red-600 text-xs hover:bg-red-50">
                                                 Revocar
                                             </button>

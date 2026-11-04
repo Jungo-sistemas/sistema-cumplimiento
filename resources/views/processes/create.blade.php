@@ -212,6 +212,26 @@
                                     <p x-show="errors.document_type" x-text="errors.document_type" class="text-sm text-red-600 mt-1"></p>
                                 </div>
 
+                                {{-- Impacto para evaluación (opcional, solo admins; también se cambia desde el listado) --}}
+                                @if(auth()->user()->isAdmin())
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            Nivel de impacto <span class="font-normal text-gray-400">(opcional)</span>
+                                        </label>
+                                        <select
+                                            name="evaluation_impact"
+                                            x-model="form.evaluation_impact"
+                                            class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600"
+                                        >
+                                            <option value="">— Sin definir —</option>
+                                            @foreach(\App\Models\Regulation::EVALUATION_IMPACTS as $val => $lbl)
+                                                <option value="{{ $val }}">{{ $lbl }}</option>
+                                            @endforeach
+                                        </select>
+                                        <p class="text-xs text-gray-400 mt-1">Servirá para definir cada cuánto se evalúa el proceso.</p>
+                                    </div>
+                                @endif
+
                                 {{-- nombre --}}
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -743,6 +763,7 @@
                 process_type_id:              '',
                 document_type:                '',
                 is_annex:                     false,
+                evaluation_impact:            '',
                 nombre:                       '',
                 codigo:                       '',
                 quien_elabora:                '',

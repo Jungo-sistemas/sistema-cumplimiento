@@ -474,6 +474,7 @@
                             <th class="text-left px-4 py-3 font-semibold">Anexos</th>
                             @endif
                             <th class="text-left px-4 py-3 font-semibold">Vigencia</th>
+                            <th class="text-left px-4 py-3 font-semibold" title="Servirá para definir la periodicidad de evaluación del proceso">Impacto</th>
                             <th class="text-left px-4 py-3 font-semibold">Flujo</th>
                             <th class="text-right px-4 py-3 font-semibold">Acciones</th>
                         </tr>
@@ -694,6 +695,48 @@
                                     @endif
                                 </td>
 
+                                {{-- Impacto para evaluación (bajo/medio/alto) — se guarda al cambiarlo --}}
+                                <td class="px-4 py-3 min-w-[100px]">
+                                    @if($user->isAdmin())
+                                        <div x-data="{
+                                                value: @js($regulation->evaluation_impact ?? ''),
+                                                status: '',
+                                                async save() {
+                                                    this.status = 'saving';
+                                                    try {
+                                                        const res = await fetch(@js(route('processes.setEvaluationImpact', $regulation)), {
+                                                            method: 'PATCH',
+                                                            headers: {
+                                                                'Content-Type': 'application/json',
+                                                                'Accept': 'application/json',
+                                                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                                                            },
+                                                            body: JSON.stringify({ evaluation_impact: this.value }),
+                                                        });
+                                                        this.status = res.ok ? 'saved' : 'error';
+                                                    } catch (e) {
+                                                        this.status = 'error';
+                                                    }
+                                                    if (this.status === 'saved') setTimeout(() => this.status = '', 1500);
+                                                },
+                                             }">
+                                            <select x-model="value" @change="save()"
+                                                    class="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:border-blue-400 w-full">
+                                                <option value="">—</option>
+                                                @foreach(\App\Models\Regulation::EVALUATION_IMPACTS as $val => $lbl)
+                                                    <option value="{{ $val }}">{{ $lbl }}</option>
+                                                @endforeach
+                                            </select>
+                                            <p x-show="status === 'saved'" x-cloak class="text-[11px] text-green-600 mt-0.5">Guardado</p>
+                                            <p x-show="status === 'error'" x-cloak class="text-[11px] text-red-600 mt-0.5">No se pudo guardar</p>
+                                        </div>
+                                    @else
+                                        <span class="text-xs text-gray-600">
+                                            {{ \App\Models\Regulation::EVALUATION_IMPACTS[$regulation->evaluation_impact] ?? '—' }}
+                                        </span>
+                                    @endif
+                                </td>
+
                                 {{-- Columna Flujo --}}
                                 <td class="px-4 py-3 min-w-[170px]">
                                     @if($user->isAdmin())
@@ -734,6 +777,7 @@
                                                 @foreach(\App\Models\Regulation::IMPACT_LEVELS as $val => $lbl)
                                                     <option value="{{ $val }}">{{ $lbl }}</option>
                                                 @endforeach
+                                                <option value="__approved">Aprobado (sin flujo)</option>
                                             </select>
                                         @endif
                                     @endif
@@ -764,7 +808,7 @@
                                                     <form method="POST" action="{{ route('processes.approve', $regulation) }}">
                                                         @csrf
                                                         <button type="submit"
-                                                                onclick="return confirm('¿Aprobar «{{ addslashes($regulation->name) }}»?')"
+                                                                data-confirm="¿Aprobar «{{ $regulation->name }}»?" data-confirm-button="Sí, aprobar"
                                                                 class="px-2 py-1 rounded bg-brand text-white text-xs font-semibold hover:bg-brand-dark">
                                                             Aprobar
                                                         </button>
@@ -827,7 +871,7 @@
                             </tr>
                         @empty
                             <tr class="border-t">
-                                <td colspan="9"
+                                <td colspan="10"
                                     class="px-6 py-8 text-center text-gray-500">
                                     No hay {{ $showAnnexes ? 'anexos' : 'procedimientos' }} para los filtros seleccionados.
                                 </td>
@@ -874,7 +918,8 @@
         <form x-ref="flowForm" method="POST" :action="formAction" enctype="multipart/form-data">
             @csrf
             @method('PATCH')
-            <input type="hidden" name="impact_level" :value="impactLevel">
+            <input type="hidden" name="impact_level" :value="directApproval ? '' : impactLevel">
+            <input type="hidden" name="direct_approval" :value="directApproval ? 1 : 0">
             {{-- @click.stop: este input vive fuera de la tarjeta del modal, y la tarjeta se cierra con
                  @click.outside — sin esto, abrir el selector de archivo cerraba el modal. --}}
             <input type="file" name="change_summary" x-ref="summaryInput" class="hidden"
@@ -913,15 +958,23 @@
             <div class="px-6 py-5">
 
                 {{-- Removing flow --}}
-                <template x-if="removing">
+                <template x-if="removing && !directApproval">
                     <div class="text-sm text-gray-700">
                         <p>¿Confirmas que deseas <strong>eliminar el flujo de aprobación</strong> de este documento?</p>
                         <p class="mt-2 text-gray-500 text-xs">El flujo no se ha confirmado aún, por lo que puede eliminarse.</p>
                     </div>
                 </template>
 
+                {{-- Aprobado directo, sin pasar por el flujo --}}
+                <template x-if="directApproval">
+                    <div class="text-sm text-gray-700">
+                        <p>¿Marcar este documento como <strong>aprobado</strong> sin pasar por el flujo de aprobación?</p>
+                        <p class="mt-2 text-gray-500 text-xs">No se enviarán correos a aprobadores. Queda registrado quién lo aprobó.</p>
+                    </div>
+                </template>
+
                 {{-- Assigning flow --}}
-                <template x-if="!removing">
+                <template x-if="!removing && !directApproval">
                     <div>
                         <p class="text-sm text-gray-700 mb-1">
                             Nivel seleccionado:
@@ -1027,7 +1080,7 @@
                             ? 'bg-brand hover:bg-brand-dark text-white cursor-pointer'
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
                         class="px-4 py-2 rounded-lg text-sm font-semibold transition">
-                    <span x-text="removing ? 'Sí, eliminar flujo' : 'Confirmar flujo'"></span>
+                    <span x-text="directApproval ? 'Sí, marcar como aprobado' : (removing ? 'Sí, eliminar flujo' : 'Confirmar flujo')"></span>
                 </button>
             </div>
         </div>
@@ -1184,6 +1237,7 @@ function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders
     return {
         show: false,
         removing: false,
+        directApproval: false,
         formAction: '',
         regulationName: '',
         impactLevel: '',
@@ -1197,7 +1251,7 @@ function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders
 
         // Las personas por puesto son opcionales — basta con haber elegido un nivel.
         get canConfirm() {
-            if (this.removing) return true;
+            if (this.removing || this.directApproval) return true;
             return this.positions.length > 0;
         },
 
@@ -1233,6 +1287,7 @@ function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders
             this.regulationName = detail.regulationName;
             this.impactLevel  = detail.impactLevel;
             this.levelLabel   = detail.levelLabel;
+            this.directApproval = detail.impactLevel === '__approved';
             this.removing     = !detail.impactLevel;
 
             this.positions = [];

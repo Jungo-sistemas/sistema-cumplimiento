@@ -51,7 +51,7 @@
     </span>
 @elseif($currentVersion && $regulation->canRequestAccessFrom(auth()->user()))
     <form method="POST" action="{{ route('processes.requestAccess', $regulation) }}"
-          onsubmit="return confirm('¿Enviar solicitud de acceso a los administradores de Procesos?');">
+          data-confirm="¿Enviar solicitud de acceso a los administradores de Procesos?" data-confirm-button="Sí, enviar">
         @csrf
         <button type="submit"
                 title="No eres responsable de este reglamento — pide que te agreguen para poder editarlo"

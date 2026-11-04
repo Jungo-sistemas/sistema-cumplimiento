@@ -403,5 +403,7 @@
             <x-processes-guide mode="reminder" />
         @endif
     @endif
+
+    @include('layouts.partials.confirm-dialog')
 </body>
 </html>

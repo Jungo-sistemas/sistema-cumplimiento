@@ -87,8 +87,9 @@ class ApprovalChangesDisplayTest extends TestCase
         $this->assertStringNotContainsString('Objetivo NUEVO', $html);
         $this->assertStringNotContainsString('Anexo NUEVO', $html);
 
-        // El resumen corto sí se sigue mostrando.
-        $this->assertStringContainsString('Se actualizó el objetivo y los anexos', $html);
+        // Tampoco el resumen corto: qué cambió solo se ve dentro de la plataforma.
+        $this->assertStringNotContainsString('Se actualizó el objetivo y los anexos', $html);
+        $this->assertStringNotContainsString('Qué cambió en esta versión', $html);
     }
 
     public function test_mis_aprobaciones_muestra_solo_la_seccion_mas_reciente(): void

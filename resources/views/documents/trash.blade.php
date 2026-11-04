@@ -163,7 +163,7 @@
                                         @csrf
                                         <button type="submit"
                                                 class="px-3 py-1.5 rounded-md bg-green-600 text-white text-xs font-semibold hover:bg-green-700"
-                                                onclick="return confirm('¿Restaurar el documento \"{{ addslashes($document->name) }}\"?')">
+                                                data-confirm="¿Restaurar el documento «{{ $document->name }}»?" data-confirm-button="Sí, restaurar">
                                             Restaurar
                                         </button>
                                     </form>
@@ -175,7 +175,7 @@
                                         @method('DELETE')
                                         <button type="submit"
                                                 class="px-3 py-1.5 rounded-md bg-red-600 text-white text-xs font-semibold hover:bg-red-700"
-                                                onclick="return confirm('Esta acción es irreversible. ¿Eliminar permanentemente el documento \"{{ addslashes($document->name) }}\" y todos sus archivos?')">
+                                                data-confirm="Esta acción es irreversible. ¿Eliminar permanentemente el documento «{{ $document->name }}» y todos sus archivos?" data-confirm-danger data-confirm-button="Sí, eliminar">
                                             Eliminar ahora
                                         </button>
                                     </form>

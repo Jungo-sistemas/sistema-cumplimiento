@@ -287,6 +287,12 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::patch('/processes/{regulation}/set-flow', [RegulationController::class, 'setFlow'])
         ->name('processes.setFlow');
 
+    Route::patch('/processes/{regulation}/evaluation-impact', [RegulationController::class, 'setEvaluationImpact'])
+        ->name('processes.setEvaluationImpact');
+
+    Route::post('/processes/{regulation}/keep-flow', [RegulationController::class, 'keepFlow'])
+        ->name('processes.keepFlow');
+
     Route::get('/processes/{regulation}/flow', [RegulationController::class, 'flowView'])
         ->name('processes.flow');
 
