@@ -426,7 +426,7 @@
                                         <div class="inline-flex gap-2">
                                             @if(!$user->isAdmin() || auth()->user()->isSuperAdmin())
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', @json($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])), '{{ $user->module_access ?? 'all' }}', @json($user->jobPositions->pluck('id')))"
+                                                @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', @json($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])), '{{ $user->module_access ?? 'all' }}', @json($user->jobPositions->pluck('id')))"
                                                 class="whitespace-nowrap px-3 py-1.5 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                                                 Editar
                                             </button>
@@ -434,7 +434,7 @@
                                             @if($user->status === 'invited' && (!$user->isAdmin() || auth()->user()->isSuperAdmin()))
                                             <form method="POST"
                                                   action="{{ route('users.resend-invitation', $user) }}"
-                                                  onsubmit="return confirm('¿Reenviar la invitación a {{ addslashes($user->email) }}?');">
+                                                  data-confirm="¿Reenviar la invitación a {{ $user->email }}?" data-confirm-button="Sí, reenviar">
                                                 @csrf
                                                 <button type="submit" title="Reenviar invitación"
                                                     class="whitespace-nowrap px-3 py-1.5 rounded-md border border-brand bg-white text-brand text-sm font-semibold hover:bg-brand-50">
@@ -445,7 +445,7 @@
                                             @if(!$user->isAdmin() || auth()->user()->isSuperAdmin())
                                             <form method="POST"
                                                   action="{{ route('users.destroy', $user) }}"
-                                                  onsubmit="return confirm('¿Seguro que quieres eliminar este usuario?');">
+                                                  data-confirm="¿Seguro que quieres eliminar este usuario?" data-confirm-danger data-confirm-button="Sí, eliminar">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit"

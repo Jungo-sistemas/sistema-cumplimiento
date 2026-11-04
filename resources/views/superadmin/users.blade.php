@@ -672,13 +672,13 @@
                                     @if($user->id !== auth()->id())
                                         <div class="inline-flex gap-1">
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', {{ Js::from($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])) }}, '{{ $user->module_access ?? 'all' }}', {{ Js::from($user->jobPositions->pluck('id')) }}, '{{ $user->notification_modules ?? 'all' }}')"
+                                                @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', {{ Js::from($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])) }}, '{{ $user->module_access ?? 'all' }}', {{ Js::from($user->jobPositions->pluck('id')) }}, '{{ $user->notification_modules ?? 'all' }}')"
                                                 class="px-2 py-1 rounded-md bg-brand text-white text-[11px] font-semibold hover:bg-brand-dark">
                                                 Editar
                                             </button>
                                             @if($user->status === 'invited')
                                             <form method="POST" action="{{ route('superadmin.users.resend-invitation', $user) }}" class="inline"
-                                                onsubmit="return confirm('¿Reenviar la invitación a {{ addslashes($user->email) }}?');">
+                                                data-confirm="¿Reenviar la invitación a {{ $user->email }}?" data-confirm-button="Sí, reenviar">
                                                 @csrf
                                                 <button type="submit" title="Reenviar invitación"
                                                     class="px-2 py-1 rounded-md border border-brand bg-white text-brand text-[11px] font-semibold hover:bg-brand-50">
@@ -687,7 +687,7 @@
                                             </form>
                                             @endif
                                             <form method="POST" action="{{ route('superadmin.users.destroy', $user) }}" class="inline"
-                                                onsubmit="return confirm('¿Eliminar al usuario «{{ $user->name }}»?')">
+                                                data-confirm="¿Eliminar al usuario «{{ $user->name }}»?" data-confirm-danger data-confirm-button="Sí, eliminar">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit"

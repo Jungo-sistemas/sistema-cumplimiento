@@ -164,9 +164,19 @@
             </div>
         @endif
 
+        @if($regulation->approval_status === 'approved' && $regulation->direct_approved_at)
+            <div class="mt-6 rounded-xl border border-green-200 bg-green-50 px-5 py-4">
+                <p class="text-sm font-semibold text-green-700">Aprobado sin flujo</p>
+                <p class="text-xs text-green-600 mt-0.5">
+                    Marcado como aprobado por {{ $regulation->directApprovedBy?->name ?? '—' }}
+                    el {{ $regulation->direct_approved_at->format('d/m/Y H:i') }}, sin pasar por los aprobadores.
+                </p>
+            </div>
+        @endif
+
         {{-- Alerta: rechazado — editar y re-enviar --}}
         @if($regulation->isRejected())
-            <div class="mt-6 flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-5 py-4">
+            <div x-data class="mt-6 flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-5 py-4">
                 <div>
                     <p class="text-sm font-semibold text-red-700">Documento rechazado</p>
                     <p class="text-xs text-red-500 mt-0.5">
@@ -176,17 +186,72 @@
                 <div class="shrink-0 flex items-center gap-2">
                     @include('processes.partials.edit-version-button', ['regulation' => $regulation, 'currentVersion' => $currentVersion, 'editLock' => $editLock])
                     @if(auth()->user()->isAdmin())
-                        <form method="POST" action="{{ route('processes.resubmit', $regulation) }}">
-                            @csrf
-                            <button type="submit"
-                                    onclick="return confirm('¿Re-enviar este documento a aprobación? El flujo se reiniciará desde el paso 1.')"
-                                    class="px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-blue-800">
-                                Re-enviar a aprobación
-                            </button>
-                        </form>
+                        <button type="button" @click="$dispatch('open-resubmit')"
+                                class="px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-blue-800">
+                            Re-enviar a aprobación
+                        </button>
                     @endif
                 </div>
             </div>
+
+            {{-- Re-envío al mismo flujo: permite reemplazar la síntesis de cambios antes de reiniciar --}}
+            @if(auth()->user()->isAdmin())
+                <div x-data="{
+                        open: false,
+                        summaryName: '',
+                        summaryError: '',
+                        pickSummary(event) {
+                            const file = event.target.files[0];
+                            this.summaryError = '';
+                            if (file && file.size > 20 * 1024 * 1024) {
+                                this.summaryError = 'El documento no puede pesar más de 20 MB.';
+                                this.clearSummary();
+                                return;
+                            }
+                            this.summaryName = file ? file.name : '';
+                        },
+                        clearSummary() {
+                            this.$refs.summaryInput.value = '';
+                            this.summaryName = '';
+                        },
+                     }"
+                     @open-resubmit.window="open = true"
+                     x-show="open" x-cloak
+                     class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+                     @keydown.escape.window="open = false">
+                    <div class="w-full max-w-md rounded-xl bg-white shadow-xl" @click.outside="open = false">
+                        <form method="POST" action="{{ route('processes.resubmit', $regulation) }}" enctype="multipart/form-data" class="p-6">
+                            @csrf
+                            <h3 class="text-base font-semibold text-gray-800">Re-enviar a aprobación</h3>
+                            <p class="text-sm text-gray-500 mt-1 mb-4">
+                                El flujo se reiniciará desde el paso 1 con los mismos aprobadores.
+                            </p>
+
+                            @if($regulation->change_summary_path)
+                                <p class="text-xs text-gray-500 mb-2">
+                                    Síntesis actual: <span class="font-semibold text-gray-700">{{ $regulation->change_summary_original_name }}</span>
+                                </p>
+                            @endif
+
+                            <input type="file" name="change_summary" x-ref="summaryInput" class="hidden"
+                                   accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                                   @change="pickSummary($event)">
+                            @include('processes.partials.flow-change-summary')
+
+                            <div class="flex gap-3">
+                                <button type="button" @click="open = false"
+                                        class="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50">
+                                    Cancelar
+                                </button>
+                                <button type="submit"
+                                        class="flex-1 px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-blue-800">
+                                    Re-enviar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            @endif
         @endif
 
         {{-- Síntesis de cambios adjunta al establecer el flujo: la misma que se ve en "Mis aprobaciones",

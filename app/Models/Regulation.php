@@ -26,6 +26,14 @@ class Regulation extends Model
         'bajo'       => 'Bajo',
     ];
 
+    // Impacto para definir después la periodicidad de evaluación del proceso. No tiene que ver
+    // con IMPACT_LEVELS (esos eligen el flujo de aprobación).
+    public const EVALUATION_IMPACTS = [
+        'bajo'  => 'Bajo',
+        'medio' => 'Medio',
+        'alto'  => 'Alto',
+    ];
+
     public const APPROVAL_STATUSES = [
         'pending_review'        => 'En revisión',
         'pending_authorization' => 'En autorización',
@@ -52,7 +60,10 @@ class Regulation extends Model
         'is_active',
         'created_by',
         'impact_level',
+        'evaluation_impact',
         'approval_status',
+        'direct_approved_by',
+        'direct_approved_at',
         'flow_locked',
         'flow_user_map',
         'public_share_token',
@@ -76,6 +87,7 @@ class Regulation extends Model
         'permanently_delete_at'       => 'datetime',
         'change_summary_uploaded_at'  => 'datetime',
         'obsoleted_at'                => 'datetime',
+        'direct_approved_at'          => 'datetime',
     ];
 
     /*
@@ -117,6 +129,11 @@ class Regulation extends Model
     public function obsoletedBy()
     {
         return $this->belongsTo(User::class, 'obsoleted_by');
+    }
+
+    public function directApprovedBy()
+    {
+        return $this->belongsTo(User::class, 'direct_approved_by');
     }
 
     /**

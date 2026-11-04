@@ -216,7 +216,7 @@
                                         </a>
                                     @endif
                                     <form method="POST" action="{{ route('processes.obsoleto.restore', $reg) }}"
-                                          onsubmit="return confirm('¿Regresar «{{ addslashes($reg->name) }}» a Procedimientos?');">
+                                          data-confirm="¿Regresar «{{ $reg->name }}» a Procedimientos?" data-confirm-button="Sí, regresar">
                                         @csrf
                                         <button type="submit"
                                                 class="inline-flex items-center gap-1 whitespace-nowrap text-xs px-2.5 py-1.5 rounded-md border border-brand text-brand hover:bg-brand-50 transition">

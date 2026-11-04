@@ -203,7 +203,7 @@
                                 @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
                                     <form method="POST"
                                           action="{{ route('documents.destroy',$doc) }}"
-                                          onsubmit="return confirm('¿Eliminar este documento?')">
+                                          data-confirm="¿Eliminar este documento?" data-confirm-danger data-confirm-button="Sí, eliminar">
 
                                         @csrf
                                         @method('DELETE')

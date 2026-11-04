@@ -97,7 +97,7 @@
                             @csrf
                             @method('PATCH')
                             <button type="submit"
-                                onclick="return confirm('¿Seguro que quieres marcar este activo como sin operación?');"
+                                data-confirm="¿Seguro que quieres marcar este activo como sin operación?" data-confirm-button="Sí, marcar"
                                 class="px-6 py-2 rounded-md font-semibold text-white bg-[#DB0000] hover:bg-red-700">
                                 Sin Operación
                             </button>
@@ -107,7 +107,7 @@
                             @csrf
                             @method('PATCH')
                             <button type="submit"
-                                onclick="return confirm('¿Seguro que quieres desactivar este activo?');"
+                                data-confirm="¿Seguro que quieres desactivar este activo?" data-confirm-danger data-confirm-button="Sí, desactivar"
                                 class="px-6 py-2 rounded-md font-semibold text-white bg-[#DB0000] hover:bg-red-700">
                                 Sin Operación
                             </button>

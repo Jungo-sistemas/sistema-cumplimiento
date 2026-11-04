@@ -92,7 +92,8 @@ class RegulationVersionController extends Controller
         // Si el archivo subido reemplaza un documento ya aprobado, ese contenido nuevo no ha sido
         // revisado por nadie — no puede seguir mostrándose como "aprobado".
         if ($wasApproved) {
-            app(ApprovalFlowService::class)->resubmit($regulation);
+            // Si el admin va a ver el modal de revisión, el aviso a aprobadores espera a su decisión.
+            app(ApprovalFlowService::class)->resubmit($regulation, notify: ! ($user->isAdmin() && $regulation->flow_locked));
 
             if ($user->isAdmin()) {
                 return redirect()
@@ -550,7 +551,8 @@ class RegulationVersionController extends Controller
         // Si en cambio ya estaba aprobado, el contenido acaba de cambiar bajo un documento que se
         // consideraba definitivo — no puede seguir "aprobado" sin que alguien lo revise de nuevo.
         if ($wasApproved) {
-            app(ApprovalFlowService::class)->resubmit($regulation);
+            // Si el admin va a ver el modal de revisión, el aviso a aprobadores espera a su decisión.
+            app(ApprovalFlowService::class)->resubmit($regulation, notify: ! ($user->isAdmin() && $regulation->flow_locked));
 
             // Igual que confirmEditDraft(): ya que el flujo se reinició, se le da al admin la
             // oportunidad de reconsiderar el nivel de impacto (y por lo tanto el flujo de

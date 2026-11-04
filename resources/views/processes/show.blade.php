@@ -124,7 +124,7 @@
                     </span>
                 @elseif($regulation->canRequestAccessFrom(auth()->user()))
                     <form method="POST" action="{{ route('processes.requestAccess', $regulation) }}"
-                          onsubmit="return confirm('¿Enviar solicitud de acceso a los administradores de Procesos?');">
+                          data-confirm="¿Enviar solicitud de acceso a los administradores de Procesos?" data-confirm-button="Sí, enviar">
                         @csrf
                         <button type="submit"
                                 title="No eres responsable de este reglamento — pide que te agreguen para poder editarlo"
@@ -1189,7 +1189,12 @@
         </div>
     </div>
 
-    @if(auth()->user()->isAdmin() && request('review_flow') && $regulation->flow_locked)
+    {{-- También para los que estaban aprobados sin flujo (cargados ya aprobados): al editarlos
+         (p. ej. solo para etiquetar personas/documentos) quedan en revisión sin aprobadores, y
+         aquí se decide si siguen aprobados o se les asigna flujo. --}}
+    @php $reviewHasFlow = (bool) $regulation->flow_locked; @endphp
+    @if(auth()->user()->isAdmin() && request('review_flow') && $regulation->approval_status === 'pending_review'
+        && ($reviewHasFlow || ! $regulation->impact_level))
     {{-- Datos PHP → JS sin tocar atributos HTML (evita que @json rompa x-data="") --}}
     <script>
     window.__rfData = {
@@ -1209,6 +1214,7 @@
             @csrf
             @method('PATCH')
             <input type="hidden" name="impact_level" :value="selectedLevel">
+            <input type="hidden" name="direct_approval" :value="directApproval ? 1 : 0">
             <input type="file" name="change_summary" x-ref="summaryInput" class="hidden"
                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
                    @change="pickSummary($event)">
@@ -1217,6 +1223,11 @@
                     <input type="hidden" :name="`users[${pos.slug}][]`" :value="u.id">
                 </template>
             </template>
+        </form>
+
+        {{-- Mantener el flujo: avisa a los aprobadores del paso 1 (el reinicio se hizo sin avisar) --}}
+        <form x-ref="keepForm" method="POST" action="{{ route('processes.keepFlow', $regulation) }}">
+            @csrf
         </form>
 
         {{-- Backdrop --}}
@@ -1230,7 +1241,7 @@
              class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
              style="display:none;">
 
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-auto overflow-hidden">
 
                 {{-- Header --}}
                 <div class="bg-brand px-6 py-4 flex items-center justify-between">
@@ -1238,29 +1249,45 @@
                         <h3 class="text-white font-semibold text-base">Flujo de aprobación</h3>
                         <p class="text-blue-200 text-xs mt-0.5">Se detectaron cambios en el documento</p>
                     </div>
-                    <a href="{{ route('processes.show', $regulation) }}"
-                       class="text-blue-200 hover:text-white transition"
-                       title="Cerrar y mantener flujo">
+                    {{-- Sin flujo, cerrar no tiene a quién avisar: el documento queda en revisión y se
+                         decide después desde el listado (Asignar flujo / Aprobado sin flujo). --}}
+                    <button type="button" @click="$refs.keepForm.submit()"
+                            class="text-blue-200 hover:text-white transition"
+                            title="Cerrar y mantener flujo">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
-                    </a>
+                    </button>
                 </div>
 
                 {{-- Etapa 1: ¿Mantener o cambiar? --}}
                 <div x-show="stage === 1" class="px-6 py-6">
                     <p class="text-sm text-gray-700 leading-relaxed">
-                        El flujo de aprobación fue configurado antes de esta edición.
-                        ¿Deseas mantenerlo igual o reconfigurarlo para reflejar los cambios?
+                        @if($reviewHasFlow)
+                            El flujo de aprobación fue configurado antes de esta edición.
+                            ¿Deseas mantenerlo igual o reconfigurarlo para reflejar los cambios?
+                            Si es un cambio menor, puedes marcarlo como aprobado sin pasar por el flujo.
+                        @else
+                            Este documento no tiene flujo de aprobación asignado.
+                            Si el cambio fue menor (por ejemplo, etiquetar personas o documentos), déjalo aprobado;
+                            si no, asígnale un flujo.
+                        @endif
                     </p>
-                    <div class="mt-6 flex justify-end gap-3">
-                        <a href="{{ route('processes.show', $regulation) }}"
-                           class="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 font-medium hover:bg-gray-100 transition">
-                            Mantener flujo actual
-                        </a>
+                    {{-- Todas las opciones en una sola fila, del mismo ancho --}}
+                    <div class="mt-6 grid gap-2 {{ $reviewHasFlow ? 'sm:grid-cols-3' : 'sm:grid-cols-2' }}">
+                        <button type="button" @click="approveDirectly()"
+                                class="px-3 py-2 rounded-lg border border-green-300 text-sm text-green-700 font-medium hover:bg-green-50 transition whitespace-nowrap">
+                            {{ $reviewHasFlow ? 'Aprobado (sin flujo)' : 'Mantener aprobado' }}
+                        </button>
+                        @if($reviewHasFlow)
+                            <button type="button" @click="$refs.keepForm.submit()"
+                                    class="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 font-medium hover:bg-gray-100 transition whitespace-nowrap">
+                                Mantener flujo actual
+                            </button>
+                        @endif
                         <button type="button" @click="goStage2()"
-                                class="px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark transition">
-                            Cambiar flujo
+                                class="px-3 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark transition whitespace-nowrap">
+                            {{ $reviewHasFlow ? 'Cambiar flujo' : 'Asignar flujo' }}
                         </button>
                     </div>
                 </div>
@@ -1274,6 +1301,7 @@
                             <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Nivel de impacto</label>
                             <select x-model="selectedLevel" @change="buildPositions()"
                                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand">
+                                <option value="" disabled>— Selecciona un nivel —</option>
                                 @foreach(\App\Models\Regulation::IMPACT_LEVELS as $lvlKey => $lvlLabel)
                                     <option value="{{ $lvlKey }}">{{ $lvlLabel }}</option>
                                 @endforeach
@@ -1348,10 +1376,11 @@
                             Atrás
                         </button>
                         <div class="flex gap-3">
-                            <a href="{{ route('processes.show', $regulation) }}"
-                               class="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 font-medium hover:bg-gray-100 transition">
+                            <button type="button" @click="$refs.keepForm.submit()"
+                                    title="Cancelar y mantener el flujo actual"
+                                    class="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 font-medium hover:bg-gray-100 transition">
                                 Cancelar
-                            </a>
+                            </button>
                             <button type="button" @click="confirmFlow()"
                                     :disabled="!canConfirm"
                                     :class="canConfirm ? 'bg-brand hover:bg-brand-dark text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
@@ -1459,10 +1488,21 @@
             open:      {},
             summaryName:  '',
             summaryError: '',
+            directApproval: false,
 
             // Las personas por puesto son opcionales — basta con haber elegido un nivel.
             get canConfirm() {
                 return this.positions.length > 0;
+            },
+
+            async approveDirectly() {
+                const ok = await window.vigiaConfirm(
+                    'El documento quedará aprobado sin pasar por el flujo. No se enviarán correos a los aprobadores.',
+                    { title: 'Marcar como aprobado', confirmText: 'Sí, aprobar' }
+                );
+                if (!ok) return;
+                this.directApproval = true;
+                this.$nextTick(() => this.$refs.flowForm.submit());
             },
 
             pickSummary(event) {

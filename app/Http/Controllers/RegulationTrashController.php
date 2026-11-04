@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Regulation;
+use App\Services\ApprovalFlowService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -40,6 +41,15 @@ class RegulationTrashController extends Controller
             'deleted_by'            => null,
             'permanently_delete_at' => null,
         ]);
+
+        // Al enviarlo a la papelera se cancelaron sus aprobaciones abiertas; si estaba en
+        // revisión/autorización, el flujo se reinicia desde el paso 1 para que no quede atorado.
+        if (in_array($regulation->approval_status, ['pending_review', 'pending_authorization'], true)
+            && $regulation->impact_level) {
+            app(ApprovalFlowService::class)->resubmit($regulation);
+
+            return back()->with('success', "El procedimiento \"{$regulation->name}\" fue restaurado y su flujo de aprobación se reinició desde el paso 1.");
+        }
 
         return back()->with('success', "El procedimiento \"{$regulation->name}\" fue restaurado correctamente.");
     }

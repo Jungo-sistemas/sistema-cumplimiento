@@ -327,6 +327,7 @@ class RegulationController extends Controller
             'document_type'               => ['required', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
             'is_annex'                    => ['sometimes', 'boolean'],
             'impact_level'                => ['nullable', 'string', 'in:' . implode(',', array_keys(Regulation::IMPACT_LEVELS))],
+            'evaluation_impact'           => ['nullable', 'string', 'in:' . implode(',', array_keys(Regulation::EVALUATION_IMPACTS))],
             'nombre'                      => ['required', 'string', 'max:255'],
             'codigo'                      => ['nullable', 'string', 'max:50'],
             'quien_elabora'               => ['required', 'string', 'max:255'],
@@ -371,7 +372,7 @@ class RegulationController extends Controller
         abort_unless($user->canAccessCompany($company), 403);
 
         $wizardDetails = collect($data)
-            ->except(['company_id', 'process_type_id', 'document_type', 'is_annex', 'nombre', 'codigo', 'impact_level'])
+            ->except(['company_id', 'process_type_id', 'document_type', 'is_annex', 'nombre', 'codigo', 'impact_level', 'evaluation_impact'])
             ->toArray();
 
         try {
@@ -532,6 +533,8 @@ class RegulationController extends Controller
                 'is_active'       => true,
                 'created_by'      => $user->id,
                 'impact_level'    => null,
+                // Igual que en el listado: solo un admin define el impacto para evaluación.
+                'evaluation_impact' => $user->isAdmin() ? ($data['evaluation_impact'] ?? null) : null,
                 'approval_status' => null,
             ]);
 
@@ -663,8 +666,10 @@ class RegulationController extends Controller
 
         // Si en cambio ya estaba aprobado, el contenido acaba de cambiar bajo un documento que se
         // consideraba definitivo — no puede seguir "aprobado" sin que alguien lo revise de nuevo.
+        // Si el admin va a ver el modal de revisión, el aviso a aprobadores espera a su decisión
+        // (mantener flujo / cambiarlo / aprobar sin flujo).
         if ($wasApproved) {
-            $this->flowService->resubmit($regulation);
+            $this->flowService->resubmit($regulation, notify: ! ($user->isAdmin() && $regulation->flow_locked));
         }
 
         // Antes esto solo se activaba si $detailsChanged (comparaba nada más los campos de
@@ -772,6 +777,7 @@ class RegulationController extends Controller
             'process_type_id'  => ['required', 'exists:process_types,id'],
             'document_type'    => ['required', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
             'is_annex'         => ['sometimes', 'boolean'],
+            'evaluation_impact' => ['nullable', 'string', 'in:' . implode(',', array_keys(Regulation::EVALUATION_IMPACTS))],
             'nombre'           => ['required', 'string', 'max:255'],
             'codigo'           => ['required', 'string', 'max:50'],
             'quien_elabora'    => ['required', 'string', 'max:255'],
@@ -819,6 +825,7 @@ class RegulationController extends Controller
                 'is_active'       => true,
                 'created_by'      => $user->id,
                 'impact_level'    => null,
+                'evaluation_impact' => $data['evaluation_impact'] ?? null,
                 'approval_status' => $data['approval_mode'] === 'approved' ? 'approved' : null,
             ]);
 
@@ -993,6 +1000,18 @@ class RegulationController extends Controller
 
         $data = $validator->validated();
 
+        // "Aprobado (sin flujo)": solo admins (ya verificado arriba), sin correos a aprobadores.
+        if ($request->boolean('direct_approval')) {
+            $this->flowService->approveDirectly($regulation, $user);
+
+            $message = 'Documento marcado como aprobado sin pasar por el flujo.';
+            if (str_contains($request->headers->get('referer', ''), 'review_flow')) {
+                return redirect()->route('processes.show', $regulation)->with('success', $message);
+            }
+
+            return back()->with('success', $message);
+        }
+
         $newLevel = $data['impact_level'] ?: null;
 
         // Build userMap: slug → [id, id, ...], skip empty slots
@@ -1010,6 +1029,8 @@ class RegulationController extends Controller
             'approval_status' => $newLevel ? 'pending_review' : null,
             'flow_locked'     => (bool) $newLevel,
             'flow_user_map'   => $newLevel && count($userMap) ? $userMap : null,
+            'direct_approved_by' => null,
+            'direct_approved_at' => null,
         ]);
 
         // La síntesis se guarda antes de iniciar el flujo para que ya esté disponible cuando le
@@ -1054,6 +1075,7 @@ class RegulationController extends Controller
         $regulations = $query->get();
 
         foreach ($regulations as $regulation) {
+            $this->flowService->cancelOpenApprovals($regulation);
             $regulation->update([
                 'deleted_by'            => $user->id,
                 'permanently_delete_at' => now()->addMonths(2),
@@ -1064,6 +1086,41 @@ class RegulationController extends Controller
         $count = $regulations->count();
 
         return back()->with('success', $count . ' ' . \Illuminate\Support\Str::plural('procedimiento', $count) . ' enviado' . ($count === 1 ? '' : 's') . ' a la papelera.');
+    }
+
+    /**
+     * "Mantener flujo actual" en el modal que aparece tras editar un aprobado: el flujo ya se
+     * reinició sin avisar (para dar oportunidad de aprobarlo sin flujo); aquí se avisa al paso 1.
+     */
+    public function keepFlow(Regulation $regulation)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin(), 403);
+        abort_unless($user->canAccessCompany($regulation->company), 403);
+
+        $this->flowService->notifyRestartedFlow($regulation);
+
+        return redirect()->route('processes.show', $regulation)
+            ->with('success', 'Se mantuvo el flujo actual y se avisó a los aprobadores.');
+    }
+
+    /**
+     * Guarda el impacto para evaluación (bajo/medio/alto) desde el listado. Por ahora solo se
+     * registra; más adelante definirá la periodicidad con la que se evalúa el proceso.
+     */
+    public function setEvaluationImpact(Request $request, Regulation $regulation)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin(), 403);
+        abort_unless($user->canAccessCompany($regulation->company), 403);
+
+        $data = $request->validate([
+            'evaluation_impact' => ['nullable', 'string', 'in:' . implode(',', array_keys(Regulation::EVALUATION_IMPACTS))],
+        ]);
+
+        $regulation->update(['evaluation_impact' => $data['evaluation_impact'] ?: null]);
+
+        return response()->json(['evaluation_impact' => $regulation->evaluation_impact]);
     }
 
     /**

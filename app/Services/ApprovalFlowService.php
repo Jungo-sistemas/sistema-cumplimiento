@@ -152,17 +152,72 @@ class ApprovalFlowService
      * (saveEdit()/confirmEditDraft()/store() en los controladores de Regulation) — el contenido
      * cambió, así que ya no se puede considerar aprobado sin que alguien lo revise de nuevo.
      */
-    public function resubmit(Regulation $regulation): void
+    public function resubmit(Regulation $regulation, bool $notify = true): void
     {
         $userMap = $regulation->flow_user_map ?? [];
 
         DB::transaction(function () use ($regulation, $userMap) {
             $regulation->approvals()->delete();
-            $regulation->update(['approval_status' => 'pending_review']);
+            $regulation->update([
+                'approval_status'    => 'pending_review',
+                'direct_approved_by' => null,
+                'direct_approved_at' => null,
+            ]);
             $this->createStepRecords($regulation, 1, $userMap);
         });
 
+        if ($notify) {
+            $this->notifyPendingApprovers($regulation, 1);
+        }
+    }
+
+    /**
+     * Avisa a los aprobadores del paso 1 de un flujo reiniciado sin notificar (cuando un admin
+     * editó un aprobado y en el modal de revisión decidió mantener el flujo).
+     */
+    public function notifyRestartedFlow(Regulation $regulation): void
+    {
+        if ($regulation->approval_status !== 'pending_review') {
+            return;
+        }
+
         $this->notifyPendingApprovers($regulation, 1);
+    }
+
+    /**
+     * "Aprobado (sin flujo)": un admin da el documento por aprobado sin pasar por los aprobadores.
+     * Se quitan las aprobaciones abiertas (las decididas quedan como historial) y se conserva el
+     * nivel de impacto, para que la próxima edición vuelva a ofrecer el mismo flujo.
+     */
+    public function approveDirectly(Regulation $regulation, User $admin): void
+    {
+        DB::transaction(function () use ($regulation, $admin) {
+            $regulation->approvals()->whereIn('status', ['pending', 'waiting'])->delete();
+            $regulation->update([
+                'approval_status'    => 'approved',
+                'direct_approved_by' => $admin->id,
+                'direct_approved_at' => now(),
+            ]);
+
+            // Igual que al aprobar por flujo, pero sin mover una vigencia que ya existía: el cambio
+            // directo suele ser menor y no reinicia el año.
+            $version = $regulation->currentVersion;
+            if ($version && ! $version->valid_until) {
+                $version->update(['valid_until' => now()->addYear()]);
+            }
+        });
+    }
+
+    /**
+     * Cancela las aprobaciones que siguen abiertas (pending/waiting) cuando el reglamento se
+     * envía a la papelera, para que no sigan apareciendo en "Mis aprobaciones" ni en los
+     * recordatorios. Las ya decididas se conservan como historial.
+     */
+    public function cancelOpenApprovals(Regulation $regulation): void
+    {
+        $regulation->approvals()
+            ->whereIn('status', ['pending', 'waiting'])
+            ->update(['status' => 'cancelled']);
     }
 
     /**

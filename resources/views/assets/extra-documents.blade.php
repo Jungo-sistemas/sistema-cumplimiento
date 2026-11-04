@@ -296,7 +296,7 @@
                                         @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
                                             <form method="POST"
                                                   action="{{ route('assets.extra-documents.destroy', [$asset, $doc]) }}"
-                                                  onsubmit="return confirm('¿Eliminar este documento extra?');">
+                                                  data-confirm="¿Eliminar este documento extra?" data-confirm-danger data-confirm-button="Sí, eliminar">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit"

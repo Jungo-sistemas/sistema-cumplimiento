@@ -95,6 +95,24 @@
                             </div>
                         </div>
 
+                        {{-- Impacto para evaluación (opcional; también se cambia desde el listado) --}}
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                                Nivel de impacto <span class="normal-case font-normal text-gray-400">(opcional)</span>
+                            </label>
+                            <select name="evaluation_impact"
+                                    class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('evaluation_impact') border-red-400 @enderror">
+                                <option value="">— Sin definir —</option>
+                                @foreach(\App\Models\Regulation::EVALUATION_IMPACTS as $val => $lbl)
+                                    <option value="{{ $val }}" {{ old('evaluation_impact') === $val ? 'selected' : '' }}>{{ $lbl }}</option>
+                                @endforeach
+                            </select>
+                            <p class="text-xs text-gray-400 mt-1">Servirá para definir cada cuánto se evalúa el proceso.</p>
+                            @error('evaluation_impact')
+                                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+
                         {{-- Si es anexo lo decide la pestaña desde la que se entró (Procesos o Anexos). --}}
                         @if($isAnnex)
                             <input type="hidden" name="is_annex" value="1">
