@@ -388,17 +388,21 @@ class ApprovalFlowTest extends TestCase
 
     // ─── HTTP: autorización ──────────────────────────────────────────────────
 
-    public function test_aprobar_sin_pending_da_403(): void
+    public function test_aprobar_sin_pending_no_registra_nada_y_regresa_a_mis_aprobaciones(): void
     {
         $reg     = $this->makeRegulation('bajo');
         $intruso = User::factory()->create([
             'group_id' => $this->group->id, 'scope_level' => 'group',
             'status' => 'active', 'role_id' => $this->opRoleId,
         ]);
+        $statusBefore = $reg->fresh()->approval_status;
 
         $this->actingAs($intruso)
             ->post(route('processes.approve', $reg))
-            ->assertStatus(403);
+            ->assertRedirect(route('my-approvals.index'));
+
+        $this->assertSame($statusBefore, $reg->fresh()->approval_status);
+        $this->assertSame(0, $reg->approvals()->where('user_id', $intruso->id)->count());
     }
 
     public function test_rechazar_sin_comentario_falla_validacion(): void

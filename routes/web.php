@@ -339,6 +339,8 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
 
     Route::get('/processes/{regulation}/change-summary', [RegulationChangeSummaryController::class, 'show'])
         ->name('processes.changeSummary.show');
+    Route::get('/processes/{regulation}/change-evidence/{evidence}', [RegulationChangeSummaryController::class, 'showEvidence'])
+        ->name('processes.changeEvidence.show');
 
     Route::patch('/processes/{regulation}/annexes', [RegulationController::class, 'setAnnexes'])
         ->name('processes.setAnnexes');

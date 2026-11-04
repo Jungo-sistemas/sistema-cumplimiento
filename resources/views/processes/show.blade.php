@@ -1206,11 +1206,13 @@
     };
     </script>
 
+    @include('processes.partials.change-evidence-script')
+
     {{-- Modal unificado: detectar cambios → ¿mantener o cambiar flujo? → nivel + personas --}}
     <div x-data="reviewFlowModal('{{ $regulation->impact_level }}')">
 
         {{-- Formulario oculto para enviar a setFlow --}}
-        <form x-ref="flowForm" method="POST" action="{{ route('processes.setFlow', $regulation) }}" enctype="multipart/form-data">
+        <form x-ref="flowForm" id="reviewFlowForm" method="POST" action="{{ route('processes.setFlow', $regulation) }}" enctype="multipart/form-data">
             @csrf
             @method('PATCH')
             <input type="hidden" name="impact_level" :value="selectedLevel">
@@ -1309,6 +1311,10 @@
                         </div>
 
                         @include('processes.partials.flow-change-summary')
+                        @include('processes.partials.flow-change-evidences', [
+                            'formId'   => 'reviewFlowForm',
+                            'existing' => \Illuminate\Support\Js::from($regulation->changeEvidences->map(fn ($e) => ['id' => $e->id, 'name' => $e->original_name])),
+                        ])
 
                         <p class="text-xs text-gray-500">
                             Asignar personas es opcional: si dejas un puesto vacío, aprueba cualquiera de ese puesto.

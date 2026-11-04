@@ -216,27 +216,7 @@
 
                         @if($regulation->change_summary_path)
                             {{-- Síntesis de cambios que se adjuntó al establecer el flujo --}}
-                            <div>
-                                <div class="flex items-center justify-between gap-3 flex-wrap mb-2">
-                                    <div class="min-w-0">
-                                        <p class="text-sm font-semibold text-gray-800 truncate">{{ $regulation->change_summary_original_name }}</p>
-                                        <p class="text-xs text-gray-500">
-                                            Subido por {{ $regulation->changeSummaryUploader?->name ?? '—' }}
-                                            · {{ $regulation->change_summary_uploaded_at?->format('d/m/Y H:i') }}
-                                        </p>
-                                    </div>
-                                    <a href="{{ route('processes.changeSummary.show', $regulation) }}"
-                                       target="_blank"
-                                       class="text-xs font-semibold text-brand hover:underline shrink-0">
-                                        Abrir en pestaña nueva
-                                    </a>
-                                </div>
-                                <template x-if="showPreview">
-                                    <iframe src="{{ route('processes.changeSummary.show', $regulation) }}"
-                                            title="Resumen de cambios"
-                                            class="w-full h-[600px] rounded-lg border bg-gray-100"></iframe>
-                                </template>
-                            </div>
+                            @include('processes.partials.change-summary-viewer', ['loadWhen' => 'showPreview'])
                         @else
                             {{-- Si no se adjuntó síntesis al establecer el flujo, se muestra el registro más
                                  reciente del "Historial de revisiones y cambios" de la ficha del proceso. --}}
@@ -273,6 +253,8 @@
                                     <p class="text-sm text-gray-400 italic text-center py-4">Este documento no tiene versiones registradas.</p>
                                 @endif
                             </div>
+                            {{-- Sin síntesis el visor solo trae las evidencias de apoyo (si hay). --}}
+                            @include('processes.partials.change-summary-viewer', ['loadWhen' => 'showPreview'])
                         @endif
 
                     </div>
@@ -317,7 +299,8 @@
                                     <p class="text-sm text-gray-500 mb-4 text-center">
                                         ¿Rechazar <span class="font-semibold text-gray-800">«{{ $regulation->name }}»</span>?
                                     </p>
-                                    <form method="POST" action="{{ route('processes.reject', $regulation) }}" class="space-y-3">
+                                    <form method="POST" action="{{ route('processes.reject', $regulation) }}" class="space-y-3"
+                                          @submit="$el.querySelector('[type=submit]').disabled = true">
                                         @csrf
                                         <div>
                                             <label class="block text-sm font-semibold text-red-700 mb-2">
@@ -332,7 +315,7 @@
                                                     class="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-semibold hover:bg-gray-50">
                                                 Cancelar
                                             </button>
-                                            <button type="submit" class="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
+                                            <button type="submit" class="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60 disabled:cursor-wait">
                                                 Confirmar rechazo
                                             </button>
                                         </div>
@@ -369,10 +352,11 @@
                                                 class="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50">
                                             Cancelar
                                         </button>
-                                        <form method="POST" action="{{ route('processes.approve', $regulation) }}" class="flex-1">
+                                        <form method="POST" action="{{ route('processes.approve', $regulation) }}" class="flex-1"
+                                              @submit="$el.querySelector('[type=submit]').disabled = true">
                                             @csrf
                                             <button type="submit"
-                                                    class="w-full px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
+                                                    class="w-full px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark disabled:opacity-60 disabled:cursor-wait">
                                                 Sí, aprobar
                                             </button>
                                         </form>
