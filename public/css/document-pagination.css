@@ -39,7 +39,9 @@
 .doc-page-content td, .doc-page-content th,
 .doc-page-measurer td, .doc-page-measurer th { border: 1px solid #d1d5db; padding: 7px 12px; vertical-align: top; }
 .doc-page-content th, .doc-page-measurer th { background: #f9fafb; font-weight: 600; }
-.doc-page-content img, .doc-page-measurer img { max-width: 100%; height: auto; display: block; margin: .5em auto; }
+/* !important: los .docx subidos traen width/height fijos en style="" en línea; sin esto el ancho se
+   limita a la hoja pero el alto no, y el diagrama se ve aplastado (mismo criterio que en el editor). */
+.doc-page-content img, .doc-page-measurer img { max-width: 100% !important; height: auto !important; display: block; margin: .5em auto; }
 
 .doc-page-content mark,
 .doc-page-content [style*="background-color: #FFFF00"],
