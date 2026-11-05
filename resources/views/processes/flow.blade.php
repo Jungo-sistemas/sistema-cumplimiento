@@ -196,6 +196,7 @@
 
             {{-- Re-envío al mismo flujo: permite reemplazar la síntesis de cambios antes de reiniciar --}}
             @if(auth()->user()->isAdmin())
+                @include('processes.partials.change-evidence-script')
                 <div x-data="{
                         open: false,
                         summaryName: '',
@@ -220,7 +221,7 @@
                      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
                      @keydown.escape.window="open = false">
                     <div class="w-full max-w-md rounded-xl bg-white shadow-xl" @click.outside="open = false">
-                        <form method="POST" action="{{ route('processes.resubmit', $regulation) }}" enctype="multipart/form-data" class="p-6">
+                        <form method="POST" id="resubmitForm" action="{{ route('processes.resubmit', $regulation) }}" enctype="multipart/form-data" class="p-6">
                             @csrf
                             <h3 class="text-base font-semibold text-gray-800">Re-enviar a aprobación</h3>
                             <p class="text-sm text-gray-500 mt-1 mb-4">
@@ -237,6 +238,10 @@
                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
                                    @change="pickSummary($event)">
                             @include('processes.partials.flow-change-summary')
+                            @include('processes.partials.flow-change-evidences', [
+                                'formId'   => 'resubmitForm',
+                                'existing' => \Illuminate\Support\Js::from($regulation->changeEvidences->map(fn ($e) => ['id' => $e->id, 'name' => $e->original_name])),
+                            ])
 
                             <div class="flex gap-3">
                                 <button type="button" @click="open = false"
@@ -256,34 +261,26 @@
 
         {{-- Síntesis de cambios adjunta al establecer el flujo: la misma que se ve en "Mis aprobaciones",
              para que el aprobador la consulte también desde el detalle. --}}
-        @if($regulation->change_summary_path)
+        @if($regulation->change_summary_path || $regulation->changeEvidences->isNotEmpty())
+            @php $evidenceCount = $regulation->changeEvidences->count(); @endphp
             <div x-data="{ open: {{ $pendingApprovalForUser ? 'true' : 'false' }} }" class="mt-6 rounded-xl border border-gray-200 bg-white">
                 <div class="flex items-center justify-between gap-3 flex-wrap px-5 py-4">
                     <div class="min-w-0">
                         <p class="text-sm font-semibold text-gray-800">Síntesis de cambios</p>
                         <p class="text-xs text-gray-500 truncate">
-                            {{ $regulation->change_summary_original_name }}
-                            · Subido por {{ $regulation->changeSummaryUploader?->name ?? '—' }}
-                            · {{ $regulation->change_summary_uploaded_at?->format('d/m/Y H:i') }}
+                            {{ $regulation->change_summary_path ? $regulation->change_summary_original_name : 'Sin documento de síntesis' }}
+                            @if($evidenceCount)
+                                · {{ $evidenceCount }} {{ $evidenceCount === 1 ? 'evidencia' : 'evidencias' }} de apoyo
+                            @endif
                         </p>
                     </div>
-                    <div class="flex items-center gap-3 shrink-0">
-                        <a href="{{ route('processes.changeSummary.show', $regulation) }}" target="_blank"
-                           class="text-xs font-semibold text-brand hover:underline">
-                            Abrir en pestaña nueva
-                        </a>
-                        <button type="button" @click="open = !open"
-                                class="px-3 py-1.5 rounded-lg border border-brand text-brand text-xs font-semibold hover:bg-brand-50"
-                                x-text="open ? 'Ocultar' : 'Ver síntesis'"></button>
-                    </div>
+                    <button type="button" @click="open = !open"
+                            class="shrink-0 px-3 py-1.5 rounded-lg border border-brand text-brand text-xs font-semibold hover:bg-brand-50"
+                            x-text="open ? 'Ocultar' : 'Ver síntesis'"></button>
                 </div>
-                <template x-if="open">
-                    <div class="border-t px-5 py-4">
-                        <iframe src="{{ route('processes.changeSummary.show', $regulation) }}"
-                                title="Síntesis de cambios"
-                                class="w-full h-[600px] rounded-lg border bg-gray-100"></iframe>
-                    </div>
-                </template>
+                <div x-show="open" class="border-t px-5 py-4" @unless($pendingApprovalForUser) style="display:none;" @endunless>
+                    @include('processes.partials.change-summary-viewer', ['loadWhen' => 'open'])
+                </div>
             </div>
         @endif
 

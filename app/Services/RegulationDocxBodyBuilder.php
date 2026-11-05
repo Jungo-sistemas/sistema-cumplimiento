@@ -28,6 +28,17 @@ class RegulationDocxBodyBuilder
 {
     private const IMG_PATTERN = '/<img\b[^>]*\bsrc="data:image\/(\w+);base64,([^"]+)"[^>]*\/?>/i';
 
+    // Área útil de la hoja (carta, márgenes de 1in a los lados; arriba va el encabezado): una
+    // imagen más grande se reduce a esto conservando su proporción.
+    private const MAX_WIDTH_PT = 468;
+    private const MAX_HEIGHT_PT = 600;
+
+    /**
+     * Cada imagen del cuerpo se inserta aparte (ver comentario de la clase). Los .docx subidos a mano
+     * y reconstruidos en el editor pueden traer varias, con el tamaño en style="width:…px;height:…px"
+     * en vez de atributos — antes solo se tomaba la primera y solo de los atributos, y el resto pasaba
+     * por addHtml() a su tamaño original, más ancho que la hoja, y LibreOffice lo aplastaba.
+     */
     public function apply(Section $section, string $html): void
     {
         if (! preg_match(self::IMG_PATTERN, $html, $match, PREG_OFFSET_CAPTURE)) {
@@ -53,7 +64,7 @@ class RegulationDocxBodyBuilder
         $this->addImageInPt($section, $tag, $base64, $extension);
 
         if (trim($after) !== '') {
-            WordHtml::addHtml($section, $after, false, false);
+            $this->apply($section, $after);
         }
     }
 
@@ -109,10 +120,9 @@ class RegulationDocxBodyBuilder
         file_put_contents($tmpPath, base64_decode($base64));
 
         $style = ['unit' => 'pt'];
-        $dimensions = $this->extractPtDimensions($tag);
+        $dimensions = $this->extractPtDimensions($tag) ?? $this->nativePtDimensions($tmpPath);
         if ($dimensions !== null) {
-            $style['width'] = $dimensions['width'];
-            $style['height'] = $dimensions['height'];
+            $style += $this->fitToPage($dimensions['width'], $dimensions['height']);
         }
 
         $section->addImage($tmpPath, $style);
@@ -125,18 +135,55 @@ class RegulationDocxBodyBuilder
         register_shutdown_function(static fn () => @unlink($tmpPath));
     }
 
-    /** @return array{width: float, height: float}|null */
+    /**
+     * Tamaño en pt desde los atributos width/height (px, los del diagrama generado) o, si no
+     * vienen, desde el style en línea (px o pt, los de un .docx subido reconstruido por PhpWord).
+     *
+     * @return array{width: float, height: float}|null
+     */
     private function extractPtDimensions(string $tag): ?array
     {
-        if (! preg_match('/\bwidth="(\d+(?:\.\d+)?)"/', $tag, $w)
-            || ! preg_match('/\bheight="(\d+(?:\.\d+)?)"/', $tag, $h)
+        if (preg_match('/\bwidth="(\d+(?:\.\d+)?)"/', $tag, $w)
+            && preg_match('/\bheight="(\d+(?:\.\d+)?)"/', $tag, $h)
         ) {
+            return ['width' => ((float) $w[1]) * 72 / 96, 'height' => ((float) $h[1]) * 72 / 96];
+        }
+
+        if (preg_match('/\bstyle="([^"]*)"/i', $tag, $s)) {
+            $width = $this->cssLengthToPt($s[1], 'width');
+            $height = $this->cssLengthToPt($s[1], 'height');
+            if ($width && $height) {
+                return ['width' => $width, 'height' => $height];
+            }
+        }
+
+        return null;
+    }
+
+    private function cssLengthToPt(string $css, string $property): ?float
+    {
+        if (! preg_match('/(?:^|;)\s*' . $property . '\s*:\s*(\d+(?:\.\d+)?)\s*(px|pt)?\s*(?:;|$)/i', $css, $m)) {
             return null;
         }
 
-        return [
-            'width' => ((float) $w[1]) * 72 / 96,
-            'height' => ((float) $h[1]) * 72 / 96,
-        ];
+        $value = (float) $m[1];
+
+        return strtolower($m[2] ?? 'px') === 'pt' ? $value : $value * 72 / 96;
+    }
+
+    /** @return array{width: float, height: float}|null */
+    private function nativePtDimensions(string $path): ?array
+    {
+        $size = @getimagesize($path);
+
+        return $size ? ['width' => $size[0] * 72 / 96, 'height' => $size[1] * 72 / 96] : null;
+    }
+
+    /** @return array{width: float, height: float} */
+    private function fitToPage(float $width, float $height): array
+    {
+        $scale = min(1, self::MAX_WIDTH_PT / $width, self::MAX_HEIGHT_PT / $height);
+
+        return ['width' => round($width * $scale, 2), 'height' => round($height * $scale, 2)];
     }
 }

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $regulation->code }} — {{ $regulation->name }}</title>
     @vite(['resources/css/app.css'])
-    <link rel="stylesheet" href="{{ asset('css/document-pagination.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/document-pagination.css') }}?v={{ @filemtime(public_path('css/document-pagination.css')) }}">
     <style>
         @media print {
             .no-print { display: none !important; }

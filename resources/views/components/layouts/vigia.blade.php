@@ -117,9 +117,12 @@
             $item('Inicio', 'mi-espacio.home', 'home', request()->routeIs('mi-espacio.home')),
             $item('Mis solicitudes', 'mi-espacio.requests', 'clock', request()->routeIs('mi-espacio.requests')),
         ]];
-        $sections[] = ['title' => 'Procesos', 'items' => [
+        $sections[] = ['title' => 'Procesos', 'items' => array_values(array_filter([
             $item('Mis documentos', 'mi-espacio.documents', 'document', request()->routeIs('mi-espacio.documents') || $sharedRoute && ! request()->routeIs('profile.*')),
-        ]];
+            isset($modules['procesos'])
+                ? $item('Mis aprobaciones', 'my-approvals.index', 'badge', request()->routeIs('my-approvals.*'), ['badge' => $pendingApprovalsCount])
+                : null,
+        ]))];
         $sections[] = ['title' => 'Auditorías', 'items' => [
             $item('Mis auditorías', 'mi-espacio.audits', 'check', request()->routeIs('mi-espacio.audits')),
             $item('Mis actividades', 'mi-espacio.activities', 'alert', request()->routeIs('mi-espacio.activities')),
@@ -136,10 +139,9 @@
         $procesosItems = [
             $item('Tablero', 'processes.dashboard', 'chart', request()->routeIs('processes.dashboard'), ['tour' => 'nav-tablero']),
             $item('Procedimientos', 'processes.index', 'document', request()->routeIs('processes.index', 'processes.show', 'processes.create'), ['tour' => 'nav-procedimientos']),
+            // Siempre visible: si quien aprueba se queda sin pendientes, la pantalla dice "Todo al día".
+            $item('Mis aprobaciones', 'my-approvals.index', 'badge', request()->routeIs('my-approvals.*'), ['tour' => 'nav-mis-aprobaciones', 'badge' => $pendingApprovalsCount]),
         ];
-        if ($pendingApprovalsCount > 0 || request()->routeIs('my-approvals.*')) {
-            $procesosItems[] = $item('Mis aprobaciones', 'my-approvals.index', 'badge', request()->routeIs('my-approvals.*'), ['tour' => 'nav-mis-aprobaciones', 'badge' => $pendingApprovalsCount]);
-        }
         $sections[] = ['title' => 'Procesos', 'items' => $procesosItems];
         $helpItem = $item('Ayuda', 'processes.guide.manual', 'help', false, ['newTab' => true]);
     } else {

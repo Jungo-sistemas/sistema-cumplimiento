@@ -770,6 +770,7 @@
                                                     regulationName: @js($regulation->name),
                                                     impactLevel: $event.target.value,
                                                     levelLabel: $event.target.options[$event.target.selectedIndex].text,
+                                                    evidences: @js($regulation->changeEvidences->map(fn ($e) => ['id' => $e->id, 'name' => $e->original_name])),
                                                     formAction: '{{ route('processes.setFlow', $regulation) }}'
                                                 }); $event.target.value = ''"
                                                 class="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:border-blue-400 w-full mb-1.5">
@@ -906,6 +907,8 @@
 
     @endif
 
+    @include('processes.partials.change-evidence-script')
+
     {{-- =====================================================================
          MODAL: Asignación de flujo de aprobación
          ===================================================================== --}}
@@ -915,7 +918,7 @@
          style="display:none;">
 
         {{-- Hidden form submitted on confirm --}}
-        <form x-ref="flowForm" method="POST" :action="formAction" enctype="multipart/form-data">
+        <form x-ref="flowForm" id="flowForm" method="POST" :action="formAction" enctype="multipart/form-data">
             @csrf
             @method('PATCH')
             <input type="hidden" name="impact_level" :value="directApproval ? '' : impactLevel">
@@ -985,6 +988,7 @@
                         </p>
 
                         @include('processes.partials.flow-change-summary')
+                        @include('processes.partials.flow-change-evidences', ['formId' => 'flowForm', 'existing' => 'evidences'])
 
                         <div class="space-y-5">
                             <template x-for="pos in positions" :key="pos.slug">
@@ -1248,6 +1252,7 @@ function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders
         open: {},
         summaryName: '',
         summaryError: '',
+        evidences: [],
 
         // Las personas por puesto son opcionales — basta con haber elegido un nivel.
         get canConfirm() {
@@ -1287,6 +1292,7 @@ function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders
             this.regulationName = detail.regulationName;
             this.impactLevel  = detail.impactLevel;
             this.levelLabel   = detail.levelLabel;
+            this.evidences    = detail.evidences || [];
             this.directApproval = detail.impactLevel === '__approved';
             this.removing     = !detail.impactLevel;
 

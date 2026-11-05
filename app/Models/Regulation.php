@@ -158,6 +158,63 @@ class Regulation extends Model
         ]);
     }
 
+    public const MAX_CHANGE_EVIDENCES = 3;
+
+    public function changeEvidences()
+    {
+        return $this->hasMany(RegulationChangeEvidence::class)->orderBy('id');
+    }
+
+    /** Reglas para las evidencias de apoyo que se suben junto con la síntesis. */
+    public static function changeEvidenceRules(): array
+    {
+        return [
+            'change_evidences'   => ['nullable', 'array', 'max:' . self::MAX_CHANGE_EVIDENCES],
+            'change_evidences.*' => ['file', 'mimes:pdf,jpg,jpeg,png', 'max:20480'],
+            'remove_evidences'   => ['nullable', 'array'],
+            'remove_evidences.*' => ['integer'],
+        ];
+    }
+
+    public static function changeEvidenceMessages(): array
+    {
+        return [
+            'change_evidences.max'     => 'Solo se permiten ' . self::MAX_CHANGE_EVIDENCES . ' evidencias de apoyo.',
+            'change_evidences.*.mimes' => 'Las evidencias deben ser imagen (JPG/PNG) o PDF.',
+            'change_evidences.*.max'   => 'Cada evidencia puede pesar máximo 20 MB.',
+        ];
+    }
+
+    /**
+     * Quita las evidencias indicadas y agrega las nuevas. Devuelve un mensaje de error (sin tocar
+     * nada) si el total quedaría arriba del máximo.
+     */
+    public function syncChangeEvidences(array $newFiles, array $removeIds, User $uploader): ?string
+    {
+        $toRemove = $this->changeEvidences()->whereIn('id', $removeIds)->get();
+        $total    = $this->changeEvidences()->count() - $toRemove->count() + count($newFiles);
+
+        if ($total > self::MAX_CHANGE_EVIDENCES) {
+            return 'Solo se permiten ' . self::MAX_CHANGE_EVIDENCES . ' evidencias de apoyo; quita alguna antes de agregar otra.';
+        }
+
+        foreach ($toRemove as $evidence) {
+            \Illuminate\Support\Facades\Storage::disk('private')->delete($evidence->path);
+            $evidence->delete();
+        }
+
+        foreach ($newFiles as $file) {
+            $this->changeEvidences()->create([
+                'path'          => $file->store("regulations/{$this->company_id}/{$this->id}/change-evidence", 'private'),
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type'     => $file->getMimeType(),
+                'uploaded_by'   => $uploader->id,
+            ]);
+        }
+
+        return null;
+    }
+
     public function responsables()
     {
         return $this->belongsToMany(User::class, 'regulation_responsables')->withTimestamps();

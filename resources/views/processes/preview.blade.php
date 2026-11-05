@@ -128,7 +128,7 @@
         </div>
     </div>
 
-    <link rel="stylesheet" href="{{ asset('css/document-pagination.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/document-pagination.css') }}?v={{ @filemtime(public_path('css/document-pagination.css')) }}">
 
     <script>
         function previewApp() {
@@ -138,6 +138,6 @@
             };
         }
     </script>
-    <script src="{{ asset('js/document-pagination.js') }}"></script>
+    <script src="{{ asset('js/document-pagination.js') }}?v={{ @filemtime(public_path('js/document-pagination.js')) }}"></script>
 
 </x-layouts.vigia>

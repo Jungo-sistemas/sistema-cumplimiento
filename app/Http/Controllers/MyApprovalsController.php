@@ -18,6 +18,7 @@ class MyApprovalsController extends Controller
                 'regulation.creator',
                 'regulation.currentVersion.uploader',
                 'regulation.changeSummaryUploader',
+                'regulation.changeEvidences.uploader',
                 'jobPosition',
             ])
             ->orderBy('created_at')

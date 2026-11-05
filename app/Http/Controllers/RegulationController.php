@@ -78,7 +78,7 @@ class RegulationController extends Controller
         // en sí) se ven aparte con ?anexos=1, para no mezclarlos en el listado principal.
         $showAnnexes = $request->boolean('anexos');
 
-        $query = Regulation::with(['processType', 'company', 'currentVersion', 'annexes'])
+        $query = Regulation::with(['processType', 'company', 'currentVersion', 'annexes', 'changeEvidences'])
             ->where('group_id', $user->group_id)
             ->where('is_active', true)
             ->where('is_annex', $showAnnexes)
@@ -281,7 +281,7 @@ class RegulationController extends Controller
         );
         abort_unless($regulation->impact_level, 404);
 
-        $regulation->load(['processType', 'company']);
+        $regulation->load(['processType', 'company', 'changeEvidences.uploader']);
 
         $approvals = $regulation->approvals()
             ->with(['user', 'jobPosition'])
@@ -987,10 +987,10 @@ class RegulationController extends Controller
             'users.*'         => ['nullable', 'array'],
             'users.*.*'       => ['nullable', 'integer', 'exists:users,id'],
             'change_summary'  => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png', 'max:20480'],
-        ], [
+        ] + Regulation::changeEvidenceRules(), [
             'change_summary.mimes' => 'La síntesis de cambios debe ser PDF, Word, Excel o imagen (JPG/PNG).',
             'change_summary.max'   => 'La síntesis de cambios no puede pesar más de 20 MB.',
-        ]);
+        ] + Regulation::changeEvidenceMessages());
 
         // Los modales del flujo no muestran errores por campo — se avisa con el mensaje general
         // de la página, sin tocar el flujo.
@@ -1013,6 +1013,16 @@ class RegulationController extends Controller
         }
 
         $newLevel = $data['impact_level'] ?: null;
+
+        // Evidencias de apoyo de la síntesis: se validan contra el máximo antes de tocar el flujo.
+        if ($newLevel) {
+            $evidenceError = $regulation->syncChangeEvidences(
+                $request->file('change_evidences', []), $data['remove_evidences'] ?? [], $user
+            );
+            if ($evidenceError) {
+                return back()->with('error', $evidenceError);
+            }
+        }
 
         // Build userMap: slug → [id, id, ...], skip empty slots
         $userMap = [];

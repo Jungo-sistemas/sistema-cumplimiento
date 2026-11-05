@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Regulation;
+use App\Models\RegulationChangeEvidence;
 use App\Models\RegulationShare;
 use App\Services\ApprovalFlowService;
 use App\Services\OfficeDocumentConverter;
@@ -17,19 +18,7 @@ class RegulationChangeSummaryController extends Controller
 {
     public function show(Regulation $regulation)
     {
-        $user = auth()->user();
-
-        $hasPendingApproval = app(ApprovalFlowService::class)
-            ->getPendingApprovalForUser($regulation, $user->id) !== null;
-
-        $hasShare = RegulationShare::where('regulation_id', $regulation->id)
-            ->where('user_id', $user->id)
-            ->exists();
-
-        abort_unless(
-            $user->canAccessCompany($regulation->company) || $hasPendingApproval || $hasShare,
-            403
-        );
+        $this->authorizeView($regulation);
 
         $path = $regulation->change_summary_path;
         abort_unless($path && Storage::disk('private')->exists($path), 404);
@@ -66,6 +55,36 @@ class RegulationChangeSummaryController extends Controller
         return response()->file(
             Storage::disk('private')->path($path),
             ['Content-Type' => $regulation->change_summary_mime_type ?? 'application/octet-stream']
+        );
+    }
+
+    /** Evidencia de apoyo de la síntesis (imagen o PDF), con los mismos permisos que la síntesis. */
+    public function showEvidence(Regulation $regulation, RegulationChangeEvidence $evidence)
+    {
+        abort_unless($evidence->regulation_id === $regulation->id, 404);
+        $this->authorizeView($regulation);
+        abort_unless(Storage::disk('private')->exists($evidence->path), 404);
+
+        return response()->file(
+            Storage::disk('private')->path($evidence->path),
+            ['Content-Type' => $evidence->mime_type ?? 'application/octet-stream']
+        );
+    }
+
+    private function authorizeView(Regulation $regulation): void
+    {
+        $user = auth()->user();
+
+        $hasPendingApproval = app(ApprovalFlowService::class)
+            ->getPendingApprovalForUser($regulation, $user->id) !== null;
+
+        $hasShare = RegulationShare::where('regulation_id', $regulation->id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        abort_unless(
+            $user->canAccessCompany($regulation->company) || $hasPendingApproval || $hasShare,
+            403
         );
     }
 }

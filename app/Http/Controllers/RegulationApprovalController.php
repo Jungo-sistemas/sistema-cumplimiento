@@ -16,7 +16,9 @@ class RegulationApprovalController extends Controller
 
         // El permiso real es tener una aprobación pendiente asignada — no se requiere acceso general a la empresa
         $approval = $this->flowService->getPendingApprovalForUser($regulation, $user->id);
-        abort_unless($approval !== null, 403, 'No tienes una aprobación pendiente para este reglamento.');
+        if ($approval === null) {
+            return $this->alreadyResolved();
+        }
 
         $this->flowService->processApproval($approval, 'approved');
 
@@ -32,11 +34,23 @@ class RegulationApprovalController extends Controller
         ]);
 
         $approval = $this->flowService->getPendingApprovalForUser($regulation, $user->id);
-        abort_unless($approval !== null, 403, 'No tienes una aprobación pendiente para este reglamento.');
+        if ($approval === null) {
+            return $this->alreadyResolved();
+        }
 
         $this->flowService->processApproval($approval, 'rejected', $request->comments);
 
         return back()->with('success', 'Rechazo registrado. El creador será notificado.');
+    }
+
+    /**
+     * Doble clic, recarga o pestaña vieja: la decisión ya se registró (o el flujo cambió), así que
+     * en vez de un 403 se regresa a "Mis aprobaciones" con lo que siga pendiente.
+     */
+    private function alreadyResolved()
+    {
+        return redirect()->route('my-approvals.index')
+            ->with('success', 'Esta aprobación ya no está pendiente; tu decisión ya quedó registrada o el flujo cambió.');
     }
 
     public function resubmit(Request $request, Regulation $regulation)
@@ -46,12 +60,25 @@ class RegulationApprovalController extends Controller
         abort_unless($user->canAccessCompany($regulation->company), 403);
         abort_unless($regulation->approval_status === 'rejected', 403, 'Solo se puede re-enviar un reglamento rechazado.');
 
-        $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'change_summary' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png', 'max:20480'],
-        ], [
+        ] + Regulation::changeEvidenceRules(), [
             'change_summary.mimes' => 'La síntesis de cambios debe ser PDF, Word, Excel o imagen (JPG/PNG).',
             'change_summary.max'   => 'La síntesis de cambios no puede pesar más de 20 MB.',
-        ]);
+        ] + Regulation::changeEvidenceMessages());
+
+        // El modal no muestra errores por campo: se avisa con el mensaje general de la página.
+        if ($validator->fails()) {
+            return back()->with('error', $validator->errors()->first());
+        }
+        $data = $validator->validated();
+
+        $evidenceError = $regulation->syncChangeEvidences(
+            $request->file('change_evidences', []), $data['remove_evidences'] ?? [], $user
+        );
+        if ($evidenceError) {
+            return back()->with('error', $evidenceError);
+        }
 
         // Se reemplaza antes de reiniciar para que los aprobadores del paso 1 ya vean la nueva.
         if ($request->hasFile('change_summary')) {
