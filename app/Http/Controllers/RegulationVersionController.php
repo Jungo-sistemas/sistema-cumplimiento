@@ -170,6 +170,10 @@ class RegulationVersionController extends Controller
         @unlink($tmp);
         $html = preg_match('/<body[^>]*>(.*?)<\/body>/si', $raw, $m) ? $m[1] : $raw;
 
+        // PhpWord deja cada imagen a su tamaño nativo y sin recorte: se le aplica el tamaño y el
+        // recorte con que Word la muestra, para que no se vea estirada o aplastada.
+        $html = app(\App\Services\DocxImageGeometry::class)->apply($html, $filePath);
+
         // La sola presencia de tablas/imágenes en el .docx original NO implica que se vayan a
         // perder: probado con casos reales, el escritor HTML de PhpWord normalmente sí las
         // reconstruye bien. Lo que se compara aquí es el CONTEO antes/después — si el HTML
@@ -668,8 +672,10 @@ class RegulationVersionController extends Controller
             $versionLabel = 'v' . $version->version_number;
             $regCode      = htmlspecialchars($regulation->code ?? '');
             $regName      = htmlspecialchars($regulation->name);
-            $paginationCssUrl = asset('css/document-pagination.css');
-            $paginationJsUrl  = asset('js/document-pagination.js');
+            // ?v= con la fecha del archivo: sin esto el navegador seguía usando la copia vieja del
+            // CSS después de un cambio (el diagrama de F-MDI-043 se seguía viendo aplastado).
+            $paginationCssUrl = asset('css/document-pagination.css') . '?v=' . @filemtime(public_path('css/document-pagination.css'));
+            $paginationJsUrl  = asset('js/document-pagination.js') . '?v=' . @filemtime(public_path('js/document-pagination.js'));
 
             // Mismo encabezado fijo que ya se ve en la vista previa del wizard antes de confirmar
             // (processes/preview.blade.php) — aquí faltaba por completo: "Ver" sobre una versión ya
@@ -811,7 +817,7 @@ HTML;
             if (Storage::disk('private')->exists($previewPath)) {
                 return response()->file(
                     Storage::disk('private')->path($previewPath),
-                    ['Content-Type' => 'application/pdf']
+                    ['Content-Type' => 'application/pdf', 'Cache-Control' => 'no-store, max-age=0']
                 );
             }
 
@@ -855,7 +861,8 @@ HTML;
             if (Storage::disk('private')->exists($previewPath)) {
                 $downloadName = pathinfo($version->original_name ?? basename($version->file_path), PATHINFO_FILENAME) . '.pdf';
 
-                return Storage::disk('private')->download($previewPath, $downloadName);
+                // no-store: este PDF se regenera en el mismo lugar cuando se repara la versión.
+                return Storage::disk('private')->download($previewPath, $downloadName, ['Cache-Control' => 'no-store, max-age=0']);
             }
 
             // LibreOffice no disponible / la conversión falló: cae a descargar el .docx original
