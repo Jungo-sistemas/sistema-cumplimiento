@@ -1,43 +1,19 @@
-{{-- Ventana "Registrar hallazgo". Se incluye en Hallazgos y en Resultado.
-     Cualquier botón de la página la abre con: @click="$dispatch('registrar-hallazgo')" --}}
-@php
-    // Datos de ejemplo: las auditorías finalizadas, que es de donde salen los hallazgos.
-    $auditoriasHallazgo = [
-        3 => [
-            'nombre' => 'Manejo de residuos peligrosos · Asesorías Daval', 'responsable' => 'Ana Torres',
-            'criterios' => [
-                'Los contenedores están identificados con su etiqueta.',
-                'El almacén temporal cuenta con bitácora de entradas.',
-                'El manifiesto de entrega está firmado por el transportista.',
-            ],
-        ],
-        4 => [
-            'nombre' => 'Control de documentos · Vigía', 'responsable' => 'Luis Herrera',
-            'criterios' => [
-                'Los documentos en planta están en su versión vigente.',
-                'Los cambios tienen registro de aprobación.',
-                'Los documentos obsoletos están retirados del área.',
-            ],
-        ],
-    ];
-@endphp
-
+{{-- Ventana "Registrar hallazgo". Solo se incluye en el checklist de una auditoría abierta (En captura).
+     Cada criterio la abre con: @click="$dispatch('registrar-hallazgo', { criterio: número })"
+     Usa $auditoria y $criterios de esa página: la auditoría y el criterio se muestran, pero no se pueden cambiar. --}}
 <div x-data="{
         abierto: false,
-        auditoria: '',
-        criterio: '',
+        criterios: @js(array_column($criterios, 'texto')),
+        criterio: null,
         titulo: '',
         descripcion: '',
         severidad: '',
         fecha: '',
         errores: {},
         registrado: false,
-        auditorias: @js($auditoriasHallazgo),
-        get elegida() { return this.auditorias[this.auditoria] ?? null },
         abrir(detalle) {
             this.abierto = true;
-            this.auditoria = detalle.auditoria ? String(detalle.auditoria) : '';
-            this.criterio = '';
+            this.criterio = detalle.criterio;
             this.titulo = '';
             this.descripcion = '';
             this.severidad = '';
@@ -47,8 +23,6 @@
         },
         registrar() {
             this.errores = {};
-            if (! this.auditoria) this.errores.auditoria = 'Elige la auditoría.';
-            if (this.criterio === '') this.errores.criterio = 'Elige el criterio del checklist.';
             if (! this.titulo.trim()) this.errores.titulo = 'Escribe el título del hallazgo.';
             if (! this.descripcion.trim()) this.errores.descripcion = 'Describe lo que encontraste.';
             if (! this.severidad) this.errores.severidad = 'Elige la severidad.';
@@ -73,28 +47,16 @@
         </div>
 
         <form @submit.prevent="registrar()" x-show="! registrado" class="mt-5 space-y-5 rounded-2xl border border-gray-200 bg-gray-50 p-5">
-            <div>
-                <label for="hallazgo-auditoria" class="mb-2 block text-sm font-semibold text-gray-900">Auditoría</label>
-                <select id="hallazgo-auditoria" name="auditoria" x-model="auditoria" @change="criterio = ''"
-                        class="h-12 w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand">
-                    <option value="">Selecciona</option>
-                    @foreach($auditoriasHallazgo as $id => $a)
-                        <option value="{{ $id }}">{{ $a['nombre'] }}</option>
-                    @endforeach
-                </select>
-                <p x-show="errores.auditoria" x-text="errores.auditoria" class="mt-1 text-sm text-red-600"></p>
-            </div>
-
-            <div>
-                <label for="hallazgo-criterio" class="mb-2 block text-sm font-semibold text-gray-900">Criterio del checklist</label>
-                <select id="hallazgo-criterio" name="criterio" x-model="criterio" :disabled="! elegida"
-                        class="h-12 w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand disabled:bg-gray-100 disabled:text-gray-400">
-                    <option value="" x-text="elegida ? 'Selecciona' : 'Elige primero una auditoría'"></option>
-                    <template x-for="(texto, i) in (elegida ? elegida.criterios : [])" :key="i">
-                        <option :value="i" x-text="(i + 1) + '. ' + texto"></option>
-                    </template>
-                </select>
-                <p x-show="errores.criterio" x-text="errores.criterio" class="mt-1 text-sm text-red-600"></p>
+            {{-- Vienen del criterio donde se dio clic: solo se muestran, no hay nada que elegir --}}
+            <div class="grid grid-cols-1 gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-2">
+                <div>
+                    <div class="text-sm font-semibold text-gray-900">Auditoría</div>
+                    <p class="mt-1 text-[15px] text-gray-700">{{ $auditoria['procedimiento'] }}</p>
+                </div>
+                <div>
+                    <div class="text-sm font-semibold text-gray-900">Criterio del checklist</div>
+                    <p class="mt-1 text-[15px] text-gray-700" x-text="criterio === null ? '' : (criterio + 1) + '. ' + criterios[criterio]"></p>
+                </div>
             </div>
 
             <div>
@@ -132,10 +94,7 @@
                 </div>
             </div>
 
-            <p class="text-sm text-gray-600">Responsable:
-                <span x-text="elegida ? elegida.responsable : 'se muestra al elegir la auditoría'"
-                      :class="elegida ? 'font-semibold text-gray-900' : 'text-gray-400'"></span>
-            </p>
+            <p class="text-sm text-gray-600">Responsable: <span class="font-semibold text-gray-900">{{ $auditoria['auditado'] }}</span></p>
 
             <div>
                 <label for="hallazgo-soporte" class="mb-2 block text-sm font-semibold text-gray-900">Adjuntar soporte (opcional)</label>
@@ -151,7 +110,7 @@
             <p class="font-semibold text-green-800">Hallazgo registrado (demo).</p>
             <p class="mt-1 text-sm text-green-700">
                 Cuando exista la base de datos, aquí se guardará, se le avisará a
-                <span class="font-semibold" x-text="elegida ? elegida.responsable : ''"></span>
+                <span class="font-semibold">{{ $auditoria['auditado'] }}</span>
                 y aparecerá en la lista como "Por enviar".
             </p>
             <button type="button" @click="abierto = false" class="mt-4 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">Listo</button>
