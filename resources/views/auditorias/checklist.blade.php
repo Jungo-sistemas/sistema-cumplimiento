@@ -43,9 +43,15 @@
             finalizada: false,
             tieneCalificacion(r) { return r.calificacion !== '' && r.calificacion !== null },
             fueraDeRango(r) { return this.tieneCalificacion(r) && (r.calificacion < 0 || r.calificacion > 100) },
-            capturado(r) { return r.resultado !== '' && this.tieneCalificacion(r) && ! this.fueraDeRango(r) },
+            noAplica(r) { return r.resultado === 'no_aplica' },
+            capturado(r) { return r.resultado !== '' && (this.noAplica(r) || (this.tieneCalificacion(r) && ! this.fueraDeRango(r))) },
             get capturados() { return this.respuestas.filter(r => this.capturado(r)).length },
-            get promedio() { return Math.round(this.respuestas.reduce((suma, r) => suma + r.calificacion, 0) / this.respuestas.length) },
+            get promedio() {
+                {{-- "No aplica" no cuenta: el promedio es solo de los criterios evaluados. --}}
+                const evaluados = this.respuestas.filter(r => ! this.noAplica(r));
+                if (evaluados.length === 0) return '—';
+                return Math.round(evaluados.reduce((suma, r) => suma + r.calificacion, 0) / evaluados.length);
+            },
          }">
 
         {{-- Sesión de Teams y avance --}}
@@ -68,17 +74,22 @@
                         <div>
                             <label for="resultado-{{ $i }}" class="mb-2 block text-sm font-semibold text-gray-900">Resultado del criterio</label>
                             <select id="resultado-{{ $i }}" name="respuestas[{{ $i }}][resultado]" x-model="respuestas[{{ $i }}].resultado"
+                                    @change="if ($event.target.value === 'no_aplica') respuestas[{{ $i }}].calificacion = ''"
                                     class="h-12 w-full rounded-lg border-gray-200 bg-gray-50 text-[15px] focus:border-brand focus:ring-brand">
                                 <option value="">Selecciona</option>
                                 <option value="cumple">Cumple</option>
                                 <option value="no_cumple">No cumple</option>
+                                <option value="parcial">Parcial</option>
+                                <option value="no_aplica">No aplica</option>
                             </select>
                         </div>
                         <div>
                             <label for="calificacion-{{ $i }}" class="mb-2 block text-sm font-semibold text-gray-900">Calificación · 0 a 100</label>
                             <input id="calificacion-{{ $i }}" type="number" min="0" max="100" name="respuestas[{{ $i }}][calificacion]"
                                x-model.number="respuestas[{{ $i }}].calificacion"
-                               class="h-12 w-full rounded-lg bg-gray-50 text-[15px] focus:border-brand focus:ring-brand"
+                               :disabled="noAplica(respuestas[{{ $i }}])"
+                               :placeholder="noAplica(respuestas[{{ $i }}]) ? 'No aplica' : ''"
+                               class="h-12 w-full rounded-lg bg-gray-50 text-[15px] focus:border-brand focus:ring-brand disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                                :class="fueraDeRango(respuestas[{{ $i }}]) ? 'border-red-500' : 'border-gray-200'">
                         <p x-show="fueraDeRango(respuestas[{{ $i }}])" x-cloak class="mt-1 text-sm text-red-600">Debe ser un número de 0 a 100.</p>
                         </div>
@@ -96,7 +107,7 @@
         {{-- Botones. En la demo todavía no guardan en la base de datos. --}}
         <div class="mt-6 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-gray-200 bg-white p-6" x-show="! confirmando && ! finalizada">
             <span x-show="guardado" x-cloak x-transition class="mr-auto text-sm font-semibold text-green-700">Avance guardado (demo: todavía no se guarda en la base de datos).</span>
-            <span x-show="! guardado && capturados < {{ count($criterios) }}" class="mr-auto text-sm text-gray-600">Para finalizar, captura resultado y calificación en todos los criterios.</span>
+            <span x-show="! guardado && capturados < {{ count($criterios) }}" class="mr-auto text-sm text-gray-600">Para finalizar, captura el resultado de cada criterio y su calificación (excepto los que no aplican).</span>
 
             <button type="button" @click="guardado = true; setTimeout(() => guardado = false, 3000)"
                     class="rounded-lg border-2 border-brand px-5 py-2.5 text-sm font-semibold text-brand hover:bg-brand-50">Guardar avance</button>

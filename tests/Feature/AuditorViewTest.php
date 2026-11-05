@@ -64,6 +64,20 @@ class AuditorViewTest extends TestCase
             ->assertSee('No se registraron hallazgos en esta auditoría.');
     }
 
+    public function test_parcial_sale_en_que_necesitas_corregir(): void
+    {
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))
+            ->assertSeeInOrder(['Qué necesitas corregir', 'Parcial', 'Hallazgos registrados por el auditor']);
+    }
+
+    public function test_no_aplica_no_cuenta_en_la_calificacion(): void
+    {
+        // Auditoría 4: cuentan 95 y 89 (promedio 92). Si "No aplica" contara como 0, daría 61.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 4))
+            ->assertSee('92 / 100')
+            ->assertSee('No aplica');
+    }
+
     public function test_hallazgos_marca_los_vencidos_segun_la_fecha(): void
     {
         $this->travelTo('2026-11-03');

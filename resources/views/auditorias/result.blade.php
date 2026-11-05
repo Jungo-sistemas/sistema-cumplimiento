@@ -12,8 +12,8 @@
                 'procedimiento' => 'Manejo de residuos peligrosos', 'auditado' => 'Ana Torres', 'fecha' => '28 ago 2026',
                 'criterios' => [
                     ['texto' => 'Los contenedores están identificados con su etiqueta.',     'resultado' => 'no_cumple', 'calificacion' => 65, 'observacion' => 'Dos contenedores del almacén no tienen etiqueta de identificación.'],
-                    ['texto' => 'El almacén temporal cuenta con bitácora de entradas.',      'resultado' => 'cumple',    'calificacion' => 95, 'observacion' => 'La bitácora mostrada durante la llamada está al día.'],
-                    ['texto' => 'El manifiesto de entrega está firmado por el transportista.', 'resultado' => 'cumple',  'calificacion' => 95, 'observacion' => 'El manifiesto mostrado está completo y firmado.'],
+                    ['texto' => 'El almacén temporal cuenta con bitácora de entradas.',      'resultado' => 'parcial',   'calificacion' => 90,  'observacion' => 'La bitácora existe, pero le faltan las entradas del fin de semana.'],
+                    ['texto' => 'El manifiesto de entrega está firmado por el transportista.', 'resultado' => 'cumple',  'calificacion' => 100, 'observacion' => 'El manifiesto mostrado está completo y firmado.'],
                 ],
                 'hallazgos' => [
                     ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta', 'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres', 'severidad' => 'Mayor', 'seguimiento' => 'Rechazada', 'compromiso' => '2026-09-10'],
@@ -23,8 +23,8 @@
                 'procedimiento' => 'Control de documentos', 'auditado' => 'Luis Herrera', 'fecha' => '20 ago 2026',
                 'criterios' => [
                     ['texto' => 'Los documentos en planta están en su versión vigente.', 'resultado' => 'cumple', 'calificacion' => 95, 'observacion' => 'Las versiones en planta coinciden con el sistema.'],
-                    ['texto' => 'Los cambios tienen registro de aprobación.',            'resultado' => 'cumple', 'calificacion' => 90, 'observacion' => 'Cada cambio revisado tiene su aprobación.'],
-                    ['texto' => 'Los documentos obsoletos están retirados del área.',    'resultado' => 'cumple', 'calificacion' => 91, 'observacion' => 'No se encontraron copias obsoletas en el área.'],
+                    ['texto' => 'Los cambios tienen registro de aprobación.',            'resultado' => 'cumple',    'calificacion' => 89,   'observacion' => 'Cada cambio revisado tiene su aprobación.'],
+                    ['texto' => 'Los documentos obsoletos están retirados del área.',    'resultado' => 'no_aplica', 'calificacion' => null, 'observacion' => 'El área ya no maneja copias impresas.'],
                 ],
                 'hallazgos' => [],
             ],
@@ -34,10 +34,19 @@
         abort_unless(isset($auditorias[$audit]), 404);
         $auditoria = $auditorias[$audit];
 
-        // La calificación final es el promedio de los criterios; los incumplimientos son los "No cumple".
+        // La calificación final es el promedio de los criterios evaluados ("No aplica" no cuenta);
+        // lo que hay que corregir son los "No cumple" y los "Parcial".
         $criterios       = collect($auditoria['criterios']);
-        $calificacion    = round($criterios->avg('calificacion'));
-        $incumplimientos = $criterios->where('resultado', 'no_cumple');
+        $calificacion    = round($criterios->where('resultado', '!=', 'no_aplica')->avg('calificacion'));
+        $incumplimientos = $criterios->whereIn('resultado', ['no_cumple', 'parcial']);
+
+        // Etiqueta y color de cada resultado del checklist.
+        $resultados = [
+            'cumple'    => ['texto' => 'Cumple',    'color' => 'bg-gray-100 text-gray-700'],
+            'parcial'   => ['texto' => 'Parcial',   'color' => 'bg-amber-50 text-amber-700'],
+            'no_cumple' => ['texto' => 'No cumple', 'color' => 'bg-red-50 text-red-700'],
+            'no_aplica' => ['texto' => 'No aplica', 'color' => 'border border-gray-200 bg-white text-gray-500'],
+        ];
 
         // Mismos colores de severidad que la lista de Hallazgos.
         $severidades = [
@@ -95,10 +104,10 @@
                         <p class="mt-1 text-[15px] text-gray-700">{{ $criterio['observacion'] }}</p>
                         <p class="mt-3 text-sm text-gray-500">Calificación del criterio: {{ $criterio['calificacion'] }} / 100</p>
                     </div>
-                    <span class="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">No cumple</span>
+                    <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $resultados[$criterio['resultado']]['color'] }}">{{ $resultados[$criterio['resultado']]['texto'] }}</span>
                 </div>
             @empty
-                <p class="py-5 text-[15px] text-gray-600">Todos los criterios se cumplieron. No hay nada que corregir.</p>
+                <p class="py-5 text-[15px] text-gray-600">El auditor no marcó criterios como Parcial o No cumple.</p>
             @endforelse
         </div>
     </div>
@@ -145,9 +154,9 @@
                         <tr>
                             <td class="px-4 py-4 text-gray-900">{{ $criterio['texto'] }}</td>
                             <td class="px-4 py-4">
-                                <span class="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold {{ $criterio['resultado'] === 'cumple' ? 'bg-gray-100 text-gray-700' : 'bg-red-50 text-red-700' }}">{{ $criterio['resultado'] === 'cumple' ? 'Cumple' : 'No cumple' }}</span>
+                                <span class="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold {{ $resultados[$criterio['resultado']]['color'] }}">{{ $resultados[$criterio['resultado']]['texto'] }}</span>
                             </td>
-                            <td class="px-4 py-4 text-right text-gray-900">{{ $criterio['calificacion'] }}</td>
+                            <td class="px-4 py-4 text-right text-gray-900">{{ $criterio['calificacion'] ?? '—' }}</td>
                             <td class="px-4 py-4 text-gray-700">{{ $criterio['observacion'] }}</td>
                         </tr>
                     @endforeach
