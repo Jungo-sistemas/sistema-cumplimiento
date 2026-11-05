@@ -15,6 +15,8 @@
         // $audit es el número que viene en la dirección (/auditorias/1/checklist). Si no existe: 404.
         abort_unless(isset($auditorias[$audit]), 404);
         $auditoria = $auditorias[$audit];
+        // Solo "En captura" se llena. Una "Programada" se puede consultar, pero todavía no se captura.
+        $editable = $auditoria['estado'] === 'En captura';
 
         // Criterios del checklist (datos de ejemplo). Más adelante cada auditoría trae los suyos de la base de datos.
         $criterios = [
@@ -22,7 +24,6 @@
             ['texto' => 'Los responsables conocen el procedimiento.',     'evidencia' => 'Registro de capacitación'],
             ['texto' => 'Las evidencias están completas y actualizadas.', 'evidencia' => 'Expediente y revisión firmada'],
         ];
-
     @endphp
 
     <div class="mb-4 flex items-center justify-between gap-4">
@@ -43,22 +44,28 @@
             finalizada: false,
             tieneCalificacion(r) { return r.calificacion !== '' && r.calificacion !== null },
             fueraDeRango(r) { return this.tieneCalificacion(r) && (r.calificacion < 0 || r.calificacion > 100) },
-            capturado(r) { return r.resultado !== '' && this.tieneCalificacion(r) && ! this.fueraDeRango(r) },
+            noAplica(r) { return r.resultado === 'no_aplica' },
+            capturado(r) { return r.resultado !== '' && (this.noAplica(r) || (this.tieneCalificacion(r) && ! this.fueraDeRango(r))) },
             get capturados() { return this.respuestas.filter(r => this.capturado(r)).length },
-            get promedio() { return Math.round(this.respuestas.reduce((suma, r) => suma + r.calificacion, 0) / this.respuestas.length) },
+            get promedio() {
+                {{-- "No aplica" no cuenta: el promedio es solo de los criterios evaluados. --}}
+                const evaluados = this.respuestas.filter(r => ! this.noAplica(r));
+                if (evaluados.length === 0) return '—';
+                return Math.round(evaluados.reduce((suma, r) => suma + r.calificacion, 0) / evaluados.length);
+            },
          }">
 
         {{-- Sesión de Teams y avance --}}
         <div class="mb-6 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-6">
             <div>
                 <h2 class="text-base font-semibold text-gray-900">Sesión por Microsoft Teams</h2>
-                <p class="mt-2 text-sm text-gray-600">La captura corresponde al auditor asignado cuando la auditoría esté activa.</p>
+                <p class="mt-2 text-sm text-gray-600">{{ $editable ? 'Registra las respuestas, las observaciones y la calificación durante la llamada.' : 'La captura corresponde al auditor asignado cuando la auditoría esté activa.' }}</p>
             </div>
             <div class="text-sm font-semibold text-brand"><span x-text="capturados">0</span> de {{ count($criterios) }} criterios capturados</div>
         </div>
 
         {{-- Un bloque por criterio --}}
-        <fieldset :disabled="confirmando || finalizada" class="space-y-6">
+        <fieldset :disabled="@js(! $editable) || confirmando || finalizada" class="space-y-6">
             @foreach($criterios as $i => $criterio)
                 <div class="rounded-2xl border border-gray-200 bg-white p-6">
                     <h3 class="text-lg font-semibold text-gray-900">{{ $i + 1 }}. {{ $criterio['texto'] }}</h3>
@@ -68,17 +75,22 @@
                         <div>
                             <label for="resultado-{{ $i }}" class="mb-2 block text-sm font-semibold text-gray-900">Resultado del criterio</label>
                             <select id="resultado-{{ $i }}" name="respuestas[{{ $i }}][resultado]" x-model="respuestas[{{ $i }}].resultado"
+                                    @change="if ($event.target.value === 'no_aplica') respuestas[{{ $i }}].calificacion = ''"
                                     class="h-12 w-full rounded-lg border-gray-200 bg-gray-50 text-[15px] focus:border-brand focus:ring-brand">
                                 <option value="">Selecciona</option>
                                 <option value="cumple">Cumple</option>
                                 <option value="no_cumple">No cumple</option>
+                                <option value="parcial">Parcial</option>
+                                <option value="no_aplica">No aplica</option>
                             </select>
                         </div>
                         <div>
                             <label for="calificacion-{{ $i }}" class="mb-2 block text-sm font-semibold text-gray-900">Calificación · 0 a 100</label>
                             <input id="calificacion-{{ $i }}" type="number" min="0" max="100" name="respuestas[{{ $i }}][calificacion]"
                                x-model.number="respuestas[{{ $i }}].calificacion"
-                               class="h-12 w-full rounded-lg bg-gray-50 text-[15px] focus:border-brand focus:ring-brand"
+                               :disabled="noAplica(respuestas[{{ $i }}])"
+                               :placeholder="noAplica(respuestas[{{ $i }}]) ? 'No aplica' : ''"
+                               class="h-12 w-full rounded-lg bg-gray-50 text-[15px] focus:border-brand focus:ring-brand disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                                :class="fueraDeRango(respuestas[{{ $i }}]) ? 'border-red-500' : 'border-gray-200'">
                         <p x-show="fueraDeRango(respuestas[{{ $i }}])" x-cloak class="mt-1 text-sm text-red-600">Debe ser un número de 0 a 100.</p>
                         </div>
@@ -90,20 +102,46 @@
                                 placeholder="Describe lo que verificaste y, si hay un incumplimiento, explica qué se hizo incorrectamente."
                                 class="w-full rounded-lg border-gray-200 bg-gray-50 text-[15px] focus:border-brand focus:ring-brand"></textarea>
                     </div>
+
+                    @if($editable)
+                        <div class="mt-5">
+                            <label for="soporte-{{ $i }}" class="mb-2 block text-sm font-semibold text-gray-900">Soporte de la revisión (opcional)</label>
+                            <input id="soporte-{{ $i }}" type="file" name="respuestas[{{ $i }}][soportes][]" multiple
+                                   class="block w-full rounded-lg border border-gray-200 bg-gray-50 p-2 text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand">
+                        </div>
+
+                        {{-- El hallazgo queda ligado a este criterio: la ventana lo recibe y no deja cambiarlo --}}
+                        <div class="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 pt-5">
+                            <p class="text-sm text-gray-600">Registra los hallazgos que identifiques en este criterio.</p>
+                            <button type="button" @click="$dispatch('registrar-hallazgo', { criterio: {{ $i }} })"
+                                    class="rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">Registrar hallazgo</button>
+                        </div>
+                    @endif
                 </div>
             @endforeach
+
+            {{-- Conclusiones generales de toda la auditoría, no de un criterio --}}
+            <div class="rounded-2xl border border-gray-200 bg-white p-6">
+                <label for="conclusiones" class="mb-2 block text-sm font-semibold text-gray-900">Conclusiones de la auditoría</label>
+                <textarea id="conclusiones" name="conclusiones" rows="4"
+                          placeholder="Resume lo más importante: qué se cumple, qué hay que corregir y qué se acordó con el auditado."
+                          class="w-full rounded-lg border-gray-200 bg-gray-50 text-[15px] focus:border-brand focus:ring-brand"></textarea>
+            </div>
         </fieldset>
+
         {{-- Botones. En la demo todavía no guardan en la base de datos. --}}
-        <div class="mt-6 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-gray-200 bg-white p-6" x-show="! confirmando && ! finalizada">
-            <span x-show="guardado" x-cloak x-transition class="mr-auto text-sm font-semibold text-green-700">Avance guardado (demo: todavía no se guarda en la base de datos).</span>
-            <span x-show="! guardado && capturados < {{ count($criterios) }}" class="mr-auto text-sm text-gray-600">Para finalizar, captura resultado y calificación en todos los criterios.</span>
+        @if($editable)
+            <div class="mt-6 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-gray-200 bg-white p-6" x-show="! confirmando && ! finalizada">
+                <span x-show="guardado" x-cloak x-transition class="mr-auto text-sm font-semibold text-green-700">Avance guardado (demo: todavía no se guarda en la base de datos).</span>
+                <span x-show="! guardado && capturados < {{ count($criterios) }}" class="mr-auto text-sm text-gray-600">Para finalizar, captura el resultado de cada criterio y su calificación (excepto los que no aplican).</span>
 
-            <button type="button" @click="guardado = true; setTimeout(() => guardado = false, 3000)"
-                    class="rounded-lg border-2 border-brand px-5 py-2.5 text-sm font-semibold text-brand hover:bg-brand-50">Guardar avance</button>
+                <button type="button" @click="guardado = true; setTimeout(() => guardado = false, 3000)"
+                        class="rounded-lg border-2 border-brand px-5 py-2.5 text-sm font-semibold text-brand hover:bg-brand-50">Guardar avance</button>
 
-            <button type="button" :disabled="capturados < {{ count($criterios) }}"
-                    class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50" @click="confirmando = true">Finalizar</button>
-        </div>
+                <button type="button" :disabled="capturados < {{ count($criterios) }}"
+                        class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50" @click="confirmando = true">Finalizar</button>
+            </div>
+        @endif
 
         {{-- Pregunta antes de finalizar --}}
         <div x-show="confirmando" x-cloak x-transition class="mt-6 rounded-2xl border-2 border-brand-100 bg-brand-50 p-6">
@@ -122,4 +160,8 @@
             <a href="{{ route('auditorias.audits.index', ['tab' => 'finalizadas']) }}" class="mt-4 inline-flex rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">Ir a Finalizadas</a>
         </div>
     </div>
+
+    @if($editable)
+        @include('auditorias.partials.register-finding-modal')
+    @endif
 </x-layouts.vigia>
