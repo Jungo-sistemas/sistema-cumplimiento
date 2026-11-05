@@ -15,6 +15,9 @@
                     ['texto' => 'El almacén temporal cuenta con bitácora de entradas.',      'resultado' => 'cumple',    'calificacion' => 95, 'observacion' => 'La bitácora mostrada durante la llamada está al día.'],
                     ['texto' => 'El manifiesto de entrega está firmado por el transportista.', 'resultado' => 'cumple',  'calificacion' => 95, 'observacion' => 'El manifiesto mostrado está completo y firmado.'],
                 ],
+                'hallazgos' => [
+                    ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta', 'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres', 'severidad' => 'Mayor', 'seguimiento' => 'Rechazada', 'compromiso' => '2026-09-10'],
+                ],
             ],
             4 => [
                 'procedimiento' => 'Control de documentos', 'auditado' => 'Luis Herrera', 'fecha' => '20 ago 2026',
@@ -23,6 +26,7 @@
                     ['texto' => 'Los cambios tienen registro de aprobación.',            'resultado' => 'cumple', 'calificacion' => 90, 'observacion' => 'Cada cambio revisado tiene su aprobación.'],
                     ['texto' => 'Los documentos obsoletos están retirados del área.',    'resultado' => 'cumple', 'calificacion' => 91, 'observacion' => 'No se encontraron copias obsoletas en el área.'],
                 ],
+                'hallazgos' => [],
             ],
         ];
 
@@ -34,6 +38,23 @@
         $criterios       = collect($auditoria['criterios']);
         $calificacion    = round($criterios->avg('calificacion'));
         $incumplimientos = $criterios->where('resultado', 'no_cumple');
+
+        // Mismos colores de severidad que la lista de Hallazgos.
+        $severidades = [
+            'Crítico' => 'bg-red-50 text-red-700',
+            'Mayor'   => 'bg-amber-50 text-amber-700',
+            'Menor'   => 'bg-brand-50 text-brand',
+        ];
+
+        // La ventana de detalle usa los dos para pintar sus etiquetas (los mismos de la lista de Hallazgos).
+        $seguimientos = [
+            'Por enviar'             => 'bg-gray-100 text-gray-700',
+            'Causa raíz por revisar' => 'bg-brand-50 text-brand',
+            'Rechazada'              => 'bg-red-50 text-red-700',
+            'Sin cargar'             => 'bg-amber-50 text-amber-700',
+            'Evidencia por revisar'  => 'bg-brand-50 text-brand',
+            'Cerrado'                => 'bg-green-50 text-green-700',
+        ];
     @endphp
 
     <div class="mb-4 flex items-center justify-between gap-4">
@@ -82,6 +103,29 @@
         </div>
     </div>
 
+    {{-- Hallazgos que el auditor registró en esta auditoría --}}
+    <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
+        <h2 class="text-lg font-semibold text-gray-900">Hallazgos registrados por el auditor</h2>
+
+        <div class="mt-3 divide-y divide-gray-200">
+            @forelse($auditoria['hallazgos'] as $hallazgo)
+                <div class="flex flex-wrap items-center justify-between gap-4 py-5">
+                    <div>
+                        <div class="font-semibold text-gray-900">{{ $hallazgo['titulo'] }}</div>
+                        <p class="mt-1 text-sm text-gray-500">{{ $hallazgo['codigo'] }} · {{ $hallazgo['seguimiento'] }}</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $severidades[$hallazgo['severidad']] }}">{{ $hallazgo['severidad'] }}</span>
+                        <button type="button" @click="$dispatch('abrir-hallazgo', @js($hallazgo))"
+                            class="whitespace-nowrap rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">Ver hallazgo</button>
+                    </div>
+                </div>
+            @empty
+                <p class="py-5 text-[15px] text-gray-600">No se registraron hallazgos en esta auditoría.</p>
+            @endforelse
+        </div>
+    </div>
+
     {{-- Evaluación completa: se abre y se cierra con un clic --}}
     <details class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
         <summary class="cursor-pointer text-base font-semibold text-brand">Consultar evaluación completa</summary>
@@ -112,9 +156,9 @@
         </div>
     </details>
 
-    {{-- Al construir la ventana de "Registrar hallazgo", este botón la abrirá con esta auditoría ya elegida --}}
     <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
         <button type="button" @click="$dispatch('registrar-hallazgo', { auditoria: {{ $audit }} })" class="rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">Registrar hallazgo</button>
     </div>
     @include('auditorias.partials.register-finding-modal')
+    @include('auditorias.partials.finding-detail-modal')
 </x-layouts.vigia>

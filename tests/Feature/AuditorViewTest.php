@@ -56,6 +56,14 @@ class AuditorViewTest extends TestCase
         $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 4))->assertSee('92 / 100');
     }
 
+    public function test_el_resultado_muestra_sus_hallazgos(): void
+    {
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))
+            ->assertSee('Contenedores de residuos sin etiqueta');
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 4))
+            ->assertSee('No se registraron hallazgos en esta auditoría.');
+    }
+
     public function test_hallazgos_marca_los_vencidos_segun_la_fecha(): void
     {
         $this->travelTo('2026-11-03');
