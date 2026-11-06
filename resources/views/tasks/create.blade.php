@@ -9,7 +9,7 @@
     <x-slot name="breadcrumb">
         <a href="{{ route('assets.index') }}"
            class="text-gray-600 hover:underline">
-            Energético
+            Regulatorio
         </a>
 
         <span class="text-gray-400">›</span>
