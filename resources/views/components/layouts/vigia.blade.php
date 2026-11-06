@@ -117,12 +117,11 @@
             $item('Inicio', 'mi-espacio.home', 'home', request()->routeIs('mi-espacio.home')),
             $item('Mis solicitudes', 'mi-espacio.requests', 'clock', request()->routeIs('mi-espacio.requests')),
         ]];
-        $sections[] = ['title' => 'Procesos', 'items' => array_values(array_filter([
+        // Mis aprobaciones se queda en el módulo de Procesos (Gestión); aquí solo los documentos.
+        // Quien solo es auditado y aprueba llega a ellas por la campana o por el correo.
+        $sections[] = ['title' => 'Procesos', 'items' => [
             $item('Mis documentos', 'mi-espacio.documents', 'document', request()->routeIs('mi-espacio.documents') || $sharedRoute && ! request()->routeIs('profile.*')),
-            isset($modules['procesos'])
-                ? $item('Mis aprobaciones', 'my-approvals.index', 'badge', request()->routeIs('my-approvals.*'), ['badge' => $pendingApprovalsCount])
-                : null,
-        ]))];
+        ]];
         $sections[] = ['title' => 'Auditorías', 'items' => [
             $item('Mis auditorías', 'mi-espacio.audits', 'check', request()->routeIs('mi-espacio.audits')),
             $item('Mis actividades', 'mi-espacio.activities', 'alert', request()->routeIs('mi-espacio.activities')),
@@ -153,7 +152,7 @@
             $cumplimientoItems[] = $item('Solicitud de Inversiones', 'investment-requests.index', 'cash', request()->routeIs('investment-requests.*'), ['badge' => $pendingInvestmentApprovalsCount]);
         }
 
-        // Árbol del activo abierto: Energético → activo → requisito → tarea / documentos.
+        // Árbol del activo abierto: Regulatorio → activo → requisito → tarea / documentos.
         $ctx = $navContext;
         $children = [];
         if (!empty($ctx['asset'])) {
@@ -179,7 +178,7 @@
             };
         }
         $inCumplimiento = request()->routeIs('assets.*') || !empty($ctx['asset']);
-        $cumplimientoItems[] = $item('Energético', 'assets.index', 'bolt', $inCumplimiento, ['children' => array_values(array_filter($children))]);
+        $cumplimientoItems[] = $item('Regulatorio', 'assets.index', 'bolt', $inCumplimiento, ['children' => array_values(array_filter($children))]);
 
         $sections[] = ['title' => 'Cumplimiento', 'items' => $cumplimientoItems];
     }
@@ -215,13 +214,23 @@
 </head>
 
 <body class="h-screen overflow-hidden bg-[#F7F7FA] text-gray-900">
-    {{-- El menú colapsado se recuerda en este navegador (localStorage puede fallar en modo privado). --}}
+    {{-- El menú colapsado se recuerda en este navegador (localStorage puede fallar en modo privado).
+         En pantallas de menos de 1536 px (laptops de 1366/1440 px o con zoom del sistema) arranca colapsado
+         siempre: abierto ocupa 300 px y el contenido quedaba apretado y deformado. Ahí se puede
+         abrir con el botón, pero no se recuerda. --}}
     <div x-data="{
             mobileMenuOpen: false,
-            collapsed: (() => { try { return localStorage.getItem('jc.sidebarCollapsed') === '1' } catch (e) { return false } })(),
+            userCollapsed: (() => { try { return localStorage.getItem('jc.sidebarCollapsed') === '1' } catch (e) { return false } })(),
+            narrow: window.matchMedia('(max-width: 1535px)').matches,
+            narrowExpanded: false,
+            get collapsed() { return this.narrow ? ! this.narrowExpanded : this.userCollapsed },
+            init() {
+                window.matchMedia('(max-width: 1535px)').addEventListener('change', (e) => { this.narrow = e.matches; this.narrowExpanded = false; });
+            },
             toggleSidebar() {
-                this.collapsed = !this.collapsed;
-                try { localStorage.setItem('jc.sidebarCollapsed', this.collapsed ? '1' : '0') } catch (e) {}
+                if (this.narrow) { this.narrowExpanded = ! this.narrowExpanded; return; }
+                this.userCollapsed = ! this.userCollapsed;
+                try { localStorage.setItem('jc.sidebarCollapsed', this.userCollapsed ? '1' : '0') } catch (e) {}
             },
          }"
          class="flex h-screen flex-col">
@@ -242,22 +251,26 @@
                         <x-brand-logo class="h-9" />
                     </a>
 
-                    @if($viewMode === 'gestion' && !$user?->isSuperAdmin())
+                    {{-- En la vista de auditado también sale, para admins y auditores: elegir un
+                         módulo los pasa a Gestión en ese módulo. Quien solo es auditado no lo ve
+                         (los tableros de los módulos lo regresan a Mi espacio). --}}
+                    @if(!$user?->isSuperAdmin() && ($viewMode === 'gestion' || $canSwitchView))
                         <span class="ml-2 hidden h-6 w-px bg-white/25 sm:block"></span>
 
                         <div x-data="{ open: false }" class="relative hidden sm:block">
                             <button type="button" @click="open = !open" @keydown.escape="open = false"
                                     class="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-white/90 hover:bg-white/10 focus:outline-none">
-                                {{ $modules[$currentModule]['label'] }}
+                                {{ $viewMode === 'auditado' ? 'Mi espacio' : $modules[$currentModule]['label'] }}
                                 <x-icon name="chevron" class="h-3.5 w-3.5 text-white/60 transition-transform duration-150" ::class="{ 'rotate-180': open }" />
                             </button>
 
                             <div x-show="open" x-transition.opacity @click.outside="open = false" style="display:none;"
                                  class="absolute left-0 top-full z-50 mt-2 w-44 rounded-lg border border-gray-100 bg-white py-1 text-gray-700 shadow-lg">
                                 @foreach($modules as $key => $mod)
-                                    <a href="{{ route($mod['route']) }}" @click="open = false"
-                                       class="flex items-center gap-2 px-3 py-2 text-sm {{ $currentModule === $key ? 'font-semibold text-brand' : 'hover:bg-gray-50' }}">
-                                        @if($currentModule === $key)
+                                    @php $isCurrent = $viewMode === 'gestion' && $currentModule === $key; @endphp
+                                    <a href="{{ $viewMode === 'auditado' ? route('view-mode.switch', ['mode' => 'gestion', 'modulo' => $key]) : route($mod['route']) }}" @click="open = false"
+                                       class="flex items-center gap-2 px-3 py-2 text-sm {{ $isCurrent ? 'font-semibold text-brand' : 'hover:bg-gray-50' }}">
+                                        @if($isCurrent)
                                             <x-icon name="check" class="h-3.5 w-3.5" />
                                         @else
                                             <span class="h-3.5 w-3.5"></span>
@@ -349,7 +362,7 @@
             </aside>
 
             <div class="min-h-0 flex-1 overflow-y-auto">
-                <div class="px-4 py-6 sm:px-10 sm:py-10">
+                <div class="px-4 py-6 sm:px-6 sm:py-8 xl:px-10 xl:py-10">
                     @isset($breadcrumb)
                         <div class="mb-6 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-gray-500">
                             {{ $breadcrumb }}

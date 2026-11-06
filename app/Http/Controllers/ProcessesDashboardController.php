@@ -210,6 +210,7 @@ class ProcessesDashboardController extends Controller
             now()->addMinutes(2),
             fn () => RegulationApproval::where('user_id', $user->id)
                 ->where('status', 'pending')
+                ->whereHas('regulation')
                 ->with(['regulation.company', 'regulation.processType'])
                 ->get()
         );
