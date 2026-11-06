@@ -8,8 +8,12 @@
 <table class="doc-header-table">
     <tr>
         <td class="doc-header-cell doc-header-logo">
-            <div class="doc-header-label">LOGO EMPRESA</div>
-            <div class="doc-header-sublabel">(insertar logotipo)</div>
+            @if(! empty($meta['logo_src']))
+                <img src="{{ $meta['logo_src'] }}" alt="Logo" class="doc-header-logo-img">
+            @else
+                <div class="doc-header-label">LOGO EMPRESA</div>
+                <div class="doc-header-sublabel">(insertar logotipo)</div>
+            @endif
         </td>
         <td class="doc-header-cell doc-header-accent">
             <div class="doc-header-label">PROCEDIMIENTO</div>

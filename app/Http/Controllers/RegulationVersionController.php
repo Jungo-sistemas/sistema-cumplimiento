@@ -11,6 +11,7 @@ use App\Services\ApprovalFlowService;
 use App\Services\OfficeDocumentConverter;
 use App\Services\RegulationChangeTableService;
 use App\Services\RegulationDocxBodyBuilder;
+use App\Services\DocxHeaderLogo;
 use App\Services\RegulationDocxHeaderBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -131,6 +132,30 @@ class RegulationVersionController extends Controller
             $user->canAccessCompany($regulation->company) || $hasPendingApproval || $hasShare,
             403
         );
+    }
+
+    /**
+     * Logo del encabezado del .docx de la versión. Si no trae (versiones editadas antes de que
+     * RegulationDocxHeaderBuilder pusiera el logo), el de la versión anterior más reciente que sí.
+     */
+    private function headerLogo(RegulationVersion $version): ?array
+    {
+        $disk = Storage::disk('private');
+        $extractor = app(DocxHeaderLogo::class);
+
+        $candidates = $version->regulation->versions()
+            ->where('version_number', '<=', $version->version_number)
+            ->orderByDesc('version_number')
+            ->pluck('file_path');
+
+        foreach ($candidates as $path) {
+            if ($path && str_ends_with(strtolower($path), '.docx') && $disk->exists($path)
+                && ($logo = $extractor->extract($disk->path($path)))) {
+                return $logo;
+            }
+        }
+
+        return null;
     }
 
     private function isLockedByOther(RegulationVersion $version, int $userId): bool
@@ -502,12 +527,15 @@ class RegulationVersionController extends Controller
                 'quien_elabora'  => $details['quien_elabora'] ?? null,
                 'quien_aprueba'  => $details['quien_aprueba'] ?? null,
                 'fecha_vigencia' => $details['fecha_vigencia'] ?? null,
+                // El logo del .docx que se está editando (el subido o la versión anterior).
+                'logo'           => $this->headerLogo($version),
             ]);
         }
         app(RegulationDocxBodyBuilder::class)->apply($section, $html);
 
         $tmp = tempnam(sys_get_temp_dir(), 'edited_docx_');
         IOFactory::createWriter($phpWord, 'Word2007')->save($tmp);
+        app(RegulationDocxHeaderBuilder::class)->finishFile($tmp);
 
         // Se genera antes de la transacción: es una llamada a la IA (puede tardar unos segundos)
         // y de fallar no debe revertir nada — changeTableService ya atrapa sus propios errores y
@@ -686,7 +714,9 @@ class RegulationVersionController extends Controller
             // la tabla de encabezado formal "PROCEDIMIENTO / CÓDIGO / VERSIÓN", que es para
             // reglamentos/procesos reales.
             $details = $regulation->details ?? [];
+            $logo = $regulation->is_annex ? null : $this->headerLogo($version);
             $headerTableHtml = $regulation->is_annex ? '' : view('processes.partials.header-table', ['meta' => [
+                'logo_src'                 => $logo ? app(DocxHeaderLogo::class)->dataUri($logo) : null,
                 'nombre'                   => $regulation->name,
                 'codigo'                   => $regulation->code ? \Illuminate\Support\Str::upper($regulation->code) : null,
                 'version'                  => sprintf('%02d', $version->version_number),

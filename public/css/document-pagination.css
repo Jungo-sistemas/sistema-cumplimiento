@@ -65,6 +65,7 @@
 }
 .doc-header-logo, .doc-header-accent { background: #002060; color: #fff; }
 .doc-header-gray { background: #F2F3F4; color: #000; }
+.doc-header-logo-img { display: block; max-width: 100%; max-height: 48px; margin: 0 auto; }
 .doc-header-cell { border-color: #1A3A5C; }
 .doc-header-label {
     font-family: Arial, sans-serif;
