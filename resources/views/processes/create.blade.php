@@ -760,7 +760,7 @@
 
             form: {
                 company_id:                   preselectedCompanyId ? String(preselectedCompanyId) : '',
-                process_type_id:              '',
+                process_type_id:              {{ Js::from(ctype_digit((string) request('process_type_id')) ? (string) request('process_type_id') : '') }},
                 document_type:                '',
                 is_annex:                     false,
                 evaluation_impact:            '',

@@ -67,7 +67,7 @@
                                         class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('process_type_id') border-red-400 @enderror">
                                     <option value="">— Seleccionar —</option>
                                     @foreach($processTypes as $pt)
-                                        <option value="{{ $pt->id }}" {{ old('process_type_id') == $pt->id ? 'selected' : '' }}>
+                                        <option value="{{ $pt->id }}" {{ old('process_type_id', request('process_type_id')) == $pt->id ? 'selected' : '' }}>
                                             {{ $pt->name }}
                                         </option>
                                     @endforeach

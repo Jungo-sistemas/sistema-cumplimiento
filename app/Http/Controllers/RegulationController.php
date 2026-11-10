@@ -54,6 +54,8 @@ class RegulationController extends Controller
                 'companiesWithCounts' => $companiesQuery->orderByRaw(Company::PROCESOS_NAME_SQL)->get(),
                 'companies'           => $companies,
                 'selectedCompanyId'   => null,
+                'folderView'          => false,
+                'selectedFolder'      => null,
                 'processTypes'        => collect(),
                 'documentTypes'       => Regulation::DOCUMENT_TYPES,
                 'regulations'         => collect(),
@@ -93,8 +95,21 @@ class RegulationController extends Controller
             $query->where('company_id', $user->company_id);
         }
 
-        if ($request->filled('process_type_id')) {
-            $query->where('process_type_id', $request->process_type_id);
+        // Búsqueda global: sin empresa seleccionada + búsqueda, o modo reporte (todas las empresas
+        // del grupo, o todas las del usuario si tiene varias empresas específicas)
+        $globalSearch = ($user->hasGroupScope() || $user->hasMultipleCompanies()) && ! $selectedCompanyId
+            && ($request->filled('q') || $request->boolean('report'));
+
+        // Dentro de una empresa los procesos se ven por carpetas, una por tipo de proceso. El filtro
+        // de tipo de documento y el buscador salen ya dentro de la carpeta.
+        $selectedFolder = $request->input('process_type_id');
+
+        if (! $globalSearch && ($selectedFolder === null || $selectedFolder === '')) {
+            return view('processes.index', $this->folderViewData($user, $query, $processTypes, $companies, $selectedCompanyId, $showAnnexes));
+        }
+
+        if ($selectedFolder !== null && $selectedFolder !== '') {
+            $query->where('process_type_id', (int) $selectedFolder);
         }
 
         if ($request->filled('document_type')) {
@@ -108,11 +123,6 @@ class RegulationController extends Controller
                   ->orWhere('code', 'like', $search);
             });
         }
-
-        // Búsqueda global: sin empresa seleccionada + búsqueda, o modo reporte (todas las empresas
-        // del grupo, o todas las del usuario si tiene varias empresas específicas)
-        $globalSearch = ($user->hasGroupScope() || $user->hasMultipleCompanies()) && ! $selectedCompanyId
-            && ($request->filled('q') || $request->boolean('report'));
 
         $query->orderBy('code')->orderBy('name');
 
@@ -149,6 +159,8 @@ class RegulationController extends Controller
 
         return view('processes.index', [
             'cardView'            => false,
+            'folderView'          => false,
+            'selectedFolder'      => $globalSearch ? null : $this->folderInfo($selectedFolder, $processTypes),
             'showAnnexes'         => $showAnnexes,
             'companiesWithCounts' => collect(),
             'regulations'         => $regulations,
@@ -163,6 +175,56 @@ class RegulationController extends Controller
             'positionSortOrders'  => $positionSortOrders,
             'flowDefinitions'     => ApprovalFlowService::getAllFlows(),
         ]);
+    }
+
+    /** Datos de la vista de carpetas: una por tipo de proceso, con cuántos procesos (o anexos) tiene. */
+    private function folderViewData($user, $query, $processTypes, $companies, ?int $selectedCompanyId, bool $showAnnexes): array
+    {
+        $counts = (clone $query)
+            ->reorder()
+            ->selectRaw('process_type_id, count(*) as total')
+            ->groupBy('process_type_id')
+            ->pluck('total', 'process_type_id');
+
+        $folders = $processTypes->map(fn ($type) => [
+            'id'         => $type->id,
+            'number'     => $type->sort_order,
+            'name'       => $type->name,
+            'restricted' => (bool) $type->is_restricted,
+            'count'      => (int) ($counts[$type->id] ?? 0),
+        ]);
+
+        return [
+            'cardView'            => false,
+            'folderView'          => true,
+            'folders'             => $folders,
+            'selectedFolder'      => null,
+            'showAnnexes'         => $showAnnexes,
+            'companiesWithCounts' => collect(),
+            'regulations'         => collect(),
+            'processTypes'        => $processTypes,
+            'companies'           => $companies,
+            'selectedCompanyId'   => $selectedCompanyId,
+            'documentTypes'       => Regulation::DOCUMENT_TYPES,
+            'pendingApprovalIds'  => collect(),
+            'globalSearch'        => false,
+            'usersByPosition'     => collect(),
+            'positionLabels'      => collect(),
+            'positionSortOrders'  => collect(),
+            'flowDefinitions'     => ApprovalFlowService::getAllFlows(),
+        ];
+    }
+
+    /** La carpeta abierta, para el encabezado y la ruta de navegación. */
+    private function folderInfo($selectedFolder, $processTypes): ?array
+    {
+        $type = $processTypes->firstWhere('id', (int) $selectedFolder);
+
+        // Un tipo que no existe o que el usuario no puede ver (el confidencial): se muestra la
+        // carpeta vacía, sin revelar el nombre.
+        return $type
+            ? ['id' => $type->id, 'number' => $type->sort_order, 'name' => $type->name, 'restricted' => (bool) $type->is_restricted]
+            : ['id' => (int) $selectedFolder, 'number' => null, 'name' => 'Carpeta', 'restricted' => false];
     }
 
     public function create(Request $request)
@@ -204,8 +266,10 @@ class RegulationController extends Controller
         $hasShare = RegulationShare::where('regulation_id', $regulation->id)
             ->where('user_id', $user->id)
             ->exists();
+        // También quien está mencionado (@persona) en la versión vigente: le sale en Mis documentos.
         abort_unless(
-            $user->canAccessCompany($regulation->company) || $pendingApprovalForUser !== null || $hasShare,
+            $user->canAccessCompany($regulation->company) || $pendingApprovalForUser !== null || $hasShare
+                || (bool) $regulation->currentVersion?->mentionsUser($user),
             403
         );
 

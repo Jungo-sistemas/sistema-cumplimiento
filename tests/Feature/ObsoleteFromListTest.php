@@ -66,7 +66,7 @@ class ObsoleteFromListTest extends TestCase
         $this->assertNotNull($outdated->fresh()->obsoleted_at);
         $this->assertNull($approved->fresh()->obsoleted_at);
 
-        $this->actingAs($this->admin)->get(route('processes.index', ['company_id' => $this->company->id]))
+        $this->actingAs($this->admin)->get(route('processes.index', ['company_id' => $this->company->id, 'process_type_id' => $outdated->process_type_id]))
             ->assertSee('ALTA DE PROVEEDORES')
             ->assertDontSee('MANUAL VIEJO');
 
@@ -83,7 +83,7 @@ class ObsoleteFromListTest extends TestCase
     {
         $outdated = $this->regulation('MANUAL VIEJO', 'outdated');
 
-        $this->actingAs($this->admin)->get(route('processes.index', ['company_id' => $this->company->id]))
+        $this->actingAs($this->admin)->get(route('processes.index', ['company_id' => $this->company->id, 'process_type_id' => $outdated->process_type_id]))
             ->assertSee('MANUAL VIEJO')
             ->assertDontSee('— Asignar flujo —');
 
