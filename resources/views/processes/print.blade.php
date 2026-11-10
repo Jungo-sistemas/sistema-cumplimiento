@@ -229,7 +229,7 @@
         {{-- Aviso de control — texto fijo, igual en todos los documentos --}}
         <div class="doc-page-content pt-0 pb-8">
             <p class="text-center text-xs text-gray-500 italic">
-                AVISO DE CONTROL: Este documento es propiedad de {{ $regulation->company->name ?? 'la empresa' }}. Su contenido es confidencial y de uso interno.
+                AVISO DE CONTROL: Este documento es propiedad de {{ $regulation->company->procesos_name ?? 'la empresa' }}. Su contenido es confidencial y de uso interno.
                 Cualquier copia impresa se considera NO CONTROLADA. Para la versión vigente, consultar el sistema de control de documentos.
             </p>
             <p class="text-center text-xs text-gray-400 italic mt-1">

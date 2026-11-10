@@ -39,7 +39,7 @@
             <table class="info-table">
                 <tr><td>Documento</td><td><strong>{{ $regulation->name }}</strong></td></tr>
                 <tr><td>Código</td><td>{{ $regulation->code ?? '—' }}</td></tr>
-                <tr><td>Empresa</td><td>{{ $regulation->company->name ?? '—' }}</td></tr>
+                <tr><td>Empresa</td><td>{{ $regulation->company->procesos_name ?? '—' }}</td></tr>
                 <tr><td>Aprobador pendiente</td><td>{{ $pendingUser->name }} ({{ $pendingUser->email }})</td></tr>
             </table>
 

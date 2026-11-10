@@ -41,7 +41,7 @@
                             <td class="px-4 py-5">
                                 <a href="{{ route('processes.show', $document) }}" class="font-semibold text-brand hover:underline">{{ $document->name }}</a>
                                 <div class="mt-1.5 text-sm text-gray-500">
-                                    {{ collect([$document->code, $document->processType?->name, $companies->count() > 1 && ! $selectedCompanyId ? $document->company?->name : null])->filter()->implode(' · ') }}
+                                    {{ collect([$document->code, $document->processType?->name, $companies->count() > 1 && ! $selectedCompanyId ? $document->company?->procesos_name : null])->filter()->implode(' · ') }}
                                 </div>
                             </td>
                             <td class="px-4 py-5 align-top">

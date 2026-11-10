@@ -48,7 +48,7 @@
                 <div>
                     <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Empresa</label>
                     <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                        {{ $regulation->company->name ?? '—' }}
+                        {{ $regulation->company->procesos_name ?? '—' }}
                     </div>
                 </div>
 

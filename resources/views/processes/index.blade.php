@@ -10,7 +10,7 @@
                 <span class="text-gray-700 font-medium">Búsqueda: "{{ request('q') }}"</span>
             @else
                 <span class="text-gray-700 font-medium">
-                    {{ $companies->firstWhere('id', $selectedCompanyId)?->name ?? 'Empresa' }}
+                    {{ $companies->firstWhere('id', $selectedCompanyId)?->procesos_name ?? 'Empresa' }}
                 </span>
             @endif
         @else
@@ -127,7 +127,7 @@
                     <option value="">Todas las empresas</option>
                     @foreach($companies as $c)
                         <option value="{{ $c->id }}" @selected(request('company_id') == $c->id)>
-                            {{ $c->name }}
+                            {{ $c->procesos_name }}
                         </option>
                     @endforeach
                 </select>
@@ -255,7 +255,7 @@
 
                             <div class="flex-1 min-w-0">
                                 <p class="font-semibold text-gray-800 leading-snug group-hover:text-brand transition">
-                                    {{ $company->name }}
+                                    {{ $company->procesos_name }}
                                 </p>
                             </div>
                         </div>
@@ -501,7 +501,7 @@
 
                                 @if($globalSearch)
                                     <td class="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">
-                                        {{ $regulation->company->name ?? '—' }}
+                                        {{ $regulation->company->procesos_name ?? '—' }}
                                     </td>
                                 @endif
 
@@ -520,6 +520,9 @@
 
                                 <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
                                     {{ $regulation->processType->name ?? '—' }}
+                                    @if($regulation->processType?->is_restricted)
+                                        @include('processes.partials.restricted-badge')
+                                    @endif
                                 </td>
 
                                 <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
@@ -770,6 +773,7 @@
                                                     regulationName: @js($regulation->name),
                                                     impactLevel: $event.target.value,
                                                     levelLabel: $event.target.options[$event.target.selectedIndex].text,
+                                                    restricted: @js((bool) $regulation->processType?->is_restricted),
                                                     evidences: @js($regulation->changeEvidences->map(fn ($e) => ['id' => $e->id, 'name' => $e->original_name])),
                                                     formAction: '{{ route('processes.setFlow', $regulation) }}'
                                                 }); $event.target.value = ''"
@@ -1304,7 +1308,8 @@ function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders
             this.clearSummary();
 
             if (detail.impactLevel && flowDefs[detail.impactLevel]) {
-                const steps = flowDefs[detail.impactLevel];
+                // Proceso confidencial: sin importar el nivel, solo aprueba Consejo.
+                const steps = detail.restricted ? flowDefs.__restricted : flowDefs[detail.impactLevel];
                 const seen  = new Set();
 
                 Object.entries(steps).forEach(([step, stepDef]) => {

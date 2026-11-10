@@ -75,7 +75,7 @@
 
                             {{-- Empresa --}}
                             <td class="px-4 py-3 text-gray-600">
-                                {{ $regulation->company?->name ?? '—' }}
+                                {{ $regulation->company?->procesos_name ?? '—' }}
                             </td>
 
                             {{-- Creado por --}}

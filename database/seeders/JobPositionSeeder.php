@@ -18,6 +18,8 @@ class JobPositionSeeder extends Seeder
         ['slug' => 'jefe',      'name' => 'Jefe',        'sort_order' => 2],
         ['slug' => 'gerente',   'name' => 'Gerente',     'sort_order' => 3],
         ['slug' => 'direccion', 'name' => 'Dirección',   'sort_order' => 4],
+        // Mismo paso que Dirección en los flujos; además es el puesto que ve los procesos confidenciales.
+        ['slug' => 'consejo',   'name' => 'Consejo',     'sort_order' => 5],
     ];
 
     /** Slugs obsoletos que se renombran al nuevo slug. */
@@ -74,7 +76,7 @@ class JobPositionSeeder extends Seeder
                 $obsolete->delete();
             }
 
-            // 3. Crear o actualizar los 4 puestos finales
+            // 3. Crear o actualizar los puestos finales
             foreach (self::POSITIONS as $position) {
                 JobPosition::updateOrCreate(
                     ['group_id' => $group->id, 'slug' => $position['slug']],

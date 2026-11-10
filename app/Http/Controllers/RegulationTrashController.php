@@ -15,7 +15,7 @@ class RegulationTrashController extends Controller
         abort_unless($user->isAdmin(), 403);
 
         $query = Regulation::onlyTrashed()
-            ->with(['processType', 'company:id,name', 'creator:id,name', 'deletedBy:id,name', 'versions'])
+            ->with(['processType', 'company:id,name,process_name', 'creator:id,name', 'deletedBy:id,name', 'versions'])
             ->where('group_id', $user->group_id);
 
         if ($user->hasCompanyScope()) {

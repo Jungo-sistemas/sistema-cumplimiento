@@ -5,9 +5,9 @@
             class="h-14 shrink-0 rounded-xl border-gray-200 bg-brand-50 pr-9 text-sm font-bold text-brand focus:border-brand focus:ring-brand">
         <option value="">Todas mis empresas</option>
         @foreach($companies as $company)
-            <option value="{{ $company->id }}" @selected($selectedCompanyId === $company->id)>{{ $company->name }}</option>
+            <option value="{{ $company->id }}" @selected($selectedCompanyId === $company->id)>{{ $company->procesos_name }}</option>
         @endforeach
     </select>
 @elseif($companies->count() === 1)
-    <span class="inline-flex shrink-0 items-center rounded-full bg-brand-50 px-3.5 py-1.5 text-sm font-bold text-brand">{{ $companies->first()->name }}</span>
+    <span class="inline-flex shrink-0 items-center rounded-full bg-brand-50 px-3.5 py-1.5 text-sm font-bold text-brand">{{ $companies->first()->procesos_name }}</span>
 @endif

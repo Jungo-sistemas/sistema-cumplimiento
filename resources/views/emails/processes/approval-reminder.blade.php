@@ -38,7 +38,7 @@
             <table class="info-table">
                 <tr><td>Nombre</td><td><strong>{{ $regulation->name }}</strong></td></tr>
                 <tr><td>Código</td><td>{{ $regulation->code ?? '—' }}</td></tr>
-                <tr><td>Empresa</td><td>{{ $regulation->company->name ?? '—' }}</td></tr>
+                <tr><td>Empresa</td><td>{{ $regulation->company->procesos_name ?? '—' }}</td></tr>
             </table>
 
             @if($reminderNumber >= 3)
