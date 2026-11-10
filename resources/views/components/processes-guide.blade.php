@@ -11,18 +11,25 @@
             'url'    => null,
             'target' => null,
         ],
-        [
-            'title'  => 'Tablero',
-            'body'   => 'Es la pantalla de inicio del módulo.',
+    ];
+
+    // Indicadores de procesos es solo de admins (ProcessesDashboardController redirige a los demás).
+    if ($isAdmin) {
+        $steps[] = [
+            'title'  => 'Indicadores de procesos',
+            'body'   => 'El tablero con el detalle de los procesos.',
             'url'    => route('processes.dashboard'),
             'target' => 'nav-tablero',
-        ],
-        [
+        ];
+        $steps[] = [
             'title'  => 'Resumen',
             'body'   => 'Aquí ves cuántos procedimientos hay, cuáles están vencidos o por vencer, y la actividad reciente.',
             'url'    => route('processes.dashboard'),
             'target' => 'dashboard-summary',
-        ],
+        ];
+    }
+
+    array_push($steps,
         [
             'title'  => 'Procedimientos',
             'body'   => 'La lista principal, con pestañas para ver los Procedimientos y sus Anexos por separado.',
@@ -35,7 +42,7 @@
             'url'    => route('processes.index'),
             'target' => 'processes-table',
         ],
-    ];
+    );
 
     if ($isAdmin || $isOperative) {
         $steps[] = [

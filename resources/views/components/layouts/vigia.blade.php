@@ -16,28 +16,26 @@
 @php
     $user = auth()->user();
 
+    // Procesos y Auditorías son un solo módulo (nov 2026): Auditorías va con la licencia de Procesos
+    // y los dos lados están conectados (una auditoría revisa procesos).
     $allModules = [
-        'cumplimiento' => ['label' => 'Cumplimiento', 'route' => 'dashboard'],
-        'procesos'     => ['label' => 'Procesos',     'route' => 'processes.dashboard'],
-        'auditorias'   => ['label' => 'Auditorías',   'route' => 'auditorias.home'],
+        'cumplimiento' => ['label' => 'Cumplimiento',          'route' => 'dashboard'],
+        'procesos'     => ['label' => 'Procesos y Auditorías', 'route' => 'gestion.home'],
     ];
     // Solo los módulos a los que el usuario de verdad puede entrar: Procesos y Auditorías también
-    // dependen de la licencia, no solo de module_access (si no, el menú y "Volver a…" mandaban a
+    // depende de la licencia, no solo de module_access (si no, el menú y "Volver a…" mandaban a
     // pantallas que luego lo rechazaban).
     $modules = collect($allModules)
         ->filter(fn ($_, $key) => match ($key) {
-            'procesos'   => $user?->canUseProcesos() ?? false,
-            // Auditorías va con la licencia de Procesos y solo la usan auditores y administradores.
-            'auditorias' => ($user?->canUseProcesos() ?? false) && ($user->isAuditor() || $user->isAdmin()),
-            default      => $user?->canAccessModule($key) ?? true,
+            'procesos' => $user?->canUseProcesos() ?? false,
+            default    => $user?->canAccessModule($key) ?? true,
         })
         ->all();
 
     // Módulo de la página actual. Las páginas que no son de un módulo (Usuarios, Mi perfil…) se
     // muestran con el último módulo en el que anduvo el usuario, y "Volver a…" regresa a ese.
     $routeModule = match (true) {
-        request()->routeIs('auditorias.*') => 'auditorias',
-        request()->routeIs('processes.*', 'my-approvals.*', 'regulation-versions.*') => 'procesos',
+        request()->routeIs('gestion.*', 'auditorias.*', 'processes.*', 'my-approvals.*', 'regulation-versions.*') => 'procesos',
         request()->routeIs('dashboard', 'assets.*', 'requirements.*', 'tasks.*', 'documents.*', 'investment-requests.*') => 'cumplimiento',
         default => null,
     };
@@ -56,12 +54,12 @@
         ? \App\Models\InvestmentRequestApproval::where('user_id', $user->id)->where('status', 'pending')->count()
         : 0;
 
-    // ── Vista: Gestión o Auditado ──
-    // Los roles que no son admin ni auditor solo tienen la Vista de auditado; admins y auditores
+    // ── Vista: Gestión o Mi espacio ──
+    // Quien no tiene Gestión (solo lectura) solo tiene Mi espacio; admins, auditores y operativos
     // cambian con el botón del encabezado (que guarda la elección en sesión). Las páginas
     // compartidas entre ambas vistas — consultar un proceso, por ejemplo — se muestran con el menú
     // de la última vista elegida.
-    $canSwitchView = $user && ($user->isAdmin() || $user->isAuditor()) && $user->canUseAuditeeView();
+    $canSwitchView = $user && $user->hasGestion() && $user->canUseAuditeeView();
     $sharedRoute = request()->routeIs('processes.show', 'processes.print', 'processes.preview', 'regulation-versions.preview', 'profile.*');
     $viewMode = match (true) {
         ! $user || $user->isSuperAdmin()     => 'gestion',
@@ -117,32 +115,54 @@
             $item('Inicio', 'mi-espacio.home', 'home', request()->routeIs('mi-espacio.home')),
             $item('Mis solicitudes', 'mi-espacio.requests', 'clock', request()->routeIs('mi-espacio.requests')),
         ]];
-        // Mis aprobaciones se queda en el módulo de Procesos (Gestión); aquí solo los documentos.
-        // Quien solo es auditado y aprueba llega a ellas por la campana o por el correo.
-        $sections[] = ['title' => 'Procesos', 'items' => [
+        // Mis aprobaciones vive en Gestión (Procesos). Solo quien no tiene Gestión (solo lectura) y
+        // tiene aprobaciones asignadas la ve aquí.
+        $miEspacioProcesos = [
             $item('Mis documentos', 'mi-espacio.documents', 'document', request()->routeIs('mi-espacio.documents') || $sharedRoute && ! request()->routeIs('profile.*')),
-        ]];
+        ];
+        if (! $user->hasGestion() && $pendingApprovalsCount > 0) {
+            $miEspacioProcesos[] = $item('Mis aprobaciones', 'my-approvals.index', 'badge', request()->routeIs('my-approvals.*'), ['badge' => $pendingApprovalsCount]);
+        }
+        $sections[] = ['title' => 'Procesos', 'items' => $miEspacioProcesos];
         $sections[] = ['title' => 'Auditorías', 'items' => [
             $item('Mis auditorías', 'mi-espacio.audits', 'check', request()->routeIs('mi-espacio.audits')),
             $item('Mis actividades', 'mi-espacio.activities', 'alert', request()->routeIs('mi-espacio.activities')),
         ]];
         $helpItem = $item('Ayuda', 'mi-espacio.help', 'help', request()->routeIs('mi-espacio.help'));
-    } elseif ($currentModule === 'auditorias') {
-        $sections[] = ['title' => 'Auditorías', 'items' => [
-            $item('Inicio', 'auditorias.home', 'home', request()->routeIs('auditorias.home')),
-            $item('Auditorías', 'auditorias.audits.index', 'clipboard', request()->routeIs('auditorias.audits.*')),
-            $item('Hallazgos', 'auditorias.findings.index', 'flag', request()->routeIs('auditorias.findings.*')),
-        ]];
-        $helpItem = $item('Ayuda', 'auditorias.help', 'help', request()->routeIs('auditorias.help'));
     } elseif ($currentModule === 'procesos') {
+        // Gestión de Procesos y Auditorías. Admin: todo, con los dos tableros de indicadores.
+        // Operativo: solo Procesos, sin indicadores (lo de auditorías lo ve en Mi espacio).
+        // Auditor: Procesos para consultar y Auditorías.
+        $sections[] = ['title' => null, 'items' => [
+            $item('Inicio', 'gestion.home', 'home', request()->routeIs('gestion.home')),
+        ]];
+
         $procesosItems = [
-            $item('Tablero', 'processes.dashboard', 'chart', request()->routeIs('processes.dashboard'), ['tour' => 'nav-tablero']),
             $item('Procedimientos', 'processes.index', 'document', request()->routeIs('processes.index', 'processes.show', 'processes.create'), ['tour' => 'nav-procedimientos']),
-            // Siempre visible: si quien aprueba se queda sin pendientes, la pantalla dice "Todo al día".
-            $item('Mis aprobaciones', 'my-approvals.index', 'badge', request()->routeIs('my-approvals.*'), ['tour' => 'nav-mis-aprobaciones', 'badge' => $pendingApprovalsCount]),
         ];
+        if (! $user->isAuditor()) {
+            // Siempre visible: si quien aprueba se queda sin pendientes, la pantalla dice "Todo al día".
+            $procesosItems[] = $item('Mis aprobaciones', 'my-approvals.index', 'badge', request()->routeIs('my-approvals.*'), ['tour' => 'nav-mis-aprobaciones', 'badge' => $pendingApprovalsCount]);
+        }
+        if ($user->isAdmin()) {
+            $procesosItems[] = $item('Indicadores de procesos', 'processes.dashboard', 'chart', request()->routeIs('processes.dashboard'), ['tour' => 'nav-tablero']);
+        }
         $sections[] = ['title' => 'Procesos', 'items' => $procesosItems];
-        $helpItem = $item('Ayuda', 'processes.guide.manual', 'help', false, ['newTab' => true]);
+
+        if ($user->isAdmin() || $user->isAuditor()) {
+            $auditoriasItems = [
+                $item('Auditorías', 'auditorias.audits.index', 'clipboard', request()->routeIs('auditorias.audits.*', 'auditorias.home')),
+                $item('Hallazgos', 'auditorias.findings.index', 'flag', request()->routeIs('auditorias.findings.*')),
+            ];
+            if ($user->isAdmin()) {
+                $auditoriasItems[] = $item('Indicadores de auditorías', 'auditorias.indicators', 'chart', request()->routeIs('auditorias.indicators'));
+            }
+            $sections[] = ['title' => 'Auditorías', 'items' => $auditoriasItems];
+        }
+
+        $helpItem = request()->routeIs('auditorias.*')
+            ? $item('Ayuda', 'auditorias.help', 'help', request()->routeIs('auditorias.help'))
+            : $item('Ayuda', 'processes.guide.manual', 'help', false, ['newTab' => true]);
     } else {
         $cumplimientoItems = [
             $item('Tablero', 'dashboard', 'chart', request()->routeIs('dashboard')),
@@ -284,21 +304,14 @@
                 </div>
 
                 <div class="flex items-center gap-3 sm:gap-6">
-                    {{-- El cambio de vista es de Auditorías: "Gestión" es el lado del auditor y
-                         "Vista de auditado" es Mi espacio. En Procesos y Cumplimiento no aparece. --}}
-                    @if($canSwitchView && ($viewMode === 'auditado' || $currentModule === 'auditorias'))
-                        <div class="hidden text-right leading-tight md:block">
-                            <div class="text-xs text-white/80">Vista actual:</div>
-                            <div class="text-sm font-semibold">{{ $viewMode === 'auditado' ? 'Auditado' : 'Gestión' }}</div>
-                        </div>
-
+                    {{-- El cambio de vista es de Procesos y Auditorías: "Gestión" es donde se trabaja
+                         y "Mi espacio" lo que le toca a la persona como auditada. En Cumplimiento no aparece. --}}
+                    @if($canSwitchView && ($viewMode === 'auditado' || $currentModule === 'procesos'))
                         <div class="flex rounded-xl border border-white/20 p-1 text-sm font-semibold">
                             <a href="{{ route('view-mode.switch', 'gestion') }}"
                                class="rounded-lg px-3 py-2 sm:px-4 {{ $viewMode === 'gestion' ? 'bg-white text-brand-ink' : 'text-white/85 hover:bg-white/10' }}">Gestión</a>
                             <a href="{{ route('view-mode.switch', 'auditado') }}"
-                               class="rounded-lg px-3 py-2 sm:px-4 {{ $viewMode === 'auditado' ? 'bg-white text-brand-ink' : 'text-white/85 hover:bg-white/10' }}">
-                                <span class="sm:hidden">Auditado</span><span class="hidden sm:inline">Vista de auditado</span>
-                            </a>
+                               class="rounded-lg px-3 py-2 sm:px-4 {{ $viewMode === 'auditado' ? 'bg-white text-brand-ink' : 'text-white/85 hover:bg-white/10' }}">Mi espacio</a>
                         </div>
                     @endif
 

@@ -160,11 +160,30 @@ class User extends Authenticatable
             return Company::where('group_id', $this->group_id)->pluck('id')->all();
         }
 
+        // Consejo y los admins de solo Procesos también tienen la carpeta confidencial DIRECCIÓN.
+        $restricted = $this->canSeeRestrictedProcesses() ? Company::restrictedIds($this->group_id) : [];
+
         if ($this->hasMultipleCompanies()) {
-            return $this->companies->pluck('id')->all();
+            return array_values(array_unique([...$this->companies->pluck('id')->all(), ...$restricted]));
         }
 
-        return $this->company_id ? [$this->company_id] : [];
+        return array_values(array_unique([...($this->company_id ? [$this->company_id] : []), ...$restricted]));
+    }
+
+    /**
+     * En Procesos elige empresa (pantalla de empresas y selector): alcance de grupo o de varias
+     * empresas, y también Consejo aunque tenga una sola empresa, para que siempre llegue a la
+     * carpeta confidencial DIRECCIÓN.
+     */
+    public function picksProcessCompany(): bool
+    {
+        return $this->hasGroupScope() || $this->hasProcessCompanyList();
+    }
+
+    /** En Procesos se limita a una lista de empresas (accessibleCompanyIds), no a todo el grupo. */
+    public function hasProcessCompanyList(): bool
+    {
+        return $this->hasMultipleCompanies() || ($this->hasCompanyScope() && $this->canSeeRestrictedProcesses());
     }
 
     public function canAccessCompany(?Company $company): bool
@@ -175,6 +194,10 @@ class User extends Authenticatable
 
         if ($this->isGlobalScope()) {
             return true;
+        }
+
+        if ($company->is_restricted) {
+            return $this->group_id === $company->group_id && $this->canSeeRestrictedProcesses();
         }
 
         if ($this->hasGroupScope()) {
@@ -252,17 +275,26 @@ class User extends Authenticatable
     }
 
     /**
-     * Quien no es admin ni auditor solo ve la Vista de auditado; admins y auditores cambian entre
-     * Gestión y Auditado desde el encabezado de Auditorías. Sin licencia de Procesos no hay vista
-     * de auditado, así que esos usuarios se quedan con Gestión como hasta ahora.
+     * Tiene vista de Gestión en Procesos y Auditorías: admins, auditores y operativos (los
+     * operativos crean y editan procesos en línea). Los de solo lectura solo tienen Mi espacio.
      */
-    public function isAuditeeOnly(): bool
+    public function hasGestion(): bool
     {
-        return ! $this->isAdmin() && ! $this->isAuditor() && $this->canUseAuditeeView();
+        return $this->isAdmin() || $this->isAuditor() || $this->isOperative();
     }
 
     /**
-     * Puede ver los procesos de tipos confidenciales (ProcessType::is_restricted): quien tiene el
+     * Quien no tiene Gestión solo ve la Vista de auditado (Mi espacio); los demás cambian entre
+     * Gestión y Mi espacio desde el encabezado. Sin licencia de Procesos no hay vista de auditado,
+     * así que esos usuarios se quedan con Gestión como hasta ahora.
+     */
+    public function isAuditeeOnly(): bool
+    {
+        return ! $this->hasGestion() && $this->canUseAuditeeView();
+    }
+
+    /**
+     * Puede ver la carpeta confidencial DIRECCIÓN (Company::is_restricted): quien tiene el
      * puesto Consejo y los admins cuyo único acceso es Procesos. Ni Dirección ni los admins con
      * acceso a todas las áreas, a propósito: así lo pidió el cliente para limitar esa carpeta.
      */

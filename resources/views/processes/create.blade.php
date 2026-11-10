@@ -37,7 +37,7 @@
             5 => ['areas_roles_mapa', 'procedimientos_relacionados', 'proveedores_clientes'],
             6 => ['terminos_abreviaturas', 'riesgos_errores', 'requerimientos_normativos'],
         ];
-        $hasGroupScope = auth()->user()->hasGroupScope() || auth()->user()->hasMultipleCompanies();
+        $hasGroupScope = auth()->user()->picksProcessCompany();
         // If no group/multi-company scope, company_id is auto-filled so not a wizard field for the user
         if (! $hasGroupScope) {
             $blockFields[1] = array_filter($blockFields[1], fn($f) => $f !== 'company_id');
@@ -760,7 +760,7 @@
 
             form: {
                 company_id:                   preselectedCompanyId ? String(preselectedCompanyId) : '',
-                process_type_id:              '',
+                process_type_id:              {{ Js::from(ctype_digit((string) request('process_type_id')) ? (string) request('process_type_id') : '') }},
                 document_type:                '',
                 is_annex:                     false,
                 evaluation_impact:            '',

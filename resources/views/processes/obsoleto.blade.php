@@ -40,7 +40,7 @@
                 @endforeach
             </select>
         </div>
-        @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
+        @if($user->picksProcessCompany())
         <div class="min-w-[180px]">
             <label class="block text-xs text-gray-500 mb-1">Empresa</label>
             <select name="company_id"
@@ -88,7 +88,7 @@
                         <tr class="border-b border-gray-100 bg-gray-50">
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Procedimiento</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Código</th>
-                            @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
+                            @if($user->picksProcessCompany())
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Empresa</th>
                             @endif
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo de proceso</th>
@@ -103,7 +103,7 @@
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3 font-medium text-gray-800">{{ $reg->name }}</td>
                             <td class="px-4 py-3 text-gray-500 font-mono text-xs">{{ $reg->code ?? '—' }}</td>
-                            @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
+                            @if($user->picksProcessCompany())
                             <td class="px-4 py-3 text-gray-600">{{ $reg->company?->procesos_name ?? '—' }}</td>
                             @endif
                             <td class="px-4 py-3 text-gray-600">{{ $reg->processType?->name ?? '—' }}</td>
@@ -184,7 +184,7 @@
                         <tr class="border-b border-gray-100 bg-gray-50">
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Procedimiento</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Código</th>
-                            @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
+                            @if($user->picksProcessCompany())
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Empresa</th>
                             @endif
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo de proceso</th>
@@ -198,7 +198,7 @@
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3 font-medium text-gray-800">{{ $reg->name }}</td>
                             <td class="px-4 py-3 text-gray-500 font-mono text-xs">{{ $reg->code ?? '—' }}</td>
-                            @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
+                            @if($user->picksProcessCompany())
                             <td class="px-4 py-3 text-gray-600">{{ $reg->company?->procesos_name ?? '—' }}</td>
                             @endif
                             <td class="px-4 py-3 text-gray-600">{{ $reg->processType?->name ?? '—' }}</td>

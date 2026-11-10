@@ -115,6 +115,120 @@ class ApprovalFlowTest extends TestCase
         $this->flow->processApproval($approval, $status, $comments);
     }
 
+    // ─── Aprobadores elegidos: los pasos sin nadie elegido se saltan ───────
+
+    private function makeRegulationWithUsers(string $level, array $userMap): Regulation
+    {
+        $reg = Regulation::create([
+            'group_id' => $this->group->id, 'company_id' => $this->company->id, 'process_type_id' => $this->processType->id,
+            'name' => 'TEST-ELEGIDOS', 'impact_level' => $level, 'approval_status' => 'pending_review',
+            'flow_locked' => true, 'details' => [], 'is_active' => true, 'flow_user_map' => $userMap,
+        ]);
+        $this->flow->initFlow($reg, $userMap);
+
+        return $reg->fresh();
+    }
+
+    public function test_sin_lider_elegido_el_flujo_arranca_con_gerente_y_sigue_con_direccion(): void
+    {
+        // Otro líder más en el grupo: no debe entrar a ningún paso.
+        $otroLider = User::factory()->create(['group_id' => $this->group->id, 'scope_level' => 'group', 'role_id' => $this->opRoleId, 'status' => 'active']);
+        $otroLider->jobPositions()->attach($this->positions['lider']->id);
+
+        $reg = $this->makeRegulationWithUsers('medio_alto', [
+            'gerente'   => [(string) $this->users['gerente']->id],
+            'direccion' => [(string) $this->users['direccion']->id],
+        ]);
+
+        $this->assertSame([2], $reg->approvals()->pluck('step_number')->unique()->values()->all());
+        $this->assertSame([$this->users['gerente']->id], $reg->pendingApprovals()->pluck('user_id')->all());
+        $this->assertSame('pending_authorization', $reg->approval_status);
+        Notification::assertSentTo($this->users['gerente'], ApprovalRequestedNotification::class);
+        Notification::assertNotSentTo([$this->users['lider'], $otroLider], ApprovalRequestedNotification::class);
+
+        $this->approveAs($reg, $this->users['gerente']);
+        $this->assertSame([$this->users['direccion']->id], $reg->fresh()->pendingApprovals()->pluck('user_id')->all());
+
+        $this->approveAs($reg, $this->users['direccion']);
+        $this->assertSame('approved', $reg->fresh()->approval_status);
+    }
+
+    public function test_solo_el_ultimo_paso_elegido_y_sin_consejo_no_entra_todo_consejo(): void
+    {
+        $consejo = User::factory()->create(['group_id' => $this->group->id, 'scope_level' => 'group', 'role_id' => $this->opRoleId, 'status' => 'active']);
+        $consejo->jobPositions()->attach(JobPosition::create(['group_id' => $this->group->id, 'slug' => 'consejo', 'name' => 'Consejo'])->id);
+
+        $reg = $this->makeRegulationWithUsers('alto', ['direccion' => [(string) $this->users['direccion']->id]]);
+
+        $this->assertSame([4], $reg->approvals()->pluck('step_number')->unique()->values()->all());
+        $this->assertSame([$this->users['direccion']->id], $reg->approvals()->pluck('user_id')->all());
+
+        $this->approveAs($reg, $this->users['direccion']);
+        $this->assertSame('approved', $reg->fresh()->approval_status);
+    }
+
+    public function test_sin_elegir_a_nadie_entra_todo_el_puesto_como_siempre(): void
+    {
+        $reg = $this->makeRegulation('medio_alto');
+
+        $this->assertSame([1], $reg->approvals()->pluck('step_number')->unique()->values()->all());
+        $this->assertSame([$this->users['lider']->id], $reg->pendingApprovals()->pluck('user_id')->all());
+    }
+
+    public function test_si_ningun_elegido_existe_avisa_a_los_admins_que_falta_asignar(): void
+    {
+        $this->makeRegulationWithUsers('medio_alto', ['lider' => ['999999']]);
+
+        Notification::assertSentTo($this->users['admin'], ApprovalStepUnassignedNotification::class);
+    }
+
+    public function test_el_comando_rearma_los_flujos_que_armo_la_regla_vieja(): void
+    {
+        // Así quedó P-SAV-111: solo se eligió Dirección y el paso 1 se llenó con todos los líderes.
+        $reg = Regulation::create([
+            'group_id' => $this->group->id, 'company_id' => $this->company->id, 'process_type_id' => $this->processType->id,
+            'code' => 'P-TST-111', 'name' => 'GESTION DEL CAMBIO', 'impact_level' => 'medio_alto', 'approval_status' => 'pending_review',
+            'flow_locked' => true, 'details' => [], 'is_active' => true,
+            'flow_user_map' => ['direccion' => [(string) $this->users['direccion']->id]],
+        ]);
+        $otroLider = User::factory()->create(['group_id' => $this->group->id, 'scope_level' => 'group', 'role_id' => $this->opRoleId, 'status' => 'active']);
+        foreach ([$this->users['lider'], $otroLider] as $i => $lider) {
+            $reg->approvals()->create([
+                'step_number' => 1, 'job_position_id' => $this->positions['lider']->id, 'user_id' => $lider->id,
+                'requires_all' => true, 'sequence_order' => $i, 'status' => $i === 0 ? 'pending' : 'waiting',
+            ]);
+        }
+
+        $this->artisan('procesos:revisar-aprobadores')
+            ->expectsOutput('1 procesos con aprobadores que no se eligieron:')
+            ->assertSuccessful();
+        $this->assertSame(2, $reg->approvals()->count(), 'sin --aplicar no cambia nada');
+
+        $this->artisan('procesos:revisar-aprobadores', ['--aplicar' => true])
+            ->expectsOutput('P-TST-111: queda en el paso 3')
+            ->assertSuccessful();
+
+        $reg = $reg->fresh();
+        $this->assertSame('pending_authorization', $reg->approval_status);
+        $this->assertSame([$this->users['direccion']->id], $reg->approvals()->pluck('user_id')->all());
+        Notification::assertSentTo($this->users['direccion'], ApprovalRequestedNotification::class);
+
+        $this->artisan('procesos:revisar-aprobadores')
+            ->expectsOutput('Ningún flujo abierto tiene aprobadores que no se eligieron.');
+    }
+
+    public function test_reiniciar_el_flujo_tambien_salta_los_pasos_sin_elegir(): void
+    {
+        $reg = $this->makeRegulationWithUsers('medio_alto', ['direccion' => [(string) $this->users['direccion']->id]]);
+        $this->approveAs($reg, $this->users['direccion'], 'rejected', 'Falta un anexo');
+
+        $this->flow->resubmit($reg->fresh());
+
+        $reg = $reg->fresh();
+        $this->assertSame('pending_authorization', $reg->approval_status);
+        $this->assertSame([$this->users['direccion']->id], $reg->pendingApprovals()->pluck('user_id')->all());
+    }
+
     // ─── BAJO: 1 paso, 1 puesto (lider) ─────────────────────────────────────
 
     public function test_bajo_inicia_con_un_solo_pending_para_lider(): void

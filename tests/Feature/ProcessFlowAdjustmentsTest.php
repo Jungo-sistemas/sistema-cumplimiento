@@ -104,7 +104,7 @@ class ProcessFlowAdjustmentsTest extends TestCase
             ->patchJson(route('processes.setEvaluationImpact', $regulation), ['evaluation_impact' => 'medio_alto'])
             ->assertStatus(422);
 
-        $this->actingAs($this->admin)->get(route('processes.index', ['company_id' => $this->company->id]))
+        $this->actingAs($this->admin)->get(route('processes.index', ['company_id' => $this->company->id, 'process_type_id' => $regulation->process_type_id]))
             ->assertOk()
             ->assertSee('Impacto');
     }

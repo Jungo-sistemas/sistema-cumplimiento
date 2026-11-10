@@ -13,8 +13,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Vista de auditado (Mi espacio): los roles que no son admin solo tienen esta vista; los admins
- * cambian entre Gestión y Auditado desde el encabezado.
+ * Vista de auditado (Mi espacio): quien no tiene Gestión (solo lectura) solo tiene esta vista;
+ * admins, auditores y operativos cambian entre Gestión y Mi espacio desde el encabezado.
  */
 class AuditeeViewTest extends TestCase
 {
@@ -24,6 +24,7 @@ class AuditeeViewTest extends TestCase
     private Company $company;
     private User $admin;
     private User $operative;
+    private User $readonly;
 
     protected function setUp(): void
     {
@@ -40,6 +41,11 @@ class AuditeeViewTest extends TestCase
             'name' => 'Ana Torres', 'group_id' => $this->group->id, 'company_id' => $this->company->id,
             'scope_level' => 'company', 'status' => 'active',
             'role_id' => Role::create(['name' => 'Operativo', 'slug' => 'operative'])->id,
+        ]);
+        $this->readonly = User::factory()->create([
+            'name' => 'Rosa Lectura', 'group_id' => $this->group->id, 'company_id' => $this->company->id,
+            'scope_level' => 'company', 'status' => 'active',
+            'role_id' => Role::create(['name' => 'Solo lectura', 'slug' => 'readonly'])->id,
         ]);
     }
 
@@ -63,18 +69,36 @@ class AuditeeViewTest extends TestCase
         return $regulation;
     }
 
-    public function test_el_operativo_entra_directo_a_su_vista_de_auditado(): void
+    public function test_solo_lectura_entra_directo_a_su_vista_de_auditado(): void
     {
-        $this->actingAs($this->operative)->get(route('dashboard'))->assertRedirect(route('mi-espacio.home'));
-        $this->actingAs($this->operative)->get(route('processes.dashboard'))->assertRedirect(route('mi-espacio.home'));
+        $this->actingAs($this->readonly)->get(route('dashboard'))->assertRedirect(route('mi-espacio.home'));
+        $this->actingAs($this->readonly)->get(route('gestion.home'))->assertRedirect(route('mi-espacio.home'));
 
-        // Sin el cambio de vista: el operativo no tiene Gestión.
-        $this->actingAs($this->operative)->get(route('mi-espacio.home'))
+        // Sin el cambio de vista: solo lectura no tiene Gestión.
+        $this->actingAs($this->readonly)->get(route('mi-espacio.home'))
             ->assertOk()
-            ->assertSee('Hola, Ana.')
-            ->assertDontSee('Vista de auditado');
-        $this->actingAs($this->operative)->get(route('view-mode.switch', 'gestion'))
+            ->assertSee('Hola, Rosa.')
+            ->assertDontSee(route('view-mode.switch', 'gestion'), false);
+        $this->actingAs($this->readonly)->get(route('view-mode.switch', 'gestion'))
             ->assertRedirect(route('mi-espacio.home'));
+    }
+
+    public function test_el_operativo_tiene_gestion_de_procesos_sin_indicadores_ni_auditorias(): void
+    {
+        $this->actingAs($this->operative)->get(route('view-mode.switch', 'gestion'))
+            ->assertRedirect(route('gestion.home'));
+
+        $this->actingAs($this->operative)->get(route('gestion.home'))
+            ->assertOk()
+            ->assertSee(route('processes.index'), false)
+            ->assertSee(route('my-approvals.index'), false)
+            ->assertSee(route('view-mode.switch', 'auditado'), false)
+            ->assertDontSee('Indicadores de procesos')
+            ->assertDontSee('Hallazgos');
+
+        // Indicadores de procesos es solo de admins.
+        $this->actingAs($this->operative)->get(route('processes.dashboard'))->assertRedirect(route('gestion.home'));
+        $this->actingAs($this->operative)->get(route('auditorias.indicators'))->assertForbidden();
     }
 
     public function test_mis_documentos_lista_solo_los_procesos_publicados_de_sus_empresas(): void
@@ -122,7 +146,7 @@ class AuditeeViewTest extends TestCase
             ->assertRedirect(route('mi-espacio.home'));
         $this->actingAs($this->admin)->get(route('mi-espacio.home'))
             ->assertOk()
-            ->assertSee('Vista de auditado')
+            ->assertSee(route('view-mode.switch', 'gestion'), false)
             ->assertSee('Mis actividades');
 
         // Consultar un proceso desde Mi espacio conserva el menú de auditado...
@@ -131,12 +155,14 @@ class AuditeeViewTest extends TestCase
             ->assertOk()
             ->assertSee('Mis documentos');
 
-        // ...y "Gestión" lleva al lado del auditor, donde sigue el cambio de vista.
+        // ...y "Gestión" lleva al Inicio de Procesos y Auditorías, con los dos lados en el menú.
         $this->actingAs($this->admin)->get(route('view-mode.switch', 'gestion'))
-            ->assertRedirect(route('auditorias.home'));
-        $this->actingAs($this->admin)->get(route('auditorias.home'))
+            ->assertRedirect(route('gestion.home'));
+        $this->actingAs($this->admin)->get(route('gestion.home'))
             ->assertOk()
-            ->assertSee('Vista de auditado')
+            ->assertSee(route('view-mode.switch', 'auditado'), false)
+            ->assertSee('Indicadores de procesos')
+            ->assertSee('Indicadores de auditorías')
             ->assertSee('Hallazgos');
     }
 
@@ -151,21 +177,48 @@ class AuditeeViewTest extends TestCase
             ->assertDontSee('Mis aprobaciones');
 
         $this->actingAs($this->admin)->get(route('view-mode.switch', ['mode' => 'gestion', 'modulo' => 'procesos']))
-            ->assertRedirect(route('processes.dashboard'));
+            ->assertRedirect(route('gestion.home'));
         $this->assertSame('gestion', session('view_mode'));
 
         // Quien solo es auditado no ve el selector de módulos.
-        $this->actingAs($this->operative)->get(route('mi-espacio.home'))
+        $this->actingAs($this->readonly)->get(route('mi-espacio.home'))
             ->assertOk()
             ->assertDontSee(route('view-mode.switch', ['mode' => 'gestion', 'modulo' => 'procesos']), false);
     }
 
-    public function test_el_cambio_de_vista_no_aparece_en_procesos(): void
+    public function test_el_cambio_de_vista_sale_en_procesos_y_no_en_cumplimiento(): void
     {
         $this->actingAs($this->admin)->get(route('processes.index', ['company_id' => $this->company->id]))
             ->assertOk()
             ->assertSee('Procedimientos')
-            ->assertDontSee('Vista de auditado')
+            ->assertSee(route('view-mode.switch', 'auditado'), false)
             ->assertDontSee('Mis actividades');
+
+        $this->actingAs($this->admin)->get(route('documents.index'))
+            ->assertOk()
+            ->assertDontSee(route('view-mode.switch', 'auditado'), false);
+    }
+
+    public function test_mis_documentos_incluye_los_de_otra_empresa_donde_lo_mencionan(): void
+    {
+        $otherCompany = Company::create(['name' => 'BIOMEX', 'group_id' => $this->group->id]);
+        $mentioned = $this->regulation('Recepción de producto', ['company_id' => $otherCompany->id]);
+        $notMentioned = $this->regulation('Proceso ajeno', ['company_id' => $otherCompany->id]);
+
+        $mention = '<p>Revisa <span data-type="person-mention" class="mention-tag mention-person" data-id="' . $this->operative->id . '" data-label="Ana Torres">@Ana Torres</span></p>';
+        $mentioned->currentVersion()->update(['body_html' => $mention]);
+        // Una mención #documento con el mismo número no cuenta como mención a la persona.
+        $notMentioned->currentVersion()->update(['body_html' => '<p><a data-type="documento" data-id="' . $this->operative->id . '">#X</a></p>']);
+
+        $this->actingAs($this->operative)->get(route('mi-espacio.documents'))
+            ->assertOk()
+            ->assertSee('Recepción de producto')
+            ->assertSee('Te mencionan')
+            ->assertSee('BIOMEX')
+            ->assertDontSee('Proceso ajeno');
+
+        // Lo puede abrir aunque no sea de su empresa.
+        $this->actingAs($this->operative)->get(route('processes.show', $mentioned))->assertOk();
+        $this->actingAs($this->operative)->get(route('processes.show', $notMentioned))->assertForbidden();
     }
 }

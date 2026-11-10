@@ -18,8 +18,10 @@ use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
- * Carpeta confidencial de Procesos: los procesos de un tipo restringido solo los ven el puesto
- * Consejo y los admins cuyo único acceso es Procesos. Para los demás (Dirección incluida) no existen.
+ * Carpeta confidencial de Procesos: la empresa DIRECCIÓN (is_restricted), al nivel de las demás
+ * empresas, solo la ven el puesto Consejo y los admins cuyo único acceso es Procesos. Para los
+ * demás (Dirección incluida) ni la carpeta ni sus procesos existen. Dentro tiene las mismas
+ * carpetas por tipo que cualquier empresa.
  */
 class RestrictedProcessesTest extends TestCase
 {
@@ -27,7 +29,7 @@ class RestrictedProcessesTest extends TestCase
 
     private Group $group;
     private Company $company;
-    private ProcessType $restrictedType;
+    private Company $restrictedCompany;
     private ProcessType $normalType;
     private User $adminAll;
     private User $adminProcesos;
@@ -43,7 +45,7 @@ class RestrictedProcessesTest extends TestCase
         $this->company = Company::create(['name' => 'ALCOM', 'group_id' => $this->group->id, 'show_in_processes' => true]);
 
         $this->normalType     = ProcessType::create(['group_id' => $this->group->id, 'name' => 'Operaciones', 'is_active' => true]);
-        $this->restrictedType = ProcessType::create(['group_id' => $this->group->id, 'name' => 'Dirección', 'is_active' => true, 'is_restricted' => true]);
+        $this->restrictedCompany = Company::create(['name' => 'DIRECCIÓN', 'group_id' => $this->group->id, 'show_in_processes' => true, 'is_restricted' => true]);
 
         $adminRole     = Role::create(['name' => 'Administrador', 'slug' => 'admin']);
         $operativeRole = Role::create(['name' => 'Operativo', 'slug' => 'operative']);
@@ -61,10 +63,10 @@ class RestrictedProcessesTest extends TestCase
         $this->lider->jobPositions()->attach($position('lider', 'Líder', 1));
     }
 
-    private function regulation(string $name, ProcessType $type, array $attributes = []): Regulation
+    private function regulation(string $name, Company $company, array $attributes = []): Regulation
     {
         $regulation = Regulation::create($attributes + [
-            'group_id' => $this->group->id, 'company_id' => $this->company->id, 'process_type_id' => $type->id,
+            'group_id' => $this->group->id, 'company_id' => $company->id, 'process_type_id' => $this->normalType->id,
             'code' => 'ALC-' . fake()->unique()->numberBetween(100, 999), 'name' => $name,
             'is_active' => true, 'approval_status' => 'approved',
         ]);
@@ -89,19 +91,27 @@ class RestrictedProcessesTest extends TestCase
 
     public function test_para_quien_no_tiene_acceso_el_proceso_confidencial_no_existe(): void
     {
-        $this->regulation('Manual de operaciones', $this->normalType);
-        $secret  = $this->regulation('Plan de sucesión directiva', $this->restrictedType);
+        $this->regulation('Manual de operaciones', $this->company);
+        $secret  = $this->regulation('Plan de sucesión directiva', $this->restrictedCompany);
         $version = $secret->currentVersion;
 
-        // Admin con todas las áreas: no lo ve en el listado, ni por URL, ni su versión, ni el tipo.
-        $this->actingAs($this->adminAll)->get(route('processes.index', ['company_id' => $this->company->id]))
+        // Admin con todas las áreas: no ve la carpeta DIRECCIÓN entre las empresas, ni entra a
+        // ella, ni ve sus procesos en búsquedas, por URL o su versión.
+        $this->actingAs($this->adminAll)->get(route('processes.index'))
             ->assertOk()
-            ->assertSee('Manual de operaciones')
+            ->assertSee('ALCOM')
+            ->assertDontSee('DIRECCIÓN');
+        $this->actingAs($this->adminAll)->get(route('processes.index', ['company_id' => $this->restrictedCompany->id, 'process_type_id' => $this->normalType->id]))
+            ->assertDontSee('Plan de sucesión directiva');
+        $this->actingAs($this->adminAll)->get(route('processes.index', ['q' => 'Plan']))
+            ->assertOk()
             ->assertDontSee('Plan de sucesión directiva');
         $this->actingAs($this->adminAll)->get(route('processes.show', $secret))->assertNotFound();
         $this->actingAs($this->adminAll)->get(route('regulation-versions.preview', $version))->assertNotFound();
-        $this->actingAs($this->adminAll)->get(route('processes.create'))->assertOk()->assertDontSee('Dirección</option>', false);
-        $this->actingAs($this->adminProcesos)->get(route('processes.create'))->assertOk()->assertSee('Dirección</option>', false);
+        $this->actingAs($this->adminAll)->get(route('processes.create'))->assertOk()
+            ->assertViewHas('companies', fn ($companies) => ! $companies->contains('id', $this->restrictedCompany->id));
+        $this->actingAs($this->adminProcesos)->get(route('processes.create'))->assertOk()
+            ->assertViewHas('companies', fn ($companies) => $companies->contains('id', $this->restrictedCompany->id));
 
         // Operativo sin el puesto Dirección: tampoco en Mis documentos.
         $this->actingAs($this->lider)->get(route('mi-espacio.documents'))
@@ -116,12 +126,20 @@ class RestrictedProcessesTest extends TestCase
 
     public function test_consejo_y_admin_de_procesos_si_lo_ven(): void
     {
-        $secret = $this->regulation('Plan de sucesión directiva', $this->restrictedType);
+        $secret = $this->regulation('Plan de sucesión directiva', $this->restrictedCompany);
 
-        $this->actingAs($this->adminProcesos)->get(route('processes.index', ['company_id' => $this->company->id]))
+        // La carpeta DIRECCIÓN sale junto a las empresas y dentro tiene las carpetas por tipo.
+        $this->actingAs($this->adminProcesos)->get(route('processes.index'))
             ->assertOk()
-            ->assertSee('Plan de sucesión directiva')
-            ->assertSee('Confidencial');
+            ->assertSeeInOrder(['DIRECCIÓN', 'Confidencial', 'ALCOM']);
+        $this->actingAs($this->adminProcesos)->get(route('processes.index', ['company_id' => $this->restrictedCompany->id]))
+            ->assertOk()
+            ->assertSee('Confidencial')
+            ->assertSee($this->normalType->name)
+            ->assertSee('1 procedimiento');
+        $this->actingAs($this->adminProcesos)->get(route('processes.index', ['company_id' => $this->restrictedCompany->id, 'process_type_id' => $this->normalType->id]))
+            ->assertOk()
+            ->assertSee('Plan de sucesión directiva');
         $this->actingAs($this->adminProcesos)->get(route('processes.show', $secret))->assertOk();
 
         $this->actingAs($this->consejo)->get(route('processes.show', $secret))->assertOk();
@@ -134,12 +152,12 @@ class RestrictedProcessesTest extends TestCase
         Storage::fake('private');
 
         $this->actingAs($this->adminAll)->post(route('processes.storeCargar'), [
-            'company_id' => $this->company->id, 'process_type_id' => $this->restrictedType->id,
+            'company_id' => $this->restrictedCompany->id, 'process_type_id' => $this->normalType->id,
             'document_type' => Regulation::DOCUMENT_TYPES[0], 'evaluation_impact' => 'medio',
             'nombre' => 'Intento colado', 'codigo' => 'ALC-901', 'quien_elabora' => 'Ana', 'quien_aprueba' => 'Beto',
             'file' => UploadedFile::fake()->create('manual.pdf', 50, 'application/pdf'),
             'issued_at' => now()->toDateString(), 'approval_mode' => 'approved', 'valid_until' => now()->addYear()->toDateString(),
-        ])->assertForbidden();
+        ])->assertNotFound(); // para él la carpeta DIRECCIÓN no existe
 
         $this->assertFalse(Regulation::withoutGlobalScopes()->where('code', 'ALC-901')->exists());
     }
@@ -147,7 +165,7 @@ class RestrictedProcessesTest extends TestCase
     public function test_el_flujo_de_un_confidencial_solo_lleva_a_consejo(): void
     {
         Notification::fake();
-        $secret = $this->regulation('Plan de sucesión directiva', $this->restrictedType, [
+        $secret = $this->regulation('Plan de sucesión directiva', $this->restrictedCompany, [
             'approval_status' => 'pending_review', 'impact_level' => 'alto',
         ]);
 
@@ -171,7 +189,7 @@ class RestrictedProcessesTest extends TestCase
             ])->jobPositions()->attach(JobPosition::create(['group_id' => $this->group->id, 'slug' => $slug, 'name' => ucfirst($slug), 'sort_order' => $order])->id);
         }
 
-        $regulation = $this->regulation('Manual de operaciones', $this->normalType, [
+        $regulation = $this->regulation('Manual de operaciones', $this->company, [
             'approval_status' => 'pending_review', 'impact_level' => 'alto',
         ]);
         app(ApprovalFlowService::class)->initFlow($regulation);
@@ -194,8 +212,8 @@ class RestrictedProcessesTest extends TestCase
 
     public function test_el_tablero_no_mezcla_numeros_entre_quien_ve_y_quien_no(): void
     {
-        $this->regulation('Manual de operaciones', $this->normalType);
-        $this->regulation('Plan de sucesión directiva', $this->restrictedType);
+        $this->regulation('Manual de operaciones', $this->company);
+        $this->regulation('Plan de sucesión directiva', $this->restrictedCompany);
 
         // Primero quien sí ve (llena su caché), luego quien no: no debe heredar el 2.
         $this->actingAs($this->adminProcesos)->get(route('processes.dashboard'))
@@ -206,11 +224,39 @@ class RestrictedProcessesTest extends TestCase
 
     public function test_un_confidencial_no_tiene_enlace_publico(): void
     {
-        $secret = $this->regulation('Plan de sucesión directiva', $this->restrictedType);
+        $secret = $this->regulation('Plan de sucesión directiva', $this->restrictedCompany);
         $token  = $secret->ensurePublicShareToken();
 
         auth()->logout();
         $this->get(route('processes.public-view', [$secret, $token]))->assertNotFound();
         $this->actingAs($this->adminProcesos)->get(route('processes.qr', $secret))->assertForbidden();
+    }
+
+    public function test_consejo_con_una_sola_empresa_tambien_llega_a_la_carpeta_direccion(): void
+    {
+        $this->regulation('Manual de operaciones', $this->company);
+        $this->regulation('Plan de sucesión directiva', $this->restrictedCompany);
+        $otra = Company::create(['name' => 'BIOMEX', 'group_id' => $this->group->id, 'show_in_processes' => true]);
+
+        // Ve la pantalla de empresas con solo su empresa y DIRECCIÓN.
+        $this->actingAs($this->consejo)->get(route('processes.index'))
+            ->assertOk()
+            ->assertViewHas('cardView', true)
+            ->assertSeeInOrder(['DIRECCIÓN', 'ALCOM'])
+            ->assertDontSee('BIOMEX');
+        $this->actingAs($this->consejo)->get(route('processes.index', ['company_id' => $this->restrictedCompany->id, 'process_type_id' => $this->normalType->id]))
+            ->assertOk()
+            ->assertSee('Plan de sucesión directiva');
+
+        // Pero no otras empresas.
+        $this->actingAs($this->consejo)->get(route('processes.index', ['company_id' => $otra->id]))->assertForbidden();
+
+        // Un operativo normal sigue entrando directo a su empresa, sin DIRECCIÓN.
+        $this->actingAs($this->lider)->get(route('processes.index'))
+            ->assertOk()
+            ->assertViewHas('folderView', true)
+            ->assertDontSee('DIRECCIÓN');
+        $this->actingAs($this->lider)->get(route('processes.index', ['company_id' => $this->restrictedCompany->id, 'process_type_id' => $this->normalType->id]))
+            ->assertDontSee('Plan de sucesión directiva');
     }
 }

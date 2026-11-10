@@ -1,10 +1,10 @@
-<x-layouts.vigia title="Tablero · Procesos">
+<x-layouts.vigia title="Indicadores de procesos">
     <x-slot name="breadcrumb">
-        <span class="text-gray-700 font-medium">Tablero</span>
+        <span class="text-gray-700 font-medium">Indicadores de procesos</span>
     </x-slot>
 
     <div class="bg-white rounded-xl shadow p-6 space-y-8">
-        <h1 class="text-2xl font-semibold text-brand">Tablero de procesos</h1>
+        <h1 class="text-2xl font-semibold text-brand">Indicadores de procesos</h1>
 
         {{-- Cards de resumen --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" data-tour="dashboard-summary">

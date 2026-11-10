@@ -129,8 +129,11 @@ class RegulationVersionController extends Controller
             ->where('user_id', $user->id)
             ->exists();
 
+        // A quien mencionan en la versión vigente le sale en Mis documentos: también la puede abrir.
+        $isMentioned = (bool) $regulation->currentVersion?->mentionsUser($user);
+
         abort_unless(
-            $user->canAccessCompany($regulation->company) || $hasPendingApproval || $hasShare,
+            $user->canAccessCompany($regulation->company) || $hasPendingApproval || $hasShare || $isMentioned,
             403
         );
     }
