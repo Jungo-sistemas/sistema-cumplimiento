@@ -252,13 +252,22 @@ class User extends Authenticatable
     }
 
     /**
-     * Quien no es admin ni auditor solo ve la Vista de auditado; admins y auditores cambian entre
-     * Gestión y Auditado desde el encabezado de Auditorías. Sin licencia de Procesos no hay vista
-     * de auditado, así que esos usuarios se quedan con Gestión como hasta ahora.
+     * Tiene vista de Gestión en Procesos y Auditorías: admins, auditores y operativos (los
+     * operativos crean y editan procesos en línea). Los de solo lectura solo tienen Mi espacio.
+     */
+    public function hasGestion(): bool
+    {
+        return $this->isAdmin() || $this->isAuditor() || $this->isOperative();
+    }
+
+    /**
+     * Quien no tiene Gestión solo ve la Vista de auditado (Mi espacio); los demás cambian entre
+     * Gestión y Mi espacio desde el encabezado. Sin licencia de Procesos no hay vista de auditado,
+     * así que esos usuarios se quedan con Gestión como hasta ahora.
      */
     public function isAuditeeOnly(): bool
     {
-        return ! $this->isAdmin() && ! $this->isAuditor() && $this->canUseAuditeeView();
+        return ! $this->hasGestion() && $this->canUseAuditeeView();
     }
 
     /**

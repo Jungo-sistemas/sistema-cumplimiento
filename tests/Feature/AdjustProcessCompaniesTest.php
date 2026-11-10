@@ -24,7 +24,7 @@ class AdjustProcessCompaniesTest extends TestCase
 
         $this->group = Group::create(['name' => 'Vigía', 'slug' => 'vigia', 'is_active' => true]);
 
-        foreach (['ALCOM', 'VIDENCI', 'MIGAR CAPITAL', 'MIGAR REAL STATE', 'ASESORÍAS DAVAL', 'TI', 'FISCAL', 'GASERA VILLA DE REYES', 'TOTAL PROPANE', 'PACTO'] as $name) {
+        foreach (['ALCOM', 'VIDENCI', 'MIGAR CAPITAL', 'MIGAR REAL STATE', 'ASESORÍAS DAVAL', 'TI', 'FISCAL', 'GASERA VILLA DE REYES', 'TOTAL PROPANE', 'CAPITAL HUMANO', 'PACTO'] as $name) {
             Company::create(['name' => $name, 'group_id' => $this->group->id, 'show_in_processes' => $name !== 'PACTO']);
         }
     }
@@ -52,7 +52,7 @@ class AdjustProcessCompaniesTest extends TestCase
             ->expectsOutput('No encontré ninguna empresa como «VERITAS%»: se salta.')
             ->assertSuccessful();
 
-        foreach (['TI', 'FISCAL', 'GASERA VILLA DE REYES', 'TOTAL PROPANE', 'MIGAR REAL STATE'] as $hidden) {
+        foreach (['TI', 'FISCAL', 'GASERA VILLA DE REYES', 'TOTAL PROPANE', 'MIGAR REAL STATE', 'CAPITAL HUMANO'] as $hidden) {
             $this->assertFalse((bool) $this->company($hidden)->show_in_processes, $hidden);
         }
         $this->assertTrue((bool) $this->company('ALCOM')->show_in_processes);

@@ -13,6 +13,7 @@ use App\Http\Controllers\AssetRequirementDocumentController;
 use App\Http\Controllers\AssetExtraDocumentController;
 use App\Http\Controllers\RequirementAuditLogController;
 use App\Http\Controllers\AuditeeController;
+use App\Http\Controllers\GestionController;
 use App\Http\Controllers\RequirementHistoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
@@ -181,6 +182,9 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
         ->whereIn('mode', ['gestion', 'auditado'])
         ->name('view-mode.switch');
 
+    // Inicio de Gestión del módulo "Procesos y Auditorías" (admins, auditores y operativos).
+    Route::get('/gestion', [GestionController::class, 'home'])->name('gestion.home');
+
     /*
     |--------------------------------------------------------------------------
     | Auditorías (vista del auditor)
@@ -193,6 +197,11 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
         Route::view('/{audit}/resultado', 'auditorias.result')->whereNumber('audit')->name('audits.result');
         Route::view('/hallazgos', 'auditorias.findings')->name('findings.index');
         Route::view('/ayuda', 'auditorias.help')->name('help');
+        Route::get('/indicadores', function () {
+            abort_unless(auth()->user()->isAdmin(), 403);
+
+            return view('auditorias.indicators');
+        })->name('indicators');
     });
 
     /*

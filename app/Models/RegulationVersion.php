@@ -57,6 +57,22 @@ class RegulationVersion extends Model
      * que lo parchó (DocxLayoutPatcher). Editarla parcha este .docx en vez de reconstruirlo, y
      * "Ver" muestra el .docx real.
      */
+    /**
+     * El contenido menciona a la persona con @persona. El editor guarda la mención como
+     * <span data-type="person-mention" data-id="…">; se revisa la etiqueta completa para no
+     * confundirla con el data-id de una mención #documento.
+     */
+    public function mentionsUser(User $user): bool
+    {
+        if (! $this->body_html || ! str_contains($this->body_html, 'person-mention')) {
+            return false;
+        }
+
+        preg_match_all('/<span\b[^>]*data-type="person-mention"[^>]*>/i', $this->body_html, $tags);
+
+        return collect($tags[0])->contains(fn ($tag) => preg_match('/\bdata-id="' . $user->id . '"/', $tag));
+    }
+
     public function hasDocxLayout(): bool
     {
         return $this->keeps_docx_layout || ! $this->body_html;

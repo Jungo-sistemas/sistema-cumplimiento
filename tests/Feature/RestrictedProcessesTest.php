@@ -94,7 +94,12 @@ class RestrictedProcessesTest extends TestCase
         $version = $secret->currentVersion;
 
         // Admin con todas las áreas: no lo ve en el listado, ni por URL, ni su versión, ni el tipo.
+        // Tampoco ve la carpeta confidencial entre las carpetas de la empresa.
         $this->actingAs($this->adminAll)->get(route('processes.index', ['company_id' => $this->company->id]))
+            ->assertOk()
+            ->assertSee($this->normalType->name)
+            ->assertDontSee($this->restrictedType->name);
+        $this->actingAs($this->adminAll)->get(route('processes.index', ['company_id' => $this->company->id, 'process_type_id' => $this->normalType->id]))
             ->assertOk()
             ->assertSee('Manual de operaciones')
             ->assertDontSee('Plan de sucesión directiva');
@@ -119,6 +124,9 @@ class RestrictedProcessesTest extends TestCase
         $secret = $this->regulation('Plan de sucesión directiva', $this->restrictedType);
 
         $this->actingAs($this->adminProcesos)->get(route('processes.index', ['company_id' => $this->company->id]))
+            ->assertOk()
+            ->assertSee($this->restrictedType->name);
+        $this->actingAs($this->adminProcesos)->get(route('processes.index', ['company_id' => $this->company->id, 'process_type_id' => $this->restrictedType->id]))
             ->assertOk()
             ->assertSee('Plan de sucesión directiva')
             ->assertSee('Confidencial');
