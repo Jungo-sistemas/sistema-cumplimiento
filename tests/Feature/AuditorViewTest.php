@@ -82,6 +82,17 @@ class AuditorViewTest extends TestCase
         $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))->assertDontSee('Registrar hallazgo');
     }
 
+    public function test_cada_criterio_muestra_su_descripcion(): void
+    {
+        // La descripción va entre el título del criterio y la evidencia a verificar.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))
+            ->assertSeeInOrder([
+                '1. La actividad cuenta con registro trazable.',
+                'Cada vez que se realiza la actividad queda un registro',
+                'Evidencia a verificar:',
+            ]);
+    }
+
     public function test_el_resultado_muestra_sus_hallazgos(): void
     {
         $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))

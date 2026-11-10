@@ -18,11 +18,23 @@
         // Solo "En captura" se llena. Una "Programada" se puede consultar, pero todavía no se captura.
         $editable = $auditoria['estado'] === 'En captura';
 
-        // Criterios del checklist (datos de ejemplo). Más adelante cada auditoría trae los suyos de la base de datos.
+        // "descripcion" explica qué significa el criterio, para que el auditor sepa qué está evaluando.
         $criterios = [
-            ['texto' => 'La actividad cuenta con registro trazable.',     'evidencia' => 'Bitácora fechada'],
-            ['texto' => 'Los responsables conocen el procedimiento.',     'evidencia' => 'Registro de capacitación'],
-            ['texto' => 'Las evidencias están completas y actualizadas.', 'evidencia' => 'Expediente y revisión firmada'],
+            [
+                'texto'       => 'La actividad cuenta con registro trazable.',
+                'descripcion' => 'Cada vez que se realiza la actividad queda un registro con fecha, responsable y resultado, de forma que se puede reconstruir qué se hizo y quién lo hizo.',
+                'evidencia'   => 'Bitácora fechada',
+            ],
+            [
+                'texto'       => 'Los responsables conocen el procedimiento.',
+                'descripcion' => 'Las personas que realizan la actividad saben qué pasos seguir y fueron capacitadas en la versión vigente del procedimiento. Puedes confirmarlo pidiéndoles que expliquen cómo la hacen.',
+                'evidencia'   => 'Registro de capacitación',
+            ],
+            [
+                'texto'       => 'Las evidencias están completas y actualizadas.',
+                'descripcion' => 'Están todos los documentos que respaldan la actividad, corresponden al periodo auditado y tienen las firmas o aprobaciones que pide el procedimiento.',
+                'evidencia'   => 'Expediente y revisión firmada',
+            ],
         ];
     @endphp
 
@@ -69,7 +81,8 @@
             @foreach($criterios as $i => $criterio)
                 <div class="rounded-2xl border border-gray-200 bg-white p-6">
                     <h3 class="text-lg font-semibold text-gray-900">{{ $i + 1 }}. {{ $criterio['texto'] }}</h3>
-                    <p class="mt-1 text-sm text-gray-600"><span class="font-semibold text-gray-900">Evidencia a verificar:</span> {{ $criterio['evidencia'] }}</p>
+                    <p class="mt-1 text-[15px] text-gray-700">{{ $criterio['descripcion'] }}</p>
+                    <p class="mt-2 text-sm text-gray-600"><span class="font-semibold text-gray-900">Evidencia a verificar:</span> {{ $criterio['evidencia'] }}</p>
 
                     <div class="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
                         <div>
