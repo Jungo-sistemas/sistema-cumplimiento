@@ -53,14 +53,14 @@
                         <span>Código: <span class="font-mono font-semibold text-gray-700">{{ $regulation->code }}</span></span>
                     @endif
                     <span>Proceso: <span class="font-semibold text-gray-700">{{ $regulation->processType->name ?? '—' }}</span>
-                        @if($regulation->processType?->is_restricted)
+                        @if($regulation->company?->is_restricted)
                             @include('processes.partials.restricted-badge')
                         @endif
                     </span>
                     @if($regulation->document_type)
                         <span>Tipo: <span class="font-semibold text-gray-700">{{ $regulation->document_type }}</span></span>
                     @endif
-                    @if((auth()->user()->hasGroupScope() || auth()->user()->hasMultipleCompanies()) && $regulation->company)
+                    @if((auth()->user()->picksProcessCompany()) && $regulation->company)
                         <span>Empresa: <span class="font-semibold text-gray-700">{{ $regulation->company->procesos_name }}</span></span>
                     @endif
                 </div>
@@ -970,7 +970,7 @@
                           x-text="`${viewedCount}/${recipients.length}`"></span>
                 </button>
                 {{-- El QR abre el documento sin sesión: no aplica a procesos confidenciales. --}}
-                @unless($regulation->processType?->is_restricted)
+                @unless($regulation->company?->is_restricted)
                 <button type="button"
                         @click="tab = 'qr'"
                         :class="tab === 'qr' ? 'border-b-2 border-brand text-brand font-semibold' : 'text-gray-500 hover:text-gray-700'"

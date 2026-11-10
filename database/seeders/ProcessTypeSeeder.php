@@ -26,16 +26,13 @@ class ProcessTypeSeeder extends Seeder
         'SEGURIDAD',
     ];
 
-    // Tipos confidenciales: solo Consejo y los admins de solo Procesos ven sus procesos.
-    private const RESTRICTED_TYPES = ['DIRECCIÓN'];
-
     public function run(): void
     {
         foreach (Group::all() as $group) {
             foreach (self::TYPES as $i => $name) {
-                ProcessType::withoutGlobalScopes()->firstOrCreate(
+                ProcessType::firstOrCreate(
                     ['group_id' => $group->id, 'name' => $name],
-                    ['sort_order' => $i + 1, 'is_active' => true, 'is_restricted' => in_array($name, self::RESTRICTED_TYPES, true)]
+                    ['sort_order' => $i + 1, 'is_active' => true]
                 );
             }
         }

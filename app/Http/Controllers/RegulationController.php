@@ -28,25 +28,32 @@ class RegulationController extends Controller
     {
         $user = auth()->user();
 
-        $selectedCompanyId = ($user->hasGroupScope() || $user->hasMultipleCompanies())
+        $selectedCompanyId = $user->picksProcessCompany()
             ? ($request->filled('company_id') ? (int) $request->company_id : null)
             : (int) $user->company_id;
 
+        // Con una lista de empresas, solo puede abrir las suyas (más DIRECCIÓN si es Consejo).
+        abort_if($selectedCompanyId && $user->hasProcessCompanyList()
+            && ! in_array($selectedCompanyId, $user->accessibleCompanyIds(), true), 403);
+
         $companies = $user->hasGroupScope()
             ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderByRaw(Company::PROCESOS_NAME_SQL)->get()
-            : ($user->hasMultipleCompanies()
+            : ($user->hasProcessCompanyList()
                 ? Company::whereIn('id', $user->accessibleCompanyIds())->where('show_in_processes', true)->where('otras', false)->orderByRaw(Company::PROCESOS_NAME_SQL)->get()
                 : collect());
 
         // Group/multi-company user with no company selected AND no search AND not in report mode
         // → company card grid
-        if (($user->hasGroupScope() || $user->hasMultipleCompanies()) && ! $selectedCompanyId && ! $request->filled('q') && ! $request->boolean('report')) {
+        if ($user->picksProcessCompany() && ! $selectedCompanyId && ! $request->filled('q') && ! $request->boolean('report')) {
             $companiesQuery = Company::query()
                 ->when($user->hasGroupScope(), fn ($q) => $q->where('group_id', $user->group_id))
-                ->when($user->hasMultipleCompanies(), fn ($q) => $q->whereIn('id', $user->accessibleCompanyIds()))
+                ->when($user->hasProcessCompanyList(), fn ($q) => $q->whereIn('id', $user->accessibleCompanyIds()))
                 ->where('show_in_processes', true)
                 ->where('otras', false)
                 ->withCount(['regulations' => fn ($q) => $q->where('is_active', true)->where('is_annex', false)->whereNull('obsoleted_at')]);
+
+            // La carpeta confidencial DIRECCIÓN va primero, antes de las empresas.
+            $companiesQuery->orderByDesc('is_restricted');
 
             return view('processes.index', [
                 'cardView'            => true,
@@ -89,7 +96,7 @@ class RegulationController extends Controller
 
         if ($selectedCompanyId) {
             $query->where('company_id', $selectedCompanyId);
-        } elseif ($user->hasMultipleCompanies()) {
+        } elseif ($user->hasProcessCompanyList()) {
             $query->whereIn('company_id', $user->accessibleCompanyIds());
         } elseif (! $user->hasGroupScope()) {
             $query->where('company_id', $user->company_id);
@@ -97,7 +104,7 @@ class RegulationController extends Controller
 
         // Búsqueda global: sin empresa seleccionada + búsqueda, o modo reporte (todas las empresas
         // del grupo, o todas las del usuario si tiene varias empresas específicas)
-        $globalSearch = ($user->hasGroupScope() || $user->hasMultipleCompanies()) && ! $selectedCompanyId
+        $globalSearch = $user->picksProcessCompany() && ! $selectedCompanyId
             && ($request->filled('q') || $request->boolean('report'));
 
         // Dentro de una empresa los procesos se ven por carpetas, una por tipo de proceso. El filtro
@@ -190,7 +197,6 @@ class RegulationController extends Controller
             'id'         => $type->id,
             'number'     => $type->sort_order,
             'name'       => $type->name,
-            'restricted' => (bool) $type->is_restricted,
             'count'      => (int) ($counts[$type->id] ?? 0),
         ]);
 
@@ -220,11 +226,10 @@ class RegulationController extends Controller
     {
         $type = $processTypes->firstWhere('id', (int) $selectedFolder);
 
-        // Un tipo que no existe o que el usuario no puede ver (el confidencial): se muestra la
-        // carpeta vacía, sin revelar el nombre.
+        // Un tipo que no existe u oculto: se muestra la carpeta vacía.
         return $type
-            ? ['id' => $type->id, 'number' => $type->sort_order, 'name' => $type->name, 'restricted' => (bool) $type->is_restricted]
-            : ['id' => (int) $selectedFolder, 'number' => null, 'name' => 'Carpeta', 'restricted' => false];
+            ? ['id' => $type->id, 'number' => $type->sort_order, 'name' => $type->name]
+            : ['id' => (int) $selectedFolder, 'number' => null, 'name' => 'Carpeta'];
     }
 
     public function create(Request $request)
@@ -234,13 +239,17 @@ class RegulationController extends Controller
 
         session()->forget(self::AI_DRAFT_SESSION_KEY); // empezar limpio; evita confusión con una vista previa abandonada
 
-        $selectedCompanyId = ($user->hasGroupScope() || $user->hasMultipleCompanies())
+        $selectedCompanyId = $user->picksProcessCompany()
             ? ($request->filled('company_id') ? (int) $request->company_id : null)
             : (int) $user->company_id;
 
+        // Con una lista de empresas, solo puede abrir las suyas (más DIRECCIÓN si es Consejo).
+        abort_if($selectedCompanyId && $user->hasProcessCompanyList()
+            && ! in_array($selectedCompanyId, $user->accessibleCompanyIds(), true), 403);
+
         $companies = $user->hasGroupScope()
             ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderByRaw(Company::PROCESOS_NAME_SQL)->get()
-            : ($user->hasMultipleCompanies()
+            : ($user->hasProcessCompanyList()
                 ? Company::whereIn('id', $user->accessibleCompanyIds())->where('show_in_processes', true)->where('otras', false)->orderByRaw(Company::PROCESOS_NAME_SQL)->get()
                 : collect());
 
@@ -815,13 +824,17 @@ class RegulationController extends Controller
         // Cargar un documento por archivo — solo admins; crear vía wizard de IA sigue abierto a operativos.
         abort_unless($user->isAdmin(), 403);
 
-        $selectedCompanyId = ($user->hasGroupScope() || $user->hasMultipleCompanies())
+        $selectedCompanyId = $user->picksProcessCompany()
             ? ($request->filled('company_id') ? (int) $request->company_id : null)
             : (int) $user->company_id;
 
+        // Con una lista de empresas, solo puede abrir las suyas (más DIRECCIÓN si es Consejo).
+        abort_if($selectedCompanyId && $user->hasProcessCompanyList()
+            && ! in_array($selectedCompanyId, $user->accessibleCompanyIds(), true), 403);
+
         $companies = $user->hasGroupScope()
             ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderByRaw(Company::PROCESOS_NAME_SQL)->get()
-            : ($user->hasMultipleCompanies()
+            : ($user->hasProcessCompanyList()
                 ? Company::whereIn('id', $user->accessibleCompanyIds())->where('show_in_processes', true)->where('otras', false)->orderByRaw(Company::PROCESOS_NAME_SQL)->get()
                 : collect());
 
@@ -1149,9 +1162,7 @@ class RegulationController extends Controller
             ->where('group_id', $user->group_id)
             ->where('is_active', true);
 
-        if ($user->hasCompanyScope()) {
-            $query->where('company_id', $user->company_id);
-        } elseif ($user->hasMultipleCompanies()) {
+        if ($user->hasProcessCompanyList() || $user->hasCompanyScope()) {
             $query->whereIn('company_id', $user->accessibleCompanyIds());
         }
 
@@ -1258,9 +1269,7 @@ class RegulationController extends Controller
             ->where('group_id', $user->group_id)
             ->where('is_active', true);
 
-        if ($user->hasCompanyScope()) {
-            $query->where('company_id', $user->company_id);
-        } elseif ($user->hasMultipleCompanies()) {
+        if ($user->hasProcessCompanyList() || $user->hasCompanyScope()) {
             $query->whereIn('company_id', $user->accessibleCompanyIds());
         }
 
@@ -1272,9 +1281,13 @@ class RegulationController extends Controller
         $user = auth()->user();
         abort_unless($user->isAdmin(), 403);
 
-        $selectedCompanyId = ($user->hasGroupScope() || $user->hasMultipleCompanies())
+        $selectedCompanyId = $user->picksProcessCompany()
             ? ($request->filled('company_id') ? (int) $request->company_id : null)
             : (int) $user->company_id;
+
+        // Con una lista de empresas, solo puede abrir las suyas (más DIRECCIÓN si es Consejo).
+        abort_if($selectedCompanyId && $user->hasProcessCompanyList()
+            && ! in_array($selectedCompanyId, $user->accessibleCompanyIds(), true), 403);
 
         $companies = $user->hasGroupScope()
             ? Company::where('group_id', $user->group_id)
@@ -1282,7 +1295,7 @@ class RegulationController extends Controller
                 ->where('otras', false)
                 ->orderByRaw(Company::PROCESOS_NAME_SQL)
                 ->get()
-            : ($user->hasMultipleCompanies()
+            : ($user->hasProcessCompanyList()
                 ? Company::whereIn('id', $user->accessibleCompanyIds())
                     ->where('show_in_processes', true)
                     ->where('otras', false)
@@ -1307,7 +1320,7 @@ class RegulationController extends Controller
 
             if ($selectedCompanyId) {
                 $query->where('company_id', $selectedCompanyId);
-            } elseif ($user->hasMultipleCompanies()) {
+            } elseif ($user->hasProcessCompanyList()) {
                 $query->whereIn('company_id', $user->accessibleCompanyIds());
             } elseif (! $user->hasGroupScope() && $user->company_id) {
                 $query->where('company_id', $user->company_id);
