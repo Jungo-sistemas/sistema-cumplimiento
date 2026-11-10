@@ -1074,7 +1074,7 @@
                             <span class="font-semibold text-brand" x-text="levelLabel"></span>
                         </p>
                         <p class="text-xs text-gray-500 mb-4">
-                            Asignar personas es opcional: si dejas un puesto vacío, aprueba cualquiera de ese puesto. Una vez confirmado, el flujo no podrá modificarse.
+                            Asignar personas es opcional. Si eliges a alguien, los pasos que dejes sin nadie se saltan y el flujo sigue con el siguiente que sí tenga personas (por ejemplo, solo Gerente y Dirección). Si no eliges a nadie, aprueba cualquiera de cada puesto. Una vez confirmado, el flujo no podrá modificarse.
                         </p>
 
                         @include('processes.partials.flow-change-summary')

@@ -93,16 +93,64 @@ class ApprovalFlowService
      */
     public function initFlow(Regulation $regulation, array $userMap = [], bool $notify = true): void
     {
-        DB::transaction(function () use ($regulation, $userMap, $notify) {
+        $step = DB::transaction(function () use ($regulation, $userMap, $notify) {
             $regulation->approvals()->delete();
-            $this->createStepRecords($regulation, 1, $userMap, $notify);
+
+            return $this->openFirstStep($regulation, $userMap, $notify);
         });
 
-        if (! $notify) {
-            return;
+        if ($notify && $step) {
+            $this->notifyPendingApprovers($regulation, $step);
+        }
+    }
+
+    /**
+     * Abre el primer paso del flujo que tenga aprobadores (ver openStepFrom()) y, si por saltar
+     * pasos vacíos arranca después del 1, lo deja "en autorización" en vez de "en revisión".
+     */
+    private function openFirstStep(Regulation $regulation, array $userMap, bool $notify = true): ?int
+    {
+        $step = $this->openStepFrom($regulation, 1, $userMap, $notify);
+
+        // Ningún paso tiene aprobadores (p. ej. los elegidos ya no existen): en vez de quedar
+        // atorado en silencio, el último paso avisa a los admins que falta asignar.
+        if ($step === null && ($flow = self::flowFor($regulation)) !== []) {
+            $this->createStepRecords($regulation, array_key_last($flow), $userMap, $notify);
         }
 
-        $this->notifyPendingApprovers($regulation, 1);
+        if ($step !== null && $step > 1 && $regulation->approval_status === 'pending_review') {
+            $regulation->update(['approval_status' => 'pending_authorization']);
+        }
+
+        return $step;
+    }
+
+    /**
+     * Crea los registros del paso $from o, si el admin eligió aprobadores para el flujo
+     * (flow_user_map) y en ese paso no eligió a nadie, se lo salta y sigue con el siguiente: a
+     * veces no se necesitan líderes y el flujo va directo con gerentes y dirección. El nivel de
+     * aprobación no cambia; solo se omiten los pasos sin aprobador elegido.
+     * Sin ningún aprobador elegido se queda como siempre: entra todo el puesto.
+     *
+     * @return int|null el paso que quedó abierto, o null si ya no queda ninguno con aprobadores.
+     */
+    private function openStepFrom(Regulation $regulation, int $from, array $userMap, bool $notify = true): ?int
+    {
+        $flow = self::flowFor($regulation);
+
+        for ($step = $from; isset($flow[$step]); $step++) {
+            $hasUsers = $this->resolveStepUsers($regulation, $flow[$step], $userMap)->isNotEmpty();
+
+            if (! $hasUsers && $userMap !== []) {
+                continue;
+            }
+
+            $this->createStepRecords($regulation, $step, $userMap, $notify);
+
+            return $step;
+        }
+
+        return null;
     }
 
     /**
@@ -145,11 +193,10 @@ class ApprovalFlowService
             }
 
             if ($this->isStepComplete($regulation, $approval->step_number)) {
-                $flow = self::flowFor($regulation);
-                $nextStep = $approval->step_number + 1;
+                // El siguiente paso con aprobadores (los que no tienen a nadie elegido se saltan).
+                $nextStep = $this->openStepFrom($regulation, $approval->step_number + 1, $userMap);
 
-                if (isset($flow[$nextStep])) {
-                    $this->createStepRecords($regulation, $nextStep, $userMap);
+                if ($nextStep !== null) {
                     $regulation->update(['approval_status' => 'pending_authorization']);
                     $this->notifyPendingApprovers($regulation, $nextStep);
                 } else {
@@ -179,18 +226,19 @@ class ApprovalFlowService
     {
         $userMap = $regulation->flow_user_map ?? [];
 
-        DB::transaction(function () use ($regulation, $userMap) {
+        $step = DB::transaction(function () use ($regulation, $userMap) {
             $regulation->approvals()->delete();
             $regulation->update([
                 'approval_status'    => 'pending_review',
                 'direct_approved_by' => null,
                 'direct_approved_at' => null,
             ]);
-            $this->createStepRecords($regulation, 1, $userMap);
+
+            return $this->openFirstStep($regulation, $userMap);
         });
 
-        if ($notify) {
-            $this->notifyPendingApprovers($regulation, 1);
+        if ($notify && $step) {
+            $this->notifyPendingApprovers($regulation, $step);
         }
     }
 
@@ -200,11 +248,16 @@ class ApprovalFlowService
      */
     public function notifyRestartedFlow(Regulation $regulation): void
     {
-        if ($regulation->approval_status !== 'pending_review') {
+        if (! in_array($regulation->approval_status, ['pending_review', 'pending_authorization'], true)) {
             return;
         }
 
-        $this->notifyPendingApprovers($regulation, 1);
+        // El flujo puede arrancar después del paso 1 si se saltaron pasos sin aprobador elegido.
+        $step = $regulation->approvals()->reorder()->where('status', 'pending')->min('step_number');
+
+        if ($step) {
+            $this->notifyPendingApprovers($regulation, (int) $step);
+        }
     }
 
     /**
@@ -409,7 +462,13 @@ class ApprovalFlowService
                 continue;
             }
 
-            // Si no, todos los usuarios asignados al puesto.
+            // Si el admin eligió aprobadores para otros puestos y para este no, este puesto no
+            // entra (p. ej. eligió Dirección y no Consejo en el mismo paso). Solo cuando no eligió
+            // a nadie en todo el flujo entran todos los usuarios del puesto, como siempre.
+            if ($userMap !== []) {
+                continue;
+            }
+
             foreach ($position->users as $user) {
                 $user->pivot_job_position_id = $position->id;
                 $users->push($user);
