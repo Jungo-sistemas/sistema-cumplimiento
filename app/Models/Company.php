@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Group;
 
@@ -11,12 +13,34 @@ class Company extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'process_name', 'group_id', 'show_in_processes', 'asset_limit', 'otras', 'is_active'];
+    protected $fillable = ['name', 'process_name', 'group_id', 'show_in_processes', 'is_restricted', 'asset_limit', 'otras', 'is_active'];
 
     protected $casts = [
-        'otras'     => 'boolean',
-        'is_active' => 'boolean',
+        'otras'         => 'boolean',
+        'is_active'     => 'boolean',
+        'is_restricted' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        // La carpeta confidencial DIRECCIÓN es una empresa con is_restricted: para quien no puede
+        // verla (User::canSeeRestrictedProcesses) no existe en ninguna lista. Sin usuario
+        // (comandos, colas) no se filtra.
+        static::addGlobalScope('restricted', function (Builder $query) {
+            if (Auth::user()?->canSeeRestrictedProcesses() === false) {
+                $query->where($query->qualifyColumn('is_restricted'), false);
+            }
+        });
+    }
+
+    /** IDs de las empresas confidenciales (la carpeta DIRECCIÓN de cada grupo). */
+    public static function restrictedIds(?int $groupId = null): array
+    {
+        return static::withoutGlobalScope('restricted')
+            ->where('is_restricted', true)
+            ->when($groupId, fn ($q) => $q->where('group_id', $groupId))
+            ->pluck('id')->all();
+    }
 
     // Orden por el nombre que se ve en Procesos (process_name si lo tiene).
     public const PROCESOS_NAME_SQL = "COALESCE(NULLIF(process_name, ''), name)";

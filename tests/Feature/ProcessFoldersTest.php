@@ -85,4 +85,24 @@ class ProcessFoldersTest extends TestCase
             ->assertSee('PAGO A PROVEEDORES')
             ->assertDontSee('POLITICA DE GASTOS');
     }
+
+    public function test_el_comando_lista_los_que_no_quedaron_en_ninguna_carpeta(): void
+    {
+        $this->regulation('PAGO A PROVEEDORES', $this->finanzas);
+
+        $this->artisan('procesos:revisar-carpetas')
+            ->expectsOutput('Todos están en una carpeta.')
+            ->assertSuccessful();
+
+        $this->regulation('ATENCION A CLIENTES', ProcessType::where('name', 'Clientes')->first());
+        $hidden = Company::create(['name' => 'TI', 'group_id' => $this->group->id, 'show_in_processes' => false]);
+        Regulation::create([
+            'group_id' => $this->group->id, 'company_id' => $hidden->id, 'process_type_id' => $this->compras->id,
+            'code' => 'TI-001', 'name' => 'RESPALDOS', 'document_type' => 'Procedimiento', 'is_active' => true,
+        ]);
+
+        $this->artisan('procesos:revisar-carpetas')
+            ->expectsOutput('2 no están en ninguna carpeta:')
+            ->assertFailed();
+    }
 }

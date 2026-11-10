@@ -2,7 +2,7 @@
 
     @php
         $user = auth()->user();
-        $multiCompany = $user->hasGroupScope() || $user->hasMultipleCompanies();
+        $multiCompany = $user->picksProcessCompany();
         // Liga a las carpetas de la empresa actual, conservando la pestaña Procesos/Anexos.
         $foldersUrl = route('processes.index', array_filter([
             'company_id' => $multiCompany ? $selectedCompanyId : null,
@@ -47,8 +47,11 @@
     {{-- HEADER --}}
     <div class="flex items-center justify-between">
         <div class="min-w-0">
-            <h1 class="text-2xl font-semibold text-brand">
+            <h1 class="flex items-center gap-2 text-2xl font-semibold text-brand">
                 {{ $cardView ? 'Procesos' : ($showAnnexes ? 'Anexos' : 'Procedimientos') }}
+                @if(! $cardView && $companies->firstWhere('id', $selectedCompanyId)?->is_restricted)
+                    @include('processes.partials.restricted-badge')
+                @endif
             </h1>
             @if($selectedFolder)
                 <p class="mt-0.5 flex items-center gap-2 text-sm font-semibold text-gray-600">
@@ -56,9 +59,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
                     </svg>
                     {{ $selectedFolder['name'] }}
-                    @if($selectedFolder['restricted'])
-                        @include('processes.partials.restricted-badge')
-                    @endif
                 </p>
             @endif
         </div>
@@ -157,7 +157,7 @@
             <input type="hidden" name="anexos" value="1">
         @endif
 
-        @if($cardView || (($user->hasGroupScope() || $user->hasMultipleCompanies()) && !$selectedCompanyId))
+        @if($cardView || ($user->picksProcessCompany() && !$selectedCompanyId))
             <div class="min-w-[200px]">
                 <label class="block text-xs text-gray-500 mb-1">Empresa</label>
                 <select name="company_id"
@@ -287,6 +287,9 @@
                                 <p class="font-semibold text-gray-800 leading-snug group-hover:text-brand transition">
                                     {{ $company->procesos_name }}
                                 </p>
+                                @if($company->is_restricted)
+                                    <div class="mt-1">@include('processes.partials.restricted-badge')</div>
+                                @endif
                             </div>
                         </div>
 
@@ -354,9 +357,6 @@
                             <p class="font-semibold text-gray-800 leading-snug group-hover:text-brand transition">
                                 {{ $folder['name'] }}
                             </p>
-                            @if($folder['restricted'])
-                                <div class="mt-1">@include('processes.partials.restricted-badge')</div>
-                            @endif
                         </div>
                     </div>
 
@@ -607,9 +607,7 @@
                                 @unless($selectedFolder)
                                 <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
                                     {{ $regulation->processType->name ?? '—' }}
-                                    @if($regulation->processType?->is_restricted)
-                                        @include('processes.partials.restricted-badge')
-                                    @endif
+
                                 </td>
                                 @endunless
 
@@ -861,7 +859,7 @@
                                                     regulationName: @js($regulation->name),
                                                     impactLevel: $event.target.value,
                                                     levelLabel: $event.target.options[$event.target.selectedIndex].text,
-                                                    restricted: @js((bool) $regulation->processType?->is_restricted),
+                                                    restricted: @js((bool) $regulation->company?->is_restricted),
                                                     evidences: @js($regulation->changeEvidences->map(fn ($e) => ['id' => $e->id, 'name' => $e->original_name])),
                                                     formAction: '{{ route('processes.setFlow', $regulation) }}'
                                                 }); $event.target.value = ''"

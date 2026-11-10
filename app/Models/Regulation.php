@@ -96,21 +96,19 @@ class Regulation extends Model
 
     protected static function booted(): void
     {
-        // Procesos confidenciales (tipo con is_restricted): para quien no puede verlos no existen —
+        // Procesos confidenciales (los de la empresa DIRECCIÓN, Company::is_restricted): para quien no puede verlos no existen —
         // ni en listados, tableros, reportes o menciones, ni abriéndolos por URL (404). Sin usuario
         // (comandos, colas, enlace público sin sesión) no se filtra nada.
         static::addGlobalScope('restricted', function (Builder $query) {
             if (Auth::user()?->canSeeRestrictedProcesses() === false) {
-                $column = $query->qualifyColumn('process_type_id');
-                $query->where(fn (Builder $q) => $q->whereNull($column)
-                    ->orWhereNotIn($column, DB::table('process_types')->select('id')->where('is_restricted', true)));
+                $query->whereNotIn($query->qualifyColumn('company_id'), DB::table('companies')->select('id')->where('is_restricted', true));
             }
         });
 
-        // Tampoco puede crear uno ni mover un proceso a un tipo confidencial.
+        // Tampoco puede crear uno ni mover un proceso a la carpeta confidencial.
         static::saving(function (Regulation $regulation) {
-            if (Auth::user()?->canSeeRestrictedProcesses() === false && $regulation->isDirty('process_type_id') && $regulation->isRestricted()) {
-                throw new AuthorizationException('No tienes acceso a este tipo de proceso.');
+            if (Auth::user()?->canSeeRestrictedProcesses() === false && $regulation->isDirty('company_id') && $regulation->isRestricted()) {
+                throw new AuthorizationException('No tienes acceso a esta carpeta.');
             }
         });
     }
@@ -487,11 +485,11 @@ class Regulation extends Model
      * con el enlace puede ver" — usado por el QR para pared. Se genera solo una vez y persiste
      * mientras exista el reglamento, así el mismo QR impreso sigue funcionando siempre.
      */
-    /** Es de un tipo confidencial (solo Dirección y admins de solo Procesos). */
+    /** Está en la carpeta confidencial DIRECCIÓN (solo Consejo y admins de solo Procesos). */
     public function isRestricted(): bool
     {
-        return $this->process_type_id !== null && (bool) DB::table('process_types')
-            ->where('id', $this->process_type_id)
+        return $this->company_id !== null && (bool) DB::table('companies')
+            ->where('id', $this->company_id)
             ->value('is_restricted');
     }
 
