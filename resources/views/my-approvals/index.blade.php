@@ -35,7 +35,7 @@
                 @php
                     $regulation = $approval->regulation;
                     $details    = $regulation->details ?? [];
-                    $totalSteps = count(\App\Services\ApprovalFlowService::getFlowSteps($regulation->impact_level));
+                    $totalSteps = count(\App\Services\ApprovalFlowService::flowFor($regulation));
                     $currentVersion  = $regulation->currentVersion;
                     $previousVersion = $currentVersion?->previousVersion();
                     $changedSectionsAll = app(\App\Services\RegulationChangeDiffService::class)
@@ -77,7 +77,7 @@
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
                             <div>
                                 <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Empresa</p>
-                                <p class="text-gray-800 font-medium mt-0.5">{{ $regulation->company->name ?? '—' }}</p>
+                                <p class="text-gray-800 font-medium mt-0.5">{{ $regulation->company->procesos_name ?? '—' }}</p>
                             </div>
                             <div>
                                 <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Proceso</p>

@@ -8,7 +8,7 @@
         <a href="{{ route('processes.index') }}" class="text-gray-500 hover:underline">Procesos</a>
         <span class="mx-2 text-gray-400">/</span>
         <a href="{{ route('processes.index', ['company_id' => $company->id]) }}" class="text-gray-500 hover:underline">
-            {{ $company->name }}
+            {{ $company->procesos_name }}
         </a>
         <span class="mx-2 text-gray-400">/</span>
         <span class="text-gray-700 font-medium">Vista previa</span>

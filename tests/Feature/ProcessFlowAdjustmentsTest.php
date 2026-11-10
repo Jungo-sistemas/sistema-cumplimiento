@@ -201,15 +201,15 @@ class ProcessFlowAdjustmentsTest extends TestCase
         $this->actingAs($lider)->post(route('processes.approve', $regulation))
             ->assertRedirect(route('my-approvals.index'));
 
-        // Sin pendientes: el menú sigue mostrando la liga y la pantalla dice "Todo al día".
+        // Sin pendientes la pantalla dice "Todo al día".
         $this->actingAs($lider)->get(route('my-approvals.index'))
             ->assertOk()
-            ->assertSee('Todo al día')
-            ->assertSee(route('my-approvals.index'), false);
+            ->assertSee('Todo al día');
 
+        // En la vista de auditado ya no sale: las aprobaciones se quedan en Procesos.
         $this->actingAs($lider)->get(route('mi-espacio.home'))
             ->assertOk()
-            ->assertSee(route('my-approvals.index'), false);
+            ->assertDontSee(route('my-approvals.index'), false);
     }
 
     public function test_evidencias_de_apoyo_al_reenviar_maximo_tres_y_se_pueden_quitar(): void
@@ -296,5 +296,21 @@ class ProcessFlowAdjustmentsTest extends TestCase
         $this->assertSoftDeleted($regulation);
         $this->assertSame('cancelled', $pending->fresh()->status);
         $this->assertSame('cancelled', $waiting->fresh()->status);
+    }
+
+    public function test_aprobacion_pendiente_de_un_proceso_en_papelera_no_truena_mis_aprobaciones(): void
+    {
+        // Procesos mandados a la papelera antes de que se cancelaran sus aprobaciones.
+        $regulation = $this->regulation('pending_review');
+        $position   = JobPosition::create(['group_id' => $this->group->id, 'slug' => 'lider', 'name' => 'Líder']);
+        RegulationApproval::create([
+            'regulation_id' => $regulation->id, 'step_number' => 1, 'user_id' => $this->admin->id,
+            'job_position_id' => $position->id, 'requires_all' => true, 'status' => 'pending',
+        ]);
+        $regulation->delete();
+
+        $this->actingAs($this->admin)->get(route('my-approvals.index'))
+            ->assertOk()
+            ->assertSee('Todo al día');
     }
 }

@@ -4,7 +4,7 @@
     <x-slot name="breadcrumb">
         <a href="{{ route('assets.index') }}"
         class="text-gray-600 hover:underline">
-            Energético
+            Regulatorio
         </a>
 
         <span class="text-gray-400">›</span>
@@ -119,8 +119,17 @@
 
         {{-- ================= RESUMEN ================= --}}
         <div class="bg-gray-50 border rounded-xl px-6 py-5">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 text-sm">
                 <div>
+                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Empresa
+                    </div>
+                    <div class="mt-1 text-base font-semibold text-gray-900">
+                        {{ $asset->company->name ?? '-' }}
+                    </div>
+                </div>
+
+                <div class="md:border-l md:border-gray-200 md:pl-6">
                     <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
                         Tipo
                     </div>
@@ -550,15 +559,15 @@
                 <table class="min-w-full text-sm">
                     <thead class="bg-gray-50 text-gray-600">
                         <tr>
-                            <th class="text-left px-6 py-4 font-semibold">Carpeta</th>
-                            <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Entidad</th>
-                            <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Vence</th>
-                            <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Alerta</th>
-                            <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Riesgo</th>
-                            <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Estado</th>
-                            <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Progreso</th>
-                            <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Tareas</th>
-                            <th class="text-right px-6 py-4 font-semibold whitespace-nowrap">Acciones</th>
+                            <th class="text-left px-3 2xl:px-6 py-4 font-semibold min-w-[240px]">Carpeta</th>
+                            <th class="hidden 2xl:table-cell text-left px-3 2xl:px-6 py-4 font-semibold whitespace-nowrap">Entidad</th>
+                            <th class="text-left px-3 2xl:px-6 py-4 font-semibold whitespace-nowrap">Vence</th>
+                            <th class="text-left px-3 2xl:px-6 py-4 font-semibold whitespace-nowrap">Alerta</th>
+                            <th class="text-left px-3 2xl:px-6 py-4 font-semibold whitespace-nowrap">Riesgo</th>
+                            <th class="text-left px-3 2xl:px-6 py-4 font-semibold whitespace-nowrap">Estado</th>
+                            <th class="text-left px-3 2xl:px-6 py-4 font-semibold whitespace-nowrap">Progreso</th>
+                            <th class="text-left px-3 2xl:px-6 py-4 font-semibold whitespace-nowrap">Tareas</th>
+                            <th class="text-right px-3 2xl:px-6 py-4 font-semibold whitespace-nowrap">Acciones</th>
                         </tr>
                     </thead>
 
@@ -611,14 +620,14 @@
                             @if($authorityVal !== $lastAuthority)
                                 @php $lastAuthority = $authorityVal; @endphp
                                 <tr class="bg-gray-100">
-                                    <td colspan="9" class="px-6 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                    <td colspan="9" class="px-3 2xl:px-6 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                                         {{ $authorityVal ?: 'Sin entidad asignada' }}
                                     </td>
                                 </tr>
                             @endif
 
                             <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 font-semibold text-gray-800">
+                                <td class="px-3 2xl:px-6 py-4 font-semibold text-gray-800">
                                     {{ $title }}
                                     @if($responsibleArea)
                                         <div class="text-xs font-normal text-gray-400">{{ $responsibleArea }}</div>
@@ -628,15 +637,15 @@
                                     @endif
                                 </td>
 
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="hidden 2xl:table-cell px-3 2xl:px-6 py-4 whitespace-nowrap">
                                     {{ $authorityVal ?: '—' }}
                                 </td>
 
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-3 2xl:px-6 py-4 whitespace-nowrap">
                                     {{ $due }}
                                 </td>
 
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-3 2xl:px-6 py-4 whitespace-nowrap">
                                     @if($riskVal === 'danger')
                                         <span class="text-xs px-3 py-1 rounded border bg-red-50 text-red-700 border-red-200">PELIGRO</span>
                                     @elseif($riskVal === 'warning')
@@ -646,7 +655,7 @@
                                     @endif
                                 </td>
 
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-3 2xl:px-6 py-4 whitespace-nowrap">
                                     @if($priorityVal === 'alta')
                                         <span class="text-xs px-3 py-1 rounded border bg-slate-800 text-white border-slate-800">ALTA</span>
                                     @elseif($priorityVal === 'media')
@@ -658,7 +667,7 @@
                                     @endif
                                 </td>
 
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-3 2xl:px-6 py-4 whitespace-nowrap">
                                     @php
                                         $statusClasses = match ($statusVal) {
                                             'missing_document' => 'bg-red-50 text-red-700 border-red-200',
@@ -678,9 +687,9 @@
                                     </span>
                                 </td>
 
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-3 2xl:px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center gap-3">
-                                        <div class="w-32 bg-gray-200 rounded-full h-2 overflow-hidden">
+                                        <div class="w-16 2xl:w-32 bg-gray-200 rounded-full h-2 overflow-hidden">
                                             <div class="h-2 bg-gray-800"
                                                 style="width: {{ $progress }}%">
                                             </div>
@@ -689,11 +698,11 @@
                                     </div>
                                 </td>
 
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-3 2xl:px-6 py-4 whitespace-nowrap">
                                     {{ $tasksDone }}/{{ $tasksTotal }}
                                 </td>
 
-                                <td class="px-6 py-4 text-right whitespace-nowrap space-x-4">
+                                <td class="px-3 2xl:px-6 py-4 text-right whitespace-nowrap space-x-4">
                                     <a href="{{ route('assets.requirements.show', [$asset, $req]) }}"
                                     class="text-blue-600 hover:underline font-semibold">
                                         Abrir
@@ -707,7 +716,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-6 py-10 text-center text-gray-500">
+                                <td colspan="7" class="px-3 2xl:px-6 py-10 text-center text-gray-500">
                                     @if($hasActiveFilters)
                                         No se encontraron requerimientos con los filtros aplicados.
                                     @else

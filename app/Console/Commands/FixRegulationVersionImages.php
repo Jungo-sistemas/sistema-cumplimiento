@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\RegulationVersion;
+use App\Services\DocxHeaderLogo;
 use App\Services\DocxImageGeometry;
 use App\Services\RegulationDocxBodyBuilder;
 use App\Services\RegulationDocxHeaderBuilder;
@@ -18,18 +19,20 @@ use PhpOffice\PhpWord\PhpWord;
  *
  * Toma las imágenes del original ya corregidas y las pone, en el mismo orden, en lugar de las del
  * body_html de la versión — el resto del contenido (etiquetas de personas y documentos, cambios de
- * texto) se queda como está. Luego vuelve a armar su .docx y borra el PDF en caché.
+ * texto) se queda como está. Luego vuelve a armar su .docx, con el logo del encabezado del
+ * original (DocxHeaderLogo), y borra el PDF en caché.
  */
 class FixRegulationVersionImages extends Command
 {
     protected $signature = 'fix:regulation-version-images
                             {version : ID de la versión a reparar (regulation_versions.id)}
                             {original : Ruta del .docx original que se subió}
-                            {--dry-run : Muestra qué imágenes cambiarían sin guardar nada}';
+                            {--dry-run : Muestra qué imágenes cambiarían sin guardar nada}
+                            {--solo-logo : No toca las imágenes del cuerpo, solo pone el logo del encabezado del original}';
 
     protected $description = 'Corrige las imágenes deformadas de una versión editada, tomándolas del .docx original';
 
-    public function handle(DocxImageGeometry $geometry): int
+    public function handle(DocxImageGeometry $geometry, DocxHeaderLogo $headerLogo): int
     {
         $version = RegulationVersion::with('regulation')->findOrFail($this->argument('version'));
         $original = $this->argument('original');
@@ -43,6 +46,15 @@ class FixRegulationVersionImages extends Command
             $this->error('La versión no tiene body_html (no se editó en el sistema): no hay nada que reparar.');
 
             return self::FAILURE;
+        }
+
+        $logo = $headerLogo->extract($original);
+        $this->line($logo
+            ? sprintf('Logo del encabezado: %s, %s × %s pt', $logo['mime'], $logo['width'], $logo['height'])
+            : 'El original no trae logo en el encabezado.');
+
+        if ($this->option('solo-logo')) {
+            return $this->save($version, $version->body_html, $logo);
         }
 
         $tmp = tempnam(sys_get_temp_dir(), 'fix_images_') . '.html';
@@ -80,12 +92,23 @@ class FixRegulationVersionImages extends Command
             $html = substr_replace($html, $fixedTags[$i], $offset, strlen($tag));
         }
 
+        return $this->save($version, $html, $logo);
+    }
+
+    private function save(RegulationVersion $version, string $html, ?array $logo): int
+    {
+        if ($this->option('dry-run')) {
+            $this->info('[dry-run] No se guardó nada.');
+
+            return self::SUCCESS;
+        }
+
         $disk = Storage::disk('private');
         $backup = $version->file_path . '.respaldo-' . now()->format('YmdHis') . '.docx';
         $disk->copy($version->file_path, $backup);
 
         $version->update(['body_html' => $html]);
-        $disk->put($version->file_path, $this->compileDocx($version, $html));
+        $disk->put($version->file_path, $this->compileDocx($version, $html, $logo));
         $disk->delete($version->file_path . '.preview.pdf');
 
         $this->info("Listo. Respaldo del .docx anterior: {$backup}");
@@ -102,7 +125,7 @@ class FixRegulationVersionImages extends Command
     }
 
     /** Mismo armado que RegulationVersionController::saveEdit(). */
-    private function compileDocx(RegulationVersion $version, string $html): string
+    private function compileDocx(RegulationVersion $version, string $html, ?array $logo): string
     {
         $regulation = $version->regulation;
         $details = $regulation->details ?? [];
@@ -127,12 +150,14 @@ class FixRegulationVersionImages extends Command
                 'quien_elabora'  => $details['quien_elabora'] ?? null,
                 'quien_aprueba'  => $details['quien_aprueba'] ?? null,
                 'fecha_vigencia' => $details['fecha_vigencia'] ?? null,
+                'logo'           => $logo,
             ]);
         }
         app(RegulationDocxBodyBuilder::class)->apply($section, $html);
 
         $tmp = tempnam(sys_get_temp_dir(), 'fix_images_docx_');
         IOFactory::createWriter($phpWord, 'Word2007')->save($tmp);
+        app(RegulationDocxHeaderBuilder::class)->finishFile($tmp);
         $content = file_get_contents($tmp);
         @unlink($tmp);
 

@@ -140,6 +140,26 @@ class AuditeeViewTest extends TestCase
             ->assertSee('Hallazgos');
     }
 
+    public function test_desde_auditado_el_admin_elige_modulo_y_las_aprobaciones_quedan_en_procesos(): void
+    {
+        $this->actingAs($this->admin)->get(route('view-mode.switch', 'auditado'));
+
+        $this->actingAs($this->admin)->get(route('mi-espacio.home'))
+            ->assertOk()
+            ->assertSee(route('view-mode.switch', ['mode' => 'gestion', 'modulo' => 'procesos']), false)
+            ->assertSee(route('view-mode.switch', ['mode' => 'gestion', 'modulo' => 'cumplimiento']), false)
+            ->assertDontSee('Mis aprobaciones');
+
+        $this->actingAs($this->admin)->get(route('view-mode.switch', ['mode' => 'gestion', 'modulo' => 'procesos']))
+            ->assertRedirect(route('processes.dashboard'));
+        $this->assertSame('gestion', session('view_mode'));
+
+        // Quien solo es auditado no ve el selector de módulos.
+        $this->actingAs($this->operative)->get(route('mi-espacio.home'))
+            ->assertOk()
+            ->assertDontSee(route('view-mode.switch', ['mode' => 'gestion', 'modulo' => 'procesos']), false);
+    }
+
     public function test_el_cambio_de_vista_no_aparece_en_procesos(): void
     {
         $this->actingAs($this->admin)->get(route('processes.index', ['company_id' => $this->company->id]))

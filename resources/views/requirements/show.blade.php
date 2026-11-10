@@ -3,7 +3,7 @@
     <x-slot name="breadcrumb">
         <a href="{{ route('assets.index') }}"
            class="text-gray-600 hover:underline">
-            Energético
+            Regulatorio
         </a>
 
         <span class="text-gray-400">›</span>
@@ -133,7 +133,6 @@
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-sm text-gray-700">
                 <div class="space-y-1">
                     <div><strong>Tipo:</strong> {{ $asset->assetType->name ?? '-' }}</div>
-                    <div><strong>Vence:</strong> {{ $requirement->due_date?->format('Y-m-d') ?? 'Sin fecha' }}</div>
                     <div>
                         <strong>Riesgo:</strong>
                         @switch(strtolower($requirement->risk_level ?? 'normal'))

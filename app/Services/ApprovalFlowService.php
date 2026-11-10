@@ -26,7 +26,7 @@ class ApprovalFlowService
      */
     /**
      * Flujos bottom-up: cada paso espera a que el anterior se complete.
-     * Jerarquía: lider (1) → jefe (2) → gerente (3) → direccion (4)
+     * Jerarquía: lider (1) → jefe (2) → gerente (3) → direccion/consejo (4, mismo nivel: basta uno)
      */
     private const FLOWS = [
         'bajo' => [
@@ -37,16 +37,22 @@ class ApprovalFlowService
             2 => ['requires_all' => false, 'positions' => ['jefe', 'gerente']],
         ],
         'medio_alto' => [
-            1 => ['requires_all' => true, 'positions' => ['lider']],
-            2 => ['requires_all' => true, 'positions' => ['gerente']],
-            3 => ['requires_all' => true, 'positions' => ['direccion']],
+            1 => ['requires_all' => true,  'positions' => ['lider']],
+            2 => ['requires_all' => true,  'positions' => ['gerente']],
+            3 => ['requires_all' => false, 'positions' => ['direccion', 'consejo']],
         ],
         'alto' => [
-            1 => ['requires_all' => true, 'positions' => ['lider']],
-            2 => ['requires_all' => true, 'positions' => ['jefe']],
-            3 => ['requires_all' => true, 'positions' => ['gerente']],
-            4 => ['requires_all' => true, 'positions' => ['direccion']],
+            1 => ['requires_all' => true,  'positions' => ['lider']],
+            2 => ['requires_all' => true,  'positions' => ['jefe']],
+            3 => ['requires_all' => true,  'positions' => ['gerente']],
+            4 => ['requires_all' => false, 'positions' => ['direccion', 'consejo']],
         ],
+    ];
+
+    // Procesos confidenciales (tipo restringido): sin importar el impacto, solo aprueba Consejo,
+    // porque nadie más del flujo normal (líder, jefe, gerente, dirección) los puede ver.
+    public const RESTRICTED_FLOW = [
+        1 => ['requires_all' => false, 'positions' => ['consejo']],
     ];
 
     public static function getFlowSteps(string $level): array
@@ -54,9 +60,26 @@ class ApprovalFlowService
         return self::FLOWS[$level] ?? [];
     }
 
-    public static function getAllFlows(): array
+    /** Pasos que de verdad sigue este reglamento (el flujo de su impacto, o el de Consejo si es confidencial). */
+    public static function flowFor(Regulation $regulation): array
     {
-        return self::FLOWS;
+        if (! $regulation->impact_level) {
+            return [];
+        }
+
+        return $regulation->isRestricted() ? self::RESTRICTED_FLOW : self::getFlowSteps($regulation->impact_level);
+    }
+
+    /**
+     * Flujos por nivel para los modales de asignación. Con $restricted, todos los niveles muestran
+     * el flujo de Consejo (proceso confidencial); '__restricted' lo lleva siempre para el listado,
+     * donde el mismo modal sirve para procesos normales y confidenciales.
+     */
+    public static function getAllFlows(bool $restricted = false): array
+    {
+        $flows = $restricted ? array_map(fn () => self::RESTRICTED_FLOW, self::FLOWS) : self::FLOWS;
+
+        return $flows + ['__restricted' => self::RESTRICTED_FLOW];
     }
 
     /**
@@ -122,7 +145,7 @@ class ApprovalFlowService
             }
 
             if ($this->isStepComplete($regulation, $approval->step_number)) {
-                $flow = self::FLOWS[$regulation->impact_level] ?? [];
+                $flow = self::flowFor($regulation);
                 $nextStep = $approval->step_number + 1;
 
                 if (isset($flow[$nextStep])) {
@@ -253,12 +276,7 @@ class ApprovalFlowService
             return;
         }
 
-        $admins = User::where('group_id', $regulation->group_id)
-            ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
-            ->get()
-            ->filter(fn (User $u) => $u->canAccessCompany($regulation->company))
-            ->filter(fn (User $u) => $u->canAccessModule('procesos'))
-            ->filter(fn (User $u) => $u->wantsNotificationsFor('procesos'));
+        $admins = $this->processAdminsFor($regulation);
 
         foreach ($admins as $admin) {
             $admin->notify(new RegulationReadyToResubmitNotification($regulation));
@@ -274,12 +292,7 @@ class ApprovalFlowService
      */
     public function notifyAdminsOfAccessRequest(Regulation $regulation, User $requester): int
     {
-        $admins = User::where('group_id', $regulation->group_id)
-            ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
-            ->get()
-            ->filter(fn (User $u) => $u->canAccessCompany($regulation->company))
-            ->filter(fn (User $u) => $u->canAccessModule('procesos'))
-            ->filter(fn (User $u) => $u->wantsNotificationsFor('procesos'));
+        $admins = $this->processAdminsFor($regulation);
 
         foreach ($admins as $admin) {
             $admin->notify(new RegulationAccessRequestedNotification($regulation, $requester));
@@ -313,12 +326,7 @@ class ApprovalFlowService
             ->pluck('name')
             ->all();
 
-        $admins = User::where('group_id', $regulation->group_id)
-            ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
-            ->get()
-            ->filter(fn (User $u) => $u->canAccessCompany($regulation->company))
-            ->filter(fn (User $u) => $u->canAccessModule('procesos'))
-            ->filter(fn (User $u) => $u->wantsNotificationsFor('procesos'));
+        $admins = $this->processAdminsFor($regulation);
 
         foreach ($admins as $admin) {
             $admin->notify(new ApprovalStepUnassignedNotification($regulation, $step, $names ?: $positionSlugs));
@@ -331,7 +339,7 @@ class ApprovalFlowService
 
     private function createStepRecords(Regulation $regulation, int $step, array $userMap = [], bool $notify = true): void
     {
-        $flow = self::FLOWS[$regulation->impact_level] ?? [];
+        $flow = self::flowFor($regulation);
         $stepDef = $flow[$step] ?? null;
 
         if (! $stepDef) {
@@ -408,7 +416,26 @@ class ApprovalFlowService
             }
         }
 
+        // En un proceso confidencial nunca entra al flujo alguien que no lo puede ver.
+        if ($regulation->isRestricted()) {
+            $users = $users->filter(fn (User $user) => $user->canSeeRestrictedProcesses());
+        }
+
         return $users->unique('id');
+    }
+
+    /** Admins de Procesos con acceso a la empresa del reglamento (y, si es confidencial, que lo puedan ver). */
+    private function processAdminsFor(Regulation $regulation): Collection
+    {
+        $restricted = $regulation->isRestricted();
+
+        return User::where('group_id', $regulation->group_id)
+            ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
+            ->get()
+            ->filter(fn (User $u) => $u->canAccessCompany($regulation->company))
+            ->filter(fn (User $u) => $u->canAccessModule('procesos'))
+            ->filter(fn (User $u) => $u->wantsNotificationsFor('procesos'))
+            ->filter(fn (User $u) => ! $restricted || $u->canSeeRestrictedProcesses());
     }
 
     private function isStepComplete(Regulation $regulation, int $step): bool

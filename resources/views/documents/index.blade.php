@@ -114,17 +114,17 @@
 
                 <thead class="bg-gray-50 border-b border-gray-200">
                     <tr class="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        <th class="text-left px-4 py-3">Nombre del Documento</th>
+                        <th class="text-left px-3 2xl:px-4 py-3 min-w-[240px]">Nombre del Documento</th>
                         @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
-                            <th class="text-left px-4 py-3">Empresa</th>
+                            <th class="text-left px-3 2xl:px-4 py-3">Empresa</th>
                         @endif
-                        <th class="text-left px-4 py-3">Referencia / Oficio</th>
-                        <th class="text-left px-4 py-3">Fecha</th>
-                        <th class="text-left px-4 py-3">Vencimiento</th>
-                        <th class="text-left px-4 py-3">Tipo</th>
-                        <th class="text-left px-4 py-3">Responsables</th>
-                        <th class="text-left px-4 py-3">Archivo</th>
-                        <th class="px-4 py-3"></th>
+                        <th class="text-left px-3 2xl:px-4 py-3">Referencia / Oficio</th>
+                        <th class="text-left px-3 2xl:px-4 py-3">Fecha</th>
+                        <th class="text-left px-3 2xl:px-4 py-3">Vencimiento</th>
+                        <th class="text-left px-3 2xl:px-4 py-3">Tipo</th>
+                        <th class="text-left px-3 2xl:px-4 py-3">Responsables</th>
+                        <th class="hidden 2xl:table-cell text-left px-3 2xl:px-4 py-3">Archivo</th>
+                        <th class="px-3 2xl:px-4 py-3"></th>
                     </tr>
                 </thead>
 
@@ -144,29 +144,29 @@
                             ondblclick="window.location.href='{{ route('documents.show', $document) }}'">
 
                             {{-- Nombre --}}
-                            <td class="px-4 py-3">
+                            <td class="px-3 2xl:px-4 py-3">
                                 <div class="font-medium text-gray-900">{{ $document->name }}</div>
                             </td>
 
                             {{-- Empresa --}}
                             @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
-                                <td class="px-4 py-3">
+                                <td class="px-3 2xl:px-4 py-3">
                                     {{ $document->company?->name ?? '—' }}
                                 </td>
                             @endif
 
                             {{-- Referencia / Oficio --}}
-                            <td class="px-4 py-3">
+                            <td class="px-3 2xl:px-4 py-3">
                                 {{ $document->reference ?? '—' }}
                             </td>
 
                             {{-- Fecha (issued_at de la versión actual) --}}
-                            <td class="px-4 py-3 whitespace-nowrap">
+                            <td class="px-3 2xl:px-4 py-3 whitespace-nowrap">
                                 {{ $version?->issued_at?->format('d/m/Y') ?? '—' }}
                             </td>
 
                             {{-- Vencimiento --}}
-                            <td class="px-4 py-3 whitespace-nowrap">
+                            <td class="px-3 2xl:px-4 py-3 whitespace-nowrap">
                                 @if($version?->valid_until)
                                     <span class="font-medium
                                         @if($isExpired) text-red-600
@@ -186,12 +186,12 @@
                             </td>
 
                             {{-- Tipo de Documento --}}
-                            <td class="px-4 py-3">
+                            <td class="px-3 2xl:px-4 py-3">
                                 {{ $document->document_type ?? '—' }}
                             </td>
 
                             {{-- Responsables --}}
-                            <td class="px-4 py-3">
+                            <td class="px-3 2xl:px-4 py-3">
                                 @forelse($document->responsibleNames() as $responsible)
                                     <div class="whitespace-nowrap">{{ $responsible }}</div>
                                 @empty
@@ -200,7 +200,7 @@
                             </td>
 
                             {{-- Archivo --}}
-                            <td class="px-4 py-3">
+                            <td class="hidden 2xl:table-cell px-3 2xl:px-4 py-3">
                                 @if($currentVersions->isNotEmpty())
                                     <span class="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
                                         Disponible{{ $currentVersions->count() > 1 ? ' (' . $currentVersions->count() . ')' : '' }}
@@ -213,7 +213,7 @@
                             </td>
 
                             {{-- Acción --}}
-                            <td class="px-4 py-3 text-right" ondblclick="event.stopPropagation()">
+                            <td class="px-3 2xl:px-4 py-3 text-right" ondblclick="event.stopPropagation()">
                                 <div class="flex items-center justify-end gap-4">
                                     <a href="{{ route('documents.show', $document) }}"
                                        class="font-semibold text-blue-600 hover:underline whitespace-nowrap">

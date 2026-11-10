@@ -11,12 +11,25 @@ class Company extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'group_id', 'show_in_processes', 'asset_limit', 'otras', 'is_active'];
+    protected $fillable = ['name', 'process_name', 'group_id', 'show_in_processes', 'asset_limit', 'otras', 'is_active'];
 
     protected $casts = [
         'otras'     => 'boolean',
         'is_active' => 'boolean',
     ];
+
+    // Orden por el nombre que se ve en Procesos (process_name si lo tiene).
+    public const PROCESOS_NAME_SQL = "COALESCE(NULLIF(process_name, ''), name)";
+
+    /**
+     * Nombre de la empresa en Procesos: algunas se muestran distinto ahí que en Cumplimiento
+     * (VIDENCI → SAVSA, MIGAR CAPITAL → MIGAR…). Toda pantalla, correo o documento de Procesos
+     * usa este; Cumplimiento usa `name`.
+     */
+    public function getProcesosNameAttribute(): string
+    {
+        return $this->process_name ?: $this->name;
+    }
 
     public function licenses()
     {

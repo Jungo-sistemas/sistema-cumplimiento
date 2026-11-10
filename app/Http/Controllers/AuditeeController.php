@@ -89,9 +89,17 @@ class AuditeeController extends Controller
         return view('mi-espacio.help');
     }
 
+    // Inicio de cada módulo, para el selector de módulos de la vista de auditado.
+    private const MODULE_HOMES = [
+        'cumplimiento' => 'dashboard',
+        'procesos'     => 'processes.dashboard',
+        'auditorias'   => 'auditorias.home',
+    ];
+
     /**
      * Cambio "Gestión / Vista de auditado" del encabezado de Auditorías: Gestión es el lado del
-     * auditor (/auditorias) y Vista de auditado es Mi espacio.
+     * auditor (/auditorias) y Vista de auditado es Mi espacio. Desde el selector de módulos de la
+     * vista de auditado llega con ?modulo= para pasar a Gestión directo en ese módulo.
      */
     public function switchView(Request $request, string $mode)
     {
@@ -107,7 +115,7 @@ class AuditeeController extends Controller
 
         $request->session()->put('view_mode', 'gestion');
 
-        return redirect()->route('auditorias.home');
+        return redirect()->route(self::MODULE_HOMES[$request->query('modulo')] ?? 'auditorias.home');
     }
 
     /** Empresas del usuario que se muestran en Procesos (mismo criterio que el listado de procesos). */
@@ -117,8 +125,8 @@ class AuditeeController extends Controller
             ->when(! $user->isGlobalScope(), fn ($q) => $q->whereIn('id', $user->accessibleCompanyIds()))
             ->where('show_in_processes', true)
             ->where('otras', false)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+            ->orderByRaw(Company::PROCESOS_NAME_SQL)
+            ->get(['id', 'name', 'process_name']);
     }
 
     /**
@@ -128,7 +136,7 @@ class AuditeeController extends Controller
      */
     private function documentsFor(User $user, Collection $companies, string $search = ''): Collection
     {
-        return Regulation::with(['currentVersion', 'processType:id,name', 'company:id,name'])
+        return Regulation::with(['currentVersion', 'processType:id,name', 'company:id,name,process_name'])
             ->whereIn('company_id', $companies->pluck('id'))
             ->where('is_active', true)
             ->where('is_annex', false)

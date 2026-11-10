@@ -11,6 +11,8 @@ use App\Services\ApprovalFlowService;
 use App\Services\OfficeDocumentConverter;
 use App\Services\RegulationChangeTableService;
 use App\Services\RegulationDocxBodyBuilder;
+use App\Services\DocxHeaderLogo;
+use App\Services\DocxLayoutPatcher;
 use App\Services\RegulationDocxHeaderBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -131,6 +133,30 @@ class RegulationVersionController extends Controller
             $user->canAccessCompany($regulation->company) || $hasPendingApproval || $hasShare,
             403
         );
+    }
+
+    /**
+     * Logo del encabezado del .docx de la versión. Si no trae (versiones editadas antes de que
+     * RegulationDocxHeaderBuilder pusiera el logo), el de la versión anterior más reciente que sí.
+     */
+    private function headerLogo(RegulationVersion $version): ?array
+    {
+        $disk = Storage::disk('private');
+        $extractor = app(DocxHeaderLogo::class);
+
+        $candidates = $version->regulation->versions()
+            ->where('version_number', '<=', $version->version_number)
+            ->orderByDesc('version_number')
+            ->pluck('file_path');
+
+        foreach ($candidates as $path) {
+            if ($path && str_ends_with(strtolower($path), '.docx') && $disk->exists($path)
+                && ($logo = $extractor->extract($disk->path($path)))) {
+                return $logo;
+            }
+        }
+
+        return null;
     }
 
     private function isLockedByOther(RegulationVersion $version, int $userId): bool
@@ -444,6 +470,56 @@ class RegulationVersionController extends Controller
             );
     }
 
+    /** Sección carta con los márgenes del encabezado del sistema (documentos armados desde el HTML). */
+    private function newDocxSection(PhpWord $phpWord): \PhpOffice\PhpWord\Element\Section
+    {
+        \PhpOffice\PhpWord\Settings::setDefaultFontName('Arial');
+        \PhpOffice\PhpWord\Settings::setDefaultFontSize(11);
+
+        return $phpWord->addSection([
+            'paperSize'    => 'Letter',
+            'marginTop'    => 2000,
+            'marginBottom' => 1440,
+            'marginLeft'   => 1440,
+            'marginRight'  => 1440,
+            'headerHeight' => 1300,
+        ]);
+    }
+
+    /**
+     * Guarda la edición parchando el .docx de la versión que se editó (DocxLayoutPatcher), si su
+     * formato vive en el .docx. Regresa false si no aplica o no se pudo, y entonces se reconstruye.
+     */
+    private function patchDocxLayout(RegulationVersion $version, string $html, ?array $headerMeta, string $outPath): bool
+    {
+        $ext = strtolower(pathinfo($version->original_name ?? $version->file_path, PATHINFO_EXTENSION));
+        if ($ext !== 'docx' || ! $version->hasDocxLayout() || ! Storage::disk('private')->exists($version->file_path)) {
+            return false;
+        }
+
+        $headerDocx = null;
+        if ($headerMeta) {
+            $phpWord = new PhpWord();
+            app(RegulationDocxHeaderBuilder::class)->apply($this->newDocxSection($phpWord), $headerMeta);
+            $headerDocx = tempnam(sys_get_temp_dir(), 'header_docx_');
+            IOFactory::createWriter($phpWord, 'Word2007')->save($headerDocx);
+            app(RegulationDocxHeaderBuilder::class)->finishFile($headerDocx);
+        }
+
+        $stats = app(DocxLayoutPatcher::class)->patch(
+            Storage::disk('private')->path($version->file_path),
+            $html,
+            $headerDocx,
+            $outPath
+        );
+
+        if ($headerDocx) {
+            @unlink($headerDocx);
+        }
+
+        return $stats !== null;
+    }
+
     public function saveEdit(Request $request, RegulationVersion $version, AiProcedureGenerationService $sanitizer, RegulationChangeTableService $changeTableService)
     {
         $user = auth()->user();
@@ -480,41 +556,45 @@ class RegulationVersionController extends Controller
         $next = ($regulation->versions()->max('version_number') ?? 0) + 1;
         $details = $regulation->details ?? [];
 
-        \PhpOffice\PhpWord\Settings::setDefaultFontName('Arial');
-        \PhpOffice\PhpWord\Settings::setDefaultFontSize(11);
-
-        $phpWord = new PhpWord();
-        $section = $phpWord->addSection([
-            'paperSize'    => 'Letter',
-            'marginTop'    => 2000,
-            'marginBottom' => 1440,
-            'marginLeft'   => 1440,
-            'marginRight'  => 1440,
-            'headerHeight' => 1300,
-        ]);
         // Un anexo no es un procedimiento en sí — no lleva la tabla de encabezado formal
         // "PROCEDIMIENTO / CÓDIGO / VERSIÓN", que es para reglamentos/procesos reales.
-        if (! $regulation->is_annex) {
-            app(RegulationDocxHeaderBuilder::class)->apply($section, [
-                'nombre'         => $regulation->name,
-                'codigo'         => $regulation->code,
-                'version'        => sprintf('%02d', $next),
-                'quien_elabora'  => $details['quien_elabora'] ?? null,
-                'quien_aprueba'  => $details['quien_aprueba'] ?? null,
-                'fecha_vigencia' => $details['fecha_vigencia'] ?? null,
-            ]);
-        }
-        app(RegulationDocxBodyBuilder::class)->apply($section, $html);
+        $headerMeta = $regulation->is_annex ? null : [
+            'nombre'         => $regulation->name,
+            'codigo'         => $regulation->code,
+            'version'        => sprintf('%02d', $next),
+            'quien_elabora'  => $details['quien_elabora'] ?? null,
+            'quien_aprueba'  => $details['quien_aprueba'] ?? null,
+            'fecha_vigencia' => $details['fecha_vigencia'] ?? null,
+            // El logo del .docx que se está editando (el subido o la versión anterior).
+            'logo'           => $this->headerLogo($version),
+        ];
 
         $tmp = tempnam(sys_get_temp_dir(), 'edited_docx_');
-        IOFactory::createWriter($phpWord, 'Word2007')->save($tmp);
+
+        // Un Word subido (o una edición que ya lo parchó) se usa como guía: solo cambian los
+        // bloques editados y lo demás conserva su formato exacto. Reconstruirlo desde el HTML
+        // perdía bordes y anchos de tabla, viñetas, recuadros… aunque no se tocaran. Si no se
+        // puede parchar (el documento ya casi no se parece), se reconstruye como siempre.
+        $keepsDocxLayout = $this->patchDocxLayout($version, $html, $headerMeta, $tmp);
+
+        if (! $keepsDocxLayout) {
+            $phpWord = new PhpWord();
+            $section = $this->newDocxSection($phpWord);
+            if ($headerMeta) {
+                app(RegulationDocxHeaderBuilder::class)->apply($section, $headerMeta);
+            }
+            app(RegulationDocxBodyBuilder::class)->apply($section, $html);
+
+            IOFactory::createWriter($phpWord, 'Word2007')->save($tmp);
+            app(RegulationDocxHeaderBuilder::class)->finishFile($tmp);
+        }
 
         // Se genera antes de la transacción: es una llamada a la IA (puede tardar unos segundos)
         // y de fallar no debe revertir nada — changeTableService ya atrapa sus propios errores y
         // regresa null en vez de lanzar, así que esto nunca bloquea el guardado de la versión.
         $changesTable = $changeTableService->generate($changeJustification, $changeDescription, $version->body_html, $html);
 
-        DB::transaction(function () use ($regulation, $version, $tmp, $user, $changeDescription, $changeJustification, $changesTable, $next, $html) {
+        DB::transaction(function () use ($regulation, $version, $tmp, $user, $changeDescription, $changeJustification, $changesTable, $next, $html, $keepsDocxLayout) {
             $regulation->versions()->where('is_current', true)->update(['is_current' => false]);
 
             $rawName     = pathinfo($version->original_name ?? 'documento.docx', PATHINFO_FILENAME);
@@ -531,6 +611,7 @@ class RegulationVersionController extends Controller
                 'change_justification'  => $changeJustification,
                 'changes_table'         => $changesTable,
                 'body_html'             => $html,
+                'keeps_docx_layout'     => $keepsDocxLayout,
                 'responsible_name'      => $user->name,
                 'file_path'             => $storagePath,
                 'original_name'         => $newName,
@@ -635,7 +716,9 @@ class RegulationVersionController extends Controller
         // legado (is_legacy, documentos de antes de este sistema con su propio formato ya
         // definido), esos casos caen al mismo camino que .doc/.pdf (más abajo): convertir el
         // archivo real tal cual con LibreOffice, igual que ya hace "Descargar".
-        if ($ext === 'docx' && $version->body_html) {
+        // Una edición que parchó un Word subido (keeps_docx_layout) tiene su formato en el .docx,
+        // no en body_html: se muestra el .docx real, igual que el Word subido original.
+        if ($ext === 'docx' && $version->body_html && ! $version->keeps_docx_layout) {
             $bodyHtml = $version->body_html;
             $name     = $version->original_name ?? basename($version->file_path);
 
@@ -686,7 +769,9 @@ class RegulationVersionController extends Controller
             // la tabla de encabezado formal "PROCEDIMIENTO / CÓDIGO / VERSIÓN", que es para
             // reglamentos/procesos reales.
             $details = $regulation->details ?? [];
+            $logo = $regulation->is_annex ? null : $this->headerLogo($version);
             $headerTableHtml = $regulation->is_annex ? '' : view('processes.partials.header-table', ['meta' => [
+                'logo_src'                 => $logo ? app(DocxHeaderLogo::class)->dataUri($logo) : null,
                 'nombre'                   => $regulation->name,
                 'codigo'                   => $regulation->code ? \Illuminate\Support\Str::upper($regulation->code) : null,
                 'version'                  => sprintf('%02d', $version->version_number),

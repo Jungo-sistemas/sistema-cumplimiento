@@ -1,6 +1,6 @@
 <x-layouts.vigia :title="'Bóveda'">
     <x-slot name="breadcrumb">
-        <span class="text-gray-700 font-medium">Energético</span>
+        <span class="text-gray-700 font-medium">Regulatorio</span>
     </x-slot>
 
     @php

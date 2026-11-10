@@ -12,6 +12,8 @@ class MyApprovalsController extends Controller
 
         $pendingApprovals = RegulationApproval::where('user_id', $user->id)
             ->where('status', 'pending')
+            // Un proceso eliminado (soft delete) deja sus aprobaciones sin reglamento.
+            ->whereHas('regulation')
             ->with([
                 'regulation.company',
                 'regulation.processType',

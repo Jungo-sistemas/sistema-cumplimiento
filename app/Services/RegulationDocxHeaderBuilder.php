@@ -28,7 +28,10 @@ class RegulationDocxHeaderBuilder
     private const BORDER = '1A3A5C';
 
     /**
-     * @param  array{nombre: string, codigo: ?string, version: int|string, quien_elabora: ?string, quien_aprueba: ?string, fecha_vigencia: ?string}  $meta
+     * `logo` (opcional) es el de DocxHeaderLogo::extract(); sin él la celda queda con el texto
+     * "LOGO EMPRESA (insertar logotipo)".
+     *
+     * @param  array{nombre: string, codigo: ?string, version: int|string, quien_elabora: ?string, quien_aprueba: ?string, fecha_vigencia: ?string, logo?: ?array}  $meta
      */
     public function apply(Section $section, array $meta): void
     {
@@ -45,7 +48,7 @@ class RegulationDocxHeaderBuilder
 
         // Fila 1: logo / nombre del procedimiento / código / versión — fondo azul marino, texto blanco
         $table->addRow();
-        $this->logoCell($table);
+        $this->logoCell($table, $meta['logo'] ?? null);
         $this->cell($table, self::NAVY_BG, 'FFFFFF', 'FFFFFF', 'PROCEDIMIENTO', $meta['nombre'] ?? '', italicValue: true);
         $this->cell($table, self::NAVY_BG, 'FFFFFF', 'FFFFFF', 'CÓDIGO', $meta['codigo'] ?? '—');
         $this->cell($table, self::NAVY_BG, 'FFFFFF', 'FFFFFF', 'VERSIÓN', (string) ($meta['version'] ?? '01'));
@@ -58,9 +61,73 @@ class RegulationDocxHeaderBuilder
         $this->pageNumberCell($table);
     }
 
-    private function logoCell($table): void
+    /**
+     * Se llama sobre el .docx ya guardado. PhpWord escribe las imágenes como VML (w:pict), y
+     * LibreOffice pinta el fondo de la celda encima de una imagen VML dentro de una tabla del
+     * encabezado: en el PDF la celda del logo salía azul y vacía. Aquí las imágenes del encabezado
+     * se reescriben como DrawingML (w:drawing), que es como las guarda Word y sí se ven.
+     */
+    public function finishFile(string $docxPath): void
+    {
+        $zip = new \ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $docPrId = 9000;
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = $zip->getNameIndex($i);
+            if (! preg_match('#^word/header\d*\.xml$#', $name)) {
+                continue;
+            }
+
+            $xml = $zip->getFromName($name);
+            $fixed = preg_replace_callback(
+                '#<w:pict><v:shape\b[^>]*style="[^"]*width:\s*([\d.]+)pt;\s*height:\s*([\d.]+)pt;[^"]*"[^>]*>.*?<v:imagedata r:id="([^"]+)"[^>]*/>.*?</v:shape></w:pict>#s',
+                fn ($m) => $this->drawingXml((float) $m[1], (float) $m[2], $m[3], $docPrId++),
+                $xml
+            );
+
+            if ($fixed !== null && $fixed !== $xml) {
+                $zip->addFromString($name, $fixed);
+            }
+        }
+
+        $zip->close();
+    }
+
+    private function drawingXml(float $widthPt, float $heightPt, string $relId, int $docPrId): string
+    {
+        $cx = (int) round($widthPt * 12700);
+        $cy = (int) round($heightPt * 12700);
+
+        return '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">'
+            . "<wp:extent cx=\"{$cx}\" cy=\"{$cy}\"/><wp:docPr id=\"{$docPrId}\" name=\"Logo\"/>"
+            . '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+            . '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            . '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            . '<pic:nvPicPr><pic:cNvPr id="0" name="Logo"/><pic:cNvPicPr/></pic:nvPicPr>'
+            . "<pic:blipFill><a:blip r:embed=\"{$relId}\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>"
+            . "<pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"{$cx}\" cy=\"{$cy}\"/></a:xfrm>"
+            . '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
+            . '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
+    }
+
+    private function logoCell($table, ?array $logo): void
     {
         $cell = $table->addCell(2500, ['bgColor' => self::NAVY_BG, 'valign' => 'center']);
+
+        if ($logo) {
+            $cell->addImage($logo['data'], [
+                'width'     => $logo['width'],
+                'height'    => $logo['height'],
+                'unit'      => 'pt',
+                'alignment' => 'center',
+            ]);
+
+            return;
+        }
+
         $cell->addText('LOGO EMPRESA', ['bold' => true, 'size' => 9, 'color' => 'FFFFFF'], ['alignment' => 'center']);
         $cell->addText('(insertar logotipo)', ['italic' => true, 'size' => 8, 'color' => 'FFFFFF'], ['alignment' => 'center']);
     }
