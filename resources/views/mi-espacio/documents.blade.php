@@ -7,7 +7,7 @@
 
     @include('mi-espacio.partials.header', [
         'title'    => 'Mis documentos',
-        'subtitle' => 'Consulta los documentos relacionados con tu trabajo.',
+        'subtitle' => 'Los procesos de tu empresa y los documentos donde te mencionan.',
     ])
 
     @php
@@ -40,8 +40,12 @@
                         <tr>
                             <td class="px-4 py-5">
                                 <a href="{{ route('processes.show', $document) }}" class="font-semibold text-brand hover:underline">{{ $document->name }}</a>
+                                @if($document->mentions_user)
+                                    <span class="ml-2 inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">Te mencionan</span>
+                                @endif
+                                @php $otherCompany = ! $companies->contains('id', $document->company_id); @endphp
                                 <div class="mt-1.5 text-sm text-gray-500">
-                                    {{ collect([$document->code, $document->processType?->name, $companies->count() > 1 && ! $selectedCompanyId ? $document->company?->procesos_name : null])->filter()->implode(' · ') }}
+                                    {{ collect([$document->code, $document->processType?->name, ($companies->count() > 1 && ! $selectedCompanyId) || $otherCompany ? $document->company?->procesos_name : null])->filter()->implode(' · ') }}
                                 </div>
                             </td>
                             <td class="px-4 py-5 align-top">

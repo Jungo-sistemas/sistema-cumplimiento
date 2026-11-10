@@ -31,6 +31,7 @@ class AdjustProcessCompanies extends Command
         'TI',
         'TOTAL PROPANE',
         'MIGAR REAL%',
+        'CAPITAL HUMANO',
     ];
 
     /** Patrón LIKE => nombre que se muestra en Procesos. */

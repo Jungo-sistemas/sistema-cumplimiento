@@ -21,9 +21,13 @@ class ProcessesDashboardController extends Controller
     {
         $user = $request->user();
 
-        // Los roles que no son admin solo tienen la Vista de auditado.
+        // Este tablero es "Indicadores de procesos", solo para admins: quien solo es auditado va a
+        // Mi espacio y los demás (operativos, auditores) al Inicio de Gestión.
         if ($user->isAuditeeOnly()) {
             return redirect()->route('mi-espacio.home');
+        }
+        if (! $user->isAdmin()) {
+            return redirect()->route('gestion.home');
         }
 
         $scopeKey = match (true) {

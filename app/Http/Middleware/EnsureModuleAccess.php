@@ -21,6 +21,7 @@ class EnsureModuleAccess
             'regulation-versions.*',
             'auditorias.*',
             'mi-espacio.*',
+            'gestion.*',
         ],
         'cumplimiento' => [
             'assets.*',
@@ -84,7 +85,7 @@ class EnsureModuleAccess
         }
 
         if (in_array('procesos', $modules, true)) {
-            return route('processes.dashboard');
+            return route('gestion.home');
         }
 
         return route('dashboard');

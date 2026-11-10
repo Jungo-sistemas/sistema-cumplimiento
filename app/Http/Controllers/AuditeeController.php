@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\Regulation;
+use App\Models\RegulationVersion;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -55,7 +56,9 @@ class AuditeeController extends Controller
         $selectedCompanyId = $companies->firstWhere('id', $request->integer('company_id'))?->id;
         $search = trim((string) $request->q);
 
-        $documents = $this->documentsFor($user, $selectedCompanyId ? $companies->where('id', $selectedCompanyId) : $companies, $search);
+        $documents = $selectedCompanyId
+            ? $this->documentsFor($user, $companies->where('id', $selectedCompanyId), $search, includeMentions: false)
+            : $this->documentsFor($user, $companies, $search);
 
         return view('mi-espacio.documents', [
             'companies'         => $companies,
@@ -92,20 +95,18 @@ class AuditeeController extends Controller
     // Inicio de cada módulo, para el selector de módulos de la vista de auditado.
     private const MODULE_HOMES = [
         'cumplimiento' => 'dashboard',
-        'procesos'     => 'processes.dashboard',
-        'auditorias'   => 'auditorias.home',
+        'procesos'     => 'gestion.home',
     ];
 
     /**
-     * Cambio "Gestión / Vista de auditado" del encabezado de Auditorías: Gestión es el lado del
-     * auditor (/auditorias) y Vista de auditado es Mi espacio. Desde el selector de módulos de la
-     * vista de auditado llega con ?modulo= para pasar a Gestión directo en ese módulo.
+     * Cambio "Gestión / Mi espacio" del encabezado de Procesos y Auditorías. Desde el selector de
+     * módulos de Mi espacio llega con ?modulo= para pasar a Gestión directo en ese módulo.
      */
     public function switchView(Request $request, string $mode)
     {
         $user = $request->user();
 
-        // Solo admins y auditores tienen Gestión; los demás roles siempre caen en su vista de auditado.
+        // Quien no tiene Gestión (solo lectura) siempre cae en su vista de auditado.
         if ($mode === 'auditado' || $user->isAuditeeOnly()) {
             abort_unless($user->canUseAuditeeView(), 403);
             $request->session()->put('view_mode', 'auditado');
@@ -115,7 +116,7 @@ class AuditeeController extends Controller
 
         $request->session()->put('view_mode', 'gestion');
 
-        return redirect()->route(self::MODULE_HOMES[$request->query('modulo')] ?? 'auditorias.home');
+        return redirect()->route(self::MODULE_HOMES[$request->query('modulo')] ?? 'gestion.home');
     }
 
     /** Empresas del usuario que se muestran en Procesos (mismo criterio que el listado de procesos). */
@@ -130,14 +131,18 @@ class AuditeeController extends Controller
     }
 
     /**
-     * Procesos que le aplican al usuario: por ahora, todos los de sus empresas que ya tienen una
-     * versión publicada (el control fino de "a quién aplica" se hará del lado de Procesos). Los
-     * que nunca se han aprobado no se listan porque todavía no hay nada que consultar.
+     * Procesos que le aplican al usuario: los de sus empresas que ya tienen una versión publicada,
+     * más los de cualquier empresa del grupo donde lo mencionan (@persona) en la versión vigente.
+     * Los que nunca se han aprobado no se listan porque todavía no hay nada que consultar.
+     * Con una empresa elegida en el filtro, solo los de esa empresa.
      */
-    private function documentsFor(User $user, Collection $companies, string $search = ''): Collection
+    private function documentsFor(User $user, Collection $companies, string $search = '', bool $includeMentions = true): Collection
     {
+        $mentionedIds = $includeMentions ? $this->mentionedRegulationIds($user) : [];
+
         return Regulation::with(['currentVersion', 'processType:id,name', 'company:id,name,process_name'])
-            ->whereIn('company_id', $companies->pluck('id'))
+            ->where('group_id', $user->group_id)
+            ->where(fn ($q) => $q->whereIn('company_id', $companies->pluck('id'))->orWhereIn('id', $mentionedIds))
             ->where('is_active', true)
             ->where('is_annex', false)
             ->whereNull('obsoleted_at')
@@ -150,13 +155,37 @@ class AuditeeController extends Controller
             })
             ->orderBy('name')
             ->get()
-            ->each(function (Regulation $regulation) {
+            ->each(function (Regulation $regulation) use ($mentionedIds) {
                 // "Obsoleto" es lo mismo que la vista Obsoleto de Procesos: la versión vigente ya venció.
                 $regulation->auditee_status = match (true) {
                     $regulation->approval_status === 'outdated'                  => 'Desactualizado',
                     (bool) $regulation->currentVersion?->valid_until?->isPast() => 'Obsoleto',
                     default                                                      => 'Liberado',
                 };
+                $regulation->mentions_user = in_array($regulation->id, $mentionedIds, true);
             });
+    }
+
+    /**
+     * Procesos del grupo cuya versión vigente menciona al usuario con @persona. El LIKE solo acota;
+     * la mención se confirma con RegulationVersion::mentionsUser().
+     *
+     * @return list<int>
+     */
+    private function mentionedRegulationIds(User $user): array
+    {
+        $versions = RegulationVersion::query()
+            ->where('is_current', true)
+            ->where('body_html', 'like', '%person-mention%')
+            ->where('body_html', 'like', '%data-id="' . $user->id . '"%')
+            ->whereHas('regulation', fn ($q) => $q->where('group_id', $user->group_id))
+            ->get(['regulation_id', 'body_html']);
+
+        return $versions
+            ->filter(fn (RegulationVersion $version) => $version->mentionsUser($user))
+            ->pluck('regulation_id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
     }
 }
