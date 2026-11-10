@@ -105,6 +105,66 @@ class ApprovalFlowService
     }
 
     /**
+     * Aprobaciones abiertas (pendientes o en fila) de personas que el admin NO eligió, en un flujo
+     * con aprobadores elegidos: las metió la regla vieja que llenaba los puestos vacíos con todo
+     * el puesto (antes de saltar pasos, nov 2026). Vacío = el flujo está bien.
+     */
+    public function strayOpenApprovals(Regulation $regulation): Collection
+    {
+        $chosen = collect($regulation->flow_user_map ?? [])->flatten()->map(fn ($id) => (int) $id)->all();
+
+        if ($chosen === [] || ! in_array($regulation->approval_status, ['pending_review', 'pending_authorization'], true)) {
+            return collect();
+        }
+
+        return $regulation->approvals()->reorder()
+            ->whereIn('status', ['pending', 'waiting'])
+            ->whereNotIn('user_id', $chosen)
+            ->get();
+    }
+
+    /**
+     * Rearma el flujo abierto de un proceso con la regla actual: quita las aprobaciones abiertas
+     * desde el paso en curso y lo vuelve a abrir (saltando los pasos sin aprobador elegido). Las
+     * decisiones ya tomadas se quedan como historial. Avisa a quien quede con el turno.
+     *
+     * @return int|null el paso que quedó abierto; null si ya no quedaba ninguno (queda aprobado).
+     */
+    public function rebuildOpenFlow(Regulation $regulation, bool $notify = true): ?int
+    {
+        $current = $regulation->approvals()->reorder()->whereIn('status', ['pending', 'waiting'])->min('step_number');
+
+        if (! $current) {
+            return null;
+        }
+
+        $userMap = $regulation->flow_user_map ?? [];
+
+        $step = DB::transaction(function () use ($regulation, $current, $userMap) {
+            $regulation->approvals()->where('step_number', '>=', $current)
+                ->whereIn('status', ['pending', 'waiting'])
+                ->delete();
+
+            $step = $this->openStepFrom($regulation, $current, $userMap);
+
+            if ($step === null) {
+                $regulation->update(['approval_status' => 'approved']);
+                $regulation->currentVersion?->update(['valid_until' => now()->addYear()]);
+            } else {
+                $regulation->update(['approval_status' => $step > 1 ? 'pending_authorization' : 'pending_review']);
+            }
+
+            return $step;
+        });
+
+        if ($notify && $step) {
+            $this->notifyPendingApprovers($regulation, $step);
+        }
+
+        return $step;
+    }
+
+    /**
      * Abre el primer paso del flujo que tenga aprobadores (ver openStepFrom()) y, si por saltar
      * pasos vacíos arranca después del 1, lo deja "en autorización" en vez de "en revisión".
      */

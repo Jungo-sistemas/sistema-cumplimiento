@@ -182,6 +182,41 @@ class ApprovalFlowTest extends TestCase
         Notification::assertSentTo($this->users['admin'], ApprovalStepUnassignedNotification::class);
     }
 
+    public function test_el_comando_rearma_los_flujos_que_armo_la_regla_vieja(): void
+    {
+        // Así quedó P-SAV-111: solo se eligió Dirección y el paso 1 se llenó con todos los líderes.
+        $reg = Regulation::create([
+            'group_id' => $this->group->id, 'company_id' => $this->company->id, 'process_type_id' => $this->processType->id,
+            'code' => 'P-TST-111', 'name' => 'GESTION DEL CAMBIO', 'impact_level' => 'medio_alto', 'approval_status' => 'pending_review',
+            'flow_locked' => true, 'details' => [], 'is_active' => true,
+            'flow_user_map' => ['direccion' => [(string) $this->users['direccion']->id]],
+        ]);
+        $otroLider = User::factory()->create(['group_id' => $this->group->id, 'scope_level' => 'group', 'role_id' => $this->opRoleId, 'status' => 'active']);
+        foreach ([$this->users['lider'], $otroLider] as $i => $lider) {
+            $reg->approvals()->create([
+                'step_number' => 1, 'job_position_id' => $this->positions['lider']->id, 'user_id' => $lider->id,
+                'requires_all' => true, 'sequence_order' => $i, 'status' => $i === 0 ? 'pending' : 'waiting',
+            ]);
+        }
+
+        $this->artisan('procesos:revisar-aprobadores')
+            ->expectsOutput('1 procesos con aprobadores que no se eligieron:')
+            ->assertSuccessful();
+        $this->assertSame(2, $reg->approvals()->count(), 'sin --aplicar no cambia nada');
+
+        $this->artisan('procesos:revisar-aprobadores', ['--aplicar' => true])
+            ->expectsOutput('P-TST-111: queda en el paso 3')
+            ->assertSuccessful();
+
+        $reg = $reg->fresh();
+        $this->assertSame('pending_authorization', $reg->approval_status);
+        $this->assertSame([$this->users['direccion']->id], $reg->approvals()->pluck('user_id')->all());
+        Notification::assertSentTo($this->users['direccion'], ApprovalRequestedNotification::class);
+
+        $this->artisan('procesos:revisar-aprobadores')
+            ->expectsOutput('Ningún flujo abierto tiene aprobadores que no se eligieron.');
+    }
+
     public function test_reiniciar_el_flujo_tambien_salta_los_pasos_sin_elegir(): void
     {
         $reg = $this->makeRegulationWithUsers('medio_alto', ['direccion' => [(string) $this->users['direccion']->id]]);
