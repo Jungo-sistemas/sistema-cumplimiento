@@ -111,6 +111,23 @@ class AuditorViewTest extends TestCase
             ->assertDontSee('Marca a las personas que asistieron a la llamada.');
     }
 
+    public function test_para_finalizar_deben_asistir_el_auditor_y_el_auditado(): void
+    {
+        // Auditoría 1: el auditor y el auditado llevan la etiqueta; la supervisora no.
+        $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1));
+        $this->assertSame(2, substr_count($checklist->getContent(), '>Obligatorio</span>'));
+        $checklist->assertSee('Para finalizar, marca en la lista de asistencia al auditor y al auditado.');
+    }
+
+    public function test_el_resultado_muestra_la_asistencia(): void
+    {
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))
+            ->assertSeeInOrder(['Lista de asistencia', '2 de 3 asistieron', 'Ana Torres', 'Asistió', 'Mariana Garza', 'No asistió']);
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 4))
+            ->assertSee('3 de 3 asistieron')
+            ->assertDontSee('No asistió');
+    }
+
     public function test_el_resultado_muestra_sus_hallazgos(): void
     {
         $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))

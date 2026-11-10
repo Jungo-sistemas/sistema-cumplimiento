@@ -18,6 +18,11 @@
                 'hallazgos' => [
                     ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta', 'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres', 'severidad' => 'Mayor', 'seguimiento' => 'Rechazada', 'compromiso' => '2026-09-10'],
                 ],
+                'participantes' => [
+                    ['nombre' => auth()->user()->name, 'puesto' => 'Auditor líder',           'equipo' => 'auditor',  'asistio' => true],
+                    ['nombre' => 'Ana Torres',          'puesto' => 'Responsable del proceso', 'equipo' => 'auditado', 'asistio' => true],
+                    ['nombre' => 'Mariana Garza',       'puesto' => 'Supervisor de turno',     'equipo' => 'auditado', 'asistio' => false],
+                ],
             ],
             4 => [
                 'procedimiento' => 'Control de documentos', 'auditado' => 'Luis Herrera', 'fecha' => '20 ago 2026',
@@ -27,6 +32,11 @@
                     ['texto' => 'Los documentos obsoletos están retirados del área.',    'resultado' => 'no_aplica', 'calificacion' => null, 'observacion' => 'El área ya no maneja copias impresas.'],
                 ],
                 'hallazgos' => [],
+                'participantes' => [
+                    ['nombre' => auth()->user()->name, 'puesto' => 'Auditor líder',           'equipo' => 'auditor',  'asistio' => true],
+                    ['nombre' => 'Luis Herrera',        'puesto' => 'Responsable del proceso', 'equipo' => 'auditado', 'asistio' => true],
+                    ['nombre' => 'Sofía Ramírez',       'puesto' => 'Encargada de documentos', 'equipo' => 'auditado', 'asistio' => true],
+                ],
             ],
         ];
 
@@ -39,6 +49,7 @@
         $criterios       = collect($auditoria['criterios']);
         $calificacion    = round($criterios->where('resultado', '!=', 'no_aplica')->avg('calificacion'));
         $incumplimientos = $criterios->whereIn('resultado', ['no_cumple', 'parcial']);
+        $asistieron      = collect($auditoria['participantes'])->where('asistio', true)->count();
 
         // Etiqueta y color de cada resultado del checklist.
         $resultados = [
@@ -132,6 +143,26 @@
             @empty
                 <p class="py-5 text-[15px] text-gray-600">No se registraron hallazgos en esta auditoría.</p>
             @endforelse
+        </div>
+    </div>
+
+    {{-- Quiénes asistieron a la llamada de la auditoría --}}
+    <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <h2 class="text-lg font-semibold text-gray-900">Lista de asistencia</h2>
+            <span class="text-sm font-semibold text-brand">{{ $asistieron }} de {{ count($auditoria['participantes']) }} asistieron</span>
+        </div>
+
+        <div class="mt-3 divide-y divide-gray-200">
+            @foreach($auditoria['participantes'] as $participante)
+                <div class="flex flex-wrap items-center justify-between gap-4 py-4">
+                    <div>
+                        <div class="font-semibold text-gray-900">{{ $participante['nombre'] }}</div>
+                        <p class="mt-1 text-sm text-gray-500">{{ $participante['puesto'] }} · Equipo {{ $participante['equipo'] }}</p>
+                    </div>
+                    <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $participante['asistio'] ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600' }}">{{ $participante['asistio'] ? 'Asistió' : 'No asistió' }}</span>
+                </div>
+            @endforeach
         </div>
     </div>
 

@@ -38,10 +38,11 @@
         ];
 
         // Convocados a la llamada: el equipo del auditor y el del auditado. Durante la llamada se marca quién asistió.
+        // "obligatorio": el auditor y el auditado deben estar marcados para poder finalizar.
         $participantes = [
-            ['nombre' => auth()->user()->name,  'puesto' => 'Auditor líder',           'equipo' => 'auditor'],
-            ['nombre' => $auditoria['auditado'], 'puesto' => 'Responsable del proceso', 'equipo' => 'auditado'],
-            ['nombre' => 'Mariana Garza',         'puesto' => 'Supervisor de turno',     'equipo' => 'auditado'],
+            ['nombre' => auth()->user()->name,  'puesto' => 'Auditor líder',           'equipo' => 'auditor',  'obligatorio' => true],
+            ['nombre' => $auditoria['auditado'], 'puesto' => 'Responsable del proceso', 'equipo' => 'auditado', 'obligatorio' => true],
+            ['nombre' => 'Mariana Garza',        'puesto' => 'Supervisor de turno',     'equipo' => 'auditado', 'obligatorio' => false],
         ];
     @endphp
 
@@ -59,6 +60,7 @@
     <div x-data="{
             respuestas: @js(array_fill(0, count($criterios), ['resultado' => '', 'calificacion' => ''])),
             asistencia: @js(array_fill(0, count($participantes), false)),
+            obligatorios: @js(array_column($participantes, 'obligatorio')),
             guardado: false,
             confirmando: false,
             finalizada: false,
@@ -68,6 +70,7 @@
             capturado(r) { return r.resultado !== '' && (this.noAplica(r) || (this.tieneCalificacion(r) && ! this.fueraDeRango(r))) },
             get capturados() { return this.respuestas.filter(r => this.capturado(r)).length },
             get asistieron() { return this.asistencia.filter(a => a).length },
+            get faltanObligatorios() { return this.obligatorios.some((obligatorio, i) => obligatorio && ! this.asistencia[i]) },
             get promedio() {
                 {{-- "No aplica" no cuenta: el promedio es solo de los criterios evaluados. --}}
                 const evaluados = this.respuestas.filter(r => ! this.noAplica(r));
@@ -104,7 +107,12 @@
                                     <input type="checkbox" name="asistentes[]" value="{{ $i }}" x-model="asistencia[{{ $i }}]"
                                            class="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand disabled:cursor-not-allowed disabled:bg-gray-100">
                                     <span>
-                                        <span class="block text-sm font-semibold text-gray-900">{{ $participante['nombre'] }}</span>
+                                         <span class="flex flex-wrap items-center gap-x-2 text-sm font-semibold text-gray-900">
+                                            {{ $participante['nombre'] }}
+                                            @if($participante['obligatorio'])
+                                                <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">Obligatorio</span>
+                                            @endif
+                                        </span>
                                         <span class="block text-xs text-gray-500">{{ $participante['puesto'] }} · Equipo {{ $participante['equipo'] }}</span>
                                     </span>
                                 </label>
@@ -188,11 +196,12 @@
             <div class="mt-6 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-gray-200 bg-white p-6" x-show="! confirmando && ! finalizada">
                 <span x-show="guardado" x-cloak x-transition class="mr-auto text-sm font-semibold text-green-700">Avance guardado (demo: todavía no se guarda en la base de datos).</span>
                 <span x-show="! guardado && capturados < {{ count($criterios) }}" class="mr-auto text-sm text-gray-600">Para finalizar, captura el resultado de cada criterio y su calificación (excepto los que no aplican).</span>
+                <span x-show="! guardado && capturados === {{ count($criterios) }} && faltanObligatorios" x-cloak class="mr-auto text-sm text-gray-600">Para finalizar, marca en la lista de asistencia al auditor y al auditado.</span>
 
                 <button type="button" @click="guardado = true; setTimeout(() => guardado = false, 3000)"
                         class="rounded-lg border-2 border-brand px-5 py-2.5 text-sm font-semibold text-brand hover:bg-brand-50">Guardar avance</button>
 
-                <button type="button" :disabled="capturados < {{ count($criterios) }}"
+                <button type="button" :disabled="capturados < {{ count($criterios) }} || faltanObligatorios"
                         class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50" @click="confirmando = true">Finalizar</button>
             </div>
         @endif
