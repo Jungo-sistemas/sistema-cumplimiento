@@ -63,13 +63,10 @@
         ];
     @endphp
 
-    <div class="flex flex-wrap items-start justify-between gap-4">
-        @include('mi-espacio.partials.header', [
-            'title'    => 'Hallazgos',
-            'subtitle' => 'Causas raíz, acciones y evidencias de cada hallazgo en un solo seguimiento.',
-        ])
-        <button type="button" @click="$dispatch('registrar-hallazgo')" class="rounded-lg bg-brand px-5 py-3 text-[15px] font-semibold text-white hover:bg-brand-dark">+ Registrar hallazgo</button>
-    </div>
+    @include('mi-espacio.partials.header', [
+        'title'    => 'Hallazgos',
+        'subtitle' => 'Causas raíz, acciones y evidencias de cada hallazgo en un solo seguimiento.',
+    ])
 
     {{-- Pestañas --}}
     <div class="mb-7 flex flex-wrap gap-6 border-b border-gray-200">
@@ -156,6 +153,5 @@
         </div>
     </div>
 
-    @include('auditorias.partials.register-finding-modal')
     @include('auditorias.partials.finding-detail-modal')
 </x-layouts.vigia>
