@@ -9,8 +9,8 @@ use Illuminate\Database\Seeder;
 class ProcessTypeSeeder extends Seeder
 {
     // Las carpetas de cada empresa en Procesos, en el orden en que se muestran (nov 2026).
+    // DIRECCIÓN no va aquí: es la carpeta confidencial al nivel de las empresas.
     private const TYPES = [
-        'DIRECCIÓN',
         'LEGAL',
         'AUDITORÍA',
         'FISCAL Y COMPLIANCE',
