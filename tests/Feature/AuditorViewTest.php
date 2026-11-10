@@ -30,7 +30,7 @@ class AuditorViewTest extends TestCase
         ]);
     }
 
-        public function test_todas_las_pantallas_del_auditor_cargan(): void
+    public function test_todas_las_pantallas_del_auditor_cargan(): void
     {
         foreach ([
             route('auditorias.home'),
@@ -91,6 +91,24 @@ class AuditorViewTest extends TestCase
                 'Cada vez que se realiza la actividad queda un registro',
                 'Evidencia a verificar:',
             ]);
+    }
+
+    public function test_la_lista_de_asistencia_muestra_a_los_convocados(): void
+    {
+        // Auditoría 1 (En captura): el botón va arriba del contador y se marca quién asistió.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))
+            ->assertSeeInOrder([
+                'Lista de asistencia',
+                'Marca a las personas que asistieron a la llamada.',
+                'Daniel Ruiz', 'Auditor líder · Equipo auditor',
+                'Laura Méndez', 'Responsable del proceso · Equipo auditado',
+                'criterios capturados',
+            ]);
+
+        // Auditoría 2 (Programada): se ve quién está convocado, pero todavía no se marca.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 2))
+            ->assertSee('Podrás marcar la asistencia cuando la auditoría esté En captura.')
+            ->assertDontSee('Marca a las personas que asistieron a la llamada.');
     }
 
     public function test_el_resultado_muestra_sus_hallazgos(): void

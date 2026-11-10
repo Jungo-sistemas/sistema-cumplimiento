@@ -36,6 +36,13 @@
                 'evidencia'   => 'Expediente y revisión firmada',
             ],
         ];
+
+        // Convocados a la llamada: el equipo del auditor y el del auditado. Durante la llamada se marca quién asistió.
+        $participantes = [
+            ['nombre' => auth()->user()->name,  'puesto' => 'Auditor líder',           'equipo' => 'auditor'],
+            ['nombre' => $auditoria['auditado'], 'puesto' => 'Responsable del proceso', 'equipo' => 'auditado'],
+            ['nombre' => 'Mariana Garza',         'puesto' => 'Supervisor de turno',     'equipo' => 'auditado'],
+        ];
     @endphp
 
     <div class="mb-4 flex items-center justify-between gap-4">
@@ -51,6 +58,7 @@
     {{-- Todo lo de adentro comparte estos datos "vivos" de Alpine --}}
     <div x-data="{
             respuestas: @js(array_fill(0, count($criterios), ['resultado' => '', 'calificacion' => ''])),
+            asistencia: @js(array_fill(0, count($participantes), false)),
             guardado: false,
             confirmando: false,
             finalizada: false,
@@ -59,6 +67,7 @@
             noAplica(r) { return r.resultado === 'no_aplica' },
             capturado(r) { return r.resultado !== '' && (this.noAplica(r) || (this.tieneCalificacion(r) && ! this.fueraDeRango(r))) },
             get capturados() { return this.respuestas.filter(r => this.capturado(r)).length },
+            get asistieron() { return this.asistencia.filter(a => a).length },
             get promedio() {
                 {{-- "No aplica" no cuenta: el promedio es solo de los criterios evaluados. --}}
                 const evaluados = this.respuestas.filter(r => ! this.noAplica(r));
@@ -67,13 +76,45 @@
             },
          }">
 
-        {{-- Sesión de Teams y avance --}}
+        {{-- Sesión de Teams, lista de asistencia y avance --}}
         <div class="mb-6 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-6">
-            <div>
+            <div class="sm:flex-1">
                 <h2 class="text-base font-semibold text-gray-900">Sesión por Microsoft Teams</h2>
                 <p class="mt-2 text-sm text-gray-600">{{ $editable ? 'Registra las respuestas, las observaciones y la calificación durante la llamada.' : 'La captura corresponde al auditor asignado cuando la auditoría esté activa.' }}</p>
             </div>
-            <div class="text-sm font-semibold text-brand"><span x-text="capturados">0</span> de {{ count($criterios) }} criterios capturados</div>
+
+            <div class="flex flex-col items-start gap-3 sm:items-end">
+                {{-- Lista de asistencia: el botón despliega a los convocados y se cierra con un clic afuera --}}
+                <div x-data="{ abierta: false }" @click.outside="abierta = false" class="relative">
+                    <button type="button" @click="abierta = ! abierta"
+                            class="inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">
+                        <x-icon name="users" class="h-4 w-4" />
+                        Lista de asistencia
+                        <span class="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand"><span x-text="asistieron">0</span> de {{ count($participantes) }}</span>
+                        <x-icon name="chevron" class="h-4 w-4 transition-transform" ::class="{ 'rotate-180': abierta }" />
+                    </button>
+
+                    <div x-show="abierta" x-cloak x-transition.opacity
+                         class="absolute left-0 z-20 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-4 shadow-lg sm:left-auto sm:right-0 sm:w-80">
+                        <p class="text-sm text-gray-600">{{ $editable ? 'Marca a las personas que asistieron a la llamada.' : 'Podrás marcar la asistencia cuando la auditoría esté En captura.' }}</p>
+
+                        <fieldset :disabled="@js(! $editable) || confirmando || finalizada" class="mt-2 divide-y divide-gray-100">
+                            @foreach($participantes as $i => $participante)
+                                <label class="flex items-start gap-3 py-3">
+                                    <input type="checkbox" name="asistentes[]" value="{{ $i }}" x-model="asistencia[{{ $i }}]"
+                                           class="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand disabled:cursor-not-allowed disabled:bg-gray-100">
+                                    <span>
+                                        <span class="block text-sm font-semibold text-gray-900">{{ $participante['nombre'] }}</span>
+                                        <span class="block text-xs text-gray-500">{{ $participante['puesto'] }} · Equipo {{ $participante['equipo'] }}</span>
+                                    </span>
+                                </label>
+                            @endforeach
+                        </fieldset>
+                    </div>
+                </div>
+
+                <div class="text-sm font-semibold text-brand"><span x-text="capturados">0</span> de {{ count($criterios) }} criterios capturados</div>
+            </div>
         </div>
 
         {{-- Un bloque por criterio --}}
