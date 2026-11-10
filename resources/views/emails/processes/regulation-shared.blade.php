@@ -38,7 +38,7 @@
                 <tr><td>Código</td><td>{{ $regulation->code }}</td></tr>
                 @endif
                 <tr><td>Tipo</td><td>{{ $regulation->document_type ?? '—' }}</td></tr>
-                <tr><td>Empresa</td><td>{{ $regulation->company->name ?? '—' }}</td></tr>
+                <tr><td>Empresa</td><td>{{ $regulation->company->procesos_name ?? '—' }}</td></tr>
             </table>
 
             <a href="{{ route('processes.view-track', [$regulation, $share->token]) }}" class="btn">

@@ -5,7 +5,7 @@
         <span class="mx-2 text-gray-400">/</span>
         @if($selectedCompanyId)
             <a href="{{ route('processes.index', ['company_id' => $selectedCompanyId]) }}" class="text-gray-500 hover:underline">
-                {{ $companies->firstWhere('id', $selectedCompanyId)?->name ?? 'Empresa' }}
+                {{ $companies->firstWhere('id', $selectedCompanyId)?->procesos_name ?? 'Empresa' }}
             </a>
             <span class="mx-2 text-gray-400">/</span>
         @endif
@@ -52,7 +52,7 @@
                         <div>
                             <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Empresa</label>
                             <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                                {{ $companies->firstWhere('id', $selectedCompanyId)?->name ?? auth()->user()->company?->name ?? '—' }}
+                                {{ $companies->firstWhere('id', $selectedCompanyId)?->procesos_name ?? auth()->user()->company?->procesos_name ?? '—' }}
                             </div>
                             <input type="hidden" name="company_id" value="{{ $selectedCompanyId ?? auth()->user()->company_id }}">
                         </div>

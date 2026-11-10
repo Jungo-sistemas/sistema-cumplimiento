@@ -26,6 +26,9 @@ class RegulationPublicViewController extends Controller
         // que vuelva a quedar aprobado.
         abort_unless($regulation->approval_status === 'approved', 404);
 
+        // Un proceso confidencial nunca se sirve sin sesión.
+        abort_if($regulation->isRestricted(), 404);
+
         $version = $regulation->currentVersion;
 
         abort_unless($version && $version->file_path && Storage::disk('private')->exists($version->file_path), 404);

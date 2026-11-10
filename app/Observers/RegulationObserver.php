@@ -32,11 +32,14 @@ class RegulationObserver
     {
         $prefix = ProcessesDashboardController::CACHE_PREFIX;
 
-        if ($regulation->company_id) {
-            Cache::forget("{$prefix}c{$regulation->company_id}");
-        }
-        if ($regulation->group_id) {
-            Cache::forget("{$prefix}g{$regulation->group_id}");
+        // ':r' es la variante de quien ve procesos confidenciales (ver ProcessesDashboardController).
+        foreach (['', ':r'] as $suffix) {
+            if ($regulation->company_id) {
+                Cache::forget("{$prefix}c{$regulation->company_id}{$suffix}");
+            }
+            if ($regulation->group_id) {
+                Cache::forget("{$prefix}g{$regulation->group_id}{$suffix}");
+            }
         }
     }
 }

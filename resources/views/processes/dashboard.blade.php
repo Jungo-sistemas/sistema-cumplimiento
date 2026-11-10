@@ -141,7 +141,7 @@
                                     {{ $approval->regulation?->name ?? '—' }}
                                 </div>
                                 <div class="text-xs text-gray-500 mt-1">
-                                    {{ $approval->regulation?->company?->name ?? '—' }}
+                                    {{ $approval->regulation?->company?->procesos_name ?? '—' }}
                                     @if($approval->regulation?->processType)
                                         · {{ $approval->regulation->processType->name }}
                                     @endif
@@ -167,7 +167,7 @@
                         <div>
                             <div class="font-semibold text-gray-800">{{ $regulation->name }}</div>
                             <div class="text-xs text-gray-500 mt-1">
-                                {{ $regulation->company?->name ?? '—' }}
+                                {{ $regulation->company?->procesos_name ?? '—' }}
                                 @if($regulation->processType)
                                     · {{ $regulation->processType->name }}
                                 @endif

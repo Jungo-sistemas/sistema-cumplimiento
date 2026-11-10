@@ -41,7 +41,7 @@
                 <tr><td>Nombre</td><td><strong>{{ $regulation->name }}</strong></td></tr>
                 <tr><td>Código</td><td>{{ $regulation->code ?? '—' }}</td></tr>
                 <tr><td>Tipo</td><td>{{ $regulation->document_type ?? '—' }}</td></tr>
-                <tr><td>Empresa</td><td>{{ $regulation->company->name ?? '—' }}</td></tr>
+                <tr><td>Empresa</td><td>{{ $regulation->company->procesos_name ?? '—' }}</td></tr>
                 <tr><td>Elaborado por</td><td>{{ $elaboradoPor ?? '—' }}</td></tr>
                 <tr>
                     <td>Nivel de impacto</td>

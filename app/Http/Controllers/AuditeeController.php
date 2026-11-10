@@ -125,8 +125,8 @@ class AuditeeController extends Controller
             ->when(! $user->isGlobalScope(), fn ($q) => $q->whereIn('id', $user->accessibleCompanyIds()))
             ->where('show_in_processes', true)
             ->where('otras', false)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+            ->orderByRaw(Company::PROCESOS_NAME_SQL)
+            ->get(['id', 'name', 'process_name']);
     }
 
     /**
@@ -136,7 +136,7 @@ class AuditeeController extends Controller
      */
     private function documentsFor(User $user, Collection $companies, string $search = ''): Collection
     {
-        return Regulation::with(['currentVersion', 'processType:id,name', 'company:id,name'])
+        return Regulation::with(['currentVersion', 'processType:id,name', 'company:id,name,process_name'])
             ->whereIn('company_id', $companies->pluck('id'))
             ->where('is_active', true)
             ->where('is_annex', false)

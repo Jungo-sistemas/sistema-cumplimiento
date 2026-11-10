@@ -33,9 +33,9 @@ class RegulationController extends Controller
             : (int) $user->company_id;
 
         $companies = $user->hasGroupScope()
-            ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
+            ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderByRaw(Company::PROCESOS_NAME_SQL)->get()
             : ($user->hasMultipleCompanies()
-                ? Company::whereIn('id', $user->accessibleCompanyIds())->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
+                ? Company::whereIn('id', $user->accessibleCompanyIds())->where('show_in_processes', true)->where('otras', false)->orderByRaw(Company::PROCESOS_NAME_SQL)->get()
                 : collect());
 
         // Group/multi-company user with no company selected AND no search AND not in report mode
@@ -51,7 +51,7 @@ class RegulationController extends Controller
             return view('processes.index', [
                 'cardView'            => true,
                 'showAnnexes'         => false,
-                'companiesWithCounts' => $companiesQuery->orderBy('name')->get(),
+                'companiesWithCounts' => $companiesQuery->orderByRaw(Company::PROCESOS_NAME_SQL)->get(),
                 'companies'           => $companies,
                 'selectedCompanyId'   => null,
                 'processTypes'        => collect(),
@@ -177,9 +177,9 @@ class RegulationController extends Controller
             : (int) $user->company_id;
 
         $companies = $user->hasGroupScope()
-            ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
+            ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderByRaw(Company::PROCESOS_NAME_SQL)->get()
             : ($user->hasMultipleCompanies()
-                ? Company::whereIn('id', $user->accessibleCompanyIds())->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
+                ? Company::whereIn('id', $user->accessibleCompanyIds())->where('show_in_processes', true)->where('otras', false)->orderByRaw(Company::PROCESOS_NAME_SQL)->get()
                 : collect());
 
         $processTypes = ProcessType::where('group_id', $user->group_id)
@@ -215,10 +215,16 @@ class RegulationController extends Controller
 
         $currentVersion = $versionHistory->firstWhere('is_current', true);
 
+        // Proceso confidencial: solo se puede asignar o compartir a quien lo puede ver.
+        $restricted = $regulation->isRestricted();
+        $canSee = fn (User $u) => ! $restricted || $u->canSeeRestrictedProcesses();
+
         $users = User::where('group_id', $regulation->group_id)
             ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'operative']))
             ->orderBy('name')
-            ->get(['id', 'name', 'role_id']);
+            ->get(['id', 'name', 'role_id', 'module_access'])
+            ->filter($canSee)
+            ->values();
 
         $positions = JobPosition::where('group_id', $regulation->group_id)
             ->where('is_active', true)
@@ -247,7 +253,10 @@ class RegulationController extends Controller
             ? User::where('group_id', $regulation->group_id)
                 ->where('id', '!=', $user->id)
                 ->orderBy('name')
-                ->get(['id', 'name', 'email'])
+                ->get(['id', 'name', 'email', 'role_id', 'module_access'])
+                ->filter($canSee)
+                ->map(fn (User $u) => $u->only(['id', 'name', 'email']))
+                ->values()
             : collect();
 
         // Lock info for the edit button
@@ -263,7 +272,7 @@ class RegulationController extends Controller
             'usersByPosition'        => $usersByPosition,
             'positionLabels'         => $positionLabels,
             'positionSortOrders'     => $positionSortOrders,
-            'flowDefinitions'        => ApprovalFlowService::getAllFlows(),
+            'flowDefinitions'        => ApprovalFlowService::getAllFlows($regulation->isRestricted()),
             'shareRecipients'        => $shareRecipients,
             'shareableUsers'         => $shareableUsers,
             'editLock'               => $editLock,
@@ -379,7 +388,7 @@ class RegulationController extends Controller
             set_time_limit(240); // la generación con IA puede tardar 1-3 minutos según el modelo
             $ai = app(AiProcedureGenerationService::class)->generate(
                 $wizardDetails,
-                companyName: $company->name,
+                companyName: $company->procesos_name,
                 documentName: Str::upper($data['nombre']),
                 documentCode: $data['codigo'] ? Str::upper($data['codigo']) : ''
             );
@@ -398,7 +407,7 @@ class RegulationController extends Controller
             'wizard'        => $wizardDetails,
             'ai'            => $ai,
             'revisions'     => 0,
-            'company_name'  => $company->name,
+            'company_name'  => $company->procesos_name,
         ]]);
 
         return redirect()->route('processes.preview.show');
@@ -747,9 +756,9 @@ class RegulationController extends Controller
             : (int) $user->company_id;
 
         $companies = $user->hasGroupScope()
-            ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
+            ? Company::where('group_id', $user->group_id)->where('show_in_processes', true)->where('otras', false)->orderByRaw(Company::PROCESOS_NAME_SQL)->get()
             : ($user->hasMultipleCompanies()
-                ? Company::whereIn('id', $user->accessibleCompanyIds())->where('show_in_processes', true)->where('otras', false)->orderBy('name')->get()
+                ? Company::whereIn('id', $user->accessibleCompanyIds())->where('show_in_processes', true)->where('otras', false)->orderByRaw(Company::PROCESOS_NAME_SQL)->get()
                 : collect());
 
         $processTypes = ProcessType::where('group_id', $user->group_id)
@@ -937,7 +946,7 @@ class RegulationController extends Controller
             set_time_limit(240); // la generación con IA puede tardar 1-3 minutos según el modelo
             $ai = app(AiProcedureGenerationService::class)->generate(
                 $wizardDetails,
-                companyName: $regulation->company->name,
+                companyName: $regulation->company->procesos_name,
                 documentName: Str::upper($data['nombre']),
                 documentCode: $data['codigo'] ? Str::upper($data['codigo']) : ''
             );
@@ -956,7 +965,7 @@ class RegulationController extends Controller
             'wizard'              => $wizardDetails,
             'ai'                  => $ai,
             'revisions'           => 0,
-            'company_name'        => $regulation->company->name,
+            'company_name'        => $regulation->company->procesos_name,
             'old_details'         => $regulation->details ?? [],
             'old_flow_locked'     => $regulation->flow_locked,
             'old_process_type_id' => (int) $regulation->process_type_id,
@@ -1207,13 +1216,13 @@ class RegulationController extends Controller
             ? Company::where('group_id', $user->group_id)
                 ->where('show_in_processes', true)
                 ->where('otras', false)
-                ->orderBy('name')
+                ->orderByRaw(Company::PROCESOS_NAME_SQL)
                 ->get()
             : ($user->hasMultipleCompanies()
                 ? Company::whereIn('id', $user->accessibleCompanyIds())
                     ->where('show_in_processes', true)
                     ->where('otras', false)
-                    ->orderBy('name')
+                    ->orderByRaw(Company::PROCESOS_NAME_SQL)
                     ->get()
                 : collect());
 
@@ -1228,7 +1237,7 @@ class RegulationController extends Controller
 
         // Mismos filtros para las dos secciones: vencidas y desactualizados enviados a obsoleto.
         $filtered = function () use ($user, $selectedCompanyId, $selectedProcessTypeId, $search) {
-            $query = Regulation::with(['currentVersion', 'company:id,name', 'processType:id,name'])
+            $query = Regulation::with(['currentVersion', 'company:id,name,process_name', 'processType:id,name'])
                 ->where('group_id', $user->group_id)
                 ->where('is_active', true);
 

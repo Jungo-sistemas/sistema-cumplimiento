@@ -261,7 +261,20 @@ class User extends Authenticatable
         return ! $this->isAdmin() && ! $this->isAuditor() && $this->canUseAuditeeView();
     }
 
+    /**
+     * Puede ver los procesos de tipos confidenciales (ProcessType::is_restricted): quien tiene el
+     * puesto Consejo y los admins cuyo único acceso es Procesos. Ni Dirección ni los admins con
+     * acceso a todas las áreas, a propósito: así lo pidió el cliente para limitar esa carpeta.
+     */
+    public function canSeeRestrictedProcesses(): bool
+    {
+        return $this->canSeeRestrictedCache ??= ($this->isAdmin() && ! $this->isSuperAdmin() && $this->module_access === 'procesos')
+            || $this->jobPositions()->where('slug', 'consejo')->exists();
+    }
+
     private ?bool $canUseProcesosCache = null;
+
+    private ?bool $canSeeRestrictedCache = null;
 
     public function sendPasswordResetNotification($token): void
     {

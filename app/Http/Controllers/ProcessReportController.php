@@ -29,7 +29,7 @@ class ProcessReportController extends Controller
 
         $regulations = $query
             ->with([
-                'company:id,name',
+                'company:id,name,process_name',
                 'processType:id,name',
                 'creator:id,name',
                 'currentVersion',
@@ -84,7 +84,7 @@ class ProcessReportController extends Controller
                 fputcsv($handle, [
                     $r->code                        ?? '—',
                     $r->name,
-                    $r->company?->name              ?? '—',
+                    $r->company?->procesos_name     ?? '—',
                     $r->processType?->name          ?? '—',
                     $r->document_type               ?? '—',
                     $r->impactLevelLabel()           ?: '—',

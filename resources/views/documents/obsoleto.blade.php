@@ -31,7 +31,7 @@
                 <option value="">Todas las empresas</option>
                 @foreach($companies as $c)
                     <option value="{{ $c->id }}" @selected((string) $selectedCompanyId === (string) $c->id)>
-                        {{ $c->name }}
+                        {{ $c->procesos_name }}
                     </option>
                 @endforeach
             </select>
@@ -90,7 +90,7 @@
                                 @endif
                             </td>
                             @if($user->hasGroupScope())
-                            <td class="px-4 py-3 text-gray-600">{{ $reg->company?->name ?? '—' }}</td>
+                            <td class="px-4 py-3 text-gray-600">{{ $reg->company?->procesos_name ?? '—' }}</td>
                             @endif
                             <td class="px-4 py-3 text-gray-600">{{ $reg->processType?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-gray-600">
@@ -181,7 +181,7 @@
                                 @endif
                             </td>
                             @if($user->hasGroupScope())
-                            <td class="px-4 py-3 text-gray-600">{{ $v->regulation?->company?->name ?? '—' }}</td>
+                            <td class="px-4 py-3 text-gray-600">{{ $v->regulation?->company?->procesos_name ?? '—' }}</td>
                             @endif
                             <td class="px-4 py-3">
                                 <span class="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200 font-medium">

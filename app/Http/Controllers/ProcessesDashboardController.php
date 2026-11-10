@@ -31,6 +31,9 @@ class ProcessesDashboardController extends Controller
             $user->hasMultipleCompanies() => 'm' . implode('-', $user->accessibleCompanyIds()),
             default => "g{$user->group_id}",
         };
+        // Quien ve procesos confidenciales tiene su propia caché: si no, sus números se le
+        // mostrarían a quien no los puede ver (o al revés).
+        $scopeKey .= $user->canSeeRestrictedProcesses() ? ':r' : '';
 
         [$stats, $recent, $chartData] = Cache::remember(
             self::CACHE_PREFIX . $scopeKey,

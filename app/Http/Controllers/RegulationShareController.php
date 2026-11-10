@@ -26,6 +26,7 @@ class RegulationShareController extends Controller
         ]);
 
         $count = 0;
+        $restricted = $regulation->isRestricted();
 
         foreach ($data['user_ids'] as $userId) {
             $recipient = User::where('id', $userId)
@@ -33,6 +34,11 @@ class RegulationShareController extends Controller
                 ->first();
 
             if (! $recipient || $recipient->id === $user->id) {
+                continue;
+            }
+
+            // Un proceso confidencial solo se comparte con quien lo puede ver.
+            if ($restricted && ! $recipient->canSeeRestrictedProcesses()) {
                 continue;
             }
 
@@ -82,6 +88,8 @@ class RegulationShareController extends Controller
         abort_unless($user->isAdmin() || $user->isOperative(), 403);
         abort_unless($user->canAccessCompany($regulation->company), 403);
         abort_unless($regulation->approval_status === 'approved', 403);
+        // El QR abre el documento sin sesión: no aplica a procesos confidenciales.
+        abort_if($regulation->isRestricted(), 403);
 
         $token = $regulation->ensurePublicShareToken();
         $url   = route('processes.public-view', [$regulation, $token]);
