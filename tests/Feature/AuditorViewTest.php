@@ -138,6 +138,17 @@ class AuditorViewTest extends TestCase
             ->assertDontSee('No asistió');
     }
 
+    public function test_el_resultado_muestra_las_conclusiones_del_auditor(): void
+    {
+        // Auditoría 3: las conclusiones van después de los hallazgos.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))
+            ->assertSeeInOrder(['Hallazgos registrados por el auditor', 'Conclusiones del auditor', 'Hay que etiquetar los dos contenedores']);
+
+        // Auditoría 4: el auditor no escribió conclusiones, así que la tarjeta no aparece.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 4))
+            ->assertDontSee('Conclusiones del auditor');
+    }
+
     public function test_el_resultado_muestra_sus_hallazgos(): void
     {
         $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))

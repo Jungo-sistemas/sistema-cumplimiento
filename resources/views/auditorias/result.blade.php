@@ -23,6 +23,8 @@
                     ['nombre' => 'Ana Torres',          'puesto' => 'Responsable del proceso', 'equipo' => 'auditado', 'asistio' => true],
                     ['nombre' => 'Mariana Garza',       'puesto' => 'Supervisor de turno',     'equipo' => 'auditado', 'asistio' => false],
                 ],
+                // Comillas dobles para que "\n" sea un salto de línea, como cuando el auditor da Enter.
+                'conclusiones' => "El almacén de residuos se opera con orden y el manifiesto de entrega está completo.\nHay que etiquetar los dos contenedores del almacén y completar la bitácora con las entradas del fin de semana. Se acordó con Ana Torres revisarlo en la siguiente visita.",
             ],
             4 => [
                 'procedimiento' => 'Control de documentos', 'auditado' => 'Luis Herrera', 'fecha' => '20 ago 2026',
@@ -37,6 +39,7 @@
                     ['nombre' => 'Luis Herrera',        'puesto' => 'Responsable del proceso', 'equipo' => 'auditado', 'asistio' => true],
                     ['nombre' => 'Sofía Ramírez',       'puesto' => 'Encargada de documentos', 'equipo' => 'auditado', 'asistio' => true],
                 ],
+                'conclusiones' => '',
             ],
         ];
 
@@ -145,6 +148,14 @@
             @endforelse
         </div>
     </div>
+
+    {{-- Conclusiones generales que el auditor escribió al final del checklist. Si no escribió nada, no se muestra. --}}
+    @if(filled($auditoria['conclusiones']))
+        <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
+            <h2 class="text-lg font-semibold text-gray-900">Conclusiones del auditor</h2>
+            <p class="mt-3 whitespace-pre-line text-[15px] text-gray-700">{{ $auditoria['conclusiones'] }}</p>
+        </div>
+    @endif
 
     {{-- Quiénes asistieron a la llamada de la auditoría --}}
     <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
