@@ -16,7 +16,7 @@
                     ['texto' => 'El manifiesto de entrega está firmado por el transportista.', 'resultado' => 'cumple',  'calificacion' => 100, 'observacion' => 'El manifiesto mostrado está completo y firmado.'],
                 ],
                 'hallazgos' => [
-                    ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta', 'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres', 'severidad' => 'Mayor', 'seguimiento' => 'Rechazada', 'compromiso' => '2026-09-10'],
+                    ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta', 'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres', 'severidad' => 'No crítico', 'seguimiento' => 'Rechazada', 'compromiso' => '2026-09-10'],
                 ],
                 'participantes' => [
                     ['nombre' => auth()->user()->name, 'puesto' => 'Auditor líder',           'equipo' => 'auditor',  'asistio' => true],
@@ -62,11 +62,10 @@
             'no_aplica' => ['texto' => 'No aplica', 'color' => 'border border-gray-200 bg-white text-gray-500'],
         ];
 
-        // Mismos colores de severidad que la lista de Hallazgos.
+        // Mismos colores de clasificación que la lista de Hallazgos.
         $severidades = [
-            'Crítico' => 'bg-red-50 text-red-700',
-            'Mayor'   => 'bg-amber-50 text-amber-700',
-            'Menor'   => 'bg-brand-50 text-brand',
+            'Crítico'    => 'bg-red-50 text-red-700',
+            'No crítico' => 'bg-gray-100 text-gray-700',
         ];
 
         // La ventana de detalle usa los dos para pintar sus etiquetas (los mismos de la lista de Hallazgos).

@@ -195,6 +195,21 @@ class AuditorViewTest extends TestCase
         $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))->assertDontSee('Vencido');
     }
 
+    public function test_los_hallazgos_se_clasifican_como_critico_o_no_critico(): void
+    {
+        // Al registrar un hallazgo solo hay dos opciones.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))
+            ->assertSeeInOrder(['Clasificación', '>Crítico</option>', '>No crítico</option>'], false);
+
+        // La lista de Hallazgos y el Resultado ya no usan Mayor ni Menor.
+        foreach ([route('auditorias.findings.index'), route('auditorias.audits.result', 3)] as $url) {
+            $this->actingAs($this->auditor)->get($url)
+                ->assertSee('No crítico')
+                ->assertDontSee('Mayor')
+                ->assertDontSee('Menor');
+        }
+    }
+
     public function test_hallazgos_filtra_por_empresa(): void
     {
         $this->actingAs($this->auditor)->get(route('auditorias.findings.index', ['empresa' => 'Vigía']))
