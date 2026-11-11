@@ -44,6 +44,16 @@ class AuditorViewTest extends TestCase
         }
     }
 
+    public function test_el_auditor_entra_a_su_inicio_de_auditorias(): void
+    {
+        // El Inicio de Gestión (procesos liberados, por aprobar, por vencer) es para admins y operativos.
+        $this->actingAs($this->auditor)->get(route('gestion.home'))->assertRedirect(route('auditorias.home'));
+
+        // En el menú, "Inicio" lleva al Inicio de Auditorías.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.index'))
+            ->assertSee('href="' . route('auditorias.home') . '"', false);
+    }
+
     public function test_una_auditoria_que_no_existe_da_404(): void
     {
         $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 99))->assertNotFound();

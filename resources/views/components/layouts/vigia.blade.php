@@ -133,8 +133,9 @@
         // Gestión de Procesos y Auditorías. Admin: todo, con los dos tableros de indicadores.
         // Operativo: solo Procesos, sin indicadores (lo de auditorías lo ve en Mi espacio).
         // Auditor: Procesos para consultar y Auditorías.
+        $inicio = $user->isAuditor() ? 'auditorias.home' : 'gestion.home';
         $sections[] = ['title' => null, 'items' => [
-            $item('Inicio', 'gestion.home', 'home', request()->routeIs('gestion.home')),
+            $item('Inicio', $inicio, 'home', request()->routeIs($inicio)),
         ]];
 
         $procesosItems = [
@@ -151,7 +152,7 @@
 
         if ($user->isAdmin() || $user->isAuditor()) {
             $auditoriasItems = [
-                $item('Auditorías', 'auditorias.audits.index', 'clipboard', request()->routeIs('auditorias.audits.*', 'auditorias.home')),
+                $item('Auditorías', 'auditorias.audits.index', 'clipboard', request()->routeIs('auditorias.audits.*')),
                 $item('Hallazgos', 'auditorias.findings.index', 'flag', request()->routeIs('auditorias.findings.*')),
             ];
             if ($user->isAdmin()) {
