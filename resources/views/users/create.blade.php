@@ -73,7 +73,10 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('users.store') }}" class="mt-6 space-y-6">
+        {{-- El correo de invitación se manda en la misma petición y tarda unos segundos: sin bloquear
+             el botón, un segundo clic llegaba cuando el usuario ya existía y salía "email already taken". --}}
+        <form method="POST" action="{{ route('users.store') }}" class="mt-6 space-y-6"
+              x-data="{ submitting: false }" @submit="if (submitting) { $event.preventDefault() } else { submitting = true }">
             @csrf
 
             {{-- ── DATOS BÁSICOS ─────────────────────────────────────────── --}}
@@ -328,9 +331,10 @@
                    class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">
                     Cancelar
                 </a>
-                <button type="submit"
-                        class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark">
-                    Enviar invitación
+                <button type="submit" :disabled="submitting"
+                        class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark disabled:opacity-60 disabled:cursor-wait">
+                    <span x-show="! submitting">Enviar invitación</span>
+                    <span x-show="submitting" x-cloak>Enviando invitación…</span>
                 </button>
             </div>
         </form>
