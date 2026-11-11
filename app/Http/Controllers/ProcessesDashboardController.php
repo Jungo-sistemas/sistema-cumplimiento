@@ -15,7 +15,7 @@ class ProcessesDashboardController extends Controller
     // al guardar/archivar/restaurar/eliminar un Regulation. Si se vuelve a subir la versión
     // (v5 -> v6, por el motivo que sea), basta con cambiar esta constante: el observer
     // automáticamente apunta a la misma clave, sin quedar desincronizado otra vez.
-    public const CACHE_PREFIX = 'dashboard:processes:v5:';
+    public const CACHE_PREFIX = 'dashboard:processes:v6:';
 
     public function index(Request $request)
     {
@@ -178,23 +178,36 @@ class ProcessesDashboardController extends Controller
                     (int) ($rawByImpact['bajo']        ?? 0),
                 ];
 
-                // Ranking de personas con más aprobaciones pendientes
+                // Ranking de personas con más aprobaciones pendientes. Cada persona lleva sus
+                // procedimientos con los días que llevan esperando su aprobación (el popup del tablero).
                 $pendingByUser = RegulationApproval::whereIn('regulation_id', $allRegIds)
-                    ->where('regulation_approvals.status', 'pending')
-                    ->join('users', 'regulation_approvals.user_id', '=', 'users.id')
-                    ->select(
-                        'users.name',
-                        DB::raw('count(*) as pending_count'),
-                        DB::raw('min(regulation_approvals.created_at) as oldest_at')
-                    )
-                    ->groupBy('users.name')
-                    ->orderByDesc('pending_count')
+                    ->where('status', 'pending')
+                    ->whereHas('user')
+                    ->with(['user:id,name', 'regulation:id,code,name,company_id', 'regulation.company'])
                     ->get()
-                    ->map(fn ($row) => [
-                        'name'        => $row->name,
-                        'count'       => (int) $row->pending_count,
-                        'oldest_days' => (int) Carbon::parse($row->oldest_at)->diffInDays(now()),
-                    ])
+                    ->groupBy('user_id')
+                    ->map(function ($approvals) {
+                        $items = $approvals
+                            ->map(fn (RegulationApproval $a) => [
+                                'id'   => $a->regulation_id,
+                                'code' => $a->regulation?->code,
+                                'name' => $a->regulation?->name ?? '—',
+                                'company' => $a->regulation?->company?->procesos_name,
+                                'step' => $a->step_number,
+                                'days' => (int) Carbon::parse($a->created_at)->diffInDays(now()),
+                            ])
+                            ->sortByDesc('days')
+                            ->values();
+
+                        return [
+                            'name'        => $approvals->first()->user->name,
+                            'count'       => $items->count(),
+                            'oldest_days' => $items->max('days'),
+                            'items'       => $items->all(),
+                        ];
+                    })
+                    ->sortBy([['count', 'desc'], ['oldest_days', 'desc']])
+                    ->values()
                     ->all();
 
                 $chartData = [

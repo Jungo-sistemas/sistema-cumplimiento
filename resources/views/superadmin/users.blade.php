@@ -133,7 +133,9 @@
         {{-- Inline create form --}}
         <div x-show="showForm" x-transition class="mb-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm" style="display: none;">
             <h2 class="mb-4 font-semibold text-gray-800">Nuevo usuario</h2>
-            <form method="POST" action="{{ route('superadmin.users.store') }}">
+            {{-- Bloquea el doble clic: el correo de invitación se manda en la misma petición. --}}
+            <form method="POST" action="{{ route('superadmin.users.store') }}"
+                  x-data="{ submitting: false }" @submit="if (submitting) { $event.preventDefault() } else { submitting = true }">
                 @csrf
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 
@@ -347,10 +349,11 @@
 
                 <div class="mt-4 flex gap-2">
                     <button
-                        type="submit"
-                        class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark text-sm"
+                        type="submit" :disabled="submitting"
+                        class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark text-sm disabled:opacity-60 disabled:cursor-wait"
                     >
-                        Invitar usuario
+                        <span x-show="! submitting">Invitar usuario</span>
+                        <span x-show="submitting" x-cloak>Enviando invitación…</span>
                     </button>
                     <button
                         type="button"
