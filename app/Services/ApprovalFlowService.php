@@ -26,7 +26,9 @@ class ApprovalFlowService
      */
     /**
      * Flujos bottom-up: cada paso espera a que el anterior se complete.
-     * Jerarquía: lider (1) → jefe (2) → gerente (3) → direccion/consejo (4, mismo nivel: basta uno)
+     * Jerarquía: lider (1) → jefe (2) → gerente (3) → direccion/consejo (4, mismo paso).
+     * Desde nov 2026 el último paso también es "requires_all": si hay dos en Dirección, aprueba
+     * uno y luego el otro (antes bastaba uno y al otro se le cancelaba la solicitud).
      */
     private const FLOWS = [
         'bajo' => [
@@ -39,13 +41,13 @@ class ApprovalFlowService
         'medio_alto' => [
             1 => ['requires_all' => true,  'positions' => ['lider']],
             2 => ['requires_all' => true,  'positions' => ['gerente']],
-            3 => ['requires_all' => false, 'positions' => ['direccion', 'consejo']],
+            3 => ['requires_all' => true,  'positions' => ['direccion', 'consejo']],
         ],
         'alto' => [
             1 => ['requires_all' => true,  'positions' => ['lider']],
             2 => ['requires_all' => true,  'positions' => ['jefe']],
             3 => ['requires_all' => true,  'positions' => ['gerente']],
-            4 => ['requires_all' => false, 'positions' => ['direccion', 'consejo']],
+            4 => ['requires_all' => true,  'positions' => ['direccion', 'consejo']],
         ],
     ];
 

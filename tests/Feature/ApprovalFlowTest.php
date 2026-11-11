@@ -354,6 +354,49 @@ class ApprovalFlowTest extends TestCase
         $this->assertEquals('pending_authorization', $reg->fresh()->approval_status);
     }
 
+    public function test_alto_con_dos_en_direccion_aprueba_uno_y_luego_el_otro(): void
+    {
+        $segundaDireccion = User::factory()->create([
+            'group_id' => $this->group->id, 'scope_level' => 'group',
+            'role_id' => $this->opRoleId, 'status' => 'active',
+        ]);
+        $segundaDireccion->jobPositions()->attach($this->positions['direccion']->id);
+
+        $reg = $this->makeRegulationWithUsers('alto', [
+            'direccion' => [(string) $this->users['direccion']->id, (string) $segundaDireccion->id],
+        ]);
+
+        $this->assertSame([$this->users['direccion']->id], $reg->pendingApprovals()->pluck('user_id')->all());
+        Notification::assertNotSentTo($segundaDireccion, ApprovalRequestedNotification::class);
+
+        $this->approveAs($reg, $this->users['direccion']);
+
+        // Al segundo ya no se le cancela: ahora le toca a él y el proceso sigue sin aprobarse.
+        $this->assertNotSame('approved', $reg->fresh()->approval_status);
+        $this->assertDatabaseHas('regulation_approvals', [
+            'regulation_id' => $reg->id, 'user_id' => $segundaDireccion->id, 'status' => 'pending',
+        ]);
+        Notification::assertSentTo($segundaDireccion, ApprovalRequestedNotification::class);
+
+        $this->approveAs($reg, $segundaDireccion);
+        $this->assertSame('approved', $reg->fresh()->approval_status);
+    }
+
+    public function test_alto_sin_nadie_arriba_termina_en_el_ultimo_paso_con_nombre(): void
+    {
+        $reg = $this->makeRegulationWithUsers('alto', [
+            'lider'   => [(string) $this->users['lider']->id],
+            'gerente' => [(string) $this->users['gerente']->id],
+        ]);
+
+        $this->approveAs($reg, $this->users['lider']);
+        $this->assertSame([$this->users['gerente']->id], $reg->fresh()->pendingApprovals()->pluck('user_id')->all());
+
+        $this->approveAs($reg, $this->users['gerente']);
+        $this->assertSame('approved', $reg->fresh()->approval_status);
+        $this->assertSame(0, $reg->approvals()->where('user_id', $this->users['direccion']->id)->count());
+    }
+
     // ─── MEDIO-ALTO: paso1 AND[lider] → paso2 AND[gerente] → paso3 AND[direccion] ──
 
     public function test_medio_alto_flujo_completo_tres_aprobaciones(): void
