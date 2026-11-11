@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\ApprovalFlowService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -243,6 +244,24 @@ class RestrictedProcessesTest extends TestCase
             })
             ->assertSee('Pendientes de Luis Líder')
             ->assertSee('5 días');
+    }
+
+    /**
+     * Producción, 11-nov-2026: tras la doble verificación, a quien tenía empresa se le acababa la
+     * memoria (512 MB) en cada página. El usuario se carga con su empresa ($with) y el filtro de
+     * Company preguntaba Auth::user() mientras el guard todavía lo estaba cargando: se volvía a
+     * cargar sin fin. actingAs() no lo reproduce porque deja el usuario ya cargado; aquí entra
+     * por la sesión, como en un navegador.
+     */
+    public function test_un_usuario_con_empresa_entra_por_sesion_sin_ciclarse(): void
+    {
+        foreach ([$this->lider, $this->consejo] as $user) {
+            Auth::forgetGuards();
+
+            $this->withSession([Auth::guard('web')->getName() => $user->id])
+                ->get(route('gestion.home'))
+                ->assertOk();
+        }
     }
 
     public function test_un_confidencial_no_tiene_enlace_publico(): void

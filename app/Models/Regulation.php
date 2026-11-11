@@ -99,8 +99,9 @@ class Regulation extends Model
         // Procesos confidenciales (los de la empresa DIRECCIÓN, Company::is_restricted): para quien no puede verlos no existen —
         // ni en listados, tableros, reportes o menciones, ni abriéndolos por URL (404). Sin usuario
         // (comandos, colas, enlace público sin sesión) no se filtra nada.
+        // Auth::hasUser(): mismo motivo que en Company (no disparar la carga del usuario desde aquí).
         static::addGlobalScope('restricted', function (Builder $query) {
-            if (Auth::user()?->canSeeRestrictedProcesses() === false) {
+            if (Auth::hasUser() && Auth::user()->canSeeRestrictedProcesses() === false) {
                 $query->whereNotIn($query->qualifyColumn('company_id'), DB::table('companies')->select('id')->where('is_restricted', true));
             }
         });
