@@ -54,6 +54,21 @@ class AuditorViewTest extends TestCase
             ->assertSee('href="' . route('auditorias.home') . '"', false);
     }
 
+    public function test_solo_auditores_y_admins_entran_a_auditorias(): void
+    {
+        // Mismo grupo que el auditor, otro rol.
+        $conRol = fn (string $slug) => User::factory()->create([
+            'group_id' => $this->auditor->group_id, 'scope_level' => 'group', 'status' => 'active',
+            'role_id' => Role::create(['name' => ucfirst($slug), 'slug' => $slug])->id,
+        ]);
+
+        // Un operativo que escribe la dirección a mano no entra.
+        $this->actingAs($conRol('operative'))->get(route('auditorias.audits.checklist', 1))->assertForbidden();
+
+        // Un admin sí entra.
+        $this->actingAs($conRol('admin'))->get(route('auditorias.audits.checklist', 1))->assertOk();
+    }
+
     public function test_una_auditoria_que_no_existe_da_404(): void
     {
         $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 99))->assertNotFound();
