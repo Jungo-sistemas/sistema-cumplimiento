@@ -84,14 +84,15 @@
                     <div class="text-sm font-semibold text-gray-700">Personas con aprobaciones pendientes</div>
                     <span class="text-xs text-gray-400">· ordenadas por cantidad acumulada</span>
                 </div>
-                <div class="border rounded-lg overflow-hidden">
+                {{-- Sin overflow-hidden: si no, el popup de pendientes se corta en las últimas filas. --}}
+                <div class="border rounded-lg">
                     <table class="w-full text-sm">
-                        <thead class="bg-gray-50 text-gray-500 text-xs">
+                        <thead class="text-gray-500 text-xs">
                             <tr>
-                                <th class="text-left px-4 py-2.5 font-semibold">#</th>
-                                <th class="text-left px-4 py-2.5 font-semibold">Persona</th>
-                                <th class="text-center px-4 py-2.5 font-semibold">Pendientes</th>
-                                <th class="text-right px-4 py-2.5 font-semibold">Más antigua</th>
+                                <th class="text-left px-4 py-2.5 font-semibold bg-gray-50 rounded-tl-lg">#</th>
+                                <th class="text-left px-4 py-2.5 font-semibold bg-gray-50">Persona</th>
+                                <th class="text-center px-4 py-2.5 font-semibold bg-gray-50">Pendientes <span class="font-normal text-gray-400">(pasa el mouse)</span></th>
+                                <th class="text-right px-4 py-2.5 font-semibold bg-gray-50 rounded-tr-lg">Más antigua</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -107,10 +108,56 @@
                                         </div>
                                     </td>
                                     <td class="px-4 py-2.5 text-center">
-                                        <span class="inline-flex items-center justify-center h-6 min-w-[1.5rem] px-2 rounded-full text-xs font-bold
-                                            {{ $person['count'] >= 3 ? 'bg-red-100 text-red-700' : ($person['count'] == 2 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600') }}">
-                                            {{ $person['count'] }}
-                                        </span>
+                                        {{-- Al pasar el mouse (o tocar en el celular) se ven los procedimientos que tiene pendientes. --}}
+                                        <div class="relative inline-block" x-data="{ open: false }"
+                                             @mouseenter="open = true" @mouseleave="open = false" @click.outside="open = false">
+                                            <button type="button" @click="open = ! open"
+                                                @class([
+                                                    'inline-flex items-center justify-center h-6 min-w-[1.5rem] px-2 rounded-full text-xs font-bold cursor-help',
+                                                    'bg-red-100 text-red-700' => $person['count'] >= 3,
+                                                    'bg-yellow-100 text-yellow-700' => $person['count'] == 2,
+                                                    'bg-gray-100 text-gray-600' => $person['count'] < 2,
+                                                ])>
+                                                {{ $person['count'] }}
+                                            </button>
+
+                                            @if(! empty($person['items']))
+                                                <div x-show="open" x-cloak x-transition.opacity
+                                                     class="absolute z-30 right-1/2 translate-x-1/2 top-full pt-2 w-80 max-w-[calc(100vw-2rem)] text-left">
+                                                    <div class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                                                        <div class="px-3 py-2 bg-gray-50 border-b text-xs font-semibold text-gray-600">
+                                                            Pendientes de {{ $person['name'] }}
+                                                        </div>
+                                                        <ul class="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                                                            @foreach($person['items'] as $item)
+                                                                <li>
+                                                                    <a href="{{ route('processes.show', $item['id']) }}"
+                                                                       class="flex items-start justify-between gap-3 px-3 py-2 hover:bg-gray-50">
+                                                                        <div class="min-w-0">
+                                                                            <div class="text-xs font-medium text-gray-800 truncate">
+                                                                                @if($item['code'])<span class="text-gray-500">{{ $item['code'] }} ·</span>@endif
+                                                                                {{ $item['name'] }}
+                                                                            </div>
+                                                                            <div class="text-[11px] text-gray-400 truncate">
+                                                                                {{ $item['company'] ?? '—' }} · Paso {{ $item['step'] }}
+                                                                            </div>
+                                                                        </div>
+                                                                        <span @class([
+                                                                            'shrink-0 text-[11px] font-semibold whitespace-nowrap',
+                                                                            'text-red-600' => $item['days'] >= 7,
+                                                                            'text-yellow-600' => $item['days'] >= 3 && $item['days'] < 7,
+                                                                            'text-gray-500' => $item['days'] < 3,
+                                                                        ])>
+                                                                            {{ $item['days'] === 0 ? 'Hoy' : ($item['days'] === 1 ? '1 día' : $item['days'] . ' días') }}
+                                                                        </span>
+                                                                    </a>
+                                                                </li>
+                                                            @endforeach
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
                                     </td>
                                     <td class="px-4 py-2.5 text-right text-gray-500 text-xs">
                                         @if($person['oldest_days'] === 0)

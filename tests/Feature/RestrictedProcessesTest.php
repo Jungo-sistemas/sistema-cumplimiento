@@ -179,7 +179,7 @@ class RestrictedProcessesTest extends TestCase
         $this->assertSame('approved', $secret->fresh()->approval_status);
     }
 
-    public function test_en_un_proceso_normal_direccion_y_consejo_comparten_paso_y_basta_uno(): void
+    public function test_en_un_proceso_normal_direccion_y_consejo_comparten_paso_y_aprueban_en_orden(): void
     {
         Notification::fake();
         foreach (['jefe' => 2, 'gerente' => 3] as $slug => $order) {
@@ -199,15 +199,16 @@ class RestrictedProcessesTest extends TestCase
             $this->actingAs($approver)->post(route('processes.approve', $regulation))->assertSessionHas('success');
         }
 
-        // Paso 4: Dirección y Consejo pendientes a la vez; con que apruebe Dirección se cierra.
-        $this->assertEqualsCanonicalizing(
-            [$this->direccion->id, $this->consejo->id],
-            $regulation->approvalStep(4)->where('status', 'pending')->pluck('user_id')->all()
-        );
+        // Paso 4: primero Dirección y luego Consejo; al aprobar Dirección, a Consejo ya no se le cancela.
+        $this->assertSame([$this->direccion->id], $regulation->approvalStep(4)->where('status', 'pending')->pluck('user_id')->all());
+        $this->assertSame('waiting', $regulation->approvalStep(4)->where('user_id', $this->consejo->id)->value('status'));
         $this->actingAs($this->direccion)->post(route('processes.approve', $regulation))->assertSessionHas('success');
 
+        $this->assertNotSame('approved', $regulation->fresh()->approval_status);
+        $this->assertSame('pending', $regulation->approvalStep(4)->where('user_id', $this->consejo->id)->value('status'));
+        $this->actingAs($this->consejo)->post(route('processes.approve', $regulation))->assertSessionHas('success');
+
         $this->assertSame('approved', $regulation->fresh()->approval_status);
-        $this->assertSame('cancelled', $regulation->approvalStep(4)->where('user_id', $this->consejo->id)->value('status'));
     }
 
     public function test_el_tablero_no_mezcla_numeros_entre_quien_ve_y_quien_no(): void
@@ -220,6 +221,28 @@ class RestrictedProcessesTest extends TestCase
             ->assertViewHas('stats', fn ($stats) => $stats['total'] === 2);
         $this->actingAs($this->adminAll)->get(route('processes.dashboard'))
             ->assertViewHas('stats', fn ($stats) => $stats['total'] === 1);
+    }
+
+    public function test_el_tablero_lista_los_pendientes_de_cada_persona_con_sus_dias(): void
+    {
+        Notification::fake();
+        $manual = $this->regulation('Manual de operaciones', $this->company, ['approval_status' => 'pending_review', 'impact_level' => 'bajo']);
+        $secret = $this->regulation('Plan de sucesión directiva', $this->restrictedCompany, ['approval_status' => 'pending_review', 'impact_level' => 'bajo']);
+        app(ApprovalFlowService::class)->initFlow($manual);
+        app(ApprovalFlowService::class)->initFlow($secret);
+        $manual->approvals()->update(['created_at' => now()->subDays(5)]);
+
+        $this->actingAs($this->adminAll)->get(route('processes.dashboard'))
+            ->assertViewHas('chartData', function ($data) use ($manual) {
+                $lider = collect($data['pendingByUser'])->firstWhere('name', 'Luis Líder');
+
+                return $lider['count'] === 1
+                    && $lider['items'][0]['code'] === $manual->code
+                    && $lider['items'][0]['days'] === 5
+                    && collect($data['pendingByUser'])->pluck('items')->flatten(1)->pluck('name')->doesntContain('Plan de sucesión directiva');
+            })
+            ->assertSee('Pendientes de Luis Líder')
+            ->assertSee('5 días');
     }
 
     public function test_un_confidencial_no_tiene_enlace_publico(): void
