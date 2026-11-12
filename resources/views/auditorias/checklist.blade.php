@@ -51,7 +51,7 @@
         // Convocados a la llamada: el equipo del auditor y el del auditado. Durante la llamada se marca quién asistió.
         // "obligatorio": el auditor y el auditado deben estar marcados para poder finalizar.
         $participantes = [
-            ['nombre' => auth()->user()->name,  'puesto' => 'Auditor líder',           'equipo' => 'auditor',  'obligatorio' => true],
+            ['nombre' => auth()->user()->name,  'puesto' => 'Auditor',           'equipo' => 'auditor',  'obligatorio' => true],
             ['nombre' => $auditoria['auditado'], 'puesto' => 'Responsable del proceso', 'equipo' => 'auditado', 'obligatorio' => true],
             ['nombre' => 'Mariana Garza',        'puesto' => 'Supervisor de turno',     'equipo' => 'auditado', 'obligatorio' => false],
         ];

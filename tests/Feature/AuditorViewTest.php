@@ -174,7 +174,7 @@ class AuditorViewTest extends TestCase
             ->assertSeeInOrder([
                 'Lista de asistencia',
                 'Marca a las personas que asistieron a la llamada.',
-                'Daniel Ruiz', 'Auditor líder · Equipo auditor',
+                'Daniel Ruiz', 'Auditor · Equipo auditor',
                 'Laura Méndez', 'Responsable del proceso · Equipo auditado',
                 'criterios capturados',
             ]);

@@ -20,7 +20,7 @@
                     ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta', 'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres', 'severidad' => 'No crítico', 'seguimiento' => 'Rechazada', 'compromiso' => '2026-09-10'],
                 ],
                 'participantes' => [
-                    ['nombre' => auth()->user()->name, 'puesto' => 'Auditor líder',           'equipo' => 'auditor',  'asistio' => true],
+                    ['nombre' => auth()->user()->name, 'puesto' => 'Auditor',           'equipo' => 'auditor',  'asistio' => true],
                     ['nombre' => 'Ana Torres',          'puesto' => 'Responsable del proceso', 'equipo' => 'auditado', 'asistio' => true],
                     ['nombre' => 'Mariana Garza',       'puesto' => 'Supervisor de turno',     'equipo' => 'auditado', 'asistio' => false],
                 ],
@@ -37,7 +37,7 @@
                 ],
                 'hallazgos' => [],
                 'participantes' => [
-                    ['nombre' => auth()->user()->name, 'puesto' => 'Auditor líder',           'equipo' => 'auditor',  'asistio' => true],
+                    ['nombre' => auth()->user()->name, 'puesto' => 'Auditor',           'equipo' => 'auditor',  'asistio' => true],
                     ['nombre' => 'Luis Herrera',        'puesto' => 'Responsable del proceso', 'equipo' => 'auditado', 'asistio' => true],
                     ['nombre' => 'Sofía Ramírez',       'puesto' => 'Encargada de documentos', 'equipo' => 'auditado', 'asistio' => true],
                 ],
