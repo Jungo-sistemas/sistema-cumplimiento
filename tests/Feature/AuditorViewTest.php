@@ -153,6 +153,20 @@ class AuditorViewTest extends TestCase
         $this->actingAs($this->auditor)->get($proceso)->assertOk();
     }
 
+    public function test_se_puede_solicitar_reprogramar_una_auditoria_no_finalizada(): void
+    {
+        // En captura y Programada: el botón abre la ventana, que muestra la fecha actual y pide solo el motivo.
+        foreach ([1 => '11 sep 2026', 2 => '14 sep 2026'] as $id => $fecha) {
+            $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $id))
+                ->assertSee('@click="$dispatch(\'solicitar-reprogramacion\')"', false)
+                ->assertSeeInOrder(['Solicitar reprogramación', 'Fecha actual: ' . $fecha, 'Motivo', 'El auditor líder revisa la solicitud y agenda la nueva fecha.'])
+                ->assertDontSee('id="reprogramacion-fecha"', false);
+        }
+
+        // Una auditoría finalizada ya no se reprograma.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))->assertDontSee('Solicitar reprogramación');
+    }
+
     public function test_la_lista_de_asistencia_muestra_a_los_convocados(): void
     {
         // Auditoría 1 (En captura): el botón va arriba del contador y se marca quién asistió.

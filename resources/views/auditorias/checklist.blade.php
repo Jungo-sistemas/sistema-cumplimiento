@@ -8,8 +8,8 @@
     @php
         // Datos de ejemplo para la demo: las auditorías en ejecución, con el mismo número (id) que usará la lista.
         $auditorias = [
-            1 => ['procedimiento' => 'Control de maniobras y seguridad', 'auditado' => 'Laura Méndez',  'estado' => 'En captura'],
-            2 => ['procedimiento' => 'Recepción de materia prima',       'auditado' => 'Jorge Salinas', 'estado' => 'Programada'],
+            1 => ['procedimiento' => 'Control de maniobras y seguridad', 'auditado' => 'Laura Méndez',  'estado' => 'En captura', 'fecha' => '11 sep 2026'],
+            2 => ['procedimiento' => 'Recepción de materia prima',       'auditado' => 'Jorge Salinas', 'estado' => 'Programada', 'fecha' => '14 sep 2026'],
         ];
 
         // $audit es el número que viene en la dirección (/auditorias/1/checklist). Si no existe: 404.
@@ -59,6 +59,9 @@
 
     <div class="mb-4 flex items-center justify-between gap-4">
         <a href="{{ route('auditorias.audits.index') }}" class="text-sm font-semibold text-brand hover:underline">Volver a auditorías</a>
+        {{-- ml-auto: empuja el botón a la derecha, junto al estado --}}
+        <button type="button" @click="$dispatch('solicitar-reprogramacion')"
+                class="ml-auto rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">Solicitar reprogramación</button>
         <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $auditoria['estado'] === 'En captura' ? 'bg-amber-50 text-amber-700' : 'bg-brand-50 text-brand' }}">{{ $auditoria['estado'] }}</span>
     </div>
 
@@ -260,4 +263,5 @@
     @if($editable)
         @include('auditorias.partials.register-finding-modal')
     @endif
+    @include('auditorias.partials.reschedule-modal')
 </x-layouts.vigia>
