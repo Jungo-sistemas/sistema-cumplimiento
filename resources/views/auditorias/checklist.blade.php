@@ -1,3 +1,4 @@
+
 <x-layouts.vigia title="Checklist · Auditorías">
     <x-slot name="breadcrumb">
         <a href="{{ route('auditorias.audits.index') }}" class="hover:underline">Auditorías</a>
@@ -72,16 +73,20 @@
 
     {{-- Todo lo de adentro comparte estos datos "vivos" de Alpine --}}
     <div x-data="{
-            respuestas: @js(array_fill(0, count($criterios), ['resultado' => '', 'calificacion' => ''])),
+            respuestas: @js(array_fill(0, count($criterios), ['resultado' => ''])),
+            ponderaciones: @js(config('auditorias.ponderaciones')),
             asistencia: @js(array_fill(0, count($participantes), false)),
             obligatorios: @js(array_column($participantes, 'obligatorio')),
             guardado: false,
             confirmando: false,
             finalizada: false,
-            tieneCalificacion(r) { return r.calificacion !== '' && r.calificacion !== null },
-            fueraDeRango(r) { return this.tieneCalificacion(r) && (r.calificacion < 0 || r.calificacion > 100) },
             noAplica(r) { return r.resultado === 'no_aplica' },
-            capturado(r) { return r.resultado !== '' && (this.noAplica(r) || (this.tieneCalificacion(r) && ! this.fueraDeRango(r))) },
+            capturado(r) { return r.resultado !== '' },
+            valor(r) {
+                if (r.resultado === '') return '—';
+                if (this.noAplica(r)) return 'No cuenta';
+                return this.ponderaciones[r.resultado] + ' / 100';
+            },
             get capturados() { return this.respuestas.filter(r => this.capturado(r)).length },
             get asistieron() { return this.asistencia.filter(a => a).length },
             get faltanObligatorios() { return this.obligatorios.some((obligatorio, i) => obligatorio && ! this.asistencia[i]) },
@@ -89,7 +94,7 @@
                 {{-- "No aplica" no cuenta: el promedio es solo de los criterios evaluados. --}}
                 const evaluados = this.respuestas.filter(r => ! this.noAplica(r));
                 if (evaluados.length === 0) return '—';
-                return Math.round(evaluados.reduce((suma, r) => suma + r.calificacion, 0) / evaluados.length);
+                return Math.round(evaluados.reduce((suma, r) => suma + this.ponderaciones[r.resultado], 0) / evaluados.length);
             },
          }">
 
@@ -97,7 +102,7 @@
         <div class="mb-6 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-6">
             <div class="sm:flex-1">
                 <h2 class="text-base font-semibold text-gray-900">Sesión por Microsoft Teams</h2>
-                <p class="mt-2 text-sm text-gray-600">{{ $editable ? 'Registra las respuestas, las observaciones y la calificación durante la llamada.' : 'La captura corresponde al auditor asignado cuando la auditoría esté activa.' }}</p>
+                <p class="mt-2 text-sm text-gray-600">{{ $editable ? 'Registra las respuestas y las observaciones durante la llamada.' : 'La captura corresponde al auditor asignado cuando la auditoría esté activa.' }}</p>
             </div>
 
             <div class="flex flex-col items-start gap-3 sm:items-end">
@@ -173,7 +178,6 @@
                         <div>
                             <label for="resultado-{{ $i }}" class="mb-2 block text-sm font-semibold text-gray-900">Resultado del criterio</label>
                             <select id="resultado-{{ $i }}" name="respuestas[{{ $i }}][resultado]" x-model="respuestas[{{ $i }}].resultado"
-                                    @change="if ($event.target.value === 'no_aplica') respuestas[{{ $i }}].calificacion = ''"
                                     class="h-12 w-full rounded-lg border-gray-200 bg-gray-50 text-[15px] focus:border-brand focus:ring-brand">
                                 <option value="">Selecciona</option>
                                 <option value="cumple">Cumple</option>
@@ -182,16 +186,14 @@
                                 <option value="no_aplica">No aplica</option>
                             </select>
                         </div>
+                        {{-- PENDIENTE: falta confirmar con la cliente si el auditor debe ver el valor de cada criterio.
+                             Para mostrarlo, quita este comentario. El valor sale solo del resultado elegido.
                         <div>
-                            <label for="calificacion-{{ $i }}" class="mb-2 block text-sm font-semibold text-gray-900">Calificación · 0 a 100</label>
-                            <input id="calificacion-{{ $i }}" type="number" min="0" max="100" name="respuestas[{{ $i }}][calificacion]"
-                               x-model.number="respuestas[{{ $i }}].calificacion"
-                               :disabled="noAplica(respuestas[{{ $i }}])"
-                               :placeholder="noAplica(respuestas[{{ $i }}]) ? 'No aplica' : ''"
-                               class="h-12 w-full rounded-lg bg-gray-50 text-[15px] focus:border-brand focus:ring-brand disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
-                               :class="fueraDeRango(respuestas[{{ $i }}]) ? 'border-red-500' : 'border-gray-200'">
-                        <p x-show="fueraDeRango(respuestas[{{ $i }}])" x-cloak class="mt-1 text-sm text-red-600">Debe ser un número de 0 a 100.</p>
+                            <span class="mb-2 block text-sm font-semibold text-gray-900">Valor del criterio</span>
+                            <div class="flex h-12 items-center rounded-lg border border-gray-200 bg-gray-100 px-4 text-[15px] text-gray-700"
+                                 x-text="valor(respuestas[{{ $i }}])">—</div>
                         </div>
+                        --}}
                     </div>
 
                     <div class="mt-5">
@@ -231,7 +233,7 @@
         @if($editable)
             <div class="mt-6 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-gray-200 bg-white p-6" x-show="! confirmando && ! finalizada">
                 <span x-show="guardado" x-cloak x-transition class="mr-auto text-sm font-semibold text-green-700">Avance guardado (demo: todavía no se guarda en la base de datos).</span>
-                <span x-show="! guardado && capturados < {{ count($criterios) }}" class="mr-auto text-sm text-gray-600">Para finalizar, captura el resultado de cada criterio y su calificación (excepto los que no aplican).</span>
+                <span x-show="! guardado && capturados < {{ count($criterios) }}" class="mr-auto text-sm text-gray-600">Para finalizar, captura el resultado de cada criterio.</span>
                 <span x-show="! guardado && capturados === {{ count($criterios) }} && faltanObligatorios" x-cloak class="mr-auto text-sm text-gray-600">Para finalizar, marca en la lista de asistencia al auditor y al auditado.</span>
 
                 <button type="button" @click="guardado = true; setTimeout(() => guardado = false, 3000)"

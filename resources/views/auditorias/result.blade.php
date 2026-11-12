@@ -11,10 +11,10 @@
             3 => [
                 'procedimiento' => 'Manejo de residuos peligrosos', 'auditado' => 'Ana Torres', 'fecha' => '28 ago 2026',
                 'criterios' => [
-                    ['texto' => 'El auditado conoce sus procedimientos y sabe dónde consultarlos.', 'resultado' => 'cumple', 'calificacion' => 85, 'observacion' => 'Explicó el procedimiento y mostró dónde lo consulta.'],
-                    ['texto' => 'Los contenedores están identificados con su etiqueta.',     'resultado' => 'no_cumple', 'calificacion' => 65, 'observacion' => 'Dos contenedores del almacén no tienen etiqueta de identificación.'],
-                    ['texto' => 'El almacén temporal cuenta con bitácora de entradas.',      'resultado' => 'parcial',   'calificacion' => 90,  'observacion' => 'La bitácora existe, pero le faltan las entradas del fin de semana.'],
-                    ['texto' => 'El manifiesto de entrega está firmado por el transportista.', 'resultado' => 'cumple',  'calificacion' => 100, 'observacion' => 'El manifiesto mostrado está completo y firmado.'],
+                    ['texto' => 'El auditado conoce sus procedimientos y sabe dónde consultarlos.', 'resultado' => 'cumple', 'observacion' => 'Explicó el procedimiento y mostró dónde lo consulta.'],
+                    ['texto' => 'Los contenedores están identificados con su etiqueta.',     'resultado' => 'no_cumple', 'observacion' => 'Dos contenedores del almacén no tienen etiqueta de identificación.'],
+                    ['texto' => 'El almacén temporal cuenta con bitácora de entradas.',      'resultado' => 'parcial', 'observacion' => 'La bitácora existe, pero le faltan las entradas del fin de semana.'],
+                    ['texto' => 'El manifiesto de entrega está firmado por el transportista.', 'resultado' => 'cumple', 'observacion' => 'El manifiesto mostrado está completo y firmado.'],
                 ],
                 'hallazgos' => [
                     ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta', 'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres', 'severidad' => 'No crítico', 'seguimiento' => 'Rechazada', 'compromiso' => '2026-09-10'],
@@ -30,10 +30,10 @@
             4 => [
                 'procedimiento' => 'Control de documentos', 'auditado' => 'Luis Herrera', 'fecha' => '20 ago 2026',
                 'criterios' => [
-                    ['texto' => 'El auditado conoce sus procedimientos y sabe dónde consultarlos.', 'resultado' => 'cumple', 'calificacion' => 92, 'observacion' => 'Explicó el procedimiento y mostró dónde lo consulta.'],
-                    ['texto' => 'Los documentos en planta están en su versión vigente.', 'resultado' => 'cumple', 'calificacion' => 95, 'observacion' => 'Las versiones en planta coinciden con el sistema.'],
-                    ['texto' => 'Los cambios tienen registro de aprobación.',            'resultado' => 'cumple',    'calificacion' => 89,   'observacion' => 'Cada cambio revisado tiene su aprobación.'],
-                    ['texto' => 'Los documentos obsoletos están retirados del área.',    'resultado' => 'no_aplica', 'calificacion' => null, 'observacion' => 'El área ya no maneja copias impresas.'],
+                    ['texto' => 'El auditado conoce sus procedimientos y sabe dónde consultarlos.', 'resultado' => 'cumple', 'observacion' => 'Explicó el procedimiento y mostró dónde lo consulta.'],
+                    ['texto' => 'Los documentos en planta están en su versión vigente.', 'resultado' => 'cumple', 'observacion' => 'Las versiones en planta coinciden con el sistema.'],
+                    ['texto' => 'Los cambios tienen registro de aprobación.',            'resultado' => 'cumple', 'observacion' => 'Cada cambio revisado tiene su aprobación.'],
+                    ['texto' => 'Los documentos obsoletos están retirados del área.',    'resultado' => 'no_aplica', 'observacion' => 'El área ya no maneja copias impresas.'],
                 ],
                 'hallazgos' => [],
                 'participantes' => [
@@ -51,7 +51,10 @@
 
         // La calificación final es el promedio de los criterios evaluados ("No aplica" no cuenta);
         // lo que hay que corregir son los "No cumple" y los "Parcial".
-        $criterios       = collect($auditoria['criterios']);
+        // Cada criterio vale lo que diga su resultado (config/auditorias.php); "No aplica" se queda sin valor (null).
+        $ponderaciones   = config('auditorias.ponderaciones');
+        $criterios       = collect($auditoria['criterios'])
+            ->map(fn ($criterio) => $criterio + ['calificacion' => $ponderaciones[$criterio['resultado']] ?? null]);
         $calificacion    = round($criterios->where('resultado', '!=', 'no_aplica')->avg('calificacion'));
         $incumplimientos = $criterios->whereIn('resultado', ['no_cumple', 'parcial']);
         $asistieron      = collect($auditoria['participantes'])->where('asistio', true)->count();

@@ -77,8 +77,21 @@ class AuditorViewTest extends TestCase
 
     public function test_el_resultado_calcula_la_calificacion_final(): void
     {
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))->assertSee('85 / 100');
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 4))->assertSee('92 / 100');
+        // Auditoría 3: Cumple 100 + No cumple 0 + Parcial 65 + Cumple 100 = 265, entre 4 = 66.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))->assertSee('66 / 100');
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 4))->assertSee('100 / 100');
+    }
+
+    public function test_el_auditor_no_escribe_la_calificacion(): void
+    {
+        // En el checklist ya no hay dónde escribirla. El "Valor del criterio" está oculto (pendiente con la cliente).
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))
+            ->assertDontSee('Calificación · 0 a 100')
+            ->assertDontSee('Valor del criterio');
+
+        // En el Resultado, el Parcial vale 65 aunque nadie lo haya escrito.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))
+            ->assertSeeInOrder(['El almacén temporal cuenta con bitácora de entradas.', 'Calificación del criterio: 65 / 100', 'Parcial']);
     }
 
     public function test_solo_la_auditoria_en_captura_se_puede_llenar(): void
@@ -229,9 +242,9 @@ class AuditorViewTest extends TestCase
 
     public function test_no_aplica_no_cuenta_en_la_calificacion(): void
     {
-        // Auditoría 4: cuentan 95 y 89 (promedio 92). Si "No aplica" contara como 0, daría 61.
+        // Auditoría 4: cuentan 3 Cumple (promedio 100). Si "No aplica" contara como 0, daría 75.
         $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 4))
-            ->assertSee('92 / 100')
+            ->assertSee('100 / 100')
             ->assertSee('No aplica');
     }
 
