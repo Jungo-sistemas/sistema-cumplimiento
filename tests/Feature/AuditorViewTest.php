@@ -57,7 +57,7 @@ class AuditorViewTest extends TestCase
     public function test_solo_auditores_y_admins_entran_a_auditorias(): void
     {
         // Mismo grupo que el auditor, otro rol.
-        $conRol = fn (string $slug) => User::factory()->create([
+        $conRol = fn (string $slug): User => User::factory()->create([
             'group_id' => $this->auditor->group_id, 'scope_level' => 'group', 'status' => 'active',
             'role_id' => Role::create(['name' => ucfirst($slug), 'slug' => $slug])->id,
         ]);
@@ -112,10 +112,27 @@ class AuditorViewTest extends TestCase
         // La descripción va entre el título del criterio y la evidencia a verificar.
         $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))
             ->assertSeeInOrder([
-                '1. La actividad cuenta con registro trazable.',
+                '2. La actividad cuenta con registro trazable.',
                 'Cada vez que se realiza la actividad queda un registro',
                 'Evidencia a verificar:',
             ]);
+    }
+
+    public function test_la_primera_pregunta_es_si_el_auditado_conoce_sus_procedimientos(): void
+    {
+        // En el checklist va primero y con su etiqueta, en todas las auditorías.
+        foreach ([1, 2] as $id) {
+            $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $id))
+                ->assertSeeInOrder([
+                    'Pregunta fija · va en todas las auditorías',
+                    '1. El auditado conoce sus procedimientos y sabe dónde consultarlos.',
+                    '2. La actividad cuenta con registro trazable.',
+                ]);
+        }
+
+        // En el Resultado también es el criterio 1, así que lo que hay que corregir empieza en el 2.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))
+            ->assertSee('2. Los contenedores están identificados con su etiqueta.');
     }
 
     public function test_la_lista_de_asistencia_muestra_a_los_convocados(): void

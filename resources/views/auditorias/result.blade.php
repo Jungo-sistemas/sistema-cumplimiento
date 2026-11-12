@@ -11,6 +11,7 @@
             3 => [
                 'procedimiento' => 'Manejo de residuos peligrosos', 'auditado' => 'Ana Torres', 'fecha' => '28 ago 2026',
                 'criterios' => [
+                    ['texto' => 'El auditado conoce sus procedimientos y sabe dónde consultarlos.', 'resultado' => 'cumple', 'calificacion' => 85, 'observacion' => 'Explicó el procedimiento y mostró dónde lo consulta.'],
                     ['texto' => 'Los contenedores están identificados con su etiqueta.',     'resultado' => 'no_cumple', 'calificacion' => 65, 'observacion' => 'Dos contenedores del almacén no tienen etiqueta de identificación.'],
                     ['texto' => 'El almacén temporal cuenta con bitácora de entradas.',      'resultado' => 'parcial',   'calificacion' => 90,  'observacion' => 'La bitácora existe, pero le faltan las entradas del fin de semana.'],
                     ['texto' => 'El manifiesto de entrega está firmado por el transportista.', 'resultado' => 'cumple',  'calificacion' => 100, 'observacion' => 'El manifiesto mostrado está completo y firmado.'],
@@ -29,6 +30,7 @@
             4 => [
                 'procedimiento' => 'Control de documentos', 'auditado' => 'Luis Herrera', 'fecha' => '20 ago 2026',
                 'criterios' => [
+                    ['texto' => 'El auditado conoce sus procedimientos y sabe dónde consultarlos.', 'resultado' => 'cumple', 'calificacion' => 92, 'observacion' => 'Explicó el procedimiento y mostró dónde lo consulta.'],
                     ['texto' => 'Los documentos en planta están en su versión vigente.', 'resultado' => 'cumple', 'calificacion' => 95, 'observacion' => 'Las versiones en planta coinciden con el sistema.'],
                     ['texto' => 'Los cambios tienen registro de aprobación.',            'resultado' => 'cumple',    'calificacion' => 89,   'observacion' => 'Cada cambio revisado tiene su aprobación.'],
                     ['texto' => 'Los documentos obsoletos están retirados del área.',    'resultado' => 'no_aplica', 'calificacion' => null, 'observacion' => 'El área ya no maneja copias impresas.'],

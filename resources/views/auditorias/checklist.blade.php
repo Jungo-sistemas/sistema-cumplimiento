@@ -18,6 +18,15 @@
         // Solo "En captura" se llena. Una "Programada" se puede consultar, pero todavía no se captura.
         $editable = $auditoria['estado'] === 'En captura';
 
+        // Primera pregunta de todas las auditorías, sin importar el procedimiento (lo pide la minuta).
+        $preguntaFija = [
+            'texto'       => 'El auditado conoce sus procedimientos y sabe dónde consultarlos.',
+            'descripcion' => 'Pídele al auditado que explique con sus palabras cómo realiza la actividad y que te muestre dónde consulta la versión vigente de su procedimiento.',
+            'evidencia'   => 'Explicación del auditado y ubicación del procedimiento vigente',
+            'fija'        => true,
+        ];
+
+        // Criterios propios del procedimiento auditado.
         // "descripcion" explica qué significa el criterio, para que el auditor sepa qué está evaluando.
         $criterios = [
             [
@@ -26,16 +35,14 @@
                 'evidencia'   => 'Bitácora fechada',
             ],
             [
-                'texto'       => 'Los responsables conocen el procedimiento.',
-                'descripcion' => 'Las personas que realizan la actividad saben qué pasos seguir y fueron capacitadas en la versión vigente del procedimiento. Puedes confirmarlo pidiéndoles que expliquen cómo la hacen.',
-                'evidencia'   => 'Registro de capacitación',
-            ],
-            [
                 'texto'       => 'Las evidencias están completas y actualizadas.',
                 'descripcion' => 'Están todos los documentos que respaldan la actividad, corresponden al periodo auditado y tienen las firmas o aprobaciones que pide el procedimiento.',
                 'evidencia'   => 'Expediente y revisión firmada',
             ],
         ];
+
+        // La pregunta fija siempre va primero: array_unshift la mete al inicio de la lista.
+        array_unshift($criterios, $preguntaFija);
 
         // Convocados a la llamada: el equipo del auditor y el del auditado. Durante la llamada se marca quién asistió.
         // "obligatorio": el auditor y el auditado deben estar marcados para poder finalizar.
@@ -129,6 +136,10 @@
         <fieldset :disabled="@js(! $editable) || confirmando || finalizada" class="space-y-6">
             @foreach($criterios as $i => $criterio)
                 <div class="rounded-2xl border border-gray-200 bg-white p-6">
+                    {{-- ?? false: los criterios del procedimiento no traen "fija", y sin esto PHP marcaría error --}}
+                    @if($criterio['fija'] ?? false)
+                        <span class="mb-2 inline-flex rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand">Pregunta fija · va en todas las auditorías</span>
+                    @endif
                     <h3 class="text-lg font-semibold text-gray-900">{{ $i + 1 }}. {{ $criterio['texto'] }}</h3>
                     <p class="mt-1 text-[15px] text-gray-700">{{ $criterio['descripcion'] }}</p>
                     <p class="mt-2 text-sm text-gray-600"><span class="font-semibold text-gray-900">Evidencia a verificar:</span> {{ $criterio['evidencia'] }}</p>
