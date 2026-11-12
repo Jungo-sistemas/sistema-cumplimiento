@@ -186,7 +186,8 @@
                             </p>
                         </div>
 
-                        {{-- Puestos --}}
+                        {{-- Puestos: son de Procesos, solo los cambia quien tiene Procesos --}}
+                        @if(auth()->user()->canAssignProcesosAccess())
                         <div x-show="!isAdminEdit">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Puestos</label>
                             <div class="w-full rounded-lg border border-gray-300 divide-y divide-gray-100 max-h-44 overflow-y-auto">
@@ -203,11 +204,16 @@
                                 Sin puestos disponibles para este usuario.
                             </p>
                         </div>
+                        @endif
 
-                        {{-- Vista predeterminada / Módulos --}}
+                        {{-- Módulos --}}
+                        @php
+                            $moduleLabels  = ['all' => 'Ambos módulos', 'cumplimiento' => 'Solo Cumplimiento', 'procesos' => 'Solo Procesos'];
+                            $moduleOptions = auth()->user()->assignableModuleAccess();
+                        @endphp
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">
-                                <span x-text="isAdminEdit ? 'Vista predeterminada' : (isAuditorEdit ? 'Módulo' : 'Módulos visibles')"></span>
+                                <span x-text="isAuditorEdit ? 'Módulo' : 'Módulos visibles'"></span>
                             </label>
 
                             <template x-if="isAuditorEdit">
@@ -222,18 +228,16 @@
                             <template x-if="!isAuditorEdit">
                                 <select name="module_access" x-model="editModuleAccess"
                                     class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
-                                    <option value="all">Ambos módulos</option>
-                                    <option value="cumplimiento">Solo Cumplimiento</option>
-                                    <option value="procesos">Solo Procesos</option>
+                                    @foreach($moduleOptions as $option)
+                                        <option value="{{ $option }}">{{ $moduleLabels[$option] }}</option>
+                                    @endforeach
                                 </select>
                             </template>
 
                             <p class="mt-1 text-xs text-gray-400"
-                               x-text="isAdminEdit
-                                   ? 'Define el módulo de inicio (el admin accede a todo).'
-                                   : (isAuditorEdit
-                                       ? 'El auditor solo tiene acceso al módulo de Procesos.'
-                                       : 'Define a qué módulo tendrá acceso este usuario.')">
+                               x-text="isAuditorEdit
+                                   ? 'El auditor solo tiene acceso al módulo de Procesos.'
+                                   : 'Define a qué módulo tendrá acceso. Sin Procesos, en Procesos y Auditorías solo verá Mi espacio.'">
                             </p>
                         </div>
 
@@ -376,10 +380,19 @@
                             <td class="px-4 py-3">{{ $user->name }}</td>
                             <td class="px-4 py-3">{{ $user->email }}</td>
                             <td class="px-4 py-3">
-                                @if($user->hasMultipleCompanies())
+                                {{-- Sin empresa = acceso a todas (grupo). Si es de empresa y no tiene
+                                     ninguna (p. ej. se eliminó la suya), no ve procesos: se avisa. --}}
+                                @if($user->scope_level === 'group')
+                                    <span class="text-gray-500">Todas</span>
+                                @elseif($user->hasMultipleCompanies() && $user->companies->isNotEmpty())
                                     {{ $user->companies->pluck('name')->join(', ') }}
+                                @elseif($user->company)
+                                    {{ $user->company->name }}
+                                @elseif(in_array($user->scope_level, ['company', 'companies'], true))
+                                    <span class="inline-flex rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800"
+                                          title="No ve procesos hasta que se le asigne una empresa">Sin empresa</span>
                                 @else
-                                    {{ $user->company->name ?? '-' }}
+                                    -
                                 @endif
                             </td>
                             <td class="px-4 py-3">{{ $user->role->name ?? '-' }}</td>
@@ -424,14 +437,15 @@
                                 <td class="px-4 py-3 text-right">
                                     @if($user->id !== auth()->id())
                                         <div class="inline-flex gap-2">
-                                            @if(!$user->isAdmin() || auth()->user()->isSuperAdmin())
+                                            @php $canManage = auth()->user()->canManageUser($user); @endphp
+                                            @if($canManage)
                                             <button type="button"
                                                 @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', @json($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])), '{{ $user->module_access ?? 'all' }}', @json($user->jobPositions->pluck('id')))"
                                                 class="whitespace-nowrap px-3 py-1.5 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                                                 Editar
                                             </button>
                                             @endif
-                                            @if($user->status === 'invited' && (!$user->isAdmin() || auth()->user()->isSuperAdmin()))
+                                            @if($user->status === 'invited' && $canManage)
                                             <form method="POST"
                                                   action="{{ route('users.resend-invitation', $user) }}"
                                                   data-confirm="¿Reenviar la invitación a {{ $user->email }}?" data-confirm-button="Sí, reenviar">
@@ -442,7 +456,7 @@
                                                 </button>
                                             </form>
                                             @endif
-                                            @if(!$user->isAdmin() || auth()->user()->isSuperAdmin())
+                                            @if($canManage)
                                             <form method="POST"
                                                   action="{{ route('users.destroy', $user) }}"
                                                   data-confirm="¿Seguro que quieres eliminar este usuario?" data-confirm-danger data-confirm-button="Sí, eliminar">
@@ -453,6 +467,10 @@
                                                     Eliminar
                                                 </button>
                                             </form>
+                                            @elseif(! $user->isAdmin())
+                                            <span class="text-xs text-gray-400" title="Tiene acceso a un área que no administras: lo edita un admin de ambos módulos o el superadministrador.">
+                                                Otra área
+                                            </span>
                                             @endif
                                         </div>
                                     @else

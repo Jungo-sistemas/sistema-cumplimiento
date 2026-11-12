@@ -25,7 +25,8 @@ class InvestmentApprovalRequestedNotification extends Notification implements Sh
         $mine      = $approvals->firstWhere('user_id', $notifiable->id);
 
         return (new MailMessage)
-            ->subject('Aprobación requerida: solicitud de inversión #' . $this->investmentRequest->id)
+            ->subject('Aprobación requerida: solicitud de inversión (Anexo 8) #' . $this->investmentRequest->id
+                . ($this->investmentRequest->displayCompanyName() ? ' — ' . $this->investmentRequest->displayCompanyName() : ''))
             ->view('emails.investments.approval-requested', [
                 'notifiable'        => $notifiable,
                 'investmentRequest' => $this->investmentRequest->loadMissing(['company', 'requester']),

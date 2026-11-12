@@ -149,6 +149,10 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::post('/investment-requests', [InvestmentRequestController::class, 'store'])
         ->name('investment-requests.store');
 
+    // Antes del comodín {investmentRequest}.
+    Route::get('/investment-requests/mis-aprobaciones', [InvestmentRequestController::class, 'myApprovals'])
+        ->name('investment-requests.my-approvals');
+
     Route::get('/investment-requests/{investmentRequest}', [InvestmentRequestController::class, 'show'])
         ->name('investment-requests.show');
 
@@ -173,6 +177,7 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
         Route::get('/', 'home')->name('home');
         Route::get('/solicitudes', 'requests')->name('requests');
         Route::get('/documentos', 'documents')->name('documents');
+        Route::get('/documentos/{regulation}', 'showDocument')->whereNumber('regulation')->name('documents.show');
         Route::get('/auditorias', 'audits')->name('audits');
         Route::get('/actividades', 'activities')->name('activities');
         Route::get('/ayuda', 'help')->name('help');

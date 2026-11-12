@@ -26,6 +26,7 @@ class RegulationVersion extends Model
         'issued_at',
         'valid_until',
         'is_current',
+        'approved_at',
         'uploaded_by',
         'editing_by',
         'editing_expires_at',
@@ -39,6 +40,7 @@ class RegulationVersion extends Model
             'issued_at'          => 'date',
             'valid_until'        => 'date',
             'is_current'         => 'boolean',
+            'approved_at'        => 'datetime',
             'keeps_docx_layout'  => 'boolean',
             'changes_table'      => 'array',
             'editing_by'         => 'integer',
@@ -50,6 +52,26 @@ class RegulationVersion extends Model
     public function regulation()
     {
         return $this->belongsTo(Regulation::class);
+    }
+
+    protected static function booted(): void
+    {
+        // Primera versión de un proceso que se cargó ya aprobado (o de un documento viejo de
+        // referencia): el proceso se guardó antes que la versión, así que se marca aquí. Las
+        // versiones siguientes no: se crean antes de que el proceso vuelva a revisión.
+        static::created(function (RegulationVersion $version) {
+            if (! $version->is_current || $version->approved_at !== null) {
+                return;
+            }
+
+            $regulation = Regulation::withoutGlobalScopes()->find($version->regulation_id);
+
+            if ($regulation
+                && in_array($regulation->approval_status, ['approved', 'outdated'], true)
+                && static::where('regulation_id', $regulation->id)->count() === 1) {
+                $version->forceFill(['approved_at' => now()])->saveQuietly();
+            }
+        });
     }
 
     /**

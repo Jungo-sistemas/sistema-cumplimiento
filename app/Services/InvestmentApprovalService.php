@@ -3,33 +3,87 @@
 namespace App\Services;
 
 use App\Enums\InvestmentRequestStatus;
+use App\Models\InvestmentApprovalStep;
 use App\Models\InvestmentRequest;
 use App\Models\InvestmentRequestApproval;
 use App\Models\User;
 use App\Notifications\InvestmentApprovalRequestedNotification;
 use App\Notifications\InvestmentRequestDecidedNotification;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 /**
- * Flujo de aprobación de solicitudes de inversión: las personas elegidas al crear la solicitud
- * aprueban una tras otra, en el orden en que se eligieron. Solo quien tiene el turno ("pending")
- * puede decidir; las demás esperan ("waiting"). Si alguien rechaza, el flujo se detiene.
+ * Flujo de aprobación de solicitudes de inversión (Anexos 8). Cada razón social tiene un flujo fijo
+ * (investment_approval_steps, ver `investments:sync-approval-flows`): al capturar la solicitud se
+ * copia ese flujo y las personas aprueban una tras otra en el orden de POSITIONS. Solo quien tiene
+ * el turno ("pending") puede decidir; las demás esperan ("waiting"). Si alguien rechaza, el flujo
+ * se detiene.
  */
 class InvestmentApprovalService
 {
-    public const MAX_APPROVERS = 5;
+    /** Orden de aprobación de los puestos. */
+    public const POSITIONS = ['Gerente', 'DD', 'CFO', 'CEO', 'Consejero'];
 
-    /** @param  array<int, int>  $approverIds  en el orden en que deben aprobar */
-    public function start(InvestmentRequest $investmentRequest, array $approverIds): void
+    /**
+     * Flujo fijo de cada razón social, en orden, con su usuario.
+     *
+     * @param  array<int, int>  $entityIds
+     * @return Collection<int, Collection<int, InvestmentApprovalStep>>  por investment_entity_id
+     */
+    public function stepsForEntities(array $entityIds): Collection
     {
-        DB::transaction(function () use ($investmentRequest, $approverIds) {
+        return InvestmentApprovalStep::query()
+            ->with('user:id,name')
+            ->whereIn('investment_entity_id', $entityIds)
+            ->orderBy('sequence_order')
+            ->get()
+            ->groupBy('investment_entity_id');
+    }
+
+    /**
+     * Por qué la razón social no puede arrancar una solicitud, o null si su flujo está completo.
+     *
+     * @param  Collection<int, InvestmentApprovalStep>  $steps
+     */
+    public function flowProblem(Collection $steps): ?string
+    {
+        if ($steps->isEmpty()) {
+            return 'Esta razón social no tiene flujo de aprobación de Anexos 8. Pide a un administrador que lo configure.';
+        }
+
+        $missing = $steps->whereNull('user_id');
+
+        if ($missing->isNotEmpty()) {
+            return 'Falta dar de alta en el sistema a: '
+                . $missing->map(fn ($s) => ($s->approver_name ?: 'sin nombre') . " ({$s->position})")->implode(', ')
+                . '.';
+        }
+
+        return null;
+    }
+
+    public function start(InvestmentRequest $investmentRequest): void
+    {
+        $entityId = $investmentRequest->investment_entity_id;
+        $steps    = $this->stepsForEntities([$entityId])->get($entityId, collect());
+
+        if ($problem = $this->flowProblem($steps)) {
+            throw new RuntimeException($problem);
+        }
+
+        // Si una persona ocupa dos puestos en la misma razón social, aprueba una sola vez (en el primero).
+        $steps = $steps->unique('user_id')->values();
+
+        DB::transaction(function () use ($investmentRequest, $steps) {
             $investmentRequest->approvals()->delete();
 
-            foreach (array_values($approverIds) as $index => $userId) {
+            foreach ($steps as $index => $step) {
                 InvestmentRequestApproval::create([
                     'investment_request_id' => $investmentRequest->id,
-                    'user_id'               => $userId,
+                    'user_id'               => $step->user_id,
                     'sequence_order'        => $index + 1,
+                    'position'              => $step->position,
                     'status'                => $index === 0 ? 'pending' : 'waiting',
                 ]);
             }

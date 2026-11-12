@@ -121,7 +121,7 @@
                             </a>
                         </div>
                     </div>
-                @elseif($regulation->hasActiveApprovalFlow() && (auth()->user()->isAdmin() || $regulation->isResponsable(auth()->user())))
+                @elseif($regulation->hasActiveApprovalFlow() && (auth()->user()->isProcessAdmin() || $regulation->isResponsable(auth()->user())))
                     <span class="px-4 py-2 rounded-md border border-gray-300 bg-gray-50 text-gray-500 font-semibold text-sm flex items-center gap-1.5"
                           title="No se puede editar mientras el documento está en proceso de aprobación">
                         En revisión — no editable
@@ -141,7 +141,7 @@
                     </form>
                 @endif
 
-                @if(($regulation->approval_status === 'approved') && (auth()->user()->isAdmin() || auth()->user()->isOperative()))
+                @if(($regulation->approval_status === 'approved') && (auth()->user()->isProcessEditor()))
                     <button type="button"
                             onclick="openShareModal('send')"
                             class="px-4 py-2 rounded-md border border-green-600 bg-white text-green-700 font-semibold hover:bg-green-50 text-sm flex items-center gap-1.5">
@@ -660,7 +660,7 @@
         <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
             {{-- Subir nueva versión — solo admins; "Editar" (editor de texto) sigue abierto a operativos --}}
-            @if(auth()->user()->isAdmin())
+            @if(auth()->user()->isProcessAdmin())
                 <div class="bg-white border rounded-xl overflow-hidden">
                     <div class="p-5 border-b">
                         <div class="font-semibold text-brand">
@@ -779,10 +779,10 @@
                                         Descargar
                                     </a>
                                 @endif
-                                @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
+                                @if(auth()->user()->isProcessEditor())
                                     @include('processes.partials.edit-version-button', ['regulation' => $regulation, 'currentVersion' => $currentVersion, 'editLock' => $editLock])
                                 @endif
-                                @if(auth()->user()->isAdmin())
+                                @if(auth()->user()->isProcessAdmin())
                                     <button type="button"
                                             onclick="openDeleteModal(
                                                 '{{ route('regulation-versions.destroy', [$regulation, $currentVersion]) }}',
@@ -882,7 +882,7 @@
                                             Descargar
                                         </a>
                                     @endif
-                                    @if(auth()->user()->isAdmin())
+                                    @if(auth()->user()->isProcessAdmin())
                                         <button type="button"
                                                 onclick="openDeleteModal(
                                                     '{{ route('regulation-versions.destroy', [$regulation, $v]) }}',
@@ -930,7 +930,7 @@
     </div>
 
     {{-- Modal: Compartir (2 pestañas: Enviar + Quién lo vio) --}}
-    @if($regulation->approval_status === 'approved' && (auth()->user()->isAdmin() || auth()->user()->isOperative()))
+    @if($regulation->approval_status === 'approved' && (auth()->user()->isProcessEditor()))
     <div id="shareModal"
          class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4"
          x-data="shareModalApp({{ Js::from($shareableUsers) }}, {{ Js::from($shareRecipients->map(fn($s) => [
@@ -1200,7 +1200,7 @@
          (p. ej. solo para etiquetar personas/documentos) quedan en revisión sin aprobadores, y
          aquí se decide si siguen aprobados o se les asigna flujo. --}}
     @php $reviewHasFlow = (bool) $regulation->flow_locked; @endphp
-    @if(auth()->user()->isAdmin() && request('review_flow') && $regulation->approval_status === 'pending_review'
+    @if(auth()->user()->isProcessAdmin() && request('review_flow') && $regulation->approval_status === 'pending_review'
         && ($reviewHasFlow || ! $regulation->impact_level))
     {{-- Datos PHP → JS sin tocar atributos HTML (evita que @json rompa x-data="") --}}
     <script>

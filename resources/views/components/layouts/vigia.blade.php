@@ -53,17 +53,35 @@
     $pendingInvestmentApprovalsCount = $user
         ? \App\Models\InvestmentRequestApproval::where('user_id', $user->id)->where('status', 'pending')->count()
         : 0;
+    // Quien está en el flujo fijo de alguna empresa (o ya aprobó alguna vez) ve "Mis aprobaciones de
+    // inversión", aunque su rol no tenga Solicitud de Inversiones.
+    $isInvestmentApprover = $user && ! $user->isSuperAdmin() && (
+        $pendingInvestmentApprovalsCount > 0
+        || \App\Models\InvestmentApprovalStep::where('user_id', $user->id)->exists()
+        || \App\Models\InvestmentRequestApproval::where('user_id', $user->id)->exists()
+    );
 
     // ── Vista: Gestión o Mi espacio ──
     // Quien no tiene Gestión (solo lectura) solo tiene Mi espacio; admins, auditores y operativos
     // cambian con el botón del encabezado (que guarda la elección en sesión). Las páginas
     // compartidas entre ambas vistas — consultar un proceso, por ejemplo — se muestran con el menú
     // de la última vista elegida.
-    $canSwitchView = $user && $user->hasGestion() && $user->canUseAuditeeView();
+    // Sin Gestión de Procesos (admin u operativo "Solo Cumplimiento", solo lectura) el módulo
+    // Procesos y Auditorías es solo Mi espacio. En páginas que no son de un módulo (Usuarios, Mi
+    // perfil) se le muestra Cumplimiento en vez de dejarlo en Mi espacio.
+    $procesosGestion = $user?->hasProcesosGestion() ?? false;
+    if ($user && ! $procesosGestion && ! $routeModule && $currentModule === 'procesos' && isset($modules['cumplimiento'])) {
+        $currentModule = 'cumplimiento';
+    }
+    if ($user && ! $procesosGestion && isset($modules['procesos'])) {
+        $modules['procesos']['route'] = 'mi-espacio.home';
+    }
+    $canSwitchView = $user && $procesosGestion && $user->canUseAuditeeView();
     $sharedRoute = request()->routeIs('processes.show', 'processes.print', 'processes.preview', 'regulation-versions.preview', 'profile.*');
     $viewMode = match (true) {
         ! $user || $user->isSuperAdmin()     => 'gestion',
         $user->isAuditeeOnly()              => 'auditado',
+        $currentModule === 'procesos' && ! $procesosGestion => 'auditado',
         request()->routeIs('mi-espacio.*')  => 'auditado',
         $canSwitchView && $sharedRoute && session('view_mode') === 'auditado' => 'auditado',
         default                             => 'gestion',
@@ -115,15 +133,20 @@
             $item('Inicio', 'mi-espacio.home', 'home', request()->routeIs('mi-espacio.home')),
             $item('Mis solicitudes', 'mi-espacio.requests', 'clock', request()->routeIs('mi-espacio.requests')),
         ]];
-        // Mis aprobaciones vive en Gestión (Procesos). Solo quien no tiene Gestión (solo lectura) y
+        // Mis aprobaciones vive en Gestión (Procesos). Solo quien no tiene Gestión de Procesos y
         // tiene aprobaciones asignadas la ve aquí.
         $miEspacioProcesos = [
-            $item('Mis documentos', 'mi-espacio.documents', 'document', request()->routeIs('mi-espacio.documents') || $sharedRoute && ! request()->routeIs('profile.*')),
+            $item('Mis documentos', 'mi-espacio.documents', 'document', request()->routeIs('mi-espacio.documents', 'mi-espacio.documents.*') || $sharedRoute && ! request()->routeIs('profile.*')),
         ];
-        if (! $user->hasGestion() && $pendingApprovalsCount > 0) {
+        if (! $procesosGestion && $pendingApprovalsCount > 0) {
             $miEspacioProcesos[] = $item('Mis aprobaciones', 'my-approvals.index', 'badge', request()->routeIs('my-approvals.*'), ['badge' => $pendingApprovalsCount]);
         }
         $sections[] = ['title' => 'Procesos', 'items' => $miEspacioProcesos];
+        if ($isInvestmentApprover) {
+            $sections[] = ['title' => 'Inversiones', 'items' => [
+                $item('Mis aprobaciones de inversión', 'investment-requests.my-approvals', 'cash', request()->routeIs('investment-requests.my-approvals'), ['badge' => $pendingInvestmentApprovalsCount]),
+            ]];
+        }
         $sections[] = ['title' => 'Auditorías', 'items' => [
             $item('Mis auditorías', 'mi-espacio.audits', 'check', request()->routeIs('mi-espacio.audits')),
             $item('Mis actividades', 'mi-espacio.activities', 'alert', request()->routeIs('mi-espacio.activities')),
@@ -149,6 +172,13 @@
         }
         $sections[] = ['title' => 'Procesos', 'items' => $procesosItems];
 
+        // Aprobador de Anexos 8 sin Cumplimiento: aprueba desde aquí (los demás, en Cumplimiento).
+        if ($isInvestmentApprover && ! $user->canAccessModule('cumplimiento')) {
+            $sections[] = ['title' => 'Inversiones', 'items' => [
+                $item('Mis aprobaciones de inversión', 'investment-requests.my-approvals', 'cash', request()->routeIs('investment-requests.*'), ['badge' => $pendingInvestmentApprovalsCount]),
+            ]];
+        }
+
         if ($user->isAdmin() || $user->isAuditor()) {
             $auditoriasItems = [
                 $item('Auditorías', 'auditorias.audits.index', 'clipboard', request()->routeIs('auditorias.audits.*', 'auditorias.home')),
@@ -169,7 +199,10 @@
         ];
         if ($user?->isAdmin() || $user?->isOperative() || $user?->isReadOnly()) {
             $cumplimientoItems[] = $item('Documentos generales', 'documents.index', 'folder', request()->routeIs('documents.*'));
-            $cumplimientoItems[] = $item('Solicitud de Inversiones', 'investment-requests.index', 'cash', request()->routeIs('investment-requests.*'), ['badge' => $pendingInvestmentApprovalsCount]);
+            $cumplimientoItems[] = $item('Solicitud de Inversiones', 'investment-requests.index', 'cash', request()->routeIs('investment-requests.*') && ! request()->routeIs('investment-requests.my-approvals'));
+        }
+        if ($isInvestmentApprover) {
+            $cumplimientoItems[] = $item('Mis aprobaciones de inversión', 'investment-requests.my-approvals', 'badge', request()->routeIs('investment-requests.my-approvals'), ['badge' => $pendingInvestmentApprovalsCount]);
         }
 
         // Árbol del activo abierto: Regulatorio → activo → requisito → tarea / documentos.
@@ -210,8 +243,15 @@
     }
 
     $notifications = array_values(array_filter([
-        $pendingApprovalsCount > 0 ? ['label' => 'Procesos por aprobar', 'count' => $pendingApprovalsCount, 'url' => route('my-approvals.index')] : null,
-        $pendingInvestmentApprovalsCount > 0 ? ['label' => 'Solicitudes de inversión por aprobar', 'count' => $pendingInvestmentApprovalsCount, 'url' => route('investment-requests.index')] : null,
+        $pendingApprovalsCount > 0 ? [
+            'label' => 'Aprobación de procesos', 'module' => 'Procesos y Auditorías', 'icon' => 'document',
+            'count' => $pendingApprovalsCount, 'url' => route('my-approvals.index'),
+        ] : null,
+        $pendingInvestmentApprovalsCount > 0 ? [
+            'label' => 'Aprobación de solicitudes de inversión (Anexos 8)',
+            'module' => $user->canAccessModule('cumplimiento') ? 'Cumplimiento' : 'Procesos y Auditorías', 'icon' => 'cash',
+            'count' => $pendingInvestmentApprovalsCount, 'url' => route('investment-requests.my-approvals'),
+        ] : null,
     ]));
     $notificationsCount = collect($notifications)->sum('count');
 
@@ -274,7 +314,7 @@
                     {{-- En la vista de auditado también sale, para admins y auditores: elegir un
                          módulo los pasa a Gestión en ese módulo. Quien solo es auditado no lo ve
                          (los tableros de los módulos lo regresan a Mi espacio). --}}
-                    @if(!$user?->isSuperAdmin() && ($viewMode === 'gestion' || $canSwitchView))
+                    @if(!$user?->isSuperAdmin() && ($viewMode === 'gestion' || $canSwitchView || ($user && ! $user->isAuditeeOnly())))
                         <span class="ml-2 hidden h-6 w-px bg-white/25 sm:block"></span>
 
                         <div x-data="{ open: false }" class="relative hidden sm:block">
@@ -287,8 +327,9 @@
                             <div x-show="open" x-transition.opacity @click.outside="open = false" style="display:none;"
                                  class="absolute left-0 top-full z-50 mt-2 w-44 rounded-lg border border-gray-100 bg-white py-1 text-gray-700 shadow-lg">
                                 @foreach($modules as $key => $mod)
-                                    @php $isCurrent = $viewMode === 'gestion' && $currentModule === $key; @endphp
-                                    <a href="{{ $viewMode === 'auditado' ? route('view-mode.switch', ['mode' => 'gestion', 'modulo' => $key]) : route($mod['route']) }}" @click="open = false"
+                                    {{-- Sin Gestión de Procesos, "Procesos y Auditorías" es su Mi espacio. --}}
+                                    @php $isCurrent = $currentModule === $key && ($viewMode === 'gestion' || ! $canSwitchView); @endphp
+                                    <a href="{{ $viewMode === 'auditado' && $canSwitchView ? route('view-mode.switch', ['mode' => 'gestion', 'modulo' => $key]) : route($mod['route']) }}" @click="open = false"
                                        class="flex items-center gap-2 px-3 py-2 text-sm {{ $isCurrent ? 'font-semibold text-brand' : 'hover:bg-gray-50' }}">
                                         @if($isCurrent)
                                             <x-icon name="check" class="h-3.5 w-3.5" />
@@ -327,11 +368,17 @@
                             </button>
 
                             <div x-show="open" x-transition.opacity @click.outside="open = false" style="display:none;"
-                                 class="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-gray-100 bg-white py-2 text-sm text-gray-700 shadow-lg">
+                                 class="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-gray-100 bg-white py-2 text-sm text-gray-700 shadow-lg">
                                 <div class="px-4 pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Notificaciones</div>
                                 @forelse($notifications as $notification)
                                     <a href="{{ $notification['url'] }}" class="flex items-center justify-between gap-3 px-4 py-2 hover:bg-gray-50">
-                                        <span>{{ $notification['label'] }}</span>
+                                        <span class="flex items-start gap-2">
+                                            <x-icon :name="$notification['icon']" class="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+                                            <span>
+                                                <span class="block font-medium text-gray-800">{{ $notification['label'] }}</span>
+                                                <span class="block text-xs text-gray-500">{{ $notification['module'] }}</span>
+                                            </span>
+                                        </span>
                                         <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-yellow-400 px-1.5 text-xs font-bold text-yellow-900">{{ $notification['count'] }}</span>
                                     </a>
                                 @empty
