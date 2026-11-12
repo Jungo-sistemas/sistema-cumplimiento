@@ -63,7 +63,7 @@
 
         {{-- Alerta: aprobación pendiente del usuario actual --}}
         @if($pendingApprovalForUser)
-            <div x-data="{ showApprove: false, showReject: false }" class="mt-6 rounded-xl border border-yellow-200 bg-yellow-50 p-5">
+            <div x-data="{ showApprove: false, showReject: {{ $errors->has('comments') ? 'true' : 'false' }} }" class="mt-6 rounded-xl border border-yellow-200 bg-yellow-50 p-5">
                 <p class="text-sm font-semibold text-yellow-800 mb-4">
                     Tienes una aprobación pendiente en este documento — Paso {{ $pendingApprovalForUser->step_number }}
                     ({{ $pendingApprovalForUser->jobPosition->name ?? '' }}).
@@ -134,18 +134,23 @@
                         </p>
                         <form method="POST" action="{{ route('processes.reject', $regulation) }}" class="space-y-3">
                             @csrf
-                            <div>
+                            @php $rejectMax = \App\Http\Controllers\RegulationApprovalController::REJECT_COMMENTS_MAX; @endphp
+                            <div x-data="{ len: {{ mb_strlen((string) old('comments')) }} }">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
                                     Motivo del rechazo <span class="text-red-500">*</span>
                                 </label>
                                 <textarea name="comments"
-                                          rows="3"
+                                          rows="5"
                                           required
+                                          maxlength="{{ $rejectMax }}"
+                                          @input="len = $el.value.length"
                                           placeholder="Describe el motivo del rechazo para que el creador pueda corregirlo..."
-                                          class="w-full rounded-md border-gray-300 text-sm focus:border-red-400 focus:ring-red-400"></textarea>
-                                @error('comments')
-                                    <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                @enderror
+                                          class="w-full rounded-md border-gray-300 text-sm focus:border-red-400 focus:ring-red-400">{{ old('comments') }}</textarea>
+                                <div class="mt-1 flex justify-between gap-2 text-xs">
+                                    <span class="text-red-600">@error('comments'){{ $message }}@enderror</span>
+                                    <span :class="len >= {{ $rejectMax }} ? 'text-red-600 font-semibold' : 'text-gray-400'"
+                                          x-text="len.toLocaleString('es-MX') + ' / {{ number_format($rejectMax) }}'"></span>
+                                </div>
                             </div>
                             <div class="flex gap-3">
                                 <button type="button"
