@@ -25,7 +25,7 @@
             this.errores = {};
             if (! this.titulo.trim()) this.errores.titulo = 'Escribe el título del hallazgo.';
             if (! this.descripcion.trim()) this.errores.descripcion = 'Describe lo que encontraste.';
-            if (! this.severidad) this.errores.severidad = 'Elige la severidad.';
+            if (! this.severidad) this.errores.severidad = 'Elige la clasificación.';
             if (! this.fecha) this.errores.fecha = 'Elige la fecha compromiso.';
 
             // Sin errores = todo lleno. En la demo solo mostramos la confirmación.
@@ -76,13 +76,12 @@
 
             <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
-                    <label for="hallazgo-severidad" class="mb-2 block text-sm font-semibold text-gray-900">Severidad</label>
+                    <label for="hallazgo-severidad" class="mb-2 block text-sm font-semibold text-gray-900">Clasificación</label>
                     <select id="hallazgo-severidad" name="severidad" x-model="severidad"
                             class="h-12 w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand">
                         <option value="">Selecciona</option>
                         <option value="critico">Crítico</option>
-                        <option value="mayor">Mayor</option>
-                        <option value="menor">Menor</option>
+                        <option value="no_critico">No crítico</option>
                     </select>
                     <p x-show="errores.severidad" x-text="errores.severidad" class="mt-1 text-sm text-red-600"></p>
                 </div>

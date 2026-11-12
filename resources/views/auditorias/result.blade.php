@@ -11,22 +11,37 @@
             3 => [
                 'procedimiento' => 'Manejo de residuos peligrosos', 'auditado' => 'Ana Torres', 'fecha' => '28 ago 2026',
                 'criterios' => [
-                    ['texto' => 'Los contenedores están identificados con su etiqueta.',     'resultado' => 'no_cumple', 'calificacion' => 65, 'observacion' => 'Dos contenedores del almacén no tienen etiqueta de identificación.'],
-                    ['texto' => 'El almacén temporal cuenta con bitácora de entradas.',      'resultado' => 'parcial',   'calificacion' => 90,  'observacion' => 'La bitácora existe, pero le faltan las entradas del fin de semana.'],
-                    ['texto' => 'El manifiesto de entrega está firmado por el transportista.', 'resultado' => 'cumple',  'calificacion' => 100, 'observacion' => 'El manifiesto mostrado está completo y firmado.'],
+                    ['texto' => 'El auditado conoce sus procedimientos y sabe dónde consultarlos.', 'resultado' => 'cumple', 'observacion' => 'Explicó el procedimiento y mostró dónde lo consulta.'],
+                    ['texto' => 'Los contenedores están identificados con su etiqueta.',     'resultado' => 'no_cumple', 'observacion' => 'Dos contenedores del almacén no tienen etiqueta de identificación.'],
+                    ['texto' => 'El almacén temporal cuenta con bitácora de entradas.',      'resultado' => 'parcial', 'observacion' => 'La bitácora existe, pero le faltan las entradas del fin de semana.'],
+                    ['texto' => 'El manifiesto de entrega está firmado por el transportista.', 'resultado' => 'cumple', 'observacion' => 'El manifiesto mostrado está completo y firmado.'],
                 ],
                 'hallazgos' => [
-                    ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta', 'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres', 'severidad' => 'Mayor', 'seguimiento' => 'Rechazada', 'compromiso' => '2026-09-10'],
+                    ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta', 'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres', 'severidad' => 'No crítico', 'seguimiento' => 'Rechazada', 'compromiso' => '2026-09-10'],
                 ],
+                'participantes' => [
+                    ['nombre' => auth()->user()->name, 'puesto' => 'Auditor',           'equipo' => 'auditor',  'asistio' => true],
+                    ['nombre' => 'Ana Torres',          'puesto' => 'Responsable del proceso', 'equipo' => 'auditado', 'asistio' => true],
+                    ['nombre' => 'Mariana Garza',       'puesto' => 'Supervisor de turno',     'equipo' => 'auditado', 'asistio' => false],
+                ],
+                // Comillas dobles para que "\n" sea un salto de línea, como cuando el auditor da Enter.
+                'conclusiones' => "El almacén de residuos se opera con orden y el manifiesto de entrega está completo.\nHay que etiquetar los dos contenedores del almacén y completar la bitácora con las entradas del fin de semana. Se acordó con Ana Torres revisarlo en la siguiente visita.",
             ],
             4 => [
                 'procedimiento' => 'Control de documentos', 'auditado' => 'Luis Herrera', 'fecha' => '20 ago 2026',
                 'criterios' => [
-                    ['texto' => 'Los documentos en planta están en su versión vigente.', 'resultado' => 'cumple', 'calificacion' => 95, 'observacion' => 'Las versiones en planta coinciden con el sistema.'],
-                    ['texto' => 'Los cambios tienen registro de aprobación.',            'resultado' => 'cumple',    'calificacion' => 89,   'observacion' => 'Cada cambio revisado tiene su aprobación.'],
-                    ['texto' => 'Los documentos obsoletos están retirados del área.',    'resultado' => 'no_aplica', 'calificacion' => null, 'observacion' => 'El área ya no maneja copias impresas.'],
+                    ['texto' => 'El auditado conoce sus procedimientos y sabe dónde consultarlos.', 'resultado' => 'cumple', 'observacion' => 'Explicó el procedimiento y mostró dónde lo consulta.'],
+                    ['texto' => 'Los documentos en planta están en su versión vigente.', 'resultado' => 'cumple', 'observacion' => 'Las versiones en planta coinciden con el sistema.'],
+                    ['texto' => 'Los cambios tienen registro de aprobación.',            'resultado' => 'cumple', 'observacion' => 'Cada cambio revisado tiene su aprobación.'],
+                    ['texto' => 'Los documentos obsoletos están retirados del área.',    'resultado' => 'no_aplica', 'observacion' => 'El área ya no maneja copias impresas.'],
                 ],
                 'hallazgos' => [],
+                'participantes' => [
+                    ['nombre' => auth()->user()->name, 'puesto' => 'Auditor',           'equipo' => 'auditor',  'asistio' => true],
+                    ['nombre' => 'Luis Herrera',        'puesto' => 'Responsable del proceso', 'equipo' => 'auditado', 'asistio' => true],
+                    ['nombre' => 'Sofía Ramírez',       'puesto' => 'Encargada de documentos', 'equipo' => 'auditado', 'asistio' => true],
+                ],
+                'conclusiones' => '',
             ],
         ];
 
@@ -36,9 +51,13 @@
 
         // La calificación final es el promedio de los criterios evaluados ("No aplica" no cuenta);
         // lo que hay que corregir son los "No cumple" y los "Parcial".
-        $criterios       = collect($auditoria['criterios']);
+        // Cada criterio vale lo que diga su resultado (config/auditorias.php); "No aplica" se queda sin valor (null).
+        $ponderaciones   = config('auditorias.ponderaciones');
+        $criterios       = collect($auditoria['criterios'])
+            ->map(fn ($criterio) => $criterio + ['calificacion' => $ponderaciones[$criterio['resultado']] ?? null]);
         $calificacion    = round($criterios->where('resultado', '!=', 'no_aplica')->avg('calificacion'));
         $incumplimientos = $criterios->whereIn('resultado', ['no_cumple', 'parcial']);
+        $asistieron      = collect($auditoria['participantes'])->where('asistio', true)->count();
 
         // Etiqueta y color de cada resultado del checklist.
         $resultados = [
@@ -48,11 +67,10 @@
             'no_aplica' => ['texto' => 'No aplica', 'color' => 'border border-gray-200 bg-white text-gray-500'],
         ];
 
-        // Mismos colores de severidad que la lista de Hallazgos.
+        // Mismos colores de clasificación que la lista de Hallazgos.
         $severidades = [
-            'Crítico' => 'bg-red-50 text-red-700',
-            'Mayor'   => 'bg-amber-50 text-amber-700',
-            'Menor'   => 'bg-brand-50 text-brand',
+            'Crítico'    => 'bg-red-50 text-red-700',
+            'No crítico' => 'bg-gray-100 text-gray-700',
         ];
 
         // La ventana de detalle usa los dos para pintar sus etiquetas (los mismos de la lista de Hallazgos).
@@ -132,6 +150,34 @@
             @empty
                 <p class="py-5 text-[15px] text-gray-600">No se registraron hallazgos en esta auditoría.</p>
             @endforelse
+        </div>
+    </div>
+
+    {{-- Conclusiones generales que el auditor escribió al final del checklist. Si no escribió nada, no se muestra. --}}
+    @if(filled($auditoria['conclusiones']))
+        <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
+            <h2 class="text-lg font-semibold text-gray-900">Conclusiones del auditor</h2>
+            <p class="mt-3 whitespace-pre-line text-[15px] text-gray-700">{{ $auditoria['conclusiones'] }}</p>
+        </div>
+    @endif
+
+    {{-- Quiénes asistieron a la llamada de la auditoría --}}
+    <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <h2 class="text-lg font-semibold text-gray-900">Lista de asistencia</h2>
+            <span class="text-sm font-semibold text-brand">{{ $asistieron }} de {{ count($auditoria['participantes']) }} asistieron</span>
+        </div>
+
+        <div class="mt-3 divide-y divide-gray-200">
+            @foreach($auditoria['participantes'] as $participante)
+                <div class="flex flex-wrap items-center justify-between gap-4 py-4">
+                    <div>
+                        <div class="font-semibold text-gray-900">{{ $participante['nombre'] }}</div>
+                        <p class="mt-1 text-sm text-gray-500">{{ $participante['puesto'] }} · Equipo {{ $participante['equipo'] }}</p>
+                    </div>
+                    <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $participante['asistio'] ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600' }}">{{ $participante['asistio'] ? 'Asistió' : 'No asistió' }}</span>
+                </div>
+            @endforeach
         </div>
     </div>
 

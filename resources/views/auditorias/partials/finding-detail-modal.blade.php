@@ -131,7 +131,7 @@
             <h3 class="font-semibold text-gray-900">Clasificar no conformidad</h3>
             <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                    <label for="detalle-severidad" class="mb-2 block text-sm font-semibold text-gray-900">Severidad</label>
+                    <label for="detalle-severidad" class="mb-2 block text-sm font-semibold text-gray-900">Clasificación</label>
                     <select id="detalle-severidad" x-model="severidad"
                             class="h-12 w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand">
                         @foreach(array_keys($severidades) as $opcion)

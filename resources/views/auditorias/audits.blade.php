@@ -13,8 +13,8 @@
         $auditorias = [
             ['id' => 1, 'procedimiento' => 'Control de maniobras y seguridad', 'empresa' => 'Asesorías Daval', 'fecha' => '11 sep 2026', 'auditado' => 'Laura Méndez',  'estado' => 'En captura', 'calificacion' => null],
             ['id' => 2, 'procedimiento' => 'Recepción de materia prima',       'empresa' => 'Vigía',           'fecha' => '14 sep 2026', 'auditado' => 'Jorge Salinas', 'estado' => 'Programada', 'calificacion' => null],
-            ['id' => 3, 'procedimiento' => 'Manejo de residuos peligrosos',    'empresa' => 'Asesorías Daval', 'fecha' => '28 ago 2026', 'auditado' => 'Ana Torres',    'estado' => 'Finalizada', 'calificacion' => 85],
-            ['id' => 4, 'procedimiento' => 'Control de documentos',            'empresa' => 'Vigía',           'fecha' => '20 ago 2026', 'auditado' => 'Luis Herrera',  'estado' => 'Finalizada', 'calificacion' => 92],
+            ['id' => 3, 'procedimiento' => 'Manejo de residuos peligrosos',    'empresa' => 'Asesorías Daval', 'fecha' => '28 ago 2026', 'auditado' => 'Ana Torres',    'estado' => 'Finalizada', 'calificacion' => 66],
+            ['id' => 4, 'procedimiento' => 'Control de documentos',            'empresa' => 'Vigía',           'fecha' => '20 ago 2026', 'auditado' => 'Luis Herrera',  'estado' => 'Finalizada', 'calificacion' => 100],
         ];
 
         // Filtros que vienen en la dirección (?empresa=...&estado=...&q=...). array_filter quita los vacíos.

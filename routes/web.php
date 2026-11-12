@@ -195,7 +195,7 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     | Auditorías (vista del auditor)
     |--------------------------------------------------------------------------
     */
-    Route::prefix('auditorias')->name('auditorias.')->group(function () {
+    Route::prefix('auditorias')->name('auditorias.')->middleware('can:auditorias')->group(function () {
         Route::view('/', 'auditorias.home')->name('home');
         Route::view('/lista', 'auditorias.audits')->name('audits.index');
         Route::view('/{audit}/checklist', 'auditorias.checklist')->whereNumber('audit')->name('audits.checklist');

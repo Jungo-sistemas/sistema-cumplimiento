@@ -17,12 +17,12 @@
 
         // Datos de ejemplo para la demo. Cuando existan las tablas, esto lo manda el controlador.
         $hallazgos = [
-            ['codigo' => 'HAL-001', 'titulo' => 'Bitácora de maniobras sin firma del supervisor', 'empresa' => 'Asesorías Daval', 'responsable' => 'Laura Méndez',  'severidad' => 'Mayor',   'seguimiento' => 'Causa raíz por revisar', 'compromiso' => '2026-11-25'],
+            ['codigo' => 'HAL-001', 'titulo' => 'Bitácora de maniobras sin firma del supervisor', 'empresa' => 'Asesorías Daval', 'responsable' => 'Laura Méndez',  'severidad' => 'No crítico',   'seguimiento' => 'Causa raíz por revisar', 'compromiso' => '2026-11-25'],
             ['codigo' => 'HAL-002', 'titulo' => 'Equipo de protección incompleto en patio',       'empresa' => 'Asesorías Daval', 'responsable' => 'Laura Méndez',  'severidad' => 'Crítico', 'seguimiento' => 'Por enviar',             'compromiso' => '2026-12-20'],
-            ['codigo' => 'HAL-003', 'titulo' => 'Registro de temperatura sin capturar',           'empresa' => 'Vigía',           'responsable' => 'Jorge Salinas', 'severidad' => 'Menor',   'seguimiento' => 'Evidencia por revisar',  'compromiso' => '2026-09-30'],
-            ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta',          'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres',    'severidad' => 'Mayor',   'seguimiento' => 'Rechazada',              'compromiso' => '2026-09-10'],
+            ['codigo' => 'HAL-003', 'titulo' => 'Registro de temperatura sin capturar',           'empresa' => 'Vigía',           'responsable' => 'Jorge Salinas', 'severidad' => 'No crítico',   'seguimiento' => 'Evidencia por revisar',  'compromiso' => '2026-09-30'],
+            ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta',          'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres',    'severidad' => 'No crítico',   'seguimiento' => 'Rechazada',              'compromiso' => '2026-09-10'],
             ['codigo' => 'HAL-005', 'titulo' => 'Capacitación de montacarguistas vencida',        'empresa' => 'Vigía',           'responsable' => 'Jorge Salinas', 'severidad' => 'Crítico', 'seguimiento' => 'Sin cargar',             'compromiso' => '2026-10-15'],
-            ['codigo' => 'HAL-006', 'titulo' => 'Versión obsoleta del procedimiento en planta',   'empresa' => 'Vigía',           'responsable' => 'Luis Herrera',  'severidad' => 'Menor',   'seguimiento' => 'Cerrado',                'compromiso' => '2026-09-05'],
+            ['codigo' => 'HAL-006', 'titulo' => 'Versión obsoleta del procedimiento en planta',   'empresa' => 'Vigía',           'responsable' => 'Luis Herrera',  'severidad' => 'No crítico',   'seguimiento' => 'Cerrado',                'compromiso' => '2026-09-05'],
         ];
 
         $filtros  = array_filter(request()->only(['empresa', 'seguimiento', 'q']));
@@ -42,9 +42,8 @@
             ->map(fn ($h) => $h + ['vencido' => $h['seguimiento'] !== 'Cerrado' && Carbon::parse($h['compromiso'])->lt(today())]);
 
         $severidades = [
-            'Crítico' => 'bg-red-50 text-red-700',
-            'Mayor'   => 'bg-amber-50 text-amber-700',
-            'Menor'   => 'bg-brand-50 text-brand',
+            'Crítico'    => 'bg-red-50 text-red-700',
+            'No crítico' => 'bg-gray-100 text-gray-700',
         ];
 
         $seguimientos = [
@@ -113,7 +112,7 @@
                     <tr>
                         <th class="px-4 py-5">Hallazgo</th>
                         <th class="px-4 py-5">Responsable</th>
-                        <th class="px-4 py-5">Severidad</th>
+                        <th class="px-4 py-5">Clasificación</th>
                         <th class="px-4 py-5">Seguimiento</th>
                         <th class="px-4 py-5">Compromiso</th>
                         <th class="px-4 py-5"></th>
