@@ -33,11 +33,15 @@
                 'texto'       => 'La actividad cuenta con registro trazable.',
                 'descripcion' => 'Cada vez que se realiza la actividad queda un registro con fecha, responsable y resultado, de forma que se puede reconstruir qué se hizo y quién lo hizo.',
                 'evidencia'   => 'Bitácora fechada',
+                'seccion'     => '6.3 Registro de maniobras',
+                'fragmento'   => 'Al terminar cada maniobra, el operador anota en la bitácora la fecha, la hora, su nombre y el resultado. El supervisor de turno firma la bitácora al cierre del turno.',
             ],
             [
                 'texto'       => 'Las evidencias están completas y actualizadas.',
                 'descripcion' => 'Están todos los documentos que respaldan la actividad, corresponden al periodo auditado y tienen las firmas o aprobaciones que pide el procedimiento.',
                 'evidencia'   => 'Expediente y revisión firmada',
+                'seccion'     => '8. Registros y evidencias',
+                'fragmento'   => 'Las bitácoras y los formatos de inspección se guardan en el expediente del área durante 12 meses, con la firma del supervisor y la fecha de revisión.',
             ],
         ];
 
@@ -132,6 +136,17 @@
             </div>
         </div>
 
+        {{-- Procedimiento que se audita. Se abre en otra pestaña para no perder lo capturado.
+             Demo: busca el proceso por su nombre. Con la base de datos, irá directo a ese proceso (processes.show). --}}
+        <div class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-6">
+            <div>
+                <h2 class="text-base font-semibold text-gray-900">Procedimiento auditado</h2>
+                <p class="mt-1 text-sm text-gray-600">{{ $auditoria['procedimiento'] }} · Cada criterio muestra el fragmento que se evalúa.</p>
+            </div>
+            <a href="{{ route('processes.index', ['q' => $auditoria['procedimiento']]) }}" target="_blank" rel="noopener"
+               class="rounded-lg border-2 border-brand px-4 py-2 text-sm font-semibold text-brand hover:bg-brand-50">Ver procedimiento completo y anexos</a>
+        </div>
+
         {{-- Un bloque por criterio --}}
         <fieldset :disabled="@js(! $editable) || confirmando || finalizada" class="space-y-6">
             @foreach($criterios as $i => $criterio)
@@ -142,6 +157,13 @@
                     @endif
                     <h3 class="text-lg font-semibold text-gray-900">{{ $i + 1 }}. {{ $criterio['texto'] }}</h3>
                     <p class="mt-1 text-[15px] text-gray-700">{{ $criterio['descripcion'] }}</p>
+                    {{-- Lo que dice el procedimiento sobre este criterio. La pregunta fija no trae fragmento. --}}
+                    @isset($criterio['fragmento'])
+                        <div class="mt-3 rounded-lg border-l-4 border-brand bg-gray-50 px-4 py-3">
+                            <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">Qué dice el procedimiento · {{ $criterio['seccion'] }}</div>
+                            <p class="mt-1 text-sm italic text-gray-700">“{{ $criterio['fragmento'] }}”</p>
+                        </div>
+                    @endisset
                     <p class="mt-2 text-sm text-gray-600"><span class="font-semibold text-gray-900">Evidencia a verificar:</span> {{ $criterio['evidencia'] }}</p>
 
                     <div class="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">

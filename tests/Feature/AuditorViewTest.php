@@ -135,6 +135,24 @@ class AuditorViewTest extends TestCase
             ->assertSee('2. Los contenedores están identificados con su etiqueta.');
     }
 
+    public function test_cada_criterio_muestra_el_fragmento_del_procedimiento(): void
+    {
+        $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1));
+
+        // El fragmento va entre la descripción y la evidencia. La pregunta fija no trae fragmento.
+        $checklist->assertSeeInOrder([
+            '1. El auditado conoce sus procedimientos', 'Evidencia a verificar:',
+            '2. La actividad cuenta con registro trazable.',
+            'Qué dice el procedimiento · 6.3 Registro de maniobras', 'Al terminar cada maniobra', 'Evidencia a verificar:',
+        ]);
+        $this->assertSame(2, substr_count($checklist->getContent(), 'Qué dice el procedimiento ·'));
+
+        // El enlace abre el proceso en otra pestaña, para no perder lo capturado, y el auditor sí puede entrar.
+        $proceso = route('processes.index', ['q' => 'Control de maniobras y seguridad']);
+        $checklist->assertSee('href="' . $proceso . '" target="_blank"', false);
+        $this->actingAs($this->auditor)->get($proceso)->assertOk();
+    }
+
     public function test_la_lista_de_asistencia_muestra_a_los_convocados(): void
     {
         // Auditoría 1 (En captura): el botón va arriba del contador y se marca quién asistió.
