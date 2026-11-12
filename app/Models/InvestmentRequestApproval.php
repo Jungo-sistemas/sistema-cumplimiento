@@ -10,6 +10,7 @@ class InvestmentRequestApproval extends Model
         'investment_request_id',
         'user_id',
         'sequence_order',
+        'position',
         'status',
         'comments',
         'decided_at',

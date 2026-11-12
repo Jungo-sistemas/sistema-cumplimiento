@@ -185,7 +185,7 @@
                 </div>
                 <div class="shrink-0 flex items-center gap-2">
                     @include('processes.partials.edit-version-button', ['regulation' => $regulation, 'currentVersion' => $currentVersion, 'editLock' => $editLock])
-                    @if(auth()->user()->isAdmin())
+                    @if(auth()->user()->isProcessAdmin())
                         <button type="button" @click="$dispatch('open-resubmit')"
                                 class="px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-blue-800">
                             Re-enviar a aprobación
@@ -195,7 +195,7 @@
             </div>
 
             {{-- Re-envío al mismo flujo: permite reemplazar la síntesis de cambios antes de reiniciar --}}
-            @if(auth()->user()->isAdmin())
+            @if(auth()->user()->isProcessAdmin())
                 @include('processes.partials.change-evidence-script')
                 <div x-data="{
                         open: false,

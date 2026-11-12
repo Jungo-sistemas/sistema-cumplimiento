@@ -115,10 +115,13 @@ class RestrictedProcessesTest extends TestCase
             ->assertViewHas('companies', fn ($companies) => $companies->contains('id', $this->restrictedCompany->id));
 
         // Operativo sin el puesto Dirección: tampoco en Mis documentos.
-        $this->actingAs($this->lider)->get(route('mi-espacio.documents'))
+        $this->actingAs($this->lider)->get(route('mi-espacio.documents', ['tab' => 'empresa', 'q' => 'Manual']))
             ->assertOk()
-            ->assertSee('Manual de operaciones')
+            ->assertSee('Manual de operaciones');
+        $this->actingAs($this->lider)->get(route('mi-espacio.documents', ['tab' => 'empresa', 'q' => 'Plan']))
+            ->assertOk()
             ->assertDontSee('Plan de sucesión directiva');
+        $this->actingAs($this->lider)->get(route('mi-espacio.documents.show', $secret))->assertNotFound();
         $this->actingAs($this->lider)->get(route('processes.show', $secret))->assertNotFound();
 
         // Dirección tampoco: la carpeta es solo de Consejo.
@@ -144,8 +147,9 @@ class RestrictedProcessesTest extends TestCase
         $this->actingAs($this->adminProcesos)->get(route('processes.show', $secret))->assertOk();
 
         $this->actingAs($this->consejo)->get(route('processes.show', $secret))->assertOk();
-        $this->actingAs($this->consejo)->get(route('mi-espacio.documents'))
+        $this->actingAs($this->consejo)->get(route('mi-espacio.documents', ['tab' => 'empresa', 'q' => 'Plan']))
             ->assertSee('Plan de sucesión directiva');
+        $this->actingAs($this->consejo)->get(route('mi-espacio.documents.show', $secret))->assertOk();
     }
 
     public function test_sin_acceso_no_se_puede_crear_un_proceso_confidencial(): void

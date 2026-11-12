@@ -4,7 +4,12 @@
         <span class="text-gray-700 font-medium">Solicitud de Inversiones</span>
     </x-slot>
 
-    @php $user = auth()->user(); @endphp
+    @php
+        $user = auth()->user();
+        // Razones sociales agrupadas por tenedora, en el orden de la tabla del cliente.
+        $entityGroups = $entities->groupBy(fn ($e) => $e->holding ?: 'Otras');
+        $showCompany = $entities->count() > 1 || $user->hasGroupScope() || $user->hasMultipleCompanies();
+    @endphp
 
     {{-- HEADER --}}
     <div class="flex items-center justify-between">
@@ -33,16 +38,17 @@
                    class="w-full rounded-md border-gray-300 text-sm">
         </div>
 
-        @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
+        @if($entities->count() > 1)
             <div class="min-w-[180px]">
                 <label class="block text-xs text-gray-500 mb-1">Empresa</label>
-                <select name="company_id" class="w-full rounded-md border-gray-300 text-sm">
+                <select name="entity_id" class="w-full rounded-md border-gray-300 text-sm">
                     <option value="">Todas</option>
-                    @foreach($companies as $company)
-                        <option value="{{ $company->id }}"
-                            @selected((string) request('company_id', $selectedCompanyId) === (string) $company->id)>
-                            {{ $company->name }}
-                        </option>
+                    @foreach($entityGroups as $holding => $group)
+                        <optgroup label="{{ $holding }}">
+                            @foreach($group as $entity)
+                                <option value="{{ $entity->id }}" @selected($selectedEntityId === $entity->id)>{{ $entity->name }}</option>
+                            @endforeach
+                        </optgroup>
                     @endforeach
                 </select>
             </div>
@@ -74,7 +80,7 @@
                 <thead class="bg-gray-50 border-b border-gray-200">
                     <tr class="text-xs font-semibold uppercase tracking-wide text-gray-500">
                         <th class="text-left px-4 py-3">Concepto</th>
-                        @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
+                        @if($showCompany)
                             <th class="text-left px-4 py-3">Empresa</th>
                         @endif
                         <th class="text-left px-4 py-3">Monto</th>
@@ -97,9 +103,9 @@
                             </td>
 
                             {{-- Empresa --}}
-                            @if(($user->hasGroupScope() || $user->hasMultipleCompanies()))
+                            @if($showCompany)
                                 <td class="px-4 py-3">
-                                    {{ $investmentRequest->company?->name ?? '—' }}
+                                    {{ $investmentRequest->displayCompanyName() ?? '—' }}
                                 </td>
                             @endif
 
@@ -161,7 +167,7 @@
                         </tr>
                     @empty
                         <tr class="border-t">
-                            <td colspan="{{ ($user->hasGroupScope() || $user->hasMultipleCompanies()) ? 8 : 7 }}"
+                            <td colspan="{{ $showCompany ? 8 : 7 }}"
                                 class="px-6 py-6 text-center text-gray-500">
                                 {{ request()->filled('q') ? 'No hay solicitudes que coincidan con la búsqueda.' : 'No hay solicitudes de inversión registradas.' }}
                             </td>
@@ -186,20 +192,11 @@
                   action="{{ route('investment-requests.store') }}"
                   enctype="multipart/form-data"
                   x-data="{
-                      approverCount: {{ max(1, min($maxApprovers, count(old('approver_ids', [])))) }},
-                      {{-- Los lugares que sobran se desactivan (TomSelect también desactiva el select original) para que no se envíen --}}
-                      syncApprovers() {
-                          this.$root.querySelectorAll('[data-approver-picker]').forEach((el, i) => {
-                              i < this.approverCount ? el.tomselect?.enable() : el.tomselect?.disable();
-                          });
-                      },
+                      entityId: @js((string) old('entity_id', $entities->count() === 1 ? $entities->first()->id : ($selectedEntityId ?? ''))),
+                      flows: @js((object) $approvalFlows),
+                      get flow() { return this.flows[this.entityId] ?? null; },
                   }"
-                  x-init="$nextTick(() => {
-                      initPersonPicker($refs.requester, { multiple: false });
-                      $el.querySelectorAll('[data-approver-picker]').forEach(el => initPersonPicker(el, { multiple: false }));
-                      syncApprovers();
-                      $watch('approverCount', () => syncApprovers());
-                  })"
+                  x-init="$nextTick(() => initPersonPicker($refs.requester, { multiple: false }))"
                   class="p-6">
                 @csrf
 
@@ -208,26 +205,68 @@
                 <div class="space-y-4">
 
                     {{-- Empresa --}}
-                    @if(($user->hasGroupScope() || $user->hasMultipleCompanies()) && $companies->isNotEmpty())
+                    @if($entities->count() > 1)
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">
                                 Empresa <span class="text-red-500">*</span>
                             </label>
-                            <select name="company_id" required
+                            <select name="entity_id" required x-model="entityId"
                                     class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
                                 <option value="">— Seleccionar empresa —</option>
-                                @foreach($companies as $company)
-                                    <option value="{{ $company->id }}"
-                                        @selected(old('company_id', $selectedCompanyId) == $company->id)>
-                                        {{ $company->name }}
-                                    </option>
+                                @foreach($entityGroups as $holding => $group)
+                                    <optgroup label="{{ $holding }}">
+                                        @foreach($group as $entity)
+                                            <option value="{{ $entity->id }}">{{ $entity->name }}</option>
+                                        @endforeach
+                                    </optgroup>
                                 @endforeach
                             </select>
-                            @if($errors->createInvestmentRequest->has('company_id'))
-                                <p class="text-sm text-red-600 mt-1">{{ $errors->createInvestmentRequest->first('company_id') }}</p>
-                            @endif
                         </div>
+                    @elseif($entities->count() === 1)
+                        <input type="hidden" name="entity_id" value="{{ $entities->first()->id }}">
+                        <div class="text-sm text-gray-700">
+                            <span class="font-medium">Empresa:</span> {{ $entities->first()->name }}
+                        </div>
+                    @else
+                        <p class="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+                            Tus empresas no tienen flujo de aprobación de Anexos 8. Pide a un administrador que lo configure.
+                        </p>
                     @endif
+
+                    {{-- Flujo de aprobación: fijo por empresa, solo se muestra --}}
+                    <div class="rounded-lg border border-gray-200 p-4">
+                        <div class="text-sm font-medium text-gray-700">Flujo de aprobación</div>
+
+                        <template x-if="!entityId">
+                            <p class="text-xs text-gray-500 mt-1">Elige la empresa para ver quiénes aprueban.</p>
+                        </template>
+
+                        <template x-if="entityId && flow">
+                            <div>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Aprueban uno tras otro en este orden. A cada persona se le avisa por correo cuando es su turno.
+                                </p>
+                                <ol class="mt-3 space-y-2">
+                                    <template x-for="(step, i) in flow.steps" :key="i">
+                                        <li class="flex items-center gap-3 text-sm">
+                                            <span class="h-6 w-6 shrink-0 rounded-full text-xs font-semibold flex items-center justify-center"
+                                                  :class="step.missing ? 'bg-gray-200 text-gray-500' : 'bg-brand text-white'"
+                                                  x-text="i + 1"></span>
+                                            <span class="w-20 shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500" x-text="step.position"></span>
+                                            <span :class="step.missing ? 'text-gray-400' : 'text-gray-900'" x-text="step.name"></span>
+                                            <span x-show="step.missing" class="text-xs text-amber-700">(sin usuario)</span>
+                                        </li>
+                                    </template>
+                                </ol>
+                                <p x-show="flow.problem" x-text="flow.problem"
+                                   class="mt-3 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800"></p>
+                            </div>
+                        </template>
+
+                        @if($errors->createInvestmentRequest->has('entity_id'))
+                            <p class="text-sm text-red-600 mt-2">{{ $errors->createInvestmentRequest->first('entity_id') }}</p>
+                        @endif
+                    </div>
 
                     {{-- Concepto --}}
                     <div>
@@ -296,51 +335,6 @@
                         </select>
                     </div>
 
-                    {{-- Flujo de aprobación: cuántas personas y quién va en cada lugar, en orden --}}
-                    <div class="rounded-lg border border-gray-200 p-4">
-                        <div class="flex items-center justify-between gap-3">
-                            <label class="text-sm font-medium text-gray-700">
-                                Flujo de aprobación <span class="text-red-500">*</span>
-                            </label>
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs text-gray-500">Número de personas</span>
-                                <select x-model.number="approverCount"
-                                        class="rounded-md border-gray-300 text-sm py-1 focus:border-blue-600 focus:ring-blue-600">
-                                    @for($n = 1; $n <= $maxApprovers; $n++)
-                                        <option value="{{ $n }}">{{ $n }}</option>
-                                    @endfor
-                                </select>
-                            </div>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-1">
-                            Aprueban uno tras otro en este orden. A cada persona se le avisa por correo cuando es su turno.
-                        </p>
-
-                        <div class="mt-3 space-y-2">
-                            @for($i = 1; $i <= $maxApprovers; $i++)
-                                <div x-show="{{ $i }} <= approverCount" class="flex items-center gap-3">
-                                    <span class="h-6 w-6 shrink-0 rounded-full bg-brand text-white text-xs font-semibold flex items-center justify-center">{{ $i }}</span>
-                                    <div class="flex-1 min-w-0">
-                                        <select name="approver_ids[]" data-approver-picker>
-                                            <option value="">— Persona {{ $i }} —</option>
-                                            @foreach($approverCandidates as $u)
-                                                <option value="{{ $u->id }}" @selected((int) (old('approver_ids')[$i - 1] ?? 0) === $u->id)>
-                                                    {{ $u->name }}{{ $u->role ? ' — ' . $u->role->name : '' }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                            @endfor
-                        </div>
-
-                        @foreach(['approver_ids', 'approver_ids.*'] as $key)
-                            @if($errors->createInvestmentRequest->has($key))
-                                <p class="text-sm text-red-600 mt-2">{{ $errors->createInvestmentRequest->first($key) }}</p>
-                            @endif
-                        @endforeach
-                    </div>
-
                     {{-- Anexo 8 --}}
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -368,7 +362,8 @@
                         Cancelar
                     </button>
                     <button type="submit"
-                            class="px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
+                            :disabled="!entityId || (flow && flow.problem)"
+                            class="px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed">
                         Guardar
                     </button>
                 </div>

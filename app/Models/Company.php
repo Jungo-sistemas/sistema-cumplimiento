@@ -110,5 +110,12 @@ class Company extends Model
     {
         return $this->belongsTo(Group::class);
     }
+
+    // Flujo fijo de aprobación de Anexos 8 (solicitudes de inversión), en orden.
+    // Razones sociales de Anexos 8 que pertenecen a esta empresa.
+    public function investmentEntities()
+    {
+        return $this->hasMany(InvestmentEntity::class);
+    }
 }
 
