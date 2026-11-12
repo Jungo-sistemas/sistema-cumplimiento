@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 
 class RegulationApprovalController extends Controller
 {
+    public const REJECT_COMMENTS_MAX = 5000;
+
     public function __construct(private readonly ApprovalFlowService $flowService) {}
 
     public function approve(Regulation $regulation)
@@ -29,9 +31,18 @@ class RegulationApprovalController extends Controller
     {
         $user = auth()->user();
 
-        $request->validate([
-            'comments' => 'required|string|max:1000',
+        // Si falla, se regresa con el texto escrito y el id del proceso para reabrir su modal —
+        // antes el error no se mostraba en Mis aprobaciones y el motivo se perdía (P-MIG-306).
+        $validator = validator($request->all(), [
+            'comments' => ['required', 'string', 'max:' . self::REJECT_COMMENTS_MAX],
+        ], [
+            'comments.required' => 'Escribe el motivo del rechazo.',
+            'comments.max'      => 'El motivo no puede pasar de ' . number_format(self::REJECT_COMMENTS_MAX) . ' caracteres.',
         ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput()->with('reject_failed_for', $regulation->id);
+        }
 
         $approval = $this->flowService->getPendingApprovalForUser($regulation, $user->id);
         if ($approval === null) {
@@ -50,7 +61,7 @@ class RegulationApprovalController extends Controller
     private function alreadyResolved()
     {
         return redirect()->route('my-approvals.index')
-            ->with('success', 'Esta aprobación ya no está pendiente; tu decisión ya quedó registrada o el flujo cambió.');
+            ->with('warning', 'Esta aprobación ya no está pendiente para ti; tu decisión ya quedó registrada o el flujo cambió.');
     }
 
     public function resubmit(Request $request, Regulation $regulation)

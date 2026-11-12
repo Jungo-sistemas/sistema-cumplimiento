@@ -22,6 +22,18 @@
             </div>
         @endif
 
+        @if(session('warning'))
+            <div class="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                {{ session('warning') }}
+            </div>
+        @endif
+
+        @if(session('reject_failed_for') && $errors->has('comments'))
+            <div class="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                No se registró el rechazo: {{ $errors->first('comments') }}
+            </div>
+        @endif
+
         @if($pendingApprovals->isEmpty())
             <div class="bg-white rounded-xl border shadow-sm p-12 text-center">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -45,9 +57,12 @@
                     // largo; decisión explícita del usuario, se sigue calculando todo pero solo
                     // se muestra 1 fila.
                     $changedSections = $changedSectionsAll !== [] ? [end($changedSectionsAll)] : [];
+                    // Si el rechazo de ESTE proceso no pasó la validación, se reabre su modal con lo escrito.
+                    $rejectFailed = (int) session('reject_failed_for') === $regulation->id;
+                    $rejectMax = \App\Http\Controllers\RegulationApprovalController::REJECT_COMMENTS_MAX;
                 @endphp
 
-                <div x-data="{ showPreview: false, showReject: false, showConfirm: false }" class="bg-white rounded-xl border shadow-sm overflow-hidden">
+                <div x-data="{ showPreview: false, showReject: {{ $rejectFailed ? 'true' : 'false' }}, showConfirm: false }" class="bg-white rounded-xl border shadow-sm overflow-hidden">
 
                     {{-- Cabecera --}}
                     <div class="px-6 py-4 border-b flex items-start justify-between gap-4 flex-wrap" style="background: linear-gradient(135deg, #5B1690 0%, #1e5096 100%);">
@@ -302,13 +317,19 @@
                                     <form method="POST" action="{{ route('processes.reject', $regulation) }}" class="space-y-3"
                                           @submit="$el.querySelector('[type=submit]').disabled = true">
                                         @csrf
-                                        <div>
+                                        <div x-data="{ len: {{ $rejectFailed ? mb_strlen((string) old('comments')) : 0 }} }">
                                             <label class="block text-sm font-semibold text-red-700 mb-2">
                                                 Motivo de rechazo <span class="text-red-500">*</span>
                                             </label>
-                                            <textarea name="comments" rows="3" required
+                                            <textarea name="comments" rows="5" required maxlength="{{ $rejectMax }}"
+                                                      @input="len = $el.value.length"
                                                       placeholder="Describe el motivo del rechazo..."
-                                                      class="w-full rounded-md border-red-200 text-sm focus:border-red-400 focus:ring-red-400 resize-none"></textarea>
+                                                      class="w-full rounded-md border-red-200 text-sm focus:border-red-400 focus:ring-red-400">{{ $rejectFailed ? old('comments') : '' }}</textarea>
+                                            <div class="mt-1 flex justify-between gap-2 text-xs">
+                                                <span class="text-red-600">{{ $rejectFailed ? $errors->first('comments') : '' }}</span>
+                                                <span :class="len >= {{ $rejectMax }} ? 'text-red-600 font-semibold' : 'text-gray-400'"
+                                                      x-text="len.toLocaleString('es-MX') + ' / {{ number_format($rejectMax) }}'"></span>
+                                            </div>
                                         </div>
                                         <div class="flex gap-3">
                                             <button type="button" @click="showReject = false"
