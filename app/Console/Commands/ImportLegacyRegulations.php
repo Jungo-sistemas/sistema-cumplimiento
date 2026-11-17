@@ -153,9 +153,10 @@ class ImportLegacyRegulations extends Command
             return;
         }
 
-        if (Regulation::where('company_id', $company->id)->where('code', Str::upper($code))->exists()) {
+        // El código es único en todo el grupo (ver Regulation::uniqueCodeRule()), no solo en la empresa.
+        if (Regulation::codeTaken($company->group_id, $code)) {
             $skippedExisting++;
-            $problems[] = "Línea {$lineNo} [{$code}]: ya existe un documento con ese código en esta empresa, se omite.";
+            $problems[] = "Línea {$lineNo} [{$code}]: ya existe un documento con ese código, se omite.";
             return;
         }
 
@@ -206,7 +207,7 @@ class ImportLegacyRegulations extends Command
             'document_type' => $documentType,
             'is_annex' => $isAnnex,
             'is_legacy' => true,
-            'code' => Str::upper($code),
+            'code' => Regulation::normalizeCode($code),
             'name' => Str::upper($name),
             'details' => array_filter([
                 'quien_elabora' => $elaboraPor,
