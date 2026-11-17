@@ -110,7 +110,17 @@ class AuditeeViewTest extends TestCase
         $otherCompany = Company::create(['name' => 'BIOMEX', 'group_id' => $this->group->id]);
         $this->regulation('Proceso de otra empresa', ['company_id' => $otherCompany->id]);
 
+        $folder = ProcessType::where('name', 'Operaciones')->sole();
+
+        // Sin menciones abre en su empresa: las carpetas por tipo de proceso, con cuántos publicados.
         $this->actingAs($this->operative)->get(route('mi-espacio.documents'))
+            ->assertOk()
+            ->assertSee('Procesos de mi empresa')
+            ->assertSee('Operaciones')
+            ->assertSee('2 procedimientos')
+            ->assertDontSee('Control de maniobras y seguridad');
+
+        $this->actingAs($this->operative)->get(route('mi-espacio.documents', ['tab' => 'empresa', 'process_type_id' => $folder->id]))
             ->assertOk()
             ->assertSee('Control de maniobras y seguridad')
             ->assertSee('Liberado')
@@ -120,7 +130,7 @@ class AuditeeViewTest extends TestCase
             ->assertDontSee('Formato anexo')
             ->assertDontSee('Proceso de otra empresa');
 
-        $this->actingAs($this->operative)->get(route('mi-espacio.documents', ['q' => 'maniobras']))
+        $this->actingAs($this->operative)->get(route('mi-espacio.documents', ['tab' => 'empresa', 'q' => 'maniobras']))
             ->assertSee('Control de maniobras y seguridad')
             ->assertDontSee('Gestión de proveedores');
 
@@ -210,15 +220,82 @@ class AuditeeViewTest extends TestCase
         // Una mención #documento con el mismo número no cuenta como mención a la persona.
         $notMentioned->currentVersion()->update(['body_html' => '<p><a data-type="documento" data-id="' . $this->operative->id . '">#X</a></p>']);
 
+        // Con menciones abre en "Te mencionan".
         $this->actingAs($this->operative)->get(route('mi-espacio.documents'))
             ->assertOk()
             ->assertSee('Recepción de producto')
-            ->assertSee('Te mencionan')
+            ->assertSee('Te mencionan (1)')
             ->assertSee('BIOMEX')
             ->assertDontSee('Proceso ajeno');
 
         // Lo puede abrir aunque no sea de su empresa.
+        $this->actingAs($this->operative)->get(route('mi-espacio.documents.show', $mentioned))->assertOk();
+        $this->actingAs($this->operative)->get(route('mi-espacio.documents.show', $notMentioned))->assertForbidden();
         $this->actingAs($this->operative)->get(route('processes.show', $mentioned))->assertOk();
         $this->actingAs($this->operative)->get(route('processes.show', $notMentioned))->assertForbidden();
+    }
+
+    public function test_mi_espacio_muestra_la_ultima_version_aprobada_mientras_se_edita(): void
+    {
+        $regulation = $this->regulation('Control de maniobras');
+        $approved = $regulation->currentVersion;
+        $this->assertNotNull($approved->approved_at);
+
+        // Se edita: la versión 2 pasa a ser la vigente y el proceso vuelve a revisión.
+        $approved->update(['is_current' => false]);
+        $draft = RegulationVersion::create([
+            'regulation_id' => $regulation->id, 'version_number' => 2, 'is_current' => true,
+            'file_path' => 'regulations/test/v2.docx', 'original_name' => 'v2.docx', 'disk' => 'private',
+            'valid_until' => $approved->valid_until,
+        ]);
+        $regulation->update(['approval_status' => 'pending_review']);
+        $this->assertNull($draft->fresh()->approved_at);
+
+        $this->actingAs($this->operative)->get(route('mi-espacio.documents.show', $regulation))
+            ->assertOk()
+            ->assertSee('Versión 1')
+            ->assertSee('Este proceso se está actualizando')
+            ->assertSee(route('regulation-versions.preview', ['version' => $approved, 'from' => 'mi-espacio']), false)
+            ->assertDontSee(route('regulation-versions.preview', ['version' => $draft, 'from' => 'mi-espacio']), false)
+            // Solo consulta: nada de editar ni subir versión.
+            ->assertDontSee(route('processes.edit', $regulation), false)
+            ->assertDontSee('Subir nueva versión');
+
+        // Al aprobarse, la nueva pasa a ser la publicada.
+        $regulation->update(['approval_status' => 'approved']);
+        $this->assertNotNull($draft->fresh()->approved_at);
+        $this->actingAs($this->operative)->get(route('mi-espacio.documents.show', $regulation))
+            ->assertSee('Versión 2')->assertDontSee('Este proceso se está actualizando');
+    }
+
+    public function test_con_varias_empresas_o_acceso_a_todas_primero_elige_la_empresa(): void
+    {
+        $biomex = Company::create(['name' => 'BIOMEX', 'group_id' => $this->group->id]);
+        $this->regulation('Control de maniobras');
+        $this->regulation('Recepción de biogás', ['company_id' => $biomex->id]);
+
+        $this->actingAs($this->admin)->get(route('mi-espacio.documents'))
+            ->assertOk()
+            ->assertSee('Procesos de mis empresas')
+            ->assertSee('ALCOM')
+            ->assertSee('BIOMEX')
+            ->assertDontSee('Control de maniobras');
+
+        $this->actingAs($this->admin)->get(route('mi-espacio.documents', ['tab' => 'empresa', 'company_id' => $biomex->id]))
+            ->assertOk()->assertSee('Operaciones')->assertSee('1 procedimiento');
+
+        // El buscador busca en todas sus empresas.
+        $this->actingAs($this->admin)->get(route('mi-espacio.documents', ['tab' => 'empresa', 'q' => 'r']))
+            ->assertSee('Control de maniobras')->assertSee('Recepción de biogás');
+    }
+
+    public function test_quien_no_tiene_empresa_recibe_el_aviso(): void
+    {
+        $this->operative->update(['company_id' => null]);
+
+        $this->actingAs($this->operative)->get(route('mi-espacio.documents'))
+            ->assertOk()->assertSee('No tienes una empresa asignada');
+        $this->actingAs($this->admin)->get(route('mi-espacio.documents'))
+            ->assertOk()->assertDontSee('No tienes una empresa asignada');
     }
 }

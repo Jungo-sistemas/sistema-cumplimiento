@@ -11,6 +11,10 @@
         $adminRoleId      = $roles->where('slug', 'admin')->first()?->id;
         $auditorRoleId    = $roles->where('slug', 'auditor')->first()?->id;
         $companiesByGroup = $companies->groupBy('group_id')->map->values();
+        // Solo los módulos de quien crea: un admin de Cumplimiento crea usuarios de Cumplimiento.
+        $moduleLabels  = ['all' => 'Ambos módulos', 'cumplimiento' => 'Solo Cumplimiento', 'procesos' => 'Solo Procesos'];
+        $moduleOptions = auth()->user()->assignableModuleAccess();
+        $areaNames     = ['all' => 'Cumplimiento y Procesos', 'cumplimiento' => 'Cumplimiento', 'procesos' => 'Procesos y Auditorías'];
     @endphp
 
     <script>
@@ -135,10 +139,12 @@
                             <span class="font-medium text-gray-700">Solo lectura</span><br>
                             Solo consulta. No puede crear ni modificar.
                         </div>
+                        @if(auth()->user()->canAssignProcesosAccess())
                         <div class="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
                             <span class="font-medium text-gray-700">Auditor</span><br>
                             Evalúa y califica procedimientos. Exclusivo del módulo Procesos.
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -146,6 +152,8 @@
             <hr class="border-gray-100">
 
             {{-- ── PUESTO EN LA ORGANIZACIÓN ─────────────────────────────── --}}
+            {{-- Los puestos son de Procesos (flujos de aprobación): solo los asigna quien tiene Procesos. --}}
+            @if(auth()->user()->canAssignProcesosAccess())
             <div class="space-y-4" x-show="selectedRole !== ''" x-transition>
                 <div>
                     <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-400">Puesto en la organización</h2>
@@ -183,6 +191,7 @@
             </div>
 
             <hr class="border-gray-100" x-show="selectedRole !== ''" x-transition>
+            @endif
 
             {{-- ── ALCANCE Y EMPRESA ─────────────────────────────────────── --}}
             @if($singleCompany)
@@ -292,11 +301,11 @@
 
             @endif
 
-            {{-- Módulos / Vista predeterminada --}}
-            <div x-show="selectedRole !== ''" x-transition class="space-y-2">
+            {{-- Módulos --}}
+            <div x-show="selectedRole !== ''" x-transition class="space-y-2"
+                 x-data="{ moduleAccess: @js(old('module_access', $moduleOptions[0])) }">
                 <label class="block text-sm font-medium text-gray-700">
-                    <span x-text="isAdmin ? 'Vista predeterminada' : (isAuditor ? 'Módulo' : 'Módulos visibles')"></span>
-                    <span x-show="!isAdmin && !isAuditor" class="text-red-500">*</span>
+                    <span x-text="isAuditor ? 'Módulo' : 'Módulos visibles'"></span>
                 </label>
 
                 <template x-if="isAuditor">
@@ -309,21 +318,42 @@
                 </template>
 
                 <template x-if="!isAuditor">
-                    <select name="module_access"
-                            class="w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand text-sm">
-                        <option value="all"         {{ old('module_access', 'all') === 'all'         ? 'selected' : '' }}>Ambos módulos</option>
-                        <option value="cumplimiento" {{ old('module_access') === 'cumplimiento'       ? 'selected' : '' }}>Solo Cumplimiento</option>
-                        <option value="procesos"     {{ old('module_access') === 'procesos'           ? 'selected' : '' }}>Solo Procesos</option>
-                    </select>
+                    @if(count($moduleOptions) === 1)
+                        <div>
+                            <input type="hidden" name="module_access" value="{{ $moduleOptions[0] }}">
+                            <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                                {{ $moduleLabels[$moduleOptions[0]] }}
+                            </div>
+                        </div>
+                    @else
+                        <select name="module_access" x-model="moduleAccess"
+                                class="w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand text-sm">
+                            @foreach($moduleOptions as $option)
+                                <option value="{{ $option }}">{{ $moduleLabels[$option] }}</option>
+                            @endforeach
+                        </select>
+                    @endif
                 </template>
 
                 <p class="text-xs text-gray-400"
-                   x-text="isAdmin
-                       ? 'El administrador accede a todo; esto solo define el módulo de inicio al entrar al sistema.'
-                       : (isAuditor
-                           ? 'El auditor solo tiene acceso al módulo de Procesos.'
-                           : 'Define a qué sección del sistema tendrá acceso este usuario.')">
+                   x-text="isAuditor
+                       ? 'El auditor solo tiene acceso al módulo de Procesos.'
+                       : 'Define a qué sección del sistema tendrá acceso. Sin Procesos, en Procesos y Auditorías solo verá Mi espacio (sus procedimientos, aprobaciones y auditorías).'">
                 </p>
+                @if(count($moduleOptions) === 1)
+                    <p class="text-xs text-gray-400">Solo puedes dar acceso a los módulos que tú administras.</p>
+                @endif
+
+                {{-- Un admin nuevo queda en el área de quien lo crea: ¿recibe los avisos de esa área? --}}
+                <label x-show="isAdmin" class="mt-3 flex items-start gap-2 rounded-lg border border-gray-200 px-3 py-2.5 text-sm cursor-pointer">
+                    <input type="checkbox" name="receive_notifications" value="1" @checked(old('receive_notifications', true))
+                           class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/40">
+                    <span class="text-gray-700">
+                        Recibir las notificaciones de administración del área de
+                        <span class="font-semibold" x-text="@js($areaNames)[moduleAccess] ?? ''"></span>
+                        <span class="block text-xs text-gray-400">Solicitudes de acceso, escalamientos y avisos a administradores. Sus avisos personales le llegan siempre.</span>
+                    </span>
+                </label>
             </div>
 
             <div class="flex justify-end gap-3 pt-2">

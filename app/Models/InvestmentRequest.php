@@ -16,6 +16,7 @@ class InvestmentRequest extends Model
     protected $fillable = [
         'group_id',
         'company_id',
+        'investment_entity_id',
         'concept',
         'amount',
         'deadline_at',
@@ -43,6 +44,18 @@ class InvestmentRequest extends Model
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+    // Razón social elegida al capturar (define el flujo de aprobación).
+    public function entity()
+    {
+        return $this->belongsTo(InvestmentEntity::class, 'investment_entity_id');
+    }
+
+    // Lo que se muestra como "Empresa": la razón social; las solicitudes viejas, la empresa.
+    public function displayCompanyName(): ?string
+    {
+        return $this->entity?->name ?? $this->company?->name;
     }
 
     public function group()

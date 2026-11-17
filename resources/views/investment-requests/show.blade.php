@@ -1,7 +1,15 @@
 <x-layouts.vigia title="Solicitud de inversión">
 
+    @php
+        // Sin Cumplimiento (aprobador "Solo Procesos") no hay listado general: regresa a sus aprobaciones.
+        $backUrl = auth()->user()->isSuperAdmin() || auth()->user()->canAccessModule('cumplimiento')
+            ? route('investment-requests.index')
+            : route('investment-requests.my-approvals');
+        $backLabel = $backUrl === route('investment-requests.index') ? 'Solicitud de Inversiones' : 'Mis aprobaciones de inversión';
+    @endphp
+
     <x-slot name="breadcrumb">
-        <a href="{{ route('investment-requests.index') }}" class="text-gray-600 hover:underline">Solicitud de Inversiones</a>
+        <a href="{{ $backUrl }}" class="text-gray-600 hover:underline">{{ $backLabel }}</a>
         <span class="text-gray-400">›</span>
         <span class="text-gray-700 font-medium">#{{ $investmentRequest->id }}</span>
     </x-slot>
@@ -15,10 +23,10 @@
                     {{ $investmentRequest->concept }}
                 </h1>
 
-                @if((auth()->user()->hasGroupScope() || auth()->user()->hasMultipleCompanies()) && $investmentRequest->company)
+                @if($investmentRequest->displayCompanyName())
                     <div class="text-sm text-gray-500">
                         Empresa:
-                        <span class="font-semibold text-gray-700">{{ $investmentRequest->company->name }}</span>
+                        <span class="font-semibold text-gray-700">{{ $investmentRequest->displayCompanyName() }}</span>
                     </div>
                 @endif
 
@@ -45,7 +53,7 @@
                 </div>
             </div>
 
-            <a href="{{ route('investment-requests.index') }}"
+            <a href="{{ $backUrl }}"
                class="shrink-0 px-4 py-2 rounded-md border bg-white text-brand border-brand font-semibold hover:bg-brand-50">
                 Volver
             </a>
@@ -100,6 +108,9 @@
                                 </span>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex flex-wrap items-center gap-x-2">
+                                        @if($approval->position)
+                                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $approval->position }}</span>
+                                        @endif
                                         <span class="font-medium text-gray-900">{{ $approval->user?->name ?? 'Usuario eliminado' }}</span>
                                         <span class="text-xs {{ $label }}">{{ $approval->statusLabel() }}</span>
                                         @if($approval->decided_at)

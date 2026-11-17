@@ -307,7 +307,7 @@ class RegulationController extends Controller
         $positionLabels     = $positions->pluck('name', 'slug');
         $positionSortOrders = $positions->pluck('sort_order', 'slug');
 
-        $usersByPosition = $user->isAdmin()
+        $usersByPosition = $user->isProcessAdmin()
             ? JobPosition::where('group_id', $regulation->group_id)
                 ->where('is_active', true)
                 ->with(['users' => fn ($q) => $q->select('users.id', 'users.name', 'users.email')->orderBy('users.name')])

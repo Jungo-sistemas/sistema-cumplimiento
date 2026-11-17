@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Models\ProcessType;
 use App\Models\Regulation;
 use App\Models\RegulationVersion;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
@@ -32,12 +34,16 @@ class AuditeeController extends Controller
 
     public function home(Request $request)
     {
-        $documents = $this->documentsFor($request->user(), $this->companiesFor($request->user()));
+        $user = $request->user();
+        $mentionedIds = $this->mentionedRegulationIds($user);
+        $documents = $this->publishedQuery($user)
+            ->where(fn ($q) => $q->whereIn('company_id', $this->companiesFor($user)->pluck('id'))->orWhereIn('id', $mentionedIds))
+            ->get();
 
         return view('mi-espacio.home', [
             'activeAuditsCount'  => 0,
             'activitiesCount'    => 0,
-            'releasedDocsCount'  => $documents->where('auditee_status', 'Liberado')->count(),
+            'releasedDocsCount'  => $this->decorate($documents, $mentionedIds)->where('auditee_status', 'Liberado')->count(),
             'nextItems'          => collect(),
         ]);
     }
@@ -47,24 +53,124 @@ class AuditeeController extends Controller
         return view('mi-espacio.requests', ['requests' => collect()]);
     }
 
+    /**
+     * Mis documentos: solo consulta, siempre la última versión aprobada. Dos pestañas:
+     * - "Te mencionan": los procesos de cualquier empresa del grupo cuya versión publicada lo
+     *   menciona con @persona.
+     * - "Procesos de mi empresa": las carpetas por tipo de proceso, igual que en Procesos. Con una
+     *   empresa entra directo; con varias (o acceso a todas) primero elige la empresa con tarjetas.
+     *   El buscador busca en todas sus empresas.
+     * Abre en "Te mencionan" si tiene alguna mención; si no, en la de su empresa.
+     */
     public function documents(Request $request)
     {
         $user = $request->user();
         $companies = $this->companiesFor($user);
-
-        // Solo se acepta una empresa a la que el usuario tenga acceso; cualquier otro valor = todas.
-        $selectedCompanyId = $companies->firstWhere('id', $request->integer('company_id'))?->id;
+        $mentionedIds = $this->mentionedRegulationIds($user);
         $search = trim((string) $request->q);
 
-        $documents = $selectedCompanyId
-            ? $this->documentsFor($user, $companies->where('id', $selectedCompanyId), $search, includeMentions: false)
-            : $this->documentsFor($user, $companies, $search);
+        $tab = match ($request->query('tab')) {
+            'menciones' => 'menciones',
+            'empresa'   => 'empresa',
+            default     => $mentionedIds ? 'menciones' : 'empresa',
+        };
 
-        return view('mi-espacio.documents', [
-            'companies'         => $companies,
-            'selectedCompanyId' => $selectedCompanyId,
-            'search'            => $search,
-            'documents'         => $documents,
+        // Sin empresa y sin acceso de grupo no hay procesos de "su empresa" que mostrar.
+        $missingCompany = $companies->isEmpty() && ! $user->hasGroupScope() && ! $user->isGlobalScope();
+
+        $data = [
+            'tab'             => $tab,
+            'companies'       => $companies,
+            'search'          => $search,
+            'mentionsCount'   => count($mentionedIds),
+            'missingCompany'  => $missingCompany,
+            'selectedCompany' => null,
+            'selectedFolder'  => null,
+            'folders'         => collect(),
+            'documents'       => collect(),
+            'companyCards'    => collect(),
+        ];
+
+        if ($tab === 'menciones') {
+            $query = $this->publishedQuery($user)->whereIn('id', $mentionedIds);
+            $this->applySearch($query, $search);
+            $data['documents'] = $this->decorate($query->orderBy('name')->get(), $mentionedIds);
+
+            return view('mi-espacio.documents', $data);
+        }
+
+        // Búsqueda: en todas sus empresas (o en la elegida), en una sola lista.
+        $selectedCompany = $companies->count() === 1
+            ? $companies->first()
+            : $companies->firstWhere('id', $request->integer('company_id'));
+        $data['selectedCompany'] = $selectedCompany;
+
+        $companyQuery = fn () => $this->publishedQuery($user)
+            ->whereIn('company_id', $selectedCompany ? [$selectedCompany->id] : $companies->pluck('id'));
+
+        if ($search !== '') {
+            $query = $companyQuery();
+            $this->applySearch($query, $search);
+            $data['documents'] = $this->decorate($query->orderBy('name')->get(), $mentionedIds);
+
+            return view('mi-espacio.documents', $data);
+        }
+
+        // Varias empresas (o todas) sin elegir: tarjetas de empresa.
+        if (! $selectedCompany) {
+            $counts = $companyQuery()->reorder()->selectRaw('company_id, count(*) as total')->groupBy('company_id')->pluck('total', 'company_id');
+            $data['companyCards'] = $companies->map(fn (Company $c) => ['company' => $c, 'count' => (int) ($counts[$c->id] ?? 0)]);
+
+            return view('mi-espacio.documents', $data);
+        }
+
+        $processTypes = ProcessType::where('group_id', $user->group_id)->where('is_active', true)
+            ->orderBy('sort_order')->orderBy('name')->get();
+        $folderId = $request->integer('process_type_id') ?: null;
+
+        // Dentro de una carpeta: sus procesos publicados.
+        if ($folderId) {
+            $type = $processTypes->firstWhere('id', $folderId);
+            $data['selectedFolder'] = ['id' => $folderId, 'number' => $type?->sort_order, 'name' => $type?->name ?? 'Carpeta'];
+            $data['documents'] = $this->decorate(
+                $companyQuery()->where('process_type_id', $folderId)->orderBy('code')->orderBy('name')->get(),
+                $mentionedIds
+            );
+
+            return view('mi-espacio.documents', $data);
+        }
+
+        // Las carpetas de la empresa, una por tipo de proceso.
+        $counts = $companyQuery()->reorder()->selectRaw('process_type_id, count(*) as total')->groupBy('process_type_id')->pluck('total', 'process_type_id');
+        $data['folders'] = $processTypes->map(fn ($type) => [
+            'id'     => $type->id,
+            'number' => $type->sort_order,
+            'name'   => $type->name,
+            'count'  => (int) ($counts[$type->id] ?? 0),
+        ]);
+
+        return view('mi-espacio.documents', $data);
+    }
+
+    /**
+     * Consulta de un proceso desde Mi espacio: solo lectura y siempre la última versión aprobada,
+     * aunque en Procesos se esté editando una nueva.
+     */
+    public function showDocument(Request $request, Regulation $regulation)
+    {
+        $user = $request->user();
+        // La empresa completa: canAccessCompany() usa group_id e is_restricted.
+        $regulation->load(['publishedVersion', 'currentVersion', 'processType:id,name', 'company']);
+        $published = $regulation->publishedVersion;
+
+        abort_unless($published && $regulation->is_active && ! $regulation->obsoleted_at && $regulation->group_id === $user->group_id, 404);
+        abort_unless($user->canAccessCompany($regulation->company) || $published->mentionsUser($user), 403);
+
+        $this->decorate(collect([$regulation]), $published->mentionsUser($user) ? [$regulation->id] : []);
+
+        return view('mi-espacio.document', [
+            'regulation' => $regulation,
+            'version'    => $published,
         ]);
     }
 
@@ -131,59 +237,74 @@ class AuditeeController extends Controller
     }
 
     /**
-     * Procesos que le aplican al usuario: los de sus empresas que ya tienen una versión publicada,
-     * más los de cualquier empresa del grupo donde lo mencionan (@persona) en la versión vigente.
-     * Los que nunca se han aprobado no se listan porque todavía no hay nada que consultar.
-     * Con una empresa elegida en el filtro, solo los de esa empresa.
+     * Procesos del grupo con una versión aprobada que consultar (no anexos, ni en papelera ni
+     * obsoletos). Los que nunca se han aprobado no salen: todavía no hay nada que consultar.
      */
-    private function documentsFor(User $user, Collection $companies, string $search = '', bool $includeMentions = true): Collection
+    private function publishedQuery(User $user): Builder
     {
-        $mentionedIds = $includeMentions ? $this->mentionedRegulationIds($user) : [];
-
-        return Regulation::with(['currentVersion', 'processType:id,name', 'company:id,name,process_name'])
+        return Regulation::with(['publishedVersion', 'currentVersion', 'processType:id,name', 'company:id,name,process_name'])
             ->where('group_id', $user->group_id)
-            ->where(fn ($q) => $q->whereIn('company_id', $companies->pluck('id'))->orWhereIn('id', $mentionedIds))
             ->where('is_active', true)
             ->where('is_annex', false)
             ->whereNull('obsoleted_at')
-            ->where(fn ($q) => $q->whereIn('approval_status', ['approved', 'outdated'])
-                ->orWhereHas('currentVersion', fn ($v) => $v->whereNotNull('valid_until')))
-            ->when($search !== '', function ($q) use ($search) {
-                $like = '%' . mb_strtolower($search) . '%';
-                $q->where(fn ($q) => $q->whereRaw('LOWER(name) LIKE ?', [$like])
-                    ->orWhereRaw('LOWER(code) LIKE ?', [$like]));
-            })
-            ->orderBy('name')
-            ->get()
-            ->each(function (Regulation $regulation) use ($mentionedIds) {
-                // "Obsoleto" es lo mismo que la vista Obsoleto de Procesos: la versión vigente ya venció.
-                $regulation->auditee_status = match (true) {
-                    $regulation->approval_status === 'outdated'                  => 'Desactualizado',
-                    (bool) $regulation->currentVersion?->valid_until?->isPast() => 'Obsoleto',
-                    default                                                      => 'Liberado',
-                };
-                $regulation->mentions_user = in_array($regulation->id, $mentionedIds, true);
-            });
+            ->whereHas('versions', fn ($v) => $v->whereNotNull('approved_at'));
+    }
+
+    private function applySearch(Builder $query, string $search): void
+    {
+        if ($search === '') {
+            return;
+        }
+
+        $like = '%' . mb_strtolower($search) . '%';
+        $query->where(fn ($q) => $q->whereRaw('LOWER(name) LIKE ?', [$like])->orWhereRaw('LOWER(code) LIKE ?', [$like]));
+    }
+
+    /** Estado que ve el auditado, según la versión publicada, y si se está actualizando. */
+    private function decorate(Collection $regulations, array $mentionedIds): Collection
+    {
+        return $regulations->each(function (Regulation $regulation) use ($mentionedIds) {
+            $published = $regulation->publishedVersion;
+
+            // "Obsoleto" es lo mismo que la vista Obsoleto de Procesos: la versión ya venció.
+            $regulation->auditee_status = match (true) {
+                $regulation->approval_status === 'outdated'          => 'Desactualizado',
+                (bool) $published?->valid_until?->isPast()           => 'Obsoleto',
+                default                                              => 'Liberado',
+            };
+            $regulation->mentions_user = in_array($regulation->id, $mentionedIds, true);
+            // Hay una versión más nueva en revisión: aquí se sigue mostrando la aprobada.
+            $regulation->being_updated = $published && $regulation->currentVersion
+                && $regulation->currentVersion->version_number > $published->version_number;
+        });
     }
 
     /**
-     * Procesos del grupo cuya versión vigente menciona al usuario con @persona. El LIKE solo acota;
-     * la mención se confirma con RegulationVersion::mentionsUser().
+     * Procesos del grupo cuya última versión aprobada menciona al usuario con @persona. El LIKE
+     * solo acota; la mención se confirma con RegulationVersion::mentionsUser() sobre la versión
+     * publicada (una mención agregada en una edición que sigue en revisión todavía no cuenta).
      *
      * @return list<int>
      */
     private function mentionedRegulationIds(User $user): array
     {
-        $versions = RegulationVersion::query()
-            ->where('is_current', true)
+        $candidates = RegulationVersion::query()
+            ->whereNotNull('approved_at')
             ->where('body_html', 'like', '%person-mention%')
             ->where('body_html', 'like', '%data-id="' . $user->id . '"%')
             ->whereHas('regulation', fn ($q) => $q->where('group_id', $user->group_id))
-            ->get(['regulation_id', 'body_html']);
+            ->distinct()
+            ->pluck('regulation_id');
 
-        return $versions
-            ->filter(fn (RegulationVersion $version) => $version->mentionsUser($user))
-            ->pluck('regulation_id')
+        if ($candidates->isEmpty()) {
+            return [];
+        }
+
+        return Regulation::with('publishedVersion')
+            ->whereIn('id', $candidates)
+            ->get(['id'])
+            ->filter(fn (Regulation $r) => (bool) $r->publishedVersion?->mentionsUser($user))
+            ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->values()
             ->all();

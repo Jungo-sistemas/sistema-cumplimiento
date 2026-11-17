@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\ApprovalFlowService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -114,10 +115,13 @@ class RestrictedProcessesTest extends TestCase
             ->assertViewHas('companies', fn ($companies) => $companies->contains('id', $this->restrictedCompany->id));
 
         // Operativo sin el puesto Dirección: tampoco en Mis documentos.
-        $this->actingAs($this->lider)->get(route('mi-espacio.documents'))
+        $this->actingAs($this->lider)->get(route('mi-espacio.documents', ['tab' => 'empresa', 'q' => 'Manual']))
             ->assertOk()
-            ->assertSee('Manual de operaciones')
+            ->assertSee('Manual de operaciones');
+        $this->actingAs($this->lider)->get(route('mi-espacio.documents', ['tab' => 'empresa', 'q' => 'Plan']))
+            ->assertOk()
             ->assertDontSee('Plan de sucesión directiva');
+        $this->actingAs($this->lider)->get(route('mi-espacio.documents.show', $secret))->assertNotFound();
         $this->actingAs($this->lider)->get(route('processes.show', $secret))->assertNotFound();
 
         // Dirección tampoco: la carpeta es solo de Consejo.
@@ -143,8 +147,9 @@ class RestrictedProcessesTest extends TestCase
         $this->actingAs($this->adminProcesos)->get(route('processes.show', $secret))->assertOk();
 
         $this->actingAs($this->consejo)->get(route('processes.show', $secret))->assertOk();
-        $this->actingAs($this->consejo)->get(route('mi-espacio.documents'))
+        $this->actingAs($this->consejo)->get(route('mi-espacio.documents', ['tab' => 'empresa', 'q' => 'Plan']))
             ->assertSee('Plan de sucesión directiva');
+        $this->actingAs($this->consejo)->get(route('mi-espacio.documents.show', $secret))->assertOk();
     }
 
     public function test_sin_acceso_no_se_puede_crear_un_proceso_confidencial(): void
@@ -243,6 +248,24 @@ class RestrictedProcessesTest extends TestCase
             })
             ->assertSee('Pendientes de Luis Líder')
             ->assertSee('5 días');
+    }
+
+    /**
+     * Producción, 11-nov-2026: tras la doble verificación, a quien tenía empresa se le acababa la
+     * memoria (512 MB) en cada página. El usuario se carga con su empresa ($with) y el filtro de
+     * Company preguntaba Auth::user() mientras el guard todavía lo estaba cargando: se volvía a
+     * cargar sin fin. actingAs() no lo reproduce porque deja el usuario ya cargado; aquí entra
+     * por la sesión, como en un navegador.
+     */
+    public function test_un_usuario_con_empresa_entra_por_sesion_sin_ciclarse(): void
+    {
+        foreach ([$this->lider, $this->consejo] as $user) {
+            Auth::forgetGuards();
+
+            $this->withSession([Auth::guard('web')->getName() => $user->id])
+                ->get(route('gestion.home'))
+                ->assertOk();
+        }
     }
 
     public function test_un_confidencial_no_tiene_enlace_publico(): void

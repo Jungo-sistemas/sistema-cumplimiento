@@ -35,7 +35,7 @@
 
             <table class="info-table">
                 <tr><td>Motivo</td><td><strong>{{ $investmentRequest->concept }}</strong></td></tr>
-                <tr><td>Empresa</td><td>{{ $investmentRequest->company->name ?? '—' }}</td></tr>
+                <tr><td>Empresa</td><td>{{ $investmentRequest->displayCompanyName() ?? '—' }}</td></tr>
                 <tr><td>Monto</td><td>${{ number_format($investmentRequest->amount) }}</td></tr>
                 <tr><td>Solicitante</td><td>{{ $investmentRequest->requester->name ?? '—' }}</td></tr>
                 <tr><td>Fecha límite</td><td>{{ $investmentRequest->deadline_at?->format('d/m/Y') ?? '—' }}</td></tr>

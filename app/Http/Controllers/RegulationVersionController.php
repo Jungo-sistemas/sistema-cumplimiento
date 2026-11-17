@@ -129,8 +129,10 @@ class RegulationVersionController extends Controller
             ->where('user_id', $user->id)
             ->exists();
 
-        // A quien mencionan en la versión vigente le sale en Mis documentos: también la puede abrir.
-        $isMentioned = (bool) $regulation->currentVersion?->mentionsUser($user);
+        // A quien mencionan le sale en Mis documentos: también puede abrir esa versión (la vigente
+        // o, en Mi espacio, la última aprobada).
+        $isMentioned = (bool) $regulation->currentVersion?->mentionsUser($user)
+            || ($version->approved_at && $version->mentionsUser($user));
 
         abort_unless(
             $user->canAccessCompany($regulation->company) || $hasPendingApproval || $hasShare || $isMentioned,
@@ -754,7 +756,10 @@ class RegulationVersionController extends Controller
             $downloadBtn = $regulation->allowsDownload()
                 ? '<a href="' . route('regulation-versions.download', $version) . '" class="dl-btn">&#8595; Descargar</a>'
                 : '';
-            $backUrl     = route('processes.show', $regulation);
+            // Desde Mi espacio (solo consulta) la flecha regresa a su ficha, no a la de Procesos.
+            $backUrl     = request()->query('from') === 'mi-espacio'
+                ? route('mi-espacio.documents.show', $regulation)
+                : route('processes.show', $regulation);
             $versionLabel = 'v' . $version->version_number;
             $regCode      = htmlspecialchars($regulation->code ?? '');
             $regName      = htmlspecialchars($regulation->name);

@@ -53,11 +53,7 @@ class UserController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $allowedRoleSlugs = ($authUser->hasGroupScope() || $authUser->isGlobalScope())
-            ? ['admin', 'operative', 'readonly', 'auditor']
-            : ['operative', 'readonly', 'auditor'];
-
-        $roles = Role::whereIn('slug', $allowedRoleSlugs)->orderBy('name')->get();
+        $roles = Role::whereIn('slug', $this->assignableRoleSlugs($authUser))->orderBy('name')->get();
 
         $adminRoleId = $roles->where('slug', 'admin')->first()?->id;
 
@@ -99,12 +95,7 @@ class UserController extends Controller
 
         $authUser = auth()->user();
 
-        $canAssignAdmin = $authUser->hasGroupScope() || $authUser->isGlobalScope();
-        $allowedRoleSlugs = $canAssignAdmin
-            ? ['admin', 'operative', 'readonly', 'auditor']
-            : ['operative', 'readonly', 'auditor'];
-
-        $roles = Role::whereIn('slug', $allowedRoleSlugs)->orderBy('name')->get();
+        $roles = Role::whereIn('slug', $this->assignableRoleSlugs($authUser))->orderBy('name')->get();
 
         $groups = Group::query()
             ->when(! $authUser->isGlobalScope(), fn ($q) => $q->where('id', $authUser->group_id))
@@ -149,8 +140,7 @@ class UserController extends Controller
 
         $role = Role::findOrFail($request->role_id);
 
-        abort_if($role->slug === 'superadmin', 403);
-        abort_if($role->slug === 'admin' && ! $authUser->hasGroupScope() && ! $authUser->isGlobalScope(), 403);
+        abort_unless(in_array($role->slug, $this->assignableRoleSlugs($authUser), true), 403);
 
         $request->validate([
             'company_id'   => ['nullable', 'array'],
@@ -166,15 +156,13 @@ class UserController extends Controller
             $request->group_id ?? $authUser->group_id,
         );
 
-        if ($role->slug === 'admin') {
-            $request->validate(['module_access' => ['nullable', 'in:all,cumplimiento,procesos']]);
-            $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
-                ? $request->module_access
-                : 'all';
-        } else {
-            $request->validate(['module_access' => ['required', 'in:all,cumplimiento,procesos']]);
-            $moduleAccess = $role->slug === 'auditor' ? 'procesos' : $request->module_access;
-        }
+        $moduleAccess = $this->resolveModuleAccess($request, $authUser, $role);
+
+        // Un admin nuevo queda en el área de quien lo crea; se le pregunta si recibe los avisos de
+        // administración de esa área (solicitudes de acceso, escalamientos…).
+        $notificationModules = $role->slug === 'admin'
+            ? ($request->boolean('receive_notifications') ? $moduleAccess : 'none')
+            : null;
 
         $user = User::create([
             'name'              => $request->name,
@@ -184,6 +172,7 @@ class UserController extends Controller
             'group_id'          => $groupId,
             'scope_level'       => $scopeLevel,
             'module_access'     => $moduleAccess,
+            'notification_modules' => $notificationModules,
             'password'          => null,
             'status'            => 'invited',
             'invite_token'      => Str::random(64),
@@ -195,7 +184,8 @@ class UserController extends Controller
             $user->companies()->sync($companiesToSync);
         }
 
-        if ($request->filled('job_position_id')) {
+        // Los puestos solo sirven para Procesos (flujos de aprobación, carpeta Dirección).
+        if ($request->filled('job_position_id') && $authUser->canAssignProcesosAccess()) {
             $user->jobPositions()->attach($request->job_position_id);
         }
 
@@ -204,6 +194,43 @@ class UserController extends Controller
         return redirect()
             ->route('users.index')
             ->with('success', 'Invitación enviada correctamente.');
+    }
+
+    /**
+     * Roles que este admin puede asignar: Administrador solo con alcance de grupo (o global);
+     * Auditor solo si él tiene Procesos (es un rol exclusivo de ese módulo).
+     *
+     * @return list<string>
+     */
+    private function assignableRoleSlugs(User $authUser): array
+    {
+        return array_values(array_filter([
+            ($authUser->hasGroupScope() || $authUser->isGlobalScope()) ? 'admin' : null,
+            'operative',
+            'readonly',
+            $authUser->canAssignProcesosAccess() ? 'auditor' : null,
+        ]));
+    }
+
+    /**
+     * module_access del usuario creado o editado: solo de los módulos de quien lo asigna. El
+     * auditor siempre es "Solo Procesos". Si no llega (o llega uno que no puede dar), se usa el
+     * más amplio que sí puede dar.
+     */
+    private function resolveModuleAccess(Request $request, User $authUser, Role $role): string
+    {
+        if ($role->slug === 'auditor') {
+            return 'procesos';
+        }
+
+        $allowed = $authUser->assignableModuleAccess();
+
+        $request->validate(
+            ['module_access' => ['nullable', 'in:' . implode(',', $allowed)]],
+            ['module_access.in' => 'Solo puedes dar acceso a los módulos que tú administras.']
+        );
+
+        return $request->filled('module_access') ? $request->module_access : $allowed[0];
     }
 
     /**
@@ -274,6 +301,12 @@ class UserController extends Controller
             return back()->with('error', 'Solo el superadministrador puede editar a otros administradores.');
         }
 
+        // Un usuario con acceso a un área que no es la tuya (p. ej. "Ambos módulos" para un admin
+        // de Cumplimiento) solo lo edita un admin de ambos módulos o el superadmin.
+        if (! $authUser->canManageUser($user)) {
+            return back()->with('error', 'Este usuario tiene acceso a un área que no administras: solo lo puede editar un administrador de ambos módulos o el superadministrador.');
+        }
+
         $request->validate([
             'name'             => ['sometimes', 'required', 'string', 'max:255'],
             'role_id'          => ['required', 'exists:roles,id'],
@@ -286,8 +319,7 @@ class UserController extends Controller
 
         $role = Role::findOrFail($request->role_id);
 
-        abort_if($role->slug === 'superadmin', 403);
-        abort_if($role->slug === 'admin' && ! $authUser->hasGroupScope() && ! $authUser->isGlobalScope(), 403);
+        abort_unless(in_array($role->slug, $this->assignableRoleSlugs($authUser), true), 403);
 
         // Un admin puede quedarse con alcance de grupo completo (igual que antes, dejando las
         // empresas sin seleccionar) o reducirse a una/varias empresas específicas, igual que
@@ -299,11 +331,7 @@ class UserController extends Controller
             $user->group_id,
         );
 
-        $moduleAccess = $role->slug === 'auditor'
-            ? 'procesos'
-            : (in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
-                ? $request->module_access
-                : 'all');
+        $moduleAccess = $this->resolveModuleAccess($request, $authUser, $role);
 
         $user->update([
             'name'          => $request->filled('name') ? trim($request->name) : $user->name,
@@ -316,7 +344,10 @@ class UserController extends Controller
 
         $user->companies()->sync($companiesToSync);
 
-        $user->jobPositions()->sync($request->input('job_position_id', []));
+        // Quien no tiene Procesos no ve los puestos: se quedan como estaban.
+        if ($authUser->canAssignProcesosAccess()) {
+            $user->jobPositions()->sync($request->input('job_position_id', []));
+        }
 
         return redirect()
             ->route('users.index')
@@ -369,6 +400,10 @@ class UserController extends Controller
             return back()->with('error', 'Solo el superadministrador puede eliminar administradores.');
         }
 
+        if (! $authUser->canManageUser($user)) {
+            return back()->with('error', 'Solo puedes eliminar usuarios de tu área.');
+        }
+
         $user->delete();
 
         return redirect()
@@ -393,6 +428,10 @@ class UserController extends Controller
 
         if (! $authUser->isGlobalScope() && ! $canManageTarget) {
             abort(403);
+        }
+
+        if (! $authUser->canManageUser($user)) {
+            return back()->with('error', 'Solo puedes reenviar la invitación a usuarios de tu área.');
         }
 
         if ($user->status !== 'invited') {

@@ -99,8 +99,9 @@ class Regulation extends Model
         // Procesos confidenciales (los de la empresa DIRECCIÓN, Company::is_restricted): para quien no puede verlos no existen —
         // ni en listados, tableros, reportes o menciones, ni abriéndolos por URL (404). Sin usuario
         // (comandos, colas, enlace público sin sesión) no se filtra nada.
+        // Auth::hasUser(): mismo motivo que en Company (no disparar la carga del usuario desde aquí).
         static::addGlobalScope('restricted', function (Builder $query) {
-            if (Auth::user()?->canSeeRestrictedProcesses() === false) {
+            if (Auth::hasUser() && Auth::user()->canSeeRestrictedProcesses() === false) {
                 $query->whereNotIn($query->qualifyColumn('company_id'), DB::table('companies')->select('id')->where('is_restricted', true));
             }
         });
@@ -111,6 +112,22 @@ class Regulation extends Model
                 throw new AuthorizationException('No tienes acceso a esta carpeta.');
             }
         });
+
+        // Al quedar aprobado (por flujo, directo o cargado ya aprobado) o como documento viejo de
+        // referencia, la versión vigente es la publicada: es la que se muestra en Mi espacio aunque
+        // después se edite y la nueva siga en revisión.
+        static::saved(function (Regulation $regulation) {
+            if (in_array($regulation->approval_status, ['approved', 'outdated'], true)
+                && ($regulation->wasRecentlyCreated || $regulation->wasChanged('approval_status'))) {
+                $regulation->markCurrentVersionApproved();
+            }
+        });
+    }
+
+    /** Marca la versión vigente como la aprobada (si aún no lo está). */
+    public function markCurrentVersionApproved(): void
+    {
+        $this->versions()->reorder()->where('is_current', true)->whereNull('approved_at')->update(['approved_at' => now()]);
     }
 
     /*
@@ -254,6 +271,18 @@ class Regulation extends Model
         return $this->hasOne(RegulationVersion::class)
             ->where('is_current', true)
             ->latestOfMany();
+    }
+
+    /**
+     * Última versión aprobada: la que se publica en Mi espacio. Si el proceso se está editando, la
+     * vigente (currentVersion) es la que está en revisión y esta sigue siendo la anterior.
+     */
+    public function publishedVersion()
+    {
+        return $this->hasOne(RegulationVersion::class)->ofMany(
+            ['version_number' => 'max'],
+            fn ($q) => $q->whereNotNull('approved_at')
+        );
     }
 
     /*
@@ -410,7 +439,7 @@ class Regulation extends Model
      */
     public function onlyWizardEditFor(User $user): bool
     {
-        return $this->isOutdated() && ! $user->isAdmin();
+        return $this->isOutdated() && ! $user->isProcessAdmin();
     }
 
     public function approvalStatusLabel(): string
@@ -453,7 +482,8 @@ class Regulation extends Model
             return false;
         }
 
-        if (! $user->canAccessCompany($this->company)) {
+        // Sin Gestión de Procesos (solo lectura, o admin/operativo "Solo Cumplimiento") solo se consulta.
+        if (! $user->hasProcesosGestion() || ! $user->canAccessCompany($this->company)) {
             return false;
         }
 
@@ -476,6 +506,7 @@ class Regulation extends Model
     public function canRequestAccessFrom(User $user): bool
     {
         return $user->isOperative()
+            && $user->hasProcesosGestion()
             && $user->canAccessCompany($this->company)
             && ! $this->isResponsable($user);
     }

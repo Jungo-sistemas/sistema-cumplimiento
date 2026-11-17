@@ -232,6 +232,52 @@ class User extends Authenticatable
         return $access === 'all' ? ['cumplimiento', 'procesos'] : [$access];
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Administración de usuarios por área (nov 2026)
+    |--------------------------------------------------------------------------
+    | Cada admin solo da o quita lo de los módulos que él mismo tiene, para que un admin de
+    | Cumplimiento no intervenga en lo de los admins de Procesos (ni al revés). El superadmin, todo.
+    */
+
+    /** Módulos que este admin puede dar o quitar. */
+    public function grantableModules(): array
+    {
+        return $this->isSuperAdmin() ? ['cumplimiento', 'procesos'] : $this->accessibleModules();
+    }
+
+    /** Valores de module_access que puede asignar al crear o editar. */
+    public function assignableModuleAccess(): array
+    {
+        return count($this->grantableModules()) === 2
+            ? ['all', 'cumplimiento', 'procesos']
+            : $this->grantableModules();
+    }
+
+    /** Puestos (Líder…Consejo) y el rol Auditor son de Procesos: solo los asigna quien tiene Procesos. */
+    public function canAssignProcesosAccess(): bool
+    {
+        return in_array('procesos', $this->grantableModules(), true);
+    }
+
+    /**
+     * Puede editar, eliminar o reenviar la invitación a $target: solo si todo lo que tiene $target
+     * es de su área (a un usuario de "Ambos módulos" solo lo toca un admin de ambos). A otros
+     * admins solo el superadmin.
+     */
+    public function canManageUser(User $target): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($target->isAdmin()) {
+            return false;
+        }
+
+        return array_diff($target->accessibleModules(), $this->grantableModules()) === [];
+    }
+
     /**
      * Preferencia de notificaciones, independiente de module_access: un admin puede tener acceso
      * a ambos módulos pero solo querer avisos de uno. null/'all' = recibe de ambas áreas; 'none' =
@@ -256,7 +302,9 @@ class User extends Authenticatable
     }
 
     /**
-     * La "Vista de auditado" (Mi espacio) va con la licencia de Procesos, igual que Auditorías.
+     * La "Vista de auditado" (Mi espacio) va con la licencia de Procesos, igual que Auditorías. La
+     * tienen todos, también quien es "Solo Cumplimiento": ahí ve sus procedimientos, aprueba lo que
+     * le toca y ve sus auditorías (nov 2026).
      */
     public function canUseAuditeeView(): bool
     {
@@ -264,19 +312,20 @@ class User extends Authenticatable
     }
 
     /**
-     * Puede entrar a Procesos: module_access lo permite y la licencia lo incluye (mismo criterio
-     * que EnsureModuleAccess). Se memoriza porque el layout lo consulta en cada página y la
-     * licencia cuesta una consulta.
+     * Puede entrar al módulo Procesos y Auditorías en alguna de sus vistas: basta con que la
+     * licencia lo incluya. Si entra a Gestión o solo a Mi espacio lo decide hasProcesosGestion().
+     * Se memoriza porque el layout lo consulta en cada página y la licencia cuesta una consulta.
      */
     public function canUseProcesos(): bool
     {
-        return $this->canUseProcesosCache ??= $this->canAccessModule('procesos')
-            && ($this->isSuperAdmin() || app(\App\Services\LicenseService::class)->hasProcesosAccessForUser($this));
+        return $this->canUseProcesosCache ??= $this->isSuperAdmin()
+            || app(\App\Services\LicenseService::class)->hasProcesosAccessForUser($this);
     }
 
     /**
-     * Tiene vista de Gestión en Procesos y Auditorías: admins, auditores y operativos (los
-     * operativos crean y editan procesos en línea). Los de solo lectura solo tienen Mi espacio.
+     * Rol con vista de Gestión: admins, auditores y operativos (los operativos crean y editan
+     * procesos en línea). Los de solo lectura solo tienen Mi espacio. En Procesos y Auditorías
+     * además hace falta tener acceso a Procesos: ver hasProcesosGestion().
      */
     public function hasGestion(): bool
     {
@@ -284,13 +333,35 @@ class User extends Authenticatable
     }
 
     /**
-     * Quien no tiene Gestión solo ve la Vista de auditado (Mi espacio); los demás cambian entre
-     * Gestión y Mi espacio desde el encabezado. Sin licencia de Procesos no hay vista de auditado,
-     * así que esos usuarios se quedan con Gestión como hasta ahora.
+     * Entra a la Gestión de Procesos y Auditorías (crear y editar procesos, flujos, auditorías).
+     * Un admin u operativo "Solo Cumplimiento" no: en ese módulo solo tiene Mi espacio, para que
+     * no intervenga en lo que hacen los admins de Procesos.
+     */
+    public function hasProcesosGestion(): bool
+    {
+        return $this->isSuperAdmin() || ($this->hasGestion() && $this->canAccessModule('procesos'));
+    }
+
+    /** Admin de Procesos: admin con acceso a Procesos (los admins "Solo Cumplimiento" no lo son). */
+    public function isProcessAdmin(): bool
+    {
+        return $this->isSuperAdmin() || ($this->isAdmin() && $this->canAccessModule('procesos'));
+    }
+
+    /** Puede crear, editar y compartir procesos: admin u operativo con acceso a Procesos. */
+    public function isProcessEditor(): bool
+    {
+        return $this->isProcessAdmin() || ($this->isOperative() && $this->canAccessModule('procesos'));
+    }
+
+    /**
+     * Toda la aplicación es Mi espacio para él: rol sin Gestión (solo lectura) con acceso a
+     * Procesos. Un solo lectura "Solo Cumplimiento" sigue en Cumplimiento y solo ve Mi espacio
+     * cuando entra a Procesos y Auditorías.
      */
     public function isAuditeeOnly(): bool
     {
-        return ! $this->hasGestion() && $this->canUseAuditeeView();
+        return ! $this->hasGestion() && $this->canAccessModule('procesos') && $this->canUseAuditeeView();
     }
 
     /**

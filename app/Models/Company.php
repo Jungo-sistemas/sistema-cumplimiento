@@ -26,8 +26,13 @@ class Company extends Model
         // La carpeta confidencial DIRECCIÓN es una empresa con is_restricted: para quien no puede
         // verla (User::canSeeRestrictedProcesses) no existe en ninguna lista. Sin usuario
         // (comandos, colas) no se filtra.
+        //
+        // Auth::hasUser() y no Auth::user(): el usuario se carga con su empresa ($with en User), y
+        // preguntar Auth::user() mientras el guard lo está cargando lo volvía a cargar sin fin
+        // (memoria agotada tras la doble verificación, producción 11-nov-2026). En esa carga solo
+        // sale la empresa del propio usuario, así que no filtrarla ahí no expone nada.
         static::addGlobalScope('restricted', function (Builder $query) {
-            if (Auth::user()?->canSeeRestrictedProcesses() === false) {
+            if (Auth::hasUser() && Auth::user()->canSeeRestrictedProcesses() === false) {
                 $query->where($query->qualifyColumn('is_restricted'), false);
             }
         });
@@ -104,6 +109,13 @@ class Company extends Model
     public function group()
     {
         return $this->belongsTo(Group::class);
+    }
+
+    // Flujo fijo de aprobación de Anexos 8 (solicitudes de inversión), en orden.
+    // Razones sociales de Anexos 8 que pertenecen a esta empresa.
+    public function investmentEntities()
+    {
+        return $this->hasMany(InvestmentEntity::class);
     }
 }
 

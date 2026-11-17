@@ -582,6 +582,42 @@ class ApprovalFlowTest extends TestCase
         $this->assertEquals('rejected', $reg->fresh()->approval_status);
     }
 
+    public function test_rechazar_con_motivo_largo_se_guarda(): void
+    {
+        // Caso P-MIG-306: un motivo de más de 1000 caracteres se perdía sin aviso.
+        $reg = $this->makeRegulation('bajo');
+        $motivo = str_repeat('Falta el paso de verificación de sellos. ', 60); // ~2,500 caracteres
+
+        $this->actingAs($this->users['lider'])
+            ->post(route('processes.reject', $reg), ['comments' => $motivo])
+            ->assertSessionHasNoErrors();
+
+        $this->assertEquals('rejected', $reg->fresh()->approval_status);
+        $this->assertSame(trim($motivo), $reg->approvals()->where('status', 'rejected')->value('comments'));
+    }
+
+    public function test_rechazo_demasiado_largo_regresa_con_el_texto_y_el_error_visible(): void
+    {
+        $reg = $this->makeRegulation('bajo');
+        $motivo = str_repeat('x', \App\Http\Controllers\RegulationApprovalController::REJECT_COMMENTS_MAX + 1);
+
+        $this->actingAs($this->users['lider'])
+            ->from(route('my-approvals.index'))
+            ->post(route('processes.reject', $reg), ['comments' => $motivo])
+            ->assertRedirect(route('my-approvals.index'))
+            ->assertSessionHasErrors('comments')
+            ->assertSessionHas('reject_failed_for', $reg->id)
+            ->assertSessionHasInput('comments', $motivo);
+
+        $this->assertNotEquals('rejected', $reg->fresh()->approval_status);
+
+        // La siguiente carga de Mis aprobaciones muestra el error (antes no se veía nada).
+        $this->actingAs($this->users['lider'])
+            ->get(route('my-approvals.index'))
+            ->assertOk()
+            ->assertSee('No se registró el rechazo', false);
+    }
+
     public function test_resubmit_sin_ser_admin_da_403(): void
     {
         $reg = $this->makeRegulation('bajo');
