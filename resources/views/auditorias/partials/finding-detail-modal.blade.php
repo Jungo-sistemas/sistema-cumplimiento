@@ -2,46 +2,45 @@
      Cada fila la abre mandando sus datos: @click="$dispatch('abrir-hallazgo', @js($h))" --}}
 @php
     // Datos de ejemplo que la lista no muestra. Con la base de datos vendrán del mismo hallazgo.
+    // "evidencias" es una lista porque el auditado puede subir varios archivos.
     $detallesHallazgo = [
         'HAL-001' => [
-            'registro' => '11 sep 2026', 'limite' => '18 sep 2026', 'fecha' => '2026-11-25', 'clausula' => '7.5.3', 'cierre' => 'Inicia al aceptar el plan',
-            'causa'    => 'El supervisor del turno no sabía que debía firmar la bitácora antes de iniciar las maniobras.',
-            'accion'   => 'Agregar la firma del supervisor al formato de la bitácora y capacitar a los supervisores de turno.',
-            'evidencia' => null,
-            'historial' => ['11 sep 2026 · Daniel Ruiz: Hallazgo registrado.', '16 sep 2026 · Laura Méndez: Causa raíz y acción correctiva enviadas.'],
+            'clausula'   => '7.5.3',
+            'causa'      => 'El supervisor del turno no sabía que debía firmar la bitácora antes de iniciar las maniobras.',
+            'acciones'   => 'Agregar la firma del supervisor al formato de la bitácora y capacitar a los supervisores de turno.',
+            'evidencias' => ['formato-bitacora-con-firma.pdf', 'lista-capacitacion-supervisores.pdf'],
+            'historial'  => ['11 sep 2026 · Daniel Ruiz: Hallazgo registrado y enviado al auditado.', '16 sep 2026 · Laura Méndez: Envió causa raíz, acciones y evidencia.'],
         ],
         'HAL-002' => [
-            'registro' => '11 sep 2026', 'limite' => '18 sep 2026', 'fecha' => '2026-12-20', 'clausula' => '8.1', 'cierre' => 'Inicia al aceptar el plan',
-            'causa' => null, 'accion' => null, 'evidencia' => null,
-            'historial' => ['11 sep 2026 · Daniel Ruiz: Hallazgo registrado.'],
+            'clausula'   => '8.1',
+            'causa'      => null, 'acciones' => null, 'evidencias' => [],
+            'historial'  => ['11 sep 2026 · Daniel Ruiz: Hallazgo registrado y enviado al auditado.'],
         ],
         'HAL-003' => [
-            'registro' => '14 sep 2026', 'limite' => '21 sep 2026', 'fecha' => '2026-09-30', 'clausula' => '7.5.1', 'cierre' => '20 sep 2026 → 30 sep 2026',
-            'causa'    => 'El turno de la noche no tenía asignado quién captura la temperatura.',
-            'accion'   => 'Asignar al responsable de recepción de cada turno y agregar la captura al checklist de cierre.',
-            'evidencia' => 'registro-temperatura-septiembre.pdf',
-            'historial' => ['14 sep 2026 · Daniel Ruiz: Hallazgo registrado.', '18 sep 2026 · Jorge Salinas: Causa raíz y acción correctiva enviadas.', '20 sep 2026 · Daniel Ruiz: Causa raíz y acción aceptadas.', '28 sep 2026 · Jorge Salinas: Evidencia de la corrección cargada.'],
+            'clausula'   => '7.5.1',
+            'causa'      => 'El turno de la noche no tenía asignado quién captura la temperatura.',
+            'acciones'   => 'Asignar al responsable de recepción de cada turno y agregar la captura al checklist de cierre.',
+            'evidencias' => ['registro-temperatura-septiembre.pdf'],
+            'historial'  => ['14 sep 2026 · Daniel Ruiz: Hallazgo registrado y enviado al auditado.', '28 sep 2026 · Jorge Salinas: Envió causa raíz, acciones y evidencia.'],
         ],
         'HAL-004' => [
-            'registro' => '28 ago 2026', 'limite' => '04 sep 2026', 'fecha' => '2026-09-10', 'clausula' => '8.5', 'cierre' => 'Inicia al aceptar el plan',
-            'causa'    => 'Faltaban etiquetas en el almacén.',
-            'accion'   => 'Comprar etiquetas.',
-            'evidencia' => null,
-            'historial' => ['28 ago 2026 · Daniel Ruiz: Hallazgo registrado.', '02 sep 2026 · Ana Torres: Causa raíz y acción correctiva enviadas.', '03 sep 2026 · Daniel Ruiz: Solicitó otra corrección: la causa describe el problema, no por qué faltaban las etiquetas.'],
+            'clausula'   => '8.5',
+            'causa'      => 'Faltaban etiquetas en el almacén.',
+            'acciones'   => 'Comprar etiquetas.',
+            'evidencias' => ['foto-almacen.jpg'],
+            'historial'  => ['28 ago 2026 · Daniel Ruiz: Hallazgo registrado y enviado al auditado.', '02 sep 2026 · Ana Torres: Envió causa raíz, acciones y evidencia.', '03 sep 2026 · Daniel Ruiz: Rechazó la respuesta: la causa describe el problema, no por qué faltaban las etiquetas.'],
         ],
         'HAL-005' => [
-            'registro' => '14 sep 2026', 'limite' => '21 sep 2026', 'fecha' => '2026-10-15', 'clausula' => '7.2', 'cierre' => '22 sep 2026 → 15 oct 2026',
-            'causa'    => 'El programa de capacitación no avisaba cuando una certificación estaba por vencer.',
-            'accion'   => 'Agregar alertas de vencimiento al programa y reprogramar la capacitación.',
-            'evidencia' => null,
-            'historial' => ['14 sep 2026 · Daniel Ruiz: Hallazgo registrado.', '19 sep 2026 · Jorge Salinas: Causa raíz y acción correctiva enviadas.', '22 sep 2026 · Daniel Ruiz: Causa raíz y acción aceptadas.'],
+            'clausula'   => '7.2',
+            'causa'      => null, 'acciones' => null, 'evidencias' => [],
+            'historial'  => ['14 sep 2026 · Daniel Ruiz: Hallazgo registrado y enviado al auditado.'],
         ],
         'HAL-006' => [
-            'registro' => '20 ago 2026', 'limite' => '27 ago 2026', 'fecha' => '2026-09-05', 'clausula' => '7.5.3', 'cierre' => '25 ago 2026 → 05 sep 2026',
-            'causa'    => 'No se retiraban las copias impresas al publicar una nueva versión.',
-            'accion'   => 'Recoger las copias anteriores al liberar cada versión y dejarlo registrado.',
-            'evidencia' => 'acta-retiro-copias.pdf',
-            'historial' => ['20 ago 2026 · Daniel Ruiz: Hallazgo registrado.', '24 ago 2026 · Luis Herrera: Causa raíz y acción correctiva enviadas.', '25 ago 2026 · Daniel Ruiz: Causa raíz y acción aceptadas.', '04 sep 2026 · Luis Herrera: Evidencia de la corrección cargada.', '05 sep 2026 · Daniel Ruiz: Evidencia aceptada. Hallazgo cerrado.'],
+            'clausula'   => '7.5.3',
+            'causa'      => 'No se retiraban las copias impresas al publicar una nueva versión.',
+            'acciones'   => 'Recoger las copias anteriores al liberar cada versión y dejarlo registrado.',
+            'evidencias' => ['acta-retiro-copias.pdf'],
+            'historial'  => ['20 ago 2026 · Daniel Ruiz: Hallazgo registrado y enviado al auditado.', '04 sep 2026 · Luis Herrera: Envió causa raíz, acciones y evidencia.', '05 sep 2026 · Daniel Ruiz: Aprobó la respuesta. Hallazgo cerrado.'],
         ],
     ];
 @endphp
@@ -56,19 +55,19 @@
         errorComentario: '',
         mensaje: '',
         auditor: @js(auth()->user()->name),
-        get revision() {
-            // Qué le toca revisar al auditor en este hallazgo (o nada)
-            if (this.h.seguimiento === 'Causa raíz por revisar') return 'causa';
-            if (this.h.seguimiento === 'Evidencia por revisar') return 'evidencia';
-            return null;
-        },
+        // Hoy en el mismo formato que la fecha compromiso (2026-11-17), para compararlas.
+        hoy: @js(today()->toDateString()),
+        // Al auditor solo le toca decidir cuando el auditado ya envió su respuesta.
+        get porRevisar() { return this.h.seguimiento === 'Por revisar' },
+        // Vencido: sigue abierto y su fecha compromiso ya pasó (igual que en la lista).
+        get vencido() { return this.h.seguimiento !== 'Cerrado' && this.fecha !== '' && this.fecha < this.hoy },
         detalles: @js($detallesHallazgo),
         colores: @js(['severidad' => $severidades, 'seguimiento' => $seguimientos]),
         abrir(fila) {
             // Junta los datos de la fila con los de detalle del mismo código.
             this.h = { ...fila, ...(this.detalles[fila.codigo] ?? {}) };
             this.severidad = this.h.severidad;
-            this.fecha = this.h.fecha ?? '';
+            this.fecha = this.h.compromiso ?? '';
             this.guardado = false;
             this.comentario = '';
             this.errorComentario = '';
@@ -80,28 +79,19 @@
             this.guardado = true;
             setTimeout(() => this.guardado = false, 3000);
         },
-        decidir(acepta) {
+         decidir(aprueba) {
             this.errorComentario = '';
-            if (! acepta && ! this.comentario.trim()) {
-                this.errorComentario = 'Escribe un comentario para explicar qué debe corregir.';
+            if (! aprueba && ! this.comentario.trim()) {
+                this.errorComentario = 'Escribe el motivo del rechazo.';
                 return;
             }
 
-            const hoy = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
-            let texto;
-            if (! acepta) {
-                texto = 'Solicitó otra corrección: ' + this.comentario.trim();
-                // Rechazar el plan lo regresa a escribirse; rechazar la evidencia solo pide otra prueba.
-                this.h.seguimiento = this.revision === 'causa' ? 'Rechazada' : 'Sin cargar';
-            } else if (this.revision === 'causa') {
-                texto = 'Causa raíz y acción aceptadas.';
-                this.h.seguimiento = 'Sin cargar';
-            } else {
-                texto = 'Evidencia aceptada. Hallazgo cerrado.';
-                this.h.seguimiento = 'Cerrado';
-            }
+            const dia = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+            // Aprobar cierra el hallazgo; rechazar se lo regresa al auditado para que vuelva a enviar su respuesta.
+            const texto = aprueba ? 'Aprobó la respuesta. Hallazgo cerrado.' : 'Rechazó la respuesta: ' + this.comentario.trim();
+            this.h.seguimiento = aprueba ? 'Cerrado' : 'Rechazada';
 
-            this.h.historial = [...(this.h.historial ?? []), hoy + ' · ' + this.auditor + ': ' + texto];
+            this.h.historial = [...(this.h.historial ?? []), dia + ' · ' + this.auditor + ': ' + texto];
             this.comentario = '';
             this.mensaje = 'Decisión registrada (demo).';
         },
@@ -140,7 +130,10 @@
                     </select>
                 </div>
                 <div>
-                    <label for="detalle-fecha" class="mb-2 block text-sm font-semibold text-gray-900">Fecha compromiso</label>
+                    <label for="detalle-fecha" class="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-900">
+                        Fecha compromiso
+                        <span x-show="vencido" class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">Vencido</span>
+                    </label>
                     <input id="detalle-fecha" type="date" x-model="fecha"
                            class="h-12 w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand">
                 </div>
@@ -151,59 +144,51 @@
             </div>
         </div>
 
-        {{-- Relojes y responsable --}}
-        <div class="grid grid-cols-1 gap-4 rounded-2xl border border-gray-200 p-5 sm:grid-cols-2">
-            <div>
-                <div class="text-sm text-gray-500">Reloj de respuesta</div>
-                <div class="mt-1 text-[15px] text-gray-900" x-text="h.registro + ' → ' + h.limite"></div>
-            </div>
-            <div>
-                <div class="text-sm text-gray-500">Reloj de cierre</div>
-                <div class="mt-1 text-[15px] text-gray-900" x-text="h.cierre"></div>
-            </div>
-            <p class="text-sm text-gray-700 sm:col-span-2">
-                Responsables: <span class="font-semibold" x-text="(h.responsables ?? []).join(', ')"></span> · Cláusula <span x-text="h.clausula"></span>
-            </p>
-        </div>
+        {{-- Responsables --}}
+        <p class="rounded-2xl border border-gray-200 p-5 text-sm text-gray-700">
+            Responsables: <span class="font-semibold" x-text="(h.responsables ?? []).join(', ')"></span> · Cláusula <span x-text="h.clausula"></span>
+        </p>
 
-        {{-- Causa raíz y acción correctiva: solo lectura, las llena el responsable --}}
+        {{-- Respuesta del auditado: causa raíz, acciones y evidencia llegan juntas, en una sola vuelta --}}
         <div class="rounded-2xl border border-gray-200 p-5">
-            <h3 class="font-semibold text-gray-900">Causa raíz y acción correctiva</h3>
+            <h3 class="font-semibold text-gray-900">Respuesta del auditado</h3>
             <div x-show="h.causa" class="mt-4 space-y-3">
                 <div>
                     <div class="text-sm font-semibold text-gray-900">Causa raíz</div>
                     <p class="mt-1 text-[15px] text-gray-700" x-text="h.causa"></p>
                 </div>
                 <div>
-                    <div class="text-sm font-semibold text-gray-900">Acción correctiva</div>
-                    <p class="mt-1 text-[15px] text-gray-700" x-text="h.accion"></p>
+                    <div class="text-sm font-semibold text-gray-900">Acciones</div>
+                    <p class="mt-1 text-[15px] text-gray-700" x-text="h.acciones"></p>
                 </div>
+                <div>
+                    <div class="text-sm font-semibold text-gray-900">Evidencia</div>
+                    <ul class="mt-2 flex flex-wrap gap-2">
+                        <template x-for="archivo in (h.evidencias ?? [])" :key="archivo">
+                            <li class="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-semibold text-brand" x-text="archivo"></li>
+                        </template>
+                    </ul>
+                </div>
+                <p x-show="h.seguimiento === 'Rechazada'" class="text-sm font-semibold text-red-700">Rechazaste esta respuesta. El auditado debe corregirla y volver a enviarla.</p>
             </div>
-            <p x-show="! h.causa" class="mt-2 text-[15px] text-gray-500">El responsable todavía no envía su causa raíz.</p>
+            <p x-show="! h.causa" class="mt-2 text-[15px] text-gray-500">El auditado todavía no envía su respuesta.</p>
         </div>
 
-        {{-- Evidencia de la corrección --}}
-        <div class="rounded-2xl border border-gray-200 p-5">
-            <h3 class="font-semibold text-gray-900">Evidencia de la corrección</h3>
-            <p x-show="h.evidencia" class="mt-2 text-[15px] font-semibold text-brand" x-text="h.evidencia"></p>
-            <p x-show="! h.evidencia" class="mt-2 text-[15px] text-gray-500">Sin evidencia cargada.</p>
-        </div>
-
-        {{-- Decisión del auditor: solo cuando le toca revisar la causa raíz o la evidencia --}}
-        <div x-show="revision" class="rounded-2xl border-2 border-brand-100 bg-brand-50 p-5">
-            <h3 class="font-semibold text-gray-900" x-text="revision === 'causa' ? 'Decisión del auditor: causa raíz y acción correctiva' : 'Decisión del auditor: evidencia de la corrección'"></h3>
+        {{-- Decisión del auditor: solo cuando el auditado ya envió su respuesta --}}
+        <div x-show="porRevisar" class="rounded-2xl border-2 border-brand-100 bg-brand-50 p-5">
+            <h3 class="font-semibold text-gray-900">Decisión del auditor</h3>
+            <p class="mt-1 text-sm text-gray-600">Si apruebas, el hallazgo se cierra. Si rechazas, regresa al auditado con tu motivo.</p>
 
             <label for="detalle-comentario" class="mb-2 mt-4 block text-sm font-semibold text-gray-900">Comentarios</label>
-            <textarea id="detalle-comentario" x-model="comentario" rows="3" placeholder="Obligatorio si solicitas otra corrección"
+            <textarea id="detalle-comentario" x-model="comentario" rows="3" placeholder="Obligatorio si rechazas"
                       class="w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand"></textarea>
             <p x-show="errorComentario" x-text="errorComentario" class="mt-1 text-sm text-red-600"></p>
 
             <div class="mt-4 flex flex-wrap gap-3">
                 <button type="button" @click="decidir(false)"
-                        class="rounded-lg border-2 border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-brand-ink hover:bg-gray-50">Solicitar otra corrección</button>
+                        class="rounded-lg border-2 border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-brand-ink hover:bg-gray-50">Rechazar</button>
                 <button type="button" @click="decidir(true)"
-                        class="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
-                        x-text="revision === 'causa' ? 'Aceptar causa raíz y acción' : 'Aceptar evidencia'"></button>
+                        class="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">Aprobar y cerrar</button>
             </div>
         </div>
 

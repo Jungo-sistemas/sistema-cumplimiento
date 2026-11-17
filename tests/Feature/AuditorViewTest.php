@@ -37,7 +37,7 @@ class AuditorViewTest extends TestCase
             route('auditorias.audits.index'), route('auditorias.audits.index', ['tab' => 'finalizadas']),
             route('auditorias.audits.checklist', 1), route('auditorias.audits.checklist', 2),
             route('auditorias.audits.result', 3), route('auditorias.audits.result', 4),
-            route('auditorias.findings.index'), route('auditorias.findings.index', ['tab' => 'causas']),
+            route('auditorias.findings.index'), route('auditorias.findings.index', ['tab' => 'revisar']),
             route('auditorias.help'),
         ] as $url) {
             $this->actingAs($this->auditor)->get($url)->assertOk();
@@ -262,13 +262,35 @@ class AuditorViewTest extends TestCase
             ->assertSee('No aplica');
     }
 
-    public function test_hallazgos_marca_los_vencidos_segun_la_fecha(): void
+   public function test_hallazgos_marca_los_vencidos_segun_la_fecha(): void
     {
+        // La ventana de detalle siempre trae 1 etiqueta "Vencido" (escondida hasta que aplica); las demás son de la lista.
         $this->travelTo('2026-11-03');
-        $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))->assertSee('Vencido');
+        $lista = $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))->getContent();
+        $this->assertSame(1 + 3, substr_count($lista, '>Vencido</span>')); // HAL-003, HAL-004 y HAL-005
 
         $this->travelTo('2026-09-01');
-        $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))->assertDontSee('Vencido');
+        $lista = $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))->getContent();
+        $this->assertSame(1, substr_count($lista, '>Vencido</span>')); // ninguno en la lista
+    }
+
+    public function test_los_hallazgos_se_revisan_en_una_sola_vuelta(): void
+    {
+        // Ya no hay causas y evidencias por separado, ni "Por enviar": al registrarlo le llega al auditado.
+        $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))
+            ->assertSee('Con el auditado')
+            ->assertDontSee('Causas raíz por revisar')
+            ->assertDontSee('Evidencias por revisar')
+            ->assertDontSee('Sin cargar')
+            ->assertDontSee('Por enviar');
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))->assertDontSee('Por enviar');
+
+        // "Por revisar" trae solo lo que espera la decisión del auditor: aprobar o rechazar.
+        $this->actingAs($this->auditor)->get(route('auditorias.findings.index', ['tab' => 'revisar']))
+            ->assertSee('Bitácora de maniobras sin firma del supervisor')
+            ->assertSee('Registro de temperatura sin capturar')
+            ->assertDontSee('Equipo de protección incompleto en patio')
+            ->assertSee('Aprobar y cerrar');
     }
 
     public function test_los_hallazgos_se_clasifican_como_critico_o_no_critico(): void

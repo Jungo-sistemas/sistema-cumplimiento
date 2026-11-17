@@ -130,7 +130,7 @@
             <p class="mt-1 text-sm text-green-700">
                 Cuando exista la base de datos, aquí se guardará, se le avisará a
                 <span class="font-semibold" x-text="responsables.join(', ')"></span>
-                y aparecerá en la lista como "Por enviar".
+                y aparecerá en la lista como "Con el auditado".
             </p>
             <button type="button" @click="abierto = false" class="mt-4 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">Listo</button>
         </div>
