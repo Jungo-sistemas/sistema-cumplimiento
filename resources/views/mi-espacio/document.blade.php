@@ -50,6 +50,8 @@
     @endif
 
     <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        <iframe src="{{ $previewUrl }}" class="h-[75vh] w-full border-0" title="{{ $regulation->name }}"></iframe>
+        {{-- embed=1: solo el documento, sin la barra con flecha (evita cargar el sistema dentro del cuadro). --}}
+        <iframe src="{{ route('regulation-versions.preview', ['version' => $version, 'from' => 'mi-espacio', 'embed' => 1]) }}"
+                class="h-[75vh] w-full border-0" title="{{ $regulation->name }}"></iframe>
     </div>
 </x-layouts.vigia>
