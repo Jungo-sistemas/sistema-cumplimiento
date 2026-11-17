@@ -77,8 +77,8 @@ class AuditorViewTest extends TestCase
 
     public function test_el_resultado_calcula_la_calificacion_final(): void
     {
-        // Auditoría 3: Cumple 100 + No cumple 0 + Parcial 65 + Cumple 100 = 265, entre 4 = 66.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))->assertSee('66 / 100');
+        // Auditoría 3: Cumple 100 + No cumple 0 + Parcial 50 + Cumple 100 = 250, entre 4 = 62.5, redondeado 63.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))->assertSee('50 / 100');
         $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 4))->assertSee('100 / 100');
     }
 
@@ -89,9 +89,9 @@ class AuditorViewTest extends TestCase
             ->assertDontSee('Calificación · 0 a 100')
             ->assertDontSee('Valor del criterio');
 
-        // En el Resultado, el Parcial vale 65 aunque nadie lo haya escrito.
+        // En el Resultado, el Parcial vale 50 aunque nadie lo haya escrito.
         $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))
-            ->assertSeeInOrder(['El almacén temporal cuenta con bitácora de entradas.', 'Calificación del criterio: 65 / 100', 'Parcial']);
+            ->assertSeeInOrder(['El almacén temporal cuenta con bitácora de entradas.', 'Calificación del criterio: 50 / 100', 'Parcial']);
     }
 
     public function test_solo_la_auditoria_en_captura_se_puede_llenar(): void
