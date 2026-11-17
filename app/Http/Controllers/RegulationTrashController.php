@@ -36,6 +36,12 @@ class RegulationTrashController extends Controller
 
         $regulation = $this->scopedTrashedQuery($user)->findOrFail($id);
 
+        // Mientras estuvo en la papelera su código pudo usarse en otro proceso (el código es único
+        // entre los documentos vivos). Uno en Obsoleto no cuenta, así que ese sí se puede restaurar.
+        if (! $regulation->obsoleted_at && Regulation::codeTaken($regulation->group_id, $regulation->code, $regulation->id)) {
+            return back()->with('error', "No se puede restaurar: ya hay otro proceso con el código {$regulation->code}. Cámbiale el código a ese proceso primero.");
+        }
+
         $regulation->restore();
         $regulation->update([
             'deleted_by'            => null,

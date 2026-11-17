@@ -448,7 +448,13 @@ class RegulationController extends Controller
         $user = auth()->user();
         abort_unless($user->isAdmin() || $user->isOperative(), 403);
 
+        $request->merge(['codigo' => Regulation::normalizeCode($request->input('codigo'))]);
         $data = $request->validateWithBag('createRegulation', $this->wizardValidationRules());
+
+        // El wizard solo muestra el aviso general ("ai") de arriba — ahí va también el del código.
+        if (Regulation::codeTaken($user->group_id, $data['codigo'])) {
+            return back()->withInput()->withErrors(['ai' => Regulation::CODE_TAKEN_MESSAGE . " ({$data['codigo']})"]);
+        }
 
         $company = Company::findOrFail($data['company_id']);
         abort_unless($user->canAccessCompany($company), 403);
@@ -585,6 +591,16 @@ class RegulationController extends Controller
         $draft = session(self::AI_DRAFT_SESSION_KEY);
         abort_unless($draft, 404);
 
+        // Mientras se revisaba la vista previa otro proceso pudo tomar el mismo código — se avisa
+        // sin perder el borrador.
+        $isEdit = ($draft['mode'] ?? 'create') === 'edit';
+        $code = $draft['meta']['codigo'] ?? null;
+        if (Regulation::codeTaken($user->group_id, $code, $isEdit ? $draft['regulation_id'] : null)) {
+            return redirect()->route('processes.preview.show')->withErrors([
+                'ai' => 'Ya existe otro proceso con el código ' . Regulation::normalizeCode($code) . '. Cancela y corrige el código en el formulario.',
+            ]);
+        }
+
         $response = ($draft['mode'] ?? 'create') === 'edit'
             ? $this->confirmEditDraft($draft, $user)
             : $this->confirmCreateDraft($draft, $user);
@@ -646,7 +662,7 @@ class RegulationController extends Controller
                 'body_html'          => $sanitizedHtml,
                 'responsible_name'   => $data['quien_elabora'],
                 'file_path'          => $storagePath,
-                'original_name'      => 'procedimiento_v1.docx',
+                'original_name'      => $this->aiDocxName($data['nombre'], 1),
                 'disk'               => 'private',
                 'mime_type'          => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                 'issued_at'          => now()->toDateString(),
@@ -731,7 +747,7 @@ class RegulationController extends Controller
                 'body_html'          => $finalHtml,
                 'responsible_name'   => $data['quien_elabora'],
                 'file_path'          => $storagePath,
-                'original_name'      => "procedimiento_v{$next}.docx",
+                'original_name'      => $this->aiDocxName($data['nombre'], $next),
                 'disk'               => 'private',
                 'mime_type'          => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                 'issued_at'          => now()->toDateString(),
@@ -783,6 +799,19 @@ class RegulationController extends Controller
             'fecha_vigencia'  => $wizardMeta['fecha_vigencia'],
             'motivo_creacion' => $wizardMeta['motivo_creacion'],
         ]);
+    }
+
+    /**
+     * Nombre con el que se ve y se descarga el .docx redactado con IA: el nombre del proceso, no
+     * uno genérico. Sin los caracteres que Windows no acepta en un nombre de archivo. Mismo sufijo
+     * _vN que usa el editor en línea (RegulationVersionController::saveEdit()) para las siguientes.
+     */
+    private function aiDocxName(string $nombre, int $version): string
+    {
+        $base = trim(preg_replace('/\s+/u', ' ', preg_replace('/[\\\\\/:*?"<>|\x00-\x1F]/u', '', Str::upper($nombre))));
+        $base = rtrim(Str::limit($base, 150, ''), ' .') ?: 'PROCEDIMIENTO';
+
+        return "{$base}_v{$version}.docx";
     }
 
     /**
@@ -850,7 +879,55 @@ class RegulationController extends Controller
             'selectedCompanyId' => $selectedCompanyId,
             'processTypes'      => $processTypes,
             'documentTypes'     => Regulation::DOCUMENT_TYPES,
+            // Si la carga regresó con errores, se conserva el desactualizado que se iba a reemplazar.
+            'replacing'         => $request->old('replaces_id')
+                ? $this->manageableRegulations($user, [(int) $request->old('replaces_id')])
+                    ->with('company:id,name,process_name')
+                    ->where('approval_status', 'outdated')->whereNull('obsoleted_at')
+                    ->first(['id', 'code', 'name', 'company_id'])
+                : null,
         ]);
+    }
+
+    /**
+     * Buscador de "Reemplaza a un desactualizado" en Cargar: desactualizados (no enviados a
+     * Obsoleto) de las empresas del admin cuyo código contiene lo escrito.
+     */
+    public function searchOutdated(Request $request)
+    {
+        $user = auth()->user();
+        abort_unless($user->isAdmin(), 403);
+
+        $term = Regulation::normalizeCode($request->query('q'));
+        if ($term === null || mb_strlen($term) < 2) {
+            return response()->json([]);
+        }
+
+        $query = Regulation::with(['company:id,name,process_name', 'processType:id,name'])
+            ->where('group_id', $user->group_id)
+            ->where('is_active', true)
+            ->where('approval_status', 'outdated')
+            ->whereNull('obsoleted_at')
+            ->where('is_annex', $request->boolean('anexo'))
+            ->where('code', 'like', '%' . str_replace(['%', '_'], ['\%', '\_'], $term) . '%');
+
+        if ($user->hasProcessCompanyList() || $user->hasCompanyScope()) {
+            $query->whereIn('company_id', $user->accessibleCompanyIds());
+        }
+
+        return response()->json($query->orderBy('code')->limit(15)->get()->map(fn (Regulation $r) => [
+            'id'              => $r->id,
+            'code'            => $r->code,
+            'name'            => $r->name,
+            'company_id'      => $r->company_id,
+            'company'         => $r->company?->procesos_name,
+            'process_type_id' => $r->process_type_id,
+            'process_type'    => $r->processType?->name,
+            'document_type'   => $r->document_type,
+            'evaluation_impact' => $r->evaluation_impact,
+            'quien_elabora'   => $r->details['quien_elabora'] ?? '',
+            'quien_aprueba'   => $r->details['quien_aprueba'] ?? '',
+        ]));
     }
 
     public function storeCargar(Request $request)
@@ -858,14 +935,40 @@ class RegulationController extends Controller
         $user = auth()->user();
         abort_unless($user->isAdmin(), 403);
 
+        // "Reemplaza a un desactualizado": la versión nueva entra en la misma empresa (aprobada o a
+        // flujo, igual que cualquier carga) y el desactualizado se va a Obsoleto. Solo
+        // desactualizados — cualquier otro documento se actualiza desde su propia pantalla.
+        $replaced = null;
+        if ($request->filled('replaces_id')) {
+            $replaced = $this->manageableRegulations($user, [(int) $request->replaces_id])
+                ->whereNull('obsoleted_at')
+                ->where('approval_status', 'outdated')
+                ->first();
+
+            if (! $replaced) {
+                return back()->withInput()->withErrors([
+                    'replaces_id' => 'El documento a reemplazar ya no está disponible o ya no está desactualizado.',
+                ]);
+            }
+
+            $request->merge([
+                'company_id'    => $replaced->company_id,
+                'is_annex'      => $replaced->is_annex ? 1 : 0,
+            ]);
+        }
+
+        $request->merge(['codigo' => Regulation::normalizeCode($request->input('codigo'))]);
+
         $data = $request->validate([
             'company_id'       => ['required', 'exists:companies,id'],
             'process_type_id'  => ['required', 'exists:process_types,id'],
             'document_type'    => ['required', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
             'is_annex'         => ['sometimes', 'boolean'],
-            'evaluation_impact' => ['nullable', 'string', 'in:' . implode(',', array_keys(Regulation::EVALUATION_IMPACTS))],
+            // Define cada cuánto se audita el proceso: obligatorio al cargar uno (un anexo no se audita solo).
+            'evaluation_impact' => [$request->boolean('is_annex') ? 'nullable' : 'required', 'string', 'in:' . implode(',', array_keys(Regulation::EVALUATION_IMPACTS))],
             'nombre'           => ['required', 'string', 'max:255'],
-            'codigo'           => ['required', 'string', 'max:50'],
+            // El desactualizado que se reemplaza se va a Obsoleto: su código queda libre para la versión nueva.
+            'codigo'           => ['required', 'string', 'max:50', Regulation::uniqueCodeRule($user->group_id, $replaced?->id)],
             'quien_elabora'    => ['required', 'string', 'max:255'],
             'quien_aprueba'    => ['required', 'string', 'max:255'],
             // "mimes" valida por el tipo de archivo detectado por el servidor (fileinfo/magic), no
@@ -881,6 +984,9 @@ class RegulationController extends Controller
             // cualquier otro reglamento nuevo. Solo es obligatoria si ya viene aprobado.
             'approval_mode'    => ['required', 'in:approved,flow'],
             'valid_until'      => ['required_if:approval_mode,approved', 'nullable', 'date', 'after_or_equal:issued_at'],
+        ], [
+            'codigo.unique'              => Regulation::CODE_TAKEN_MESSAGE,
+            'evaluation_impact.required' => 'Elige el nivel de impacto: define cada cuánto se audita el proceso.',
         ]);
 
         $company = Company::findOrFail($data['company_id']);
@@ -888,7 +994,10 @@ class RegulationController extends Controller
 
         $sendToFlow = $data['approval_mode'] === 'flow';
 
-        $regulation = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $request, $company, $user) {
+        $regulation = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $request, $company, $user, $replaced) {
+            // Primero a Obsoleto: así su código deja de contar para el índice único antes de crear la nueva.
+            $replaced?->update(['obsoleted_at' => now(), 'obsoleted_by' => $user->id]);
+
             $details = [
                 'quien_elabora' => $data['quien_elabora'],
                 'quien_aprueba' => $data['quien_aprueba'],
@@ -905,7 +1014,7 @@ class RegulationController extends Controller
                 'process_type_id' => $data['process_type_id'],
                 'document_type'   => $data['document_type'],
                 'is_annex'        => $data['is_annex'] ?? false,
-                'code'            => $data['codigo'] ? Str::upper($data['codigo']) : null,
+                'code'            => $data['codigo'],
                 'name'            => Str::upper($data['nombre']),
                 'details'         => $details,
                 'is_active'       => true,
@@ -940,8 +1049,18 @@ class RegulationController extends Controller
                 ]);
             }
 
+            $replaced?->update(['replaced_by_id' => $regulation->id]);
+
             return $regulation;
         });
+
+        if ($replaced) {
+            return redirect()
+                ->route('processes.show', $regulation)
+                ->with('success', ($sendToFlow
+                    ? 'Versión nueva cargada. Asigna el flujo de aprobación desde la tabla de documentos.'
+                    : 'Versión nueva cargada y aprobada.') . " «{$replaced->name}» se envió a Obsoleto.");
+        }
 
         return redirect()
             ->route('processes.show', $regulation)
@@ -1013,7 +1132,13 @@ class RegulationController extends Controller
         $user = auth()->user();
         abort_unless($regulation->isEditableBy($user), 403);
 
+        $request->merge(['codigo' => Regulation::normalizeCode($request->input('codigo'))]);
         $data = $request->validate($this->editWizardValidationRules());
+
+        // El wizard solo muestra el aviso general ("ai") de arriba — ahí va también el del código.
+        if (Regulation::codeTaken($regulation->group_id, $data['codigo'], $regulation->id)) {
+            return back()->withInput()->withErrors(['ai' => Regulation::CODE_TAKEN_MESSAGE . " ({$data['codigo']})"]);
+        }
 
         $wizardDetails = collect($data)
             ->except(['process_type_id', 'document_type', 'is_annex', 'codigo', 'nombre'])
@@ -1257,6 +1382,15 @@ class RegulationController extends Controller
         abort_unless($user->isAdmin(), 403);
         abort_unless($this->manageableRegulations($user, [$regulation->id])->exists(), 403);
 
+        // Uno reemplazado por su versión nueva se queda en Obsoleto: regresarlo duplicaría el documento.
+        if ($regulation->replaced_by_id) {
+            return back()->with('error', 'Este documento ya fue reemplazado por su versión nueva y no se puede regresar a Procedimientos.');
+        }
+
+        if (Regulation::codeTaken($regulation->group_id, $regulation->code, $regulation->id)) {
+            return back()->with('error', "No se puede regresar: ya hay otro proceso con el código {$regulation->code}.");
+        }
+
         $regulation->update(['obsoleted_at' => null, 'obsoleted_by' => null]);
 
         return back()->with('success', "«{$regulation->name}» regresó a Procedimientos.");
@@ -1349,7 +1483,7 @@ class RegulationController extends Controller
             ->get();
 
         $obsoletedRegulations = $filtered()
-            ->with('obsoletedBy:id,name')
+            ->with(['obsoletedBy:id,name', 'replacedBy:id,code,name,deleted_at'])
             ->whereNotNull('obsoleted_at')
             ->orderByDesc('obsoleted_at')
             ->get();
@@ -1419,16 +1553,20 @@ class RegulationController extends Controller
         abort_if($regulation->is_legacy, 403, 'Este es un documento antiguo — actualízalo con el wizard o subiendo una nueva versión.');
         abort_if($regulation->onlyWizardEditFor($user), 403);
 
+        $request->merge(['codigo' => Regulation::normalizeCode($request->input('codigo'))]);
+
         $data = $request->validate([
             'process_type_id' => ['required', 'exists:process_types,id'],
             'document_type'   => ['required', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
             'is_annex'        => ['sometimes', 'boolean'],
             'nombre'          => ['required', 'string', 'max:255'],
-            'codigo'          => ['nullable', 'string', 'max:50'],
+            'codigo'          => ['nullable', 'string', 'max:50', Regulation::uniqueCodeRule($regulation->group_id, $regulation->id)],
             'quien_elabora'   => ['required', 'string', 'max:255'],
             'quien_aprueba'   => ['required', 'string', 'max:255'],
             'fecha_vigencia'  => ['required', 'date'],
             'motivo_creacion' => ['required', 'string'],
+        ], [
+            'codigo.unique' => Regulation::CODE_TAKEN_MESSAGE,
         ]);
 
         $newDetails = array_merge($regulation->details ?? [], [
