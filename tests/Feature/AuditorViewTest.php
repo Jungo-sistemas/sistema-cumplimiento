@@ -120,6 +120,20 @@ class AuditorViewTest extends TestCase
         $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))->assertDontSee('Registrar hallazgo');
     }
 
+    public function test_los_responsables_del_hallazgo_son_invitados_del_equipo_auditado(): void
+    {
+        // Auditoría 1: se puede elegir a Laura y a Mariana (equipo auditado), pero no al auditor.
+        $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1));
+        $this->assertSame(2, substr_count($checklist->getContent(), 'name="responsables[]"'));
+        $checklist->assertSee('value="Mariana Garza"', false)
+            ->assertDontSee('value="Daniel Ruiz"', false)
+            ->assertSee('Elige al menos un responsable.');
+
+        // En la lista de Hallazgos salen todos los responsables de cada hallazgo.
+        $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))
+            ->assertSee('Laura Méndez, Mariana Garza');
+    }
+
     public function test_cada_criterio_muestra_su_descripcion(): void
     {
         // La descripción va entre el título del criterio y la evidencia a verificar.

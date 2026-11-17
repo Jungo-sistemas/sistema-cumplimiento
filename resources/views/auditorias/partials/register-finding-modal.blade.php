@@ -1,6 +1,7 @@
 {{-- Ventana "Registrar hallazgo". Solo se incluye en el checklist de una auditoría abierta (En captura).
      Cada criterio la abre con: @click="$dispatch('registrar-hallazgo', { criterio: número })"
-     Usa $auditoria y $criterios de esa página: la auditoría y el criterio se muestran, pero no se pueden cambiar. --}}
+     Usa $auditoria y $criterios de esa página: la auditoría y el criterio se muestran, pero no se pueden cambiar.
+     De $participantes salen los responsables que se pueden elegir. --}}
 <div x-data="{
         abierto: false,
         criterios: @js(array_column($criterios, 'texto')),
@@ -9,6 +10,7 @@
         descripcion: '',
         severidad: '',
         fecha: '',
+        responsables: [],
         errores: {},
         registrado: false,
         abrir(detalle) {
@@ -18,6 +20,7 @@
             this.descripcion = '';
             this.severidad = '';
             this.fecha = '';
+            this.responsables = [];
             this.errores = {};
             this.registrado = false;
         },
@@ -27,6 +30,7 @@
             if (! this.descripcion.trim()) this.errores.descripcion = 'Describe lo que encontraste.';
             if (! this.severidad) this.errores.severidad = 'Elige la clasificación.';
             if (! this.fecha) this.errores.fecha = 'Elige la fecha compromiso.';
+            if (this.responsables.length === 0) this.errores.responsables = 'Elige al menos un responsable.';
 
             // Sin errores = todo lleno. En la demo solo mostramos la confirmación.
             if (Object.keys(this.errores).length === 0) this.registrado = true;
@@ -93,7 +97,23 @@
                 </div>
             </div>
 
-            <p class="text-sm text-gray-600">Responsable: <span class="font-semibold text-gray-900">{{ $auditoria['auditado'] }}</span></p>
+            {{-- Responsables: los invitados de la auditoría que no son del equipo auditor --}}
+            <fieldset>
+                <legend class="mb-2 block text-sm font-semibold text-gray-900">Responsables del hallazgo</legend>
+                <div class="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+                    @foreach(collect($participantes)->where('equipo', 'auditado') as $participante)
+                        <label class="flex items-start gap-3">
+                            <input type="checkbox" name="responsables[]" value="{{ $participante['nombre'] }}" x-model="responsables"
+                                   class="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand">
+                            <span>
+                                <span class="block text-sm font-semibold text-gray-900">{{ $participante['nombre'] }}</span>
+                                <span class="block text-xs text-gray-500">{{ $participante['puesto'] }}</span>
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+                <p x-show="errores.responsables" x-text="errores.responsables" class="mt-1 text-sm text-red-600"></p>
+            </fieldset>
 
             <div>
                 <label for="hallazgo-soporte" class="mb-2 block text-sm font-semibold text-gray-900">Adjuntar soporte (opcional)</label>
@@ -109,7 +129,7 @@
             <p class="font-semibold text-green-800">Hallazgo registrado (demo).</p>
             <p class="mt-1 text-sm text-green-700">
                 Cuando exista la base de datos, aquí se guardará, se le avisará a
-                <span class="font-semibold">{{ $auditoria['auditado'] }}</span>
+                <span class="font-semibold" x-text="responsables.join(', ')"></span>
                 y aparecerá en la lista como "Por enviar".
             </p>
             <button type="button" @click="abierto = false" class="mt-4 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">Listo</button>

@@ -17,7 +17,7 @@
                     ['texto' => 'El manifiesto de entrega está firmado por el transportista.', 'resultado' => 'cumple', 'observacion' => 'El manifiesto mostrado está completo y firmado.'],
                 ],
                 'hallazgos' => [
-                    ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta', 'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres', 'severidad' => 'No crítico', 'seguimiento' => 'Rechazada', 'compromiso' => '2026-09-10'],
+                    ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta', 'empresa' => 'Asesorías Daval', 'responsables' => ['Ana Torres'], 'severidad' => 'No crítico', 'seguimiento' => 'Rechazada', 'compromiso' => '2026-09-10'],
                 ],
                 'participantes' => [
                     ['nombre' => auth()->user()->name, 'puesto' => 'Auditor',           'equipo' => 'auditor',  'asistio' => true],

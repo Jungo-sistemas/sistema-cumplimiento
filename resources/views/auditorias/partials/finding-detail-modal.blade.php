@@ -162,7 +162,7 @@
                 <div class="mt-1 text-[15px] text-gray-900" x-text="h.cierre"></div>
             </div>
             <p class="text-sm text-gray-700 sm:col-span-2">
-                Responsable: <span class="font-semibold" x-text="h.responsable"></span> · Cláusula <span x-text="h.clausula"></span>
+                Responsables: <span class="font-semibold" x-text="(h.responsables ?? []).join(', ')"></span> · Cláusula <span x-text="h.clausula"></span>
             </p>
         </div>
 
