@@ -237,6 +237,9 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::get('/processes/cargar', [RegulationController::class, 'cargar'])
         ->name('processes.cargar');
 
+    Route::get('/processes/cargar/desactualizados', [RegulationController::class, 'searchOutdated'])
+        ->name('processes.cargar.outdated');
+
     Route::post('/processes/cargar', [RegulationController::class, 'storeCargar'])
         ->name('processes.storeCargar');
 

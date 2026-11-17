@@ -196,7 +196,19 @@
                         @foreach($obsoletedRegulations as $reg)
                         @php $cv = $reg->currentVersion; @endphp
                         <tr class="hover:bg-gray-50 transition">
-                            <td class="px-4 py-3 font-medium text-gray-800">{{ $reg->name }}</td>
+                            <td class="px-4 py-3 font-medium text-gray-800">
+                                {{ $reg->name }}
+                                @if($reg->replacedBy)
+                                    <span class="block text-xs font-normal text-gray-500">
+                                        Reemplazado por
+                                        @if($reg->replacedBy->trashed())
+                                            {{ $reg->replacedBy->code ?? $reg->replacedBy->name }} (en papelera)
+                                        @else
+                                            <a href="{{ route('processes.show', $reg->replacedBy) }}" class="text-brand hover:underline">{{ $reg->replacedBy->code ?? $reg->replacedBy->name }}</a>
+                                        @endif
+                                    </span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-gray-500 font-mono text-xs">{{ $reg->code ?? '—' }}</td>
                             @if($user->picksProcessCompany())
                             <td class="px-4 py-3 text-gray-600">{{ $reg->company?->procesos_name ?? '—' }}</td>
@@ -215,6 +227,8 @@
                                             Ver
                                         </a>
                                     @endif
+                                    {{-- Uno reemplazado por su versión nueva se queda aquí: regresarlo duplicaría el documento. --}}
+                                    @unless($reg->replaced_by_id)
                                     <form method="POST" action="{{ route('processes.obsoleto.restore', $reg) }}"
                                           data-confirm="¿Regresar «{{ $reg->name }}» a Procedimientos?" data-confirm-button="Sí, regresar">
                                         @csrf
@@ -223,6 +237,7 @@
                                             Regresar a Procedimientos
                                         </button>
                                     </form>
+                                    @endunless
                                 </div>
                             </td>
                         </tr>

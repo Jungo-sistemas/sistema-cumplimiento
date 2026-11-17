@@ -12,7 +12,11 @@
         <span class="text-gray-700 font-medium">{{ $isAnnex ? 'Cargar anexo' : 'Cargar proceso' }}</span>
     </x-slot>
 
-    <div x-data="{ fileName: '', approvalMode: '{{ old('approval_mode', 'approved') }}' }">
+    <div x-data="cargarForm({
+            approvalMode: @js(old('approval_mode', 'approved')),
+            replacing: @js($replacing ? ['id' => $replacing->id, 'code' => $replacing->code, 'name' => $replacing->name, 'company' => $replacing->company?->procesos_name] : null),
+            searchUrl: @js(route('processes.cargar.outdated', $isAnnex ? ['anexo' => 1] : [])),
+        })">
 
         {{-- ENCABEZADO --}}
         <div class="mb-6">
@@ -48,12 +52,64 @@
                     </div>
                     <div class="p-5 space-y-4">
 
+                        {{-- Reemplazar un desactualizado (opcional) --}}
+                        <div class="rounded-lg border p-3" :class="replaceOn ? 'border-brand bg-brand-50' : 'border-gray-200'">
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" x-model="replaceOn" @change="if (!replaceOn) clearReplacing()"
+                                       class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand">
+                                <span>
+                                    <span class="block text-sm font-semibold text-gray-800">Reemplaza a un documento desactualizado</span>
+                                    <span class="block text-xs text-gray-500">Al guardar, el desactualizado se envía a Obsoleto y ya no se puede regresar a Procedimientos.</span>
+                                </span>
+                            </label>
+
+                            <div x-show="replaceOn" x-cloak class="mt-3">
+                                <input type="hidden" name="replaces_id" :value="replacing ? replacing.id : ''" :disabled="!replaceOn">
+
+                                <template x-if="replacing">
+                                    <div class="flex items-start justify-between gap-3 rounded-md border border-gray-200 bg-white px-3 py-2">
+                                        <div class="min-w-0">
+                                            <p class="font-mono text-xs text-gray-500" x-text="replacing.code"></p>
+                                            <p class="text-sm font-medium text-gray-800" x-text="replacing.name"></p>
+                                            <p class="text-xs text-gray-400" x-text="replacing.company"></p>
+                                        </div>
+                                        <button type="button" @click="clearReplacing()" class="text-xs text-brand hover:underline shrink-0">Cambiar</button>
+                                    </div>
+                                </template>
+
+                                <div x-show="!replacing" class="relative">
+                                    <input type="text" x-model="query" @input.debounce.300ms="search()"
+                                           placeholder="Busca por código, ej. P-COM-001"
+                                           class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
+                                    <p x-show="loading" class="text-xs text-gray-400 mt-1">Buscando…</p>
+                                    <p x-show="!loading && searched && results.length === 0" class="text-xs text-gray-500 mt-1">
+                                        No hay desactualizados con ese código.
+                                    </p>
+                                    <ul x-show="results.length" class="mt-1 max-h-64 overflow-y-auto rounded-md border border-gray-200 bg-white divide-y divide-gray-100">
+                                        <template x-for="r in results" :key="r.id">
+                                            <li>
+                                                <button type="button" @click="pick(r)" class="w-full text-left px-3 py-2 hover:bg-gray-50">
+                                                    <span class="font-mono text-xs text-gray-500" x-text="r.code"></span>
+                                                    <span class="block text-sm text-gray-800" x-text="r.name"></span>
+                                                    <span class="block text-xs text-gray-400" x-text="[r.company, r.process_type].filter(Boolean).join(' · ')"></span>
+                                                </button>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </div>
+                                @error('replaces_id')
+                                    <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+
                         {{-- Empresa --}}
                         <div>
                             <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Empresa</label>
-                            <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                                {{ $companies->firstWhere('id', $selectedCompanyId)?->procesos_name ?? auth()->user()->company?->procesos_name ?? '—' }}
+                            <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700"
+                                 x-text="replacing?.company || @js($companies->firstWhere('id', $selectedCompanyId)?->procesos_name ?? auth()->user()->company?->procesos_name ?? '—')">
                             </div>
+                            {{-- Al reemplazar, el servidor usa la empresa del desactualizado. --}}
                             <input type="hidden" name="company_id" value="{{ $selectedCompanyId ?? auth()->user()->company_id }}">
                         </div>
 
@@ -63,7 +119,7 @@
                                 <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
                                     Tipo de proceso <span class="text-red-500">*</span>
                                 </label>
-                                <select name="process_type_id"
+                                <select name="process_type_id" x-ref="process_type_id"
                                         class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('process_type_id') border-red-400 @enderror">
                                     <option value="">— Seleccionar —</option>
                                     @foreach($processTypes as $pt)
@@ -80,7 +136,7 @@
                                 <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
                                     Tipo de documento <span class="text-red-500">*</span>
                                 </label>
-                                <select name="document_type"
+                                <select name="document_type" x-ref="document_type"
                                         class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('document_type') border-red-400 @enderror">
                                     <option value="">— Seleccionar —</option>
                                     @foreach($documentTypes as $dt)
@@ -98,16 +154,21 @@
                         {{-- Impacto para evaluación (opcional; también se cambia desde el listado) --}}
                         <div>
                             <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                                Nivel de impacto <span class="normal-case font-normal text-gray-400">(opcional)</span>
+                                Nivel de impacto
+                                @if($isAnnex)
+                                    <span class="normal-case font-normal text-gray-400">(opcional)</span>
+                                @else
+                                    <span class="text-red-500">*</span>
+                                @endif
                             </label>
-                            <select name="evaluation_impact"
+                            <select name="evaluation_impact" x-ref="evaluation_impact" @unless($isAnnex) required @endunless
                                     class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('evaluation_impact') border-red-400 @enderror">
-                                <option value="">— Sin definir —</option>
+                                <option value="">{{ $isAnnex ? '— Sin definir —' : '— Seleccionar —' }}</option>
                                 @foreach(\App\Models\Regulation::EVALUATION_IMPACTS as $val => $lbl)
                                     <option value="{{ $val }}" {{ old('evaluation_impact') === $val ? 'selected' : '' }}>{{ $lbl }}</option>
                                 @endforeach
                             </select>
-                            <p class="text-xs text-gray-400 mt-1">Servirá para definir cada cuánto se evalúa el proceso.</p>
+                            <p class="text-xs text-gray-400 mt-1">Define cada cuánto se audita el proceso.</p>
                             @error('evaluation_impact')
                                 <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                             @enderror
@@ -124,7 +185,7 @@
                                 Nombre del documento <span class="text-red-500">*</span>
                             </label>
                             <input type="text"
-                                   name="nombre"
+                                   name="nombre" x-ref="nombre"
                                    value="{{ old('nombre') }}"
                                    placeholder="{{ $isAnnex ? 'Ej: Formato de Alta de Proveedores' : 'Ej: Procedimiento de Alta de Proveedores' }}"
                                    class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('nombre') border-red-400 @enderror">
@@ -139,7 +200,7 @@
                                 Código <span class="text-red-500">*</span>
                             </label>
                             <input type="text"
-                                   name="codigo"
+                                   name="codigo" x-ref="codigo"
                                    value="{{ old('codigo') }}"
                                    placeholder="Ej: P-COM-001"
                                    class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('codigo') border-red-400 @enderror">
@@ -155,7 +216,7 @@
                                     Elaborado por <span class="text-red-500">*</span>
                                 </label>
                                 <input type="text"
-                                       name="quien_elabora"
+                                       name="quien_elabora" x-ref="quien_elabora"
                                        value="{{ old('quien_elabora') }}"
                                        placeholder="Ej: Juan Pérez — Jefe de Compras"
                                        class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('quien_elabora') border-red-400 @enderror">
@@ -168,7 +229,7 @@
                                     Aprobado por <span class="text-red-500">*</span>
                                 </label>
                                 <input type="text"
-                                       name="quien_aprueba"
+                                       name="quien_aprueba" x-ref="quien_aprueba"
                                        value="{{ old('quien_aprueba') }}"
                                        placeholder="Ej: María López — Directora de Operaciones"
                                        class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand @error('quien_aprueba') border-red-400 @enderror">
@@ -327,5 +388,56 @@
 
         </form>
     </div>
+
+    <script>
+        function cargarForm({ approvalMode, replacing, searchUrl }) {
+            return {
+                fileName: '',
+                approvalMode,
+                replaceOn: !!replacing,
+                replacing,
+                query: '',
+                results: [],
+                loading: false,
+                searched: false,
+                async search() {
+                    const q = this.query.trim();
+                    this.searched = false;
+                    if (q.length < 2) { this.results = []; return; }
+                    this.loading = true;
+                    try {
+                        const res = await fetch(searchUrl + (searchUrl.includes('?') ? '&' : '?') + 'q=' + encodeURIComponent(q),
+                            { headers: { 'Accept': 'application/json' } });
+                        // Solo vale la respuesta de lo último que se escribió.
+                        if (q === this.query.trim()) {
+                            this.results = res.ok ? await res.json() : [];
+                            this.searched = true;
+                        }
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                // Llena el formulario con los datos del desactualizado; se pueden corregir antes de guardar.
+                pick(r) {
+                    this.replacing = r;
+                    this.results = [];
+                    this.query = '';
+                    const set = (ref, value) => { if (this.$refs[ref] && value) this.$refs[ref].value = value; };
+                    set('codigo', r.code);
+                    set('nombre', r.name);
+                    set('process_type_id', r.process_type_id);
+                    set('document_type', r.document_type);
+                    set('evaluation_impact', r.evaluation_impact);
+                    set('quien_elabora', r.quien_elabora);
+                    set('quien_aprueba', r.quien_aprueba);
+                },
+                clearReplacing() {
+                    this.replacing = null;
+                    this.results = [];
+                    this.searched = false;
+                },
+            };
+        }
+    </script>
 
 </x-layouts.vigia>

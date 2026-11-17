@@ -50,6 +50,8 @@ class Regulation extends Model
         'outdated'              => 'Desactualizado',
     ];
 
+    public const CODE_TAKEN_MESSAGE = 'Ya existe otro proceso con ese código.';
+
     protected $fillable = [
         'group_id',
         'company_id',
@@ -80,6 +82,7 @@ class Regulation extends Model
         'change_summary_uploaded_at',
         'obsoleted_at',
         'obsoleted_by',
+        'replaced_by_id',
     ];
 
     protected $casts = [
@@ -169,6 +172,48 @@ class Regulation extends Model
     public function obsoletedBy()
     {
         return $this->belongsTo(User::class, 'obsoleted_by');
+    }
+
+    /** Documento que sustituyó a este desactualizado al cargar su versión nueva. */
+    public function replacedBy()
+    {
+        return $this->belongsTo(Regulation::class, 'replaced_by_id')->withTrashed();
+    }
+
+    /** Código normalizado como se guarda: mayúsculas, sin espacios sobrantes; vacío = sin código. */
+    public static function normalizeCode(?string $code): ?string
+    {
+        $code = Str::upper(trim((string) $code));
+
+        return $code === '' ? null : $code;
+    }
+
+    /**
+     * El código es único dentro del grupo entre los documentos vivos — los de la papelera y los de
+     * Obsoleto no cuentan (ver índice regulations_group_code_unique). Compara contra el código ya
+     * normalizado.
+     */
+    public static function uniqueCodeRule(int $groupId, ?int $ignoreId = null): \Illuminate\Validation\Rules\Unique
+    {
+        return \Illuminate\Validation\Rule::unique('regulations', 'code')
+            ->where('group_id', $groupId)
+            ->whereNull('deleted_at')
+            ->whereNull('obsoleted_at')
+            ->ignore($ignoreId);
+    }
+
+    /** Mismo criterio que uniqueCodeRule(), para revisarlo fuera de un validador. */
+    public static function codeTaken(int $groupId, ?string $code, ?int $ignoreId = null): bool
+    {
+        $code = self::normalizeCode($code);
+
+        return $code !== null && DB::table('regulations')
+            ->where('group_id', $groupId)
+            ->where('code', $code)
+            ->whereNull('deleted_at')
+            ->whereNull('obsoleted_at')
+            ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+            ->exists();
     }
 
     public function directApprovedBy()
