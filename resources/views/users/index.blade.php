@@ -459,7 +459,7 @@
                                             @if($canManage)
                                             <form method="POST"
                                                   action="{{ route('users.destroy', $user) }}"
-                                                  data-confirm="¿Seguro que quieres eliminar este usuario?" data-confirm-danger data-confirm-button="Sí, eliminar">
+                                                  data-confirm="¿Seguro que quieres eliminar este usuario? Si participa en flujos de aprobación abiertos, esos procesos se reinician y quedan sin asignar." data-confirm-danger data-confirm-button="Sí, eliminar">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit"
