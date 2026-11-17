@@ -22,3 +22,7 @@ Schedule::command('licenses:check')
 
 Schedule::command('approvals:notify-reminders')
     ->dailyAt('08:00');
+
+// Aviso "este mes te toca una auditoría" (el día 1, y luego solo las que se programen ya empezado el mes).
+Schedule::command('audits:notify-month')
+    ->dailyAt('07:30');

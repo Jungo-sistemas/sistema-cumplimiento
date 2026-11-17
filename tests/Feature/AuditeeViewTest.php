@@ -142,9 +142,9 @@ class AuditeeViewTest extends TestCase
     public function test_todas_las_pantallas_de_mi_espacio_cargan(): void
     {
         foreach ([
-            route('mi-espacio.requests'), route('mi-espacio.documents'), route('mi-espacio.help'),
+            route('mi-espacio.documents'), route('mi-espacio.help'),
             route('mi-espacio.audits'), route('mi-espacio.audits', ['tab' => 'historial']),
-            route('mi-espacio.activities'), route('mi-espacio.activities', ['tab' => 'concluidas']),
+            route('mi-espacio.findings'), route('mi-espacio.findings', ['tab' => 'concluidas']),
         ] as $url) {
             $this->actingAs($this->operative)->get($url)->assertOk();
         }
@@ -157,7 +157,8 @@ class AuditeeViewTest extends TestCase
         $this->actingAs($this->admin)->get(route('mi-espacio.home'))
             ->assertOk()
             ->assertSee(route('view-mode.switch', 'gestion'), false)
-            ->assertSee('Mis actividades');
+            ->assertSee('Mis hallazgos')
+            ->assertDontSee('Mis solicitudes');
 
         // Consultar un proceso desde Mi espacio conserva el menú de auditado...
         $regulation = $this->regulation('Control de evidencias operativas');
@@ -202,7 +203,7 @@ class AuditeeViewTest extends TestCase
             ->assertOk()
             ->assertSee('Procedimientos')
             ->assertSee(route('view-mode.switch', 'auditado'), false)
-            ->assertDontSee('Mis actividades');
+            ->assertDontSee('Mis hallazgos');
 
         $this->actingAs($this->admin)->get(route('documents.index'))
             ->assertOk()
