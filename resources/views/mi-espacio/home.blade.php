@@ -6,8 +6,8 @@
 
     @php
         $cards = [
-            ['label' => 'Mis auditorías activas', 'valor' => $activeAuditsCount, 'texto' => 'Checklists y correcciones de tus auditorías.',   'boton' => 'Ver mis auditorías',  'url' => route('mi-espacio.audits')],
-            ['label' => 'Mis actividades',        'valor' => $activitiesCount,   'texto' => 'Acciones correctivas que requieren seguimiento.', 'boton' => 'Ver mis actividades', 'url' => route('mi-espacio.activities')],
+            ['label' => 'Mis auditorías activas', 'valor' => $activeAuditsCount, 'texto' => 'Las que te tocan este mes, con su fecha y auditor.', 'boton' => 'Ver mis auditorías',  'url' => route('mi-espacio.audits')],
+            ['label' => 'Mis hallazgos',          'valor' => $findingsCount,     'texto' => 'Hallazgos donde te toca subir evidencia.', 'boton' => 'Ver mis hallazgos', 'url' => route('mi-espacio.findings')],
             ['label' => 'Mis documentos',         'valor' => $releasedDocsCount, 'texto' => 'Procesos relacionados con tu trabajo.',          'boton' => 'Consultar documentos', 'url' => route('mi-espacio.documents')],
         ];
     @endphp
@@ -28,10 +28,29 @@
     <div class="mt-8 rounded-2xl border border-gray-200 bg-white p-7">
         <h2 class="text-xl font-semibold text-gray-900">Siguiente por atender</h2>
 
-        @forelse($nextItems as $next)
-            {{-- Se llena cuando existan las auditorías y actividades (AUD-1). --}}
-        @empty
+        @php
+            $tones = [
+                'red'   => 'bg-red-50 text-red-700',
+                'amber' => 'bg-amber-50 text-amber-700',
+                'brand' => 'bg-brand-50 text-brand',
+            ];
+        @endphp
+        @if($nextItems->isNotEmpty())
+            <ul class="mt-5 divide-y divide-gray-100">
+                @foreach($nextItems as $next)
+                    <li class="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="min-w-0">
+                            <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $tones[$next['tone']] }}">{{ $next['tag'] }}</span>
+                            <p class="mt-1 truncate text-[15px] font-semibold text-gray-900">{{ $next['title'] }}</p>
+                            <p class="text-sm text-gray-500">{{ $next['meta'] }}</p>
+                        </div>
+                        <a href="{{ $next['url'] }}"
+                           class="inline-flex shrink-0 rounded-lg bg-brand-50 px-4 py-2 text-sm font-semibold text-brand hover:bg-brand-100">{{ $next['cta'] }}</a>
+                    </li>
+                @endforeach
+            </ul>
+        @else
             <p class="mt-5 text-[15px] text-gray-600">No tienes pendientes asignados por atender.</p>
-        @endforelse
+        @endif
     </div>
 </x-layouts.vigia>

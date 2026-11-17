@@ -618,6 +618,79 @@ class ApprovalFlowTest extends TestCase
             ->assertSee('No se registró el rechazo', false);
     }
 
+    // ─── Eliminar un usuario que participa en flujos ─────────────────────────
+
+    public function test_eliminar_aprobador_pendiente_reinicia_el_flujo_sin_asignar(): void
+    {
+        $reg = $this->makeRegulation('bajo');
+        $lider = $this->users['lider'];
+        $this->assertTrue($reg->pendingApprovals()->where('user_id', $lider->id)->exists());
+
+        $lider->delete();
+
+        $reg = $reg->fresh();
+        $this->assertNull($reg->approval_status);
+        $this->assertNull($reg->impact_level);
+        $this->assertFalse((bool) $reg->flow_locked);
+        $this->assertNull($reg->flow_user_map);
+        $this->assertSame(0, $reg->approvals()->count());
+        $this->assertSame([$reg->name], $lider->resetFlowCodes);
+    }
+
+    public function test_eliminar_aprobador_elegido_para_un_paso_futuro_tambien_reinicia(): void
+    {
+        $reg = $this->makeRegulationWithUsers('medio_alto', [
+            'gerente'   => [(string) $this->users['gerente']->id],
+            'direccion' => [(string) $this->users['direccion']->id],
+        ]);
+        // Dirección todavía no tiene registro de aprobación: solo está en flow_user_map.
+        $this->assertFalse($reg->approvals()->where('user_id', $this->users['direccion']->id)->exists());
+
+        $this->users['direccion']->delete();
+
+        $this->assertNull($reg->fresh()->approval_status);
+        $this->assertSame(0, $reg->approvals()->count());
+    }
+
+    public function test_eliminar_usuario_no_toca_procesos_aprobados_ni_ajenos(): void
+    {
+        $aprobado = $this->makeRegulation('bajo');
+        while ($aprobado->approval_status !== 'approved') {
+            $next = $aprobado->pendingApprovals()->first();
+            $this->flow->processApproval($next, 'approved');
+            $aprobado = $aprobado->fresh();
+        }
+
+        // Proceso con flujo abierto donde el usuario a eliminar NO participa.
+        $ajeno = $this->makeRegulationWithUsers('medio_alto', [
+            'gerente' => [(string) $this->users['gerente']->id],
+        ]);
+
+        $this->users['lider']->delete();
+
+        $this->assertSame('approved', $aprobado->fresh()->approval_status);
+        $this->assertSame('pending_authorization', $ajeno->fresh()->approval_status);
+        $this->assertSame(1, $ajeno->approvals()->count());
+    }
+
+    public function test_admin_ve_aviso_de_flujos_reiniciados_al_eliminar(): void
+    {
+        $reg = $this->makeRegulation('bajo');
+        $reg->update(['code' => 'P-TEST-001']);
+
+        $admin = User::factory()->create([
+            'group_id' => $this->group->id, 'scope_level' => 'group', 'status' => 'active',
+            'role_id' => Role::where('slug', 'admin')->value('id'), 'module_access' => 'all',
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('users.destroy', $this->users['lider']))
+            ->assertRedirect(route('users.index'))
+            ->assertSessionHas('success', fn ($msg) => str_contains($msg, 'P-TEST-001'));
+
+        $this->assertNull($reg->fresh()->approval_status);
+    }
+
     public function test_resubmit_sin_ser_admin_da_403(): void
     {
         $reg = $this->makeRegulation('bajo');

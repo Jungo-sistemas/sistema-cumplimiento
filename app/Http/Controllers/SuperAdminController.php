@@ -415,7 +415,7 @@ class SuperAdminController extends Controller
 
         return redirect()
             ->route('superadmin.users')
-            ->with('success', 'Usuario eliminado correctamente.');
+            ->with('success', $user->deletedMessage());
     }
 
     /**

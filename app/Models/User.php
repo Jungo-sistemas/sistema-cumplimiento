@@ -44,6 +44,36 @@ class User extends Authenticatable
 
     protected $with = ['role', 'company'];
 
+    /** Códigos de los procesos cuyo flujo se reinició al eliminar a este usuario (para el aviso). */
+    public array $resetFlowCodes = [];
+
+    protected static function booted(): void
+    {
+        // Cualquier ruta que borre un usuario (Usuarios, Superadmin, tinker) reinicia antes los
+        // flujos abiertos donde participa — el cascade de la FK borraría su aprobación y el flujo
+        // quedaría atorado.
+        static::deleting(function (User $user) {
+            $user->resetFlowCodes = app(\App\Services\ApprovalFlowService::class)
+                ->resetFlowsForRemovedUser($user)
+                ->map(fn ($r) => $r->code ?: $r->name)
+                ->all();
+        });
+    }
+
+    /** Mensaje de éxito al eliminar, mencionando los flujos reiniciados si hubo. */
+    public function deletedMessage(): string
+    {
+        if ($this->resetFlowCodes === []) {
+            return 'Usuario eliminado correctamente.';
+        }
+
+        $n = count($this->resetFlowCodes);
+
+        return 'Usuario eliminado. Participaba en ' . $n . ($n === 1 ? ' proceso' : ' procesos')
+            . ' con flujo abierto; se reinició el flujo y queda sin asignar: '
+            . implode(', ', $this->resetFlowCodes) . '.';
+    }
+
     protected function casts(): array
     {
         return [
