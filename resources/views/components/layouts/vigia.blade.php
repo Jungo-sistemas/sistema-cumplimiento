@@ -53,6 +53,14 @@
     $pendingInvestmentApprovalsCount = $user
         ? \App\Models\InvestmentRequestApproval::where('user_id', $user->id)->where('status', 'pending')->count()
         : 0;
+    // Auditorías programadas cuyo mes ya empezó (las de meses siguientes no se avisan).
+    $activeAuditsCount = $user && ! $user->isSuperAdmin() && $user->canUseAuditeeView()
+        ? \App\Models\Audit::activeForAuditee($user)->count()
+        : 0;
+    // Hallazgos donde le toca subir evidencia (pendientes o con evidencia rechazada).
+    $findingsToAttendCount = $user && ! $user->isSuperAdmin() && $user->canUseAuditeeView()
+        ? \App\Models\AuditFinding::forResponsible($user)->whereIn('status', \App\Models\AuditFinding::NEEDS_EVIDENCE)->count()
+        : 0;
     // Quien está en el flujo fijo de alguna empresa (o ya aprobó alguna vez) ve "Mis aprobaciones de
     // inversión", aunque su rol no tenga Solicitud de Inversiones.
     $isInvestmentApprover = $user && ! $user->isSuperAdmin() && (
@@ -131,7 +139,6 @@
     } elseif ($viewMode === 'auditado') {
         $sections[] = ['title' => 'Mi espacio', 'items' => [
             $item('Inicio', 'mi-espacio.home', 'home', request()->routeIs('mi-espacio.home')),
-            $item('Mis solicitudes', 'mi-espacio.requests', 'clock', request()->routeIs('mi-espacio.requests')),
         ]];
         // Mis aprobaciones vive en Gestión (Procesos). Solo quien no tiene Gestión de Procesos y
         // tiene aprobaciones asignadas la ve aquí.
@@ -149,7 +156,7 @@
         }
         $sections[] = ['title' => 'Auditorías', 'items' => [
             $item('Mis auditorías', 'mi-espacio.audits', 'check', request()->routeIs('mi-espacio.audits')),
-            $item('Mis actividades', 'mi-espacio.activities', 'alert', request()->routeIs('mi-espacio.activities')),
+            $item('Mis hallazgos', 'mi-espacio.findings', 'alert', request()->routeIs('mi-espacio.findings', 'mi-espacio.findings.*'), $findingsToAttendCount > 0 ? ['badge' => $findingsToAttendCount] : []),
         ]];
         $helpItem = $item('Ayuda', 'mi-espacio.help', 'help', request()->routeIs('mi-espacio.help'));
     } elseif ($currentModule === 'procesos') {
@@ -252,6 +259,14 @@
             'label' => 'Aprobación de solicitudes de inversión (Anexos 8)',
             'module' => $user->canAccessModule('cumplimiento') ? 'Cumplimiento' : 'Procesos y Auditorías', 'icon' => 'cash',
             'count' => $pendingInvestmentApprovalsCount, 'url' => route('investment-requests.my-approvals'),
+        ] : null,
+        $activeAuditsCount > 0 ? [
+            'label' => 'Auditorías de este mes', 'module' => 'Procesos y Auditorías', 'icon' => 'check',
+            'count' => $activeAuditsCount, 'url' => route('mi-espacio.audits'),
+        ] : null,
+        $findingsToAttendCount > 0 ? [
+            'label' => 'Hallazgos por atender', 'module' => 'Procesos y Auditorías', 'icon' => 'alert',
+            'count' => $findingsToAttendCount, 'url' => route('mi-espacio.findings'),
         ] : null,
     ]));
     $notificationsCount = collect($notifications)->sum('count');
@@ -439,6 +454,12 @@
                     @if(session('error'))
                         <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
                             {{ session('error') }}
+                        </div>
+                    @endif
+
+                    @if(session('warning'))
+                        <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                            {{ session('warning') }}
                         </div>
                     @endif
 

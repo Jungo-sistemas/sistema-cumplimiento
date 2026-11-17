@@ -369,6 +369,50 @@ class ApprovalFlowService
     /**
      * Devuelve el registro pending del usuario en el reglamento, o null.
      */
+    /** Estados con un flujo vivo (en curso o rechazado esperando re-envío). */
+    public const OPEN_FLOW_STATUSES = ['pending_review', 'pending_authorization', 'rejected'];
+
+    /**
+     * Al eliminar un usuario: los procesos con flujo abierto donde participa (tiene un registro de
+     * aprobación o fue elegido en flow_user_map) se regresan a "sin flujo" — mismo resultado que
+     * "Flujo eliminado" en la pantalla — para que un admin lo vuelva a configurar con las personas
+     * correctas. Sin esto, el cascade de la FK borraba su aprobación pendiente y el paso quedaba
+     * atorado, o un re-envío intentaba usar a un usuario que ya no existe.
+     *
+     * Los procesos ya aprobados no se tocan. Debe llamarse ANTES de borrar al usuario.
+     *
+     * @return Collection<int, Regulation> los procesos reiniciados
+     */
+    public function resetFlowsForRemovedUser(User $user): Collection
+    {
+        $withApproval = RegulationApproval::where('user_id', $user->id)->pluck('regulation_id');
+
+        $regulations = Regulation::withoutGlobalScopes()
+            ->whereNull('deleted_at')
+            ->whereIn('approval_status', self::OPEN_FLOW_STATUSES)
+            ->where(fn ($q) => $q->whereIn('id', $withApproval)->orWhereNotNull('flow_user_map'))
+            ->get()
+            ->filter(fn (Regulation $r) => $withApproval->contains($r->id)
+                || collect($r->flow_user_map ?? [])->flatten()->map(fn ($id) => (int) $id)->contains($user->id))
+            ->values();
+
+        DB::transaction(function () use ($regulations) {
+            foreach ($regulations as $regulation) {
+                $regulation->approvals()->delete();
+                $regulation->update([
+                    'impact_level'       => null,
+                    'approval_status'    => null,
+                    'flow_locked'        => false,
+                    'flow_user_map'      => null,
+                    'direct_approved_by' => null,
+                    'direct_approved_at' => null,
+                ]);
+            }
+        });
+
+        return $regulations;
+    }
+
     public function getPendingApprovalForUser(Regulation $regulation, int $userId): ?RegulationApproval
     {
         return $regulation->pendingApprovals()->where('user_id', $userId)->first();

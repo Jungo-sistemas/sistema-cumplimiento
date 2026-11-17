@@ -175,11 +175,13 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     */
     Route::prefix('mi-espacio')->name('mi-espacio.')->controller(AuditeeController::class)->group(function () {
         Route::get('/', 'home')->name('home');
-        Route::get('/solicitudes', 'requests')->name('requests');
         Route::get('/documentos', 'documents')->name('documents');
         Route::get('/documentos/{regulation}', 'showDocument')->whereNumber('regulation')->name('documents.show');
         Route::get('/auditorias', 'audits')->name('audits');
-        Route::get('/actividades', 'activities')->name('activities');
+        Route::get('/hallazgos', 'findings')->name('findings');
+        Route::get('/hallazgos/{finding}', 'showFinding')->whereNumber('finding')->name('findings.show');
+        Route::post('/hallazgos/{finding}/evidencia', 'submitEvidence')->whereNumber('finding')->name('findings.evidence');
+        Route::get('/hallazgos/archivos/{file}', 'downloadFindingFile')->whereNumber('file')->name('findings.file');
         Route::get('/ayuda', 'help')->name('help');
     });
 

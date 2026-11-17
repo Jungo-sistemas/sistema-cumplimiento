@@ -1434,7 +1434,7 @@
                 </button>
             </div>
         </div>
-        <iframe src="{{ route('regulation-versions.preview', $currentVersion) }}"
+        <iframe src="{{ route('regulation-versions.preview', ['version' => $currentVersion, 'embed' => 1]) }}"
                 class="flex-1 w-full border-0"
                 title="{{ $currentVersion->original_name ?? basename($currentVersion->file_path) }}">
         </iframe>

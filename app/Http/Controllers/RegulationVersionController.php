@@ -760,6 +760,12 @@ class RegulationVersionController extends Controller
             $backUrl     = request()->query('from') === 'mi-espacio'
                 ? route('mi-espacio.documents.show', $regulation)
                 : route('processes.show', $regulation);
+            // ?embed=1: se muestra dentro de un iframe (ficha de Mi espacio) que ya trae nombre y
+            // Descargar — sin barra ni flecha. Antes la flecha cargaba la página completa DENTRO del
+            // iframe y se veía el sistema duplicado.
+            $embedCss = request()->boolean('embed')
+                ? '<style>body{padding-top:0 !important}#topbar{display:none !important}</style>'
+                : '';
             $versionLabel = 'v' . $version->version_number;
             $regCode      = htmlspecialchars($regulation->code ?? '');
             $regName      = htmlspecialchars($regulation->name);
@@ -859,11 +865,12 @@ class RegulationVersionController extends Controller
   #legend ul a:hover { text-decoration: underline; }
 </style>
 <link rel="stylesheet" href="{$paginationCssUrl}">
+{$embedCss}
 </head>
 <body>
 
 <div id="topbar">
-  <a href="{$backUrl}" class="back" title="Volver">&#8592;</a>
+  <a href="{$backUrl}" class="back" title="Volver" target="_top">&#8592;</a>
   <div class="doc-info">
     <div class="doc-name">{$regName}</div>
     <div class="doc-meta">{$regCode} &nbsp;·&nbsp; {$versionLabel} &nbsp;·&nbsp; {$name}</div>
