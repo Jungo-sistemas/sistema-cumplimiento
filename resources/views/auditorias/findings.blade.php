@@ -16,12 +16,12 @@
 
         // Datos de ejemplo para la demo. Cuando existan las tablas, esto lo manda el controlador.
         $hallazgos = [
-            ['codigo' => 'HAL-001', 'titulo' => 'Bitácora de maniobras sin firma del supervisor', 'empresa' => 'Asesorías Daval', 'responsables' => ['Laura Méndez', 'Mariana Garza'],  'severidad' => 'No crítico',   'seguimiento' => 'Por revisar', 'compromiso' => '2026-11-25'],
-            ['codigo' => 'HAL-002', 'titulo' => 'Equipo de protección incompleto en patio',       'empresa' => 'Asesorías Daval', 'responsables' => ['Laura Méndez'],  'severidad' => 'Crítico', 'seguimiento' => 'Con el auditado',             'compromiso' => '2026-12-20'],
-            ['codigo' => 'HAL-003', 'titulo' => 'Registro de temperatura sin capturar',           'empresa' => 'Vigía',           'responsables' => ['Jorge Salinas'], 'severidad' => 'No crítico',   'seguimiento' => 'Por revisar',  'compromiso' => '2026-09-30'],
-            ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta',          'empresa' => 'Asesorías Daval', 'responsables' => ['Ana Torres'],    'severidad' => 'No crítico',   'seguimiento' => 'Rechazada',              'compromiso' => '2026-09-10'],
-            ['codigo' => 'HAL-005', 'titulo' => 'Capacitación de montacarguistas vencida',        'empresa' => 'Vigía',           'responsables' => ['Jorge Salinas'], 'severidad' => 'Crítico', 'seguimiento' => 'Con el auditado',             'compromiso' => '2026-10-15'],
-            ['codigo' => 'HAL-006', 'titulo' => 'Versión obsoleta del procedimiento en planta',   'empresa' => 'Vigía',           'responsables' => ['Luis Herrera'],  'severidad' => 'No crítico',   'seguimiento' => 'Cerrado',                'compromiso' => '2026-09-05'],
+            ['codigo' => 'HAL-001', 'titulo' => 'Bitácora de maniobras sin firma del supervisor', 'empresa' => 'Asesorías Daval', 'responsable' => 'Laura Méndez',  'severidad' => 'No crítico',   'seguimiento' => 'Por revisar', 'compromiso' => '2026-11-25'],
+            ['codigo' => 'HAL-002', 'titulo' => 'Equipo de protección incompleto en patio',       'empresa' => 'Asesorías Daval', 'responsable' => 'Laura Méndez',  'severidad' => 'Crítico', 'seguimiento' => 'Con el auditado',             'compromiso' => '2026-12-20'],
+            ['codigo' => 'HAL-003', 'titulo' => 'Registro de temperatura sin capturar',           'empresa' => 'Vigía',           'responsable' => 'Jorge Salinas', 'severidad' => 'No crítico',   'seguimiento' => 'Por revisar',  'compromiso' => '2026-09-30'],
+            ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta',          'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres',    'severidad' => 'No crítico',   'seguimiento' => 'Rechazada',              'compromiso' => '2026-09-10'],
+            ['codigo' => 'HAL-005', 'titulo' => 'Capacitación de montacarguistas vencida',        'empresa' => 'Vigía',           'responsable' => 'Jorge Salinas', 'severidad' => 'Crítico', 'seguimiento' => 'Con el auditado',             'compromiso' => '2026-10-15'],
+            ['codigo' => 'HAL-006', 'titulo' => 'Versión obsoleta del procedimiento en planta',   'empresa' => 'Vigía',           'responsable' => 'Luis Herrera',  'severidad' => 'No crítico',   'seguimiento' => 'Cerrado',                'compromiso' => '2026-09-05'],
         ];
 
         $filtros  = array_filter(request()->only(['empresa', 'seguimiento', 'q']));
@@ -109,7 +109,7 @@
                 <thead class="bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-500">
                     <tr>
                         <th class="px-4 py-5">Hallazgo</th>
-                        <th class="px-4 py-5">Responsables</th>
+                        <th class="px-4 py-5">Responsable</th>
                         <th class="px-4 py-5">Clasificación</th>
                         <th class="px-4 py-5">Seguimiento</th>
                         <th class="px-4 py-5">Compromiso</th>
@@ -123,7 +123,7 @@
                                 <div class="font-semibold text-gray-900">{{ $h['titulo'] }}</div>
                                 <div class="mt-1 text-sm text-gray-500">{{ $h['empresa'] }} · {{ $h['codigo'] }}</div>
                             </td>
-                            <td class="px-4 py-5 text-gray-700">{{ implode(', ', $h['responsables']) }}</td>
+                            <td class="px-4 py-5 text-gray-700">{{ $h['responsable'] }}</td>
                             <td class="px-4 py-5">
                                 <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $severidades[$h['severidad']] }}">{{ $h['severidad'] }}</span>
                             </td>

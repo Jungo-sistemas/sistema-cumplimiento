@@ -1,7 +1,7 @@
 {{-- Ventana "Registrar hallazgo". Solo se incluye en el checklist de una auditoría abierta (En captura).
      Cada criterio la abre con: @click="$dispatch('registrar-hallazgo', { criterio: número })"
      Usa $auditoria y $criterios de esa página: la auditoría y el criterio se muestran, pero no se pueden cambiar.
-     De $participantes salen los responsables que se pueden elegir. --}}
+     De $participantes sale la lista para elegir al responsable. --}}
 <div x-data="{
         abierto: false,
         criterios: @js(array_column($criterios, 'texto')),
@@ -10,7 +10,7 @@
         descripcion: '',
         severidad: '',
         fecha: '',
-        responsables: [],
+        responsable: '',
         errores: {},
         registrado: false,
         abrir(detalle) {
@@ -20,7 +20,7 @@
             this.descripcion = '';
             this.severidad = '';
             this.fecha = '';
-            this.responsables = [];
+            this.responsable = '';
             this.errores = {};
             this.registrado = false;
         },
@@ -30,7 +30,7 @@
             if (! this.descripcion.trim()) this.errores.descripcion = 'Describe lo que encontraste.';
             if (! this.severidad) this.errores.severidad = 'Elige la clasificación.';
             if (! this.fecha) this.errores.fecha = 'Elige la fecha compromiso.';
-            if (this.responsables.length === 0) this.errores.responsables = 'Elige al menos un responsable.';
+            if (! this.responsable) this.errores.responsable = 'Elige al responsable.';
 
             // Sin errores = todo lleno. En la demo solo mostramos la confirmación.
             if (Object.keys(this.errores).length === 0) this.registrado = true;
@@ -97,14 +97,15 @@
                 </div>
             </div>
 
-            {{-- Responsables: los invitados de la auditoría que no son del equipo auditor --}}
+            {{-- Responsable: uno solo (audit_findings.responsible_id), de los invitados que no son del equipo auditor --}}
             <fieldset>
-                <legend class="mb-2 block text-sm font-semibold text-gray-900">Responsables del hallazgo</legend>
+                <legend class="mb-2 block text-sm font-semibold text-gray-900">Responsable del hallazgo</legend>
+                <p class="mb-2 text-sm text-gray-500">Si le toca a varias personas, registra un hallazgo para cada una.</p>
                 <div class="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
                     @foreach(collect($participantes)->where('equipo', 'auditado') as $participante)
                         <label class="flex items-start gap-3">
-                            <input type="checkbox" name="responsables[]" value="{{ $participante['nombre'] }}" x-model="responsables"
-                                   class="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand">
+                            <input type="radio" name="responsable" value="{{ $participante['nombre'] }}" x-model="responsable"
+                                   class="mt-0.5 h-4 w-4 border-gray-300 text-brand focus:ring-brand">
                             <span>
                                 <span class="block text-sm font-semibold text-gray-900">{{ $participante['nombre'] }}</span>
                                 <span class="block text-xs text-gray-500">{{ $participante['puesto'] }}</span>
@@ -112,7 +113,7 @@
                         </label>
                     @endforeach
                 </div>
-                <p x-show="errores.responsables" x-text="errores.responsables" class="mt-1 text-sm text-red-600"></p>
+                <p x-show="errores.responsable" x-text="errores.responsable" class="mt-1 text-sm text-red-600"></p>
             </fieldset>
 
             <div>
@@ -129,7 +130,7 @@
             <p class="font-semibold text-green-800">Hallazgo registrado (demo).</p>
             <p class="mt-1 text-sm text-green-700">
                 Cuando exista la base de datos, aquí se guardará, se le avisará a
-                <span class="font-semibold" x-text="responsables.join(', ')"></span>
+                <span class="font-semibold" x-text="responsable"></span>
                 y aparecerá en la lista como "Con el auditado".
             </p>
             <button type="button" @click="abierto = false" class="mt-4 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">Listo</button>

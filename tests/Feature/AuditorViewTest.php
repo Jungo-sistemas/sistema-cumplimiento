@@ -120,18 +120,19 @@ class AuditorViewTest extends TestCase
         $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))->assertDontSee('Registrar hallazgo');
     }
 
-    public function test_los_responsables_del_hallazgo_son_invitados_del_equipo_auditado(): void
+    public function test_el_hallazgo_tiene_un_solo_responsable_del_equipo_auditado(): void
     {
-        // Auditoría 1: se puede elegir a Laura y a Mariana (equipo auditado), pero no al auditor.
+        // Auditoría 1: se elige a Laura o a Mariana (equipo auditado), nunca al auditor, y solo a una.
         $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1));
-        $this->assertSame(2, substr_count($checklist->getContent(), 'name="responsables[]"'));
+        $this->assertSame(2, substr_count($checklist->getContent(), 'type="radio" name="responsable"'));
         $checklist->assertSee('value="Mariana Garza"', false)
             ->assertDontSee('value="Daniel Ruiz"', false)
-            ->assertSee('Elige al menos un responsable.');
+            ->assertSee('Elige al responsable.');
 
-        // En la lista de Hallazgos salen todos los responsables de cada hallazgo.
+        // En la lista de Hallazgos cada hallazgo tiene un solo nombre.
         $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))
-            ->assertSee('Laura Méndez, Mariana Garza');
+            ->assertSee('<th class="px-4 py-5">Responsable</th>', false)
+            ->assertDontSee('Laura Méndez, Mariana Garza');
     }
 
     public function test_cada_criterio_muestra_su_descripcion(): void

@@ -144,9 +144,9 @@
             </div>
         </div>
 
-        {{-- Responsables --}}
+        {{-- Responsable --}}
         <p class="rounded-2xl border border-gray-200 p-5 text-sm text-gray-700">
-            Responsables: <span class="font-semibold" x-text="(h.responsables ?? []).join(', ')"></span> · Cláusula <span x-text="h.clausula"></span>
+            Responsable: <span class="font-semibold" x-text="h.responsable"></span> · Cláusula <span x-text="h.clausula"></span>
         </p>
 
         {{-- Respuesta del auditado: causa raíz, acciones y evidencia llegan juntas, en una sola vuelta --}}
