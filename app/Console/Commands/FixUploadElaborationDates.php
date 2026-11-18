@@ -46,7 +46,14 @@ class FixUploadElaborationDates extends Command
 
                     if (! $dryRun) {
                         $regulation->update(['details' => array_merge($details, ['fecha_vigencia' => $fixed])]);
-                        $refresher->refresh($regulation);
+
+                        // Si falla el encabezado de uno, la fecha ya quedó y se sigue con los demás.
+                        try {
+                            $refresher->refresh($regulation);
+                        } catch (\Throwable $e) {
+                            report($e);
+                            $this->warn("   No se pudo actualizar el encabezado de {$regulation->id}: {$e->getMessage()}");
+                        }
                     }
                 }
             });

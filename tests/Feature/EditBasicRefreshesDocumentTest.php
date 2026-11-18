@@ -144,6 +144,25 @@ class EditBasicRefreshesDocumentTest extends TestCase
         $this->assertSame('2026-02-01', Regulation::where('code', 'P-COM-777')->first()->details['fecha_vigencia']);
     }
 
+    public function test_el_comando_no_truena_con_un_proceso_en_la_papelera_editado_en_linea(): void
+    {
+        // v1 subida tal cual (con el vencimiento como elaboración) y v2 editada en línea (encabezado del sistema).
+        [$regulation, $v1] = $this->systemDocument(bodyHtml: null);
+        $v1->update(['is_current' => false]);
+        $v2 = RegulationVersion::create([
+            'regulation_id' => $regulation->id, 'version_number' => 2, 'is_current' => true, 'body_html' => '<p>x</p>',
+            'file_path' => $v1->file_path, 'original_name' => 'doc_v2.docx', 'disk' => 'private',
+            'issued_at' => '2026-02-01', 'valid_until' => '2027-02-01',
+        ]);
+        $regulation->update(['details' => array_merge($regulation->details, ['fecha_vigencia' => '2027-01-10'])]);
+        $regulation->delete(); // papelera
+
+        $this->artisan('fix:upload-elaboration-dates')->assertSuccessful();
+
+        $this->assertSame('2026-01-10', Regulation::withTrashed()->find($regulation->id)->details['fecha_vigencia']);
+        $this->assertStringContainsString('10/01/2026', $this->headerText($v2->file_path));
+    }
+
     public function test_el_comando_corrige_la_fecha_de_elaboracion_de_lo_ya_subido(): void
     {
         [$regulation] = $this->systemDocument(bodyHtml: null);

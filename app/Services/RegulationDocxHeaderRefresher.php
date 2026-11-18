@@ -64,7 +64,14 @@ class RegulationDocxHeaderRefresher
     {
         $disk = Storage::disk('private');
 
-        $candidates = $version->regulation->versions()
+        // withTrashed: un proceso en la papelera no carga por la relación normal (versión huérfana).
+        $regulation = $version->regulation
+            ?? Regulation::withoutGlobalScopes()->withTrashed()->find($version->regulation_id);
+        if (! $regulation) {
+            return null;
+        }
+
+        $candidates = $regulation->versions()
             ->where('version_number', '<=', $version->version_number)
             ->orderByDesc('version_number')
             ->pluck('file_path');
@@ -85,6 +92,8 @@ class RegulationDocxHeaderRefresher
         if (! $this->hasSystemHeader($version) || ! $disk->exists($version->file_path)) {
             return false;
         }
+
+        $version->setRelation('regulation', $regulation);
 
         $details = $regulation->details ?? [];
         $headerDocx = $this->buildHeaderDocx([
