@@ -27,22 +27,56 @@
             'fija'        => true,
         ];
 
+         // Actividades del procedimiento auditado (subtítulo "Descripción del proceso / actividades"),
+        // con el número que tienen en el documento. Solo van las que usan los criterios de la demo.
+        // "como" es una lista: un renglón por paso, con su número ya escrito (1., 2., 6.1...).
+        // Con la base de datos saldrán de los pasos guardados en la versión publicada del proceso.
+        $actividades = [
+            2 => [
+                'titulo'      => 'Registro de la maniobra en bitácora',
+                'responsable' => 'Operador de maniobras y Supervisor de turno.',
+                'quien'       => 'el operador registra cada maniobra; el supervisor de turno revisa y firma la bitácora.',
+                'que'         => 'dejar constancia de cada maniobra con fecha, hora, responsable y resultado, para poder reconstruir qué se hizo y quién lo hizo.',
+                'como'        => [
+                    '1. Al terminar cada maniobra, el operador anota en la bitácora la fecha, la hora, su nombre y el resultado.',
+                    '2. Si la maniobra se suspende o tiene un incidente, el operador lo anota en observaciones y avisa al supervisor de turno.',
+                    '3. Al cierre del turno, el supervisor revisa que no falte ninguna maniobra y firma la bitácora.',
+                ],
+                'cuando'      => 'al terminar cada maniobra; firma al cierre de cada turno.',
+                'donde'       => 'patio de maniobras; (F-SEG-012) Bitácora de maniobras.',
+                'evidencia'   => 'Bitácora de maniobras completa y firmada por el supervisor de cada turno.',
+            ],
+            4 => [
+                'titulo'      => 'Resguardo del expediente del área',
+                'responsable' => 'Supervisor de turno y Coordinador de seguridad.',
+                'quien'       => 'el supervisor de turno integra el expediente; el coordinador de seguridad lo revisa cada mes.',
+                'que'         => 'conservar las bitácoras y los formatos de inspección completos, firmados y listos para auditoría.',
+                'como'        => [
+                    '1. Cada viernes, el supervisor de turno archiva en el expediente del área las bitácoras y los formatos de inspección de la semana.',
+                    '2. Cada mes, el coordinador de seguridad revisa que el expediente esté completo y firma la hoja de revisión con la fecha.',
+                    '3. Los registros se conservan 12 meses; después se envían al archivo general.',
+                ],
+                'cuando'      => 'archivo semanal; revisión mensual; conservación por 12 meses.',
+                'donde'       => 'oficina de seguridad; OneDrive del área.',
+                'evidencia'   => 'Expediente del área completo y hoja de revisión mensual firmada.',
+            ],
+        ];
+
         // Criterios propios del procedimiento auditado.
         // "descripcion" explica qué significa el criterio, para que el auditor sepa qué está evaluando.
+        // "actividad" es el número de la actividad de $actividades con la que se evalúa.
         $criterios = [
             [
                 'texto'       => 'La actividad cuenta con registro trazable.',
                 'descripcion' => 'Cada vez que se realiza la actividad queda un registro con fecha, responsable y resultado, de forma que se puede reconstruir qué se hizo y quién lo hizo.',
                 'evidencia'   => 'Bitácora fechada',
-                'seccion'     => '6.3 Registro de maniobras',
-                'fragmento'   => 'Al terminar cada maniobra, el operador anota en la bitácora la fecha, la hora, su nombre y el resultado. El supervisor de turno firma la bitácora al cierre del turno.',
+                'actividad'   => 2
             ],
             [
                 'texto'       => 'Las evidencias están completas y actualizadas.',
                 'descripcion' => 'Están todos los documentos que respaldan la actividad, corresponden al periodo auditado y tienen las firmas o aprobaciones que pide el procedimiento.',
                 'evidencia'   => 'Expediente y revisión firmada',
-                'seccion'     => '8. Registros y evidencias',
-                'fragmento'   => 'Las bitácoras y los formatos de inspección se guardan en el expediente del área durante 12 meses, con la firma del supervisor y la fecha de revisión.',
+                'actividad'   => 4,
             ],
         ];
 
@@ -149,7 +183,7 @@
         <div class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-6">
             <div>
                 <h2 class="text-base font-semibold text-gray-900">Procedimiento auditado</h2>
-                <p class="mt-1 text-sm text-gray-600">{{ $auditoria['procedimiento'] }} · Cada criterio muestra el fragmento que se evalúa.</p>
+                <p class="mt-1 text-sm text-gray-600">{{ $auditoria['procedimiento'] }} · Cada criterio abre la actividad del procedimiento con la que se evalúa.</p>
             </div>
             <a href="{{ route('processes.index', ['q' => $auditoria['procedimiento']]) }}" target="_blank" rel="noopener"
                class="rounded-lg border-2 border-brand px-4 py-2 text-sm font-semibold text-brand hover:bg-brand-50">Ver procedimiento completo y anexos</a>
@@ -165,11 +199,16 @@
                     @endif
                     <h3 class="text-lg font-semibold text-gray-900">{{ $i + 1 }}. {{ $criterio['texto'] }}</h3>
                     <p class="mt-1 text-[15px] text-gray-700">{{ $criterio['descripcion'] }}</p>
-                    {{-- Lo que dice el procedimiento sobre este criterio. La pregunta fija no trae fragmento. --}}
-                    @isset($criterio['fragmento'])
-                        <div class="mt-3 rounded-lg border-l-4 border-brand bg-gray-50 px-4 py-3">
-                            <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">Qué dice el procedimiento · {{ $criterio['seccion'] }}</div>
-                            <p class="mt-1 text-sm italic text-gray-700">“{{ $criterio['fragmento'] }}”</p>
+                    {{-- Actividad del procedimiento con la que se evalúa este criterio. La pregunta fija no trae actividad.
+                         Es un enlace y no un botón: un fieldset deshabilitado apaga sus botones, y esto se debe poder consultar siempre. --}}
+                    @isset($criterio['actividad'])
+                        <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-brand bg-gray-50 px-4 py-3">
+                            <div>
+                                <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">Se evalúa con la actividad</div>
+                                <p class="mt-1 text-sm font-semibold text-gray-900">{{ $criterio['actividad'] }}. {{ $actividades[$criterio['actividad']]['titulo'] }}</p>
+                            </div>
+                            <a href="#" role="button" @click.prevent="$dispatch('ver-criterios', { actividad: {{ $criterio['actividad'] }} })"
+                               class="rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">Criterios a evaluar</a>
                         </div>
                     @endisset
                     <p class="mt-2 text-sm text-gray-600"><span class="font-semibold text-gray-900">Evidencia a verificar:</span> {{ $criterio['evidencia'] }}</p>
@@ -266,4 +305,6 @@
         @include('auditorias.partials.register-finding-modal')
     @endif
     @include('auditorias.partials.reschedule-modal')
+    @include('auditorias.partials.criteria-modal')
+
 </x-layouts.vigia>

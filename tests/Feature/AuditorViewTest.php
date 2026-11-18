@@ -163,17 +163,24 @@ class AuditorViewTest extends TestCase
             ->assertSee('2. Los contenedores están identificados con su etiqueta.');
     }
 
-    public function test_cada_criterio_muestra_el_fragmento_del_procedimiento(): void
+    public function test_cada_criterio_abre_la_actividad_del_procedimiento_que_evalua(): void
     {
         $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1));
 
-        // El fragmento va entre la descripción y la evidencia. La pregunta fija no trae fragmento.
+        // La actividad va entre la descripción y la evidencia. La pregunta fija no trae actividad.
         $checklist->assertSeeInOrder([
             '1. El auditado conoce sus procedimientos', 'Evidencia a verificar:',
             '2. La actividad cuenta con registro trazable.',
-            'Qué dice el procedimiento · 6.3 Registro de maniobras', 'Al terminar cada maniobra', 'Evidencia a verificar:',
+            'Se evalúa con la actividad', '2. Registro de la maniobra en bitácora', 'Criterios a evaluar', 'Evidencia a verificar:',
         ]);
-        $this->assertSame(2, substr_count($checklist->getContent(), 'Qué dice el procedimiento ·'));
+        $this->assertSame(2, substr_count($checklist->getContent(), 'Criterios a evaluar</a>'));
+
+        // La ventana trae la actividad con los apartados del procedimiento, en el mismo orden.
+        $checklist->assertSeeInOrder(['Quién:', 'Qué:', 'Cómo:', 'Cuándo:', 'Dónde:', 'Evidencia'])
+            ->assertSee('Los registros se conservan 12 meses');
+
+        // En una auditoría Programada (todavía no se captura) también se puede consultar.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 2))->assertOk()->assertSee('Criterios a evaluar</a>', false);
 
         // El enlace abre el proceso en otra pestaña, para no perder lo capturado, y el auditor sí puede entrar.
         $proceso = route('processes.index', ['q' => 'Control de maniobras y seguridad']);
