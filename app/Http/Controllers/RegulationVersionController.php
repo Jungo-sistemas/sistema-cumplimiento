@@ -146,22 +146,7 @@ class RegulationVersionController extends Controller
      */
     private function headerLogo(RegulationVersion $version): ?array
     {
-        $disk = Storage::disk('private');
-        $extractor = app(DocxHeaderLogo::class);
-
-        $candidates = $version->regulation->versions()
-            ->where('version_number', '<=', $version->version_number)
-            ->orderByDesc('version_number')
-            ->pluck('file_path');
-
-        foreach ($candidates as $path) {
-            if ($path && str_ends_with(strtolower($path), '.docx') && $disk->exists($path)
-                && ($logo = $extractor->extract($disk->path($path)))) {
-                return $logo;
-            }
-        }
-
-        return null;
+        return app(\App\Services\RegulationDocxHeaderRefresher::class)->logoFor($version);
     }
 
     private function isLockedByOther(RegulationVersion $version, int $userId): bool
