@@ -93,6 +93,46 @@ class DocxLayoutPatcher
         return $result;
     }
 
+    /**
+     * Solo cambia el encabezado del .docx (en su lugar) por el de $headerDocx, sin tocar el cuerpo.
+     * Para cuando cambia la información básica (nombre, código, elaboró, aprobó, fecha).
+     */
+    public function replaceHeaderOnly(string $docxPath, string $headerDocx): bool
+    {
+        try {
+            $this->zip = new ZipArchive();
+            if ($this->zip->open($docxPath) !== true) {
+                return false;
+            }
+
+            $documentXml = $this->zip->getFromName('word/document.xml');
+            $relsXml = $this->zip->getFromName('word/_rels/document.xml.rels');
+            $typesXml = $this->zip->getFromName('[Content_Types].xml');
+            if ($documentXml === false || $relsXml === false || $typesXml === false) {
+                $this->zip->close();
+
+                return false;
+            }
+
+            $this->doc = $this->loadXml($documentXml);
+            $this->rels = $this->loadXml($relsXml);
+            $this->types = $this->loadXml($typesXml);
+            $this->xp = $this->xpath($this->doc);
+
+            $this->replaceHeader($headerDocx);
+
+            $this->zip->addFromString('word/document.xml', $this->doc->saveXML());
+            $this->zip->addFromString('word/_rels/document.xml.rels', $this->rels->saveXML());
+            $this->zip->addFromString('[Content_Types].xml', $this->types->saveXML());
+
+            return $this->zip->close();
+        } catch (Throwable $e) {
+            report($e);
+
+            return false;
+        }
+    }
+
     private function run(string $html, ?string $headerDocx, string $outPath): ?array
     {
         $this->stats = ['matched' => 0, 'modified' => 0, 'inserted' => 0, 'deleted' => 0, 'rebuilt' => 0];

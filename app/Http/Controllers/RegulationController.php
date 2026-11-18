@@ -1001,7 +1001,9 @@ class RegulationController extends Controller
             $details = [
                 'quien_elabora' => $data['quien_elabora'],
                 'quien_aprueba' => $data['quien_aprueba'],
-                'fecha_vigencia' => $data['valid_until'] ?? null,
+                // "fecha_vigencia" es la fecha de ELABORACIÓN (así se muestra en Info básica y en el
+                // encabezado), no el vencimiento: antes se guardaba aquí valid_until por error.
+                'fecha_vigencia' => $data['issued_at'] ?? now()->toDateString(),
             ];
 
             // Mismo estado "sin flujo" con el que confirmCreateDraft() crea cualquier reglamento
@@ -1576,14 +1578,26 @@ class RegulationController extends Controller
             'motivo_creacion' => $data['motivo_creacion'],
         ]);
 
+        $oldDetails = $regulation->details ?? [];
+
         $regulation->update([
             'process_type_id' => $data['process_type_id'],
             'document_type'   => $data['document_type'],
             'is_annex'        => $data['is_annex'] ?? false,
-            'code'            => $data['codigo'] ? Str::upper($data['codigo']) : null,
+            'code'            => $data['codigo'],
             'name'            => Str::upper($data['nombre']),
             'details'         => $newDetails,
         ]);
+
+        // El encabezado del Word (nombre, código, elaboró, aprobó, fecha) se escribió al crear la
+        // versión: si cambió alguno de esos datos, se reescribe para que Descargar/Ver lo traigan.
+        $headerChanged = $regulation->wasChanged(['name', 'code'])
+            || collect(['quien_elabora', 'quien_aprueba', 'fecha_vigencia'])
+                ->contains(fn ($k) => ($oldDetails[$k] ?? null) !== ($newDetails[$k] ?? null));
+
+        if ($headerChanged) {
+            app(\App\Services\RegulationDocxHeaderRefresher::class)->refresh($regulation);
+        }
 
         // Reasignar responsables es exclusivo de admins — un operativo (aunque sea responsable y
         // pueda entrar aquí) no puede tocar esta lista, así que ni se lee el input si no es admin.
