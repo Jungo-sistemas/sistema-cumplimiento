@@ -3,18 +3,14 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
-use App\Application\Compliance\ComplianceDashboardService;
-use App\Models\Asset;
-use App\Models\Task;
-use App\Models\AssetRequirement;
+use App\Application\Compliance\ComplianceLevelService;
+use App\Models\AssetType;
+use App\Support\StreamingXlsxWriter;
 use App\Models\Company;
-use App\Enums\RequirementStatus;
-use Carbon\Carbon;
 
 class ComplianceDashboardController extends Controller
 {
-    public function index(Request $request, ComplianceDashboardService $service)
+    public function index(Request $request, ComplianceLevelService $levelService)
     {
         $user = $request->user();
 
@@ -27,7 +23,94 @@ class ComplianceDashboardController extends Controller
             return redirect()->route('mi-espacio.home');
         }
 
-        $companies = Company::query()
+        $companies = $this->visibleCompanies($user);
+
+        // Nivel de cumplimiento de todo lo que el usuario ve, con los filtros del tablero.
+        $levelFilters = ComplianceLevelService::filtersFrom($request->query(), $companies->pluck('id')->all());
+        $level = $levelService->summary($companies->pluck('id')->all(), $levelFilters);
+        $assetTypes = AssetType::orderBy('name')->get(['id', 'name']);
+        $upcoming = $levelService->upcoming($companies->pluck('id')->all(), $levelFilters);
+
+        return view('dashboard', compact('companies', 'level', 'levelFilters', 'assetTypes', 'upcoming'));
+    }
+
+    /**
+     * Excel del nivel de cumplimiento con los mismos filtros del tablero, como evidencia: resumen
+     * (general, por impacto, por empresa y por tipo de activo) y el detalle de cada requerimiento.
+     */
+    public function exportLevel(Request $request, ComplianceLevelService $levelService)
+    {
+        $user = $request->user();
+        abort_if($user->isSuperAdmin() || $user->isAuditeeOnly(), 403);
+
+        $companies = $this->visibleCompanies($user);
+        $companyIds = $companies->pluck('id')->all();
+        $filters = ComplianceLevelService::filtersFrom($request->query(), $companyIds);
+        $level = $levelService->summary($companyIds, $filters);
+
+        $filterText = [
+            'Empresa'        => $filters['company_id'] ? $companies->firstWhere('id', $filters['company_id'])?->name : 'Todas',
+            'Tipo de activo' => $filters['asset_type_id'] ? (AssetType::find($filters['asset_type_id'])?->name ?? '—') : 'Todos',
+            'Impacto'        => $filters['impact'] ? ComplianceLevelService::IMPACTS[$filters['impact']] : 'Todos',
+        ];
+
+        $xlsx = new StreamingXlsxWriter();
+        $states = ComplianceLevelService::STATES;
+        $pct = fn (array $row) => $row['pct'] === null ? '—' : ['v' => $row['pct'] / 100, 's' => 'percent'];
+        $tableHeader = array_merge(['', 'Requerimientos'], array_values($states), ['% cumplimiento']);
+        $tableRow = fn (string $name, array $row) => array_merge(
+            [$name, $row['total']],
+            array_map(fn ($k) => $row[$k], array_keys($states)),
+            [$pct($row)]
+        );
+
+        // ── Hoja 1: Resumen ──────────────────────────────────────────────────
+        $xlsx->startSheet('Resumen', [42, 16, 13, 13, 13, 13, 16]);
+        $xlsx->addRow(['Nivel de cumplimiento de requerimientos'], 'title');
+        $xlsx->addRow(['Generado', now()->format('d/m/Y H:i') . ' por ' . $user->name]);
+        foreach ($filterText as $label => $value) {
+            $xlsx->addRow([$label, $value]);
+        }
+        $xlsx->addRow(['Cumplido = completado con documento vigente. Vencido = documento vencido o fecha límite pasada sin completar. No cuentan los cancelados.']);
+        $xlsx->blankRow();
+
+        $xlsx->addRow(['General'] + array_slice($tableHeader, 1, null, true), 'header');
+        $xlsx->addRow($tableRow('Total', $level['overall']), 'bold');
+        $xlsx->blankRow();
+
+        $sections = [
+            'Por impacto'        => $level['by_impact'],
+            'Por empresa'        => $level['by_company'],
+            'Por tipo de activo' => $level['by_type'],
+        ];
+        foreach ($sections as $title => $rows) {
+            $xlsx->addRow([$title] + array_slice($tableHeader, 1, null, true), 'header');
+            foreach ($rows as $row) {
+                $xlsx->addRow($tableRow($row['name'], $row));
+            }
+            $xlsx->blankRow();
+        }
+
+        // ── Hoja 2: Detalle ──────────────────────────────────────────────────
+        $xlsx->startSheet('Detalle', [34, 18, 34, 16, 48, 12, 12, 13, 15, 40]);
+        $xlsx->addRow(['Empresa', 'Tipo de activo', 'Activo', 'No. económico / código', 'Requerimiento', 'Impacto',
+            'Estado', 'Fecha límite', 'Vigencia del documento', 'Documento vigente'], 'header');
+        foreach ($levelService->detail($companyIds, $filters) as $row) {
+            $xlsx->addRow(array_values($row));
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'cumplimiento_') . '.xlsx';
+        $xlsx->save($path);
+
+        return response()->download($path, 'Nivel de cumplimiento ' . now()->format('Y-m-d') . '.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend();
+    }
+
+    /** Empresas que el usuario ve en Cumplimiento. */
+    private function visibleCompanies($user)
+    {
+        return Company::query()
             ->when($user->isGlobalScope(), function ($query) {
                 // global-scope non-superadmin: see all companies
             }, function ($query) use ($user) {
@@ -41,119 +124,5 @@ class ComplianceDashboardController extends Controller
             })
             ->orderBy('name')
             ->get(['id', 'name']);
-
-        $companyId = $request->filled('company_id')
-            ? (int) $request->company_id
-            : ($user->company_id ?? $companies->first()?->id);
-
-        $company = Company::findOrFail($companyId);
-
-        abort_unless($user->canAccessCompany($company), 403);
-
-        $today        = Carbon::today();
-        $soonLimit    = Carbon::today()->addDays(30);
-        $showAllTasks = $request->boolean('all_tasks', false);
-
-        // ── Caché 1: datos de empresa (iguales para todos los usuarios) ──────
-        [$metrics, $upcoming, $critical] = Cache::remember(
-            "dash:c:{$companyId}",
-            now()->addMinutes(15),
-            function () use ($service, $companyId, $today) {
-                $metrics = $service->metricsForCompany($companyId);
-
-                $upcoming = AssetRequirement::query()
-                    ->whereHas('asset', fn ($q) => $q->where('company_id', $companyId))
-                    ->whereNotNull('due_date')
-                    ->whereNotIn('status', [RequirementStatus::COMPLETED, RequirementStatus::CANCELLED, RequirementStatus::IN_TRANSIT])
-                    ->whereDate('due_date', '>=', $today->toDateString())
-                    ->whereDate('due_date', '<=', $today->copy()->addDays(30)->toDateString())
-                    ->with(['asset.assetType', 'template'])
-                    ->orderBy('due_date')
-                    ->limit(10)
-                    ->get();
-
-                $critical = AssetRequirement::query()
-                    ->whereHas('asset', fn ($q) => $q->where('company_id', $companyId))
-                    ->whereNotNull('due_date')
-                    ->whereNotIn('status', [RequirementStatus::COMPLETED, RequirementStatus::CANCELLED, RequirementStatus::IN_TRANSIT])
-                    ->whereDate('due_date', '<=', $today->copy()->addDays(7)->toDateString())
-                    ->with(['asset.assetType', 'template'])
-                    ->orderBy('due_date')
-                    ->limit(10)
-                    ->get()
-                    ->map(fn ($r) => tap($r, fn ($r) =>
-                        $r->risk_level = $r->due_date->lt($today) ? 'expired' : 'warning'
-                    ));
-
-                return [$metrics, $upcoming, $critical];
-            }
-        );
-
-        // ── Caché 2: tareas (dependen del usuario y del filtro all_tasks) ────
-        $taskCacheKey = "dash:c:{$companyId}:u:{$user->id}:t:" . ($showAllTasks ? '1' : '0');
-
-        [$stats, $tasksPending, $tasksDueSoon, $tasksOverdue] = Cache::remember(
-            $taskCacheKey,
-            now()->addMinutes(15),
-            function () use ($companyId, $user, $today, $showAllTasks, $metrics) {
-                $tasksQuery = Task::query()
-                    ->with([
-                        'requirement:id,asset_id,requirement_template_id,type',
-                        'requirement.asset:id,name,code',
-                        'requirement.template:id,name',
-                    ])
-                    ->whereHas('requirement', fn ($q) => $q->where('company_id', $companyId));
-
-                if (! $showAllTasks) {
-                    $tasksQuery->whereHas('users', fn ($q) => $q->where('users.id', $user->id));
-                }
-
-                $soonLimit = $today->copy()->addDays(30);
-
-                $assetsCount = Asset::query()
-                    ->when($user->hasGroupScope(), function ($query) use ($user) {
-                        $query->whereHas('company', fn ($q) => $q->where('group_id', $user->group_id));
-                    }, function ($query) use ($companyId) {
-                        $query->where('company_id', $companyId);
-                    })
-                    ->count();
-
-                $stats = [
-                    'assets'   => $assetsCount,
-                    'tasks'    => (clone $tasksQuery)->whereNull('completed_at')->count(),
-                    'due_soon' => $metrics['kpis']['warning'] + $metrics['kpis']['danger'],
-                    'overdue'  => $metrics['kpis']['expired'],
-                ];
-
-                $tasksPending = (clone $tasksQuery)
-                    ->whereNull('completed_at')->orderBy('due_date')->limit(10)->get();
-
-                $tasksDueSoon = (clone $tasksQuery)
-                    ->whereNull('completed_at')->whereNotNull('due_date')
-                    ->whereDate('due_date', '>=', $today->toDateString())
-                    ->whereDate('due_date', '<=', $soonLimit->toDateString())
-                    ->orderBy('due_date')->limit(10)->get();
-
-                $tasksOverdue = (clone $tasksQuery)
-                    ->whereNull('completed_at')->whereNotNull('due_date')
-                    ->whereDate('due_date', '<', $today->toDateString())
-                    ->orderBy('due_date')->limit(10)->get();
-
-                return [$stats, $tasksPending, $tasksDueSoon, $tasksOverdue];
-            }
-        );
-
-        return view('dashboard', compact(
-            'metrics',
-            'stats',
-            'upcoming',
-            'critical',
-            'tasksPending',
-            'tasksDueSoon',
-            'tasksOverdue',
-            'showAllTasks',
-            'companies',
-            'companyId'
-        ));
     }
 }
