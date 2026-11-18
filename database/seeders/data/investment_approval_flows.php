@@ -45,7 +45,7 @@ return [
     // ── Vigia Combustibles ──
     $row('Mercantil Distribuidora', 'Vigia Combustibles', 'Gas y Gasolina', 'MERCANTIL DISTRIBUIDORA', $federico),
     $row('Energéticos Cargo Más', 'Vigia Combustibles', 'Gas', null, $federico),
-    $row('Gas Villa de Reyes', 'Vigia Combustibles', 'Villa', 'GASERA VILLA DE REYES', $federico),
+    $row('Gas Villa de Reyes', 'Vigia Combustibles', 'Villa', 'VILLA DE REYES', $federico),
     $row('Kiwi Gas', 'Vigia Combustibles', 'Kiwi', 'VERITAS ENERGÍA (KIWI GAS)', $federico, 'Eric Mares Benavides'),
     $row('Combustibles TG', 'Vigia Combustibles', 'Gasolina', 'COMBUSTIBLES TG', $federico, $antonio),
     $row('El Ébano', 'Vigia Combustibles', 'Gasolina', 'GASOLINERA EBANO', $federico, $antonio),
