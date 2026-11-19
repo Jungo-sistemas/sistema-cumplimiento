@@ -46,15 +46,16 @@ class ComplianceLevelDashboardTest extends TestCase
 
         // ALCOM / Tracto, impacto alta: cumplido, completado pero vencido, pendiente, vencido sin completar, cancelado (no cuenta)
         $a1 = $this->asset($this->alcom, $this->tracto, 'T-01');
-        $this->req($a1, 'alta', 'completed', $future, $future);
-        $this->req($a1, 'alta', 'completed', $past, $past);
-        $this->req($a1, 'alta', 'pending', $future);
-        $this->req($a1, 'alta', 'pending', $past);
-        $this->req($a1, 'alta', 'cancelled', $past);
+        // Entidades: ASEA (una escrita " asea " para probar que se normaliza), CRE y sin entidad.
+        $this->req($a1, 'alta', 'completed', $future, $future, 'ASEA');
+        $this->req($a1, 'alta', 'completed', $past, $past, 'ASEA');
+        $this->req($a1, 'alta', 'pending', $future, null, ' asea ');
+        $this->req($a1, 'alta', 'pending', $past, null, 'CRE');
+        $this->req($a1, 'alta', 'cancelled', $past, null, 'ASEA');
 
         // BIOMEX / Plantas: media cumplido (sin vencimiento), baja en trámite, sin impacto pendiente
         $b1 = $this->asset($this->biomex, $this->planta, 'P-01');
-        $this->req($b1, 'media', 'completed', $today, null);
+        $this->req($b1, 'media', 'completed', $today, null, 'CRE');
         $this->req($b1, 'baja', 'in_transit', $past);
         $this->req($b1, null, 'pending', $future);
 
@@ -69,12 +70,12 @@ class ComplianceLevelDashboardTest extends TestCase
         ]);
     }
 
-    private function req(int $assetId, ?string $priority, string $status, string $due, ?string $expires = null): void
+    private function req(int $assetId, ?string $priority, string $status, string $due, ?string $expires = null, ?string $authority = null): void
     {
         static $n = 0;
         $n++;
         $templateId = DB::table('requirement_templates')->insertGetId([
-            'name' => "Requisito {$n}", 'priority' => $priority ? ucfirst($priority) : null,
+            'name' => "Requisito {$n}", 'priority' => $priority ? ucfirst($priority) : null, 'authority' => $authority,
         ]);
         DB::table('asset_requirements')->insert([
             'company_id' => DB::table('assets')->where('id', $assetId)->value('company_id'),
@@ -120,6 +121,24 @@ class ComplianceLevelDashboardTest extends TestCase
         $this->assertSame(7, $this->summary(['empresa' => $ajena])['overall']['total']);
     }
 
+    public function test_corte_y_filtro_por_entidad(): void
+    {
+        $byAuthority = collect($this->summary()['by_authority'])->keyBy('key');
+
+        $this->assertSame(['ASEA', 'CRE', 'sin'], $byAuthority->keys()->all()); // "Sin entidad" al final
+        $this->assertSame([3, 1, 1, 1], [$byAuthority['ASEA']['total'], $byAuthority['ASEA']['cumplido'], $byAuthority['ASEA']['vencido'], $byAuthority['ASEA']['pendiente']]);
+        $this->assertSame([2, 1, 1], [$byAuthority['CRE']['total'], $byAuthority['CRE']['cumplido'], $byAuthority['CRE']['vencido']]);
+        $this->assertSame('Sin entidad', $byAuthority['sin']['name']);
+        $this->assertSame(2, $byAuthority['sin']['total']);
+
+        $this->assertSame(3, $this->summary(['entidad' => 'asea'])['overall']['total']);
+        $this->assertSame(2, $this->summary(['entidad' => 'sin'])['overall']['total']);
+        $this->assertSame(1, $this->summary(['entidad' => 'CRE', 'empresa' => $this->biomex->id])['overall']['total']);
+        $this->assertSame(0, $this->summary(['entidad' => 'PROFECO'])['overall']['total']);
+
+        $this->assertSame(['ASEA', 'CRE'], app(ComplianceLevelService::class)->authorities());
+    }
+
     public function test_el_tablero_muestra_la_grafica_con_filtros(): void
     {
         $this->actingAs($this->admin)
@@ -128,6 +147,8 @@ class ComplianceLevelDashboardTest extends TestCase
             ->assertSee('Nivel de cumplimiento')
             ->assertSee('chartLevelImpact', false)
             ->assertSee('Quitar filtros')
+            ->assertSee('Por entidad')
+            ->assertSee('<option value="ASEA"', false)
             ->assertDontSee('Fechas en riesgo');
     }
 
@@ -160,13 +181,15 @@ class ComplianceLevelDashboardTest extends TestCase
         $this->assertSame(['Resumen', 'Detalle'], $book->getSheetNames());
         $resumen = $book->getSheetByName('Resumen')->toArray();
         $this->assertContains(['Empresa', 'ALCOM', null, null, null, null, null], $resumen);
+        $this->assertContains(['Entidad', 'Todas', null, null, null, null, null], $resumen);
+        $this->assertContains('Por entidad', array_column($resumen, 0));
 
         $detalle = $book->getSheetByName('Detalle')->toArray();
         $this->assertCount(5, $detalle); // encabezado + 4 (el cancelado no cuenta)
         $this->assertSame('Empresa', $detalle[0][0]);
         $this->assertEqualsCanonicalizing(
             ['Cumplido', 'Vencido', 'Pendiente', 'Vencido'],
-            array_column(array_slice($detalle, 1), 6)
+            array_column(array_slice($detalle, 1), 7)
         );
     }
 }
