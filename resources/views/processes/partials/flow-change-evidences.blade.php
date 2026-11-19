@@ -12,8 +12,8 @@
 <div x-data="changeEvidencePicker({{ $existing ?? '[]' }}, {{ \App\Models\Regulation::MAX_CHANGE_EVIDENCES }})"
      @open-flow-modal.window="reset($event.detail.evidences || [])"
      class="mb-5 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3">
-    <div class="flex items-center justify-between gap-3">
-        <div class="min-w-0">
+    <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div class="min-w-0 flex-1 basis-48">
             <p class="text-xs font-semibold text-gray-700">
                 Evidencias de apoyo <span class="font-normal text-gray-400">(opcional, máx. {{ \App\Models\Regulation::MAX_CHANGE_EVIDENCES }})</span>
             </p>
