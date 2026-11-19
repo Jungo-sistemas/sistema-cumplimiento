@@ -164,6 +164,54 @@ class RegulationEditPreservesFormatTest extends TestCase
         }
     }
 
+    /**
+     * P-SAV-019 (19-nov-2026): un doble envío del guardado creó dos "v4". La segunda petición llega
+     * cuando la primera ya guardó — la versión que se editaba ya no es la actual — y se descarta.
+     */
+    public function test_un_segundo_guardado_de_la_misma_edicion_no_crea_otra_version(): void
+    {
+        Storage::fake('private');
+        Notification::fake();
+
+        [$group, $company, $editor] = $this->setUpFixtures();
+
+        $regulation = Regulation::create([
+            'group_id' => $group->id, 'company_id' => $company->id, 'process_type_id' => ProcessType::first()->id,
+            'code' => 'P-TEST-002', 'name' => 'Doble guardado', 'approval_status' => 'approved',
+            'is_active' => true, 'created_by' => $editor->id,
+        ]);
+
+        $base = [
+            'regulation_id' => $regulation->id, 'disk' => 'private', 'body_html' => '<p>Texto</p>',
+            'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'issued_at' => now()->toDateString(), 'uploaded_by' => $editor->id,
+        ];
+
+        // La primera petición ya guardó la v2 (actual); la v1 todavía trae el bloqueo del editor,
+        // como la veía la segunda petición cuando pasó los controles del inicio.
+        $editing = RegulationVersion::create($base + [
+            'version_number' => 1, 'file_path' => 'x/doc_v1.docx', 'original_name' => 'doc_v1.docx', 'is_current' => false,
+        ]);
+        $editing->forceFill(['editing_by' => $editor->id, 'editing_expires_at' => now()->addMinutes(30)])->save();
+        RegulationVersion::create($base + [
+            'version_number' => 2, 'file_path' => 'x/doc_v2.docx', 'original_name' => 'doc_v2.docx', 'is_current' => true,
+        ]);
+
+        $this->mock(RegulationChangeTableService::class, function ($mock) {
+            $mock->shouldReceive('generate')->andReturn(null);
+        });
+
+        $this->actingAs($editor)->post(route('regulation-versions.saveEdit', $editing), [
+            'content'              => '<p>Texto editado</p>',
+            'change_justification' => 'Prueba',
+        ])->assertRedirect(route('processes.show', $regulation))
+          ->assertSessionHas('success', 'El documento ya se había guardado como nueva versión.');
+
+        $this->assertSame(2, $regulation->versions()->count());
+        $this->assertSame(2, $regulation->versions()->where('is_current', true)->value('version_number'));
+        $this->assertSame('approved', $regulation->fresh()->approval_status);
+    }
+
     private function containsImage(object $container): bool
     {
         if ($container instanceof PhpWordImage) {
