@@ -1,57 +1,28 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recordatorio de aprobación pendiente</title>
-    <style>
-        body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 24px; }
-        .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-        .header { background: #1A428A; color: #fff; padding: 28px 32px; }
-        .header h1 { margin: 0; font-size: 20px; }
-        .header p { margin: 6px 0 0; opacity: .85; font-size: 13px; }
-        .body { padding: 28px 32px; }
-        .body p { color: #374151; line-height: 1.6; margin: 0 0 14px; }
-        .info-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-        .info-table td { padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 14px; }
-        .info-table td:first-child { background: #f9fafb; font-weight: 600; color: #374151; width: 40%; }
-        .badge { display: inline-block; padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
-        .badge-red { background: #fee2e2; color: #991b1b; }
-        .btn { display: inline-block; background: #1A428A; color: #fff !important; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: 600; font-size: 14px; margin-top: 8px; }
-        .footer { background: #f9fafb; padding: 16px 32px; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>VIGIA Cumplimiento</h1>
-            <p>Recordatorio de aprobación pendiente</p>
-        </div>
-        <div class="body">
-            <p>Hola <strong>{{ $notifiable->name }}</strong>,</p>
-            <p>
-                Tienes una aprobación pendiente desde hace
-                <span class="badge badge-red">{{ $daysOverdue }} día{{ $daysOverdue === 1 ? '' : 's' }}</span>
-                sin resolver. Este es el recordatorio {{ $reminderNumber }} de 3.
-            </p>
+@extends('emails.layouts.jungo')
 
-            <table class="info-table">
-                <tr><td>Nombre</td><td><strong>{{ $regulation->name }}</strong></td></tr>
-                <tr><td>Código</td><td>{{ $regulation->code ?? '—' }}</td></tr>
-                <tr><td>Empresa</td><td>{{ $regulation->company->procesos_name ?? '—' }}</td></tr>
-            </table>
+@section('title', 'Recordatorio de aprobación pendiente')
+@section('headline', 'Recordatorio de aprobación pendiente')
+@section('tone', 'brand')
 
-            @if($reminderNumber >= 3)
-                <p>Este es el último recordatorio automático — si no se resuelve, se avisará a los administradores del módulo de Procesos para dar seguimiento.</p>
-            @endif
+@section('content')
+    <p>Hola <strong>{{ $notifiable->name }}</strong>,</p>
+    <p>
+        Tienes una aprobación pendiente desde hace
+        <span class="badge badge-red">{{ $daysOverdue }} día{{ $daysOverdue === 1 ? '' : 's' }}</span>
+        sin resolver. Este es el recordatorio {{ $reminderNumber }} de 3.
+    </p>
 
-            <p>Ingresa al sistema para revisar el documento completo y emitir tu decisión.</p>
+    <table class="info-table">
+        <tr><td>Nombre</td><td><strong>{{ $regulation->name }}</strong></td></tr>
+        <tr><td>Código</td><td>{{ $regulation->code ?? '—' }}</td></tr>
+        <tr><td>Empresa</td><td>{{ $regulation->company->procesos_name ?? '—' }}</td></tr>
+    </table>
 
-            <a href="{{ route('processes.show', $regulation) }}" class="btn">Ver documento</a>
-        </div>
-        <div class="footer">
-            Este correo fue generado automáticamente por VIGIA Cumplimiento. Por favor no respondas a este mensaje.
-        </div>
-    </div>
-</body>
-</html>
+    @if($reminderNumber >= 3)
+        <p>Este es el último recordatorio automático — si no se resuelve, se avisará a los administradores del módulo de Procesos para dar seguimiento.</p>
+    @endif
+
+    <p>Ingresa al sistema para revisar el documento completo y emitir tu decisión.</p>
+
+    <a href="{{ route('processes.show', $regulation) }}" class="btn">Ver documento</a>
+@endsection
