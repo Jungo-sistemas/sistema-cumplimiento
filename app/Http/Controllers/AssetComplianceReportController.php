@@ -7,16 +7,12 @@ use App\Models\Asset;
 use App\Models\AssetRequirement;
 use App\Models\RequirementTemplate;
 use Illuminate\Http\Request;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Support\StreamingXlsxWriter;
 
 /**
  * Reporte de cumplimiento en Excel para uno o varios activos seleccionados desde
  * assets/index.blade.php (mismo patrón de selección que ProcessReportController, pero
- * generando un .xlsx real con PhpSpreadsheet en vez de CSV).
+ * generando un .xlsx real en vez de CSV).
  *
  * El estado "cumplido/no cumplido" replica exactamente la misma lógica de
  * AssetController::show() (has_official_document + riesgo por vencimiento + avance de
@@ -34,7 +30,7 @@ class AssetComplianceReportController extends Controller
         'cancelled'        => 'Cancelado',
     ];
 
-    public function export(Request $request): StreamedResponse
+    public function export(Request $request)
     {
         $user = $request->user();
 
@@ -62,33 +58,72 @@ class AssetComplianceReportController extends Controller
 
         abort_if($assets->isEmpty(), 403);
 
-        $rowsByAsset = $assets->mapWithKeys(fn (Asset $asset) => [$asset->id => $this->buildRows($asset)]);
+        // Se escribe en streaming y activo por activo: ahora se pueden elegir todos los activos de
+        // una empresa o del grupo (decenas de miles de requerimientos), y armarlo todo en
+        // PhpSpreadsheet agotaba la memoria.
+        // Todo el grupo (~850 activos) tarda unos 20 s; margen para que no lo corte el límite de PHP.
+        @set_time_limit(300);
 
-        $spreadsheet = new Spreadsheet();
-        $this->buildSummarySheet($spreadsheet, $assets, $rowsByAsset);
-        $this->buildDetailSheet($spreadsheet, $rowsByAsset);
-        $spreadsheet->setActiveSheetIndex(0);
+        $xlsx = new StreamingXlsxWriter('1A428A');
+
+        $xlsx->startSheet('Resumen', [34, 34, 18, 26, 12, 12, 14, 11, 15]);
+        $xlsx->addRow(['Empresa', 'Activo', 'Tipo', 'Responsable', 'Total requerimientos', 'Cumplidos',
+            '% Cumplimiento', 'Vencidos', 'Falta documento'], 'header');
+
+        $xlsx->startSheet('Detalle', [30, 30, 18, 24, 44, 18, 18, 11, 20, 22, 10, 12, 22, 16, 14, 12, 16]);
+        $xlsx->addRow([
+            'Empresa', 'Activo', 'Tipo de activo', 'Responsable del activo',
+            'Requerimiento', 'Categoría', 'Entidad', 'Prioridad', 'Área responsable',
+            'Estado', 'Cumplido', 'Documento cargado', 'Subido por',
+            'Fecha de subida', 'Fecha de emisión', 'Vigencia', 'Días para vencer',
+        ], 'header');
+
+        // Requerimientos por bloques de activos (no una consulta por activo).
+        $requirementsByAsset = collect();
+        foreach ($assets as $index => $asset) {
+            if ($index % 100 === 0) {
+                $requirementsByAsset = $this->requirementsFor($assets->slice($index, 100)->pluck('id')->all());
+            }
+
+            $rows = $this->buildRows($asset, $requirementsByAsset->get($asset->id, collect()));
+
+            $xlsx->useSheet('Detalle');
+            foreach ($rows as $r) {
+                $xlsx->addRow($this->detailRow($r));
+            }
+
+            $total = count($rows);
+            $cumplidos = count(array_filter($rows, fn ($r) => $r['cumplido'] === 'Sí'));
+
+            $xlsx->useSheet('Resumen');
+            $xlsx->addRow([
+                $asset->company?->name ?? '—',
+                $asset->display_name,
+                $asset->type?->name ?? '—',
+                $asset->responsibleUser?->name ?? '—',
+                $total,
+                $cumplidos,
+                ['v' => $total > 0 ? round($cumplidos / $total, 3) : 0, 's' => 'percent'],
+                count(array_filter($rows, fn ($r) => $r['estado'] === self::STATUS_LABELS['expired'])),
+                count(array_filter($rows, fn ($r) => $r['documento_cargado'] === 'No')),
+            ]);
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'reporte_') . '.xlsx';
+        $xlsx->save($path);
 
         $filename = 'reporte_cumplimiento_' . now()->format('Y-m-d_His') . '.xlsx';
 
-        return new StreamedResponse(function () use ($spreadsheet) {
-            (new Xlsx($spreadsheet))->save('php://output');
-        }, 200, [
-            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ]);
+        return response()->download($path, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend();
     }
 
-    /**
-     * Una fila por requerimiento del activo, ya con el status calculado igual que la
-     * vista de detalle del activo (ver AssetController::show()).
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    private function buildRows(Asset $asset): array
+    /** Requerimientos de varios activos, agrupados por activo. */
+    private function requirementsFor(array $assetIds)
     {
-        $requirements = AssetRequirement::query()
-            ->where('asset_id', $asset->id)
+        return AssetRequirement::query()
+            ->whereIn('asset_id', $assetIds)
             ->with([
                 'template',
                 'currentDocument.uploader:id,name',
@@ -99,6 +134,18 @@ class AssetComplianceReportController extends Controller
                 'tasks as tasks_done'  => fn ($q) => $q->where('status', TaskStatus::COMPLETED),
             ])
             ->get()
+            ->groupBy('asset_id');
+    }
+
+    /**
+     * Una fila por requerimiento del activo, ya con el status calculado igual que la
+     * vista de detalle del activo (ver AssetController::show()).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildRows(Asset $asset, $requirements): array
+    {
+        $requirements = $requirements
             ->sortBy(fn ($r) => sprintf(
                 '%s|%02d-%s',
                 $r->template?->authority ?: 'zzz-sin-entidad',
@@ -107,14 +154,18 @@ class AssetComplianceReportController extends Controller
             ))
             ->values();
 
-        return $requirements->map(function (AssetRequirement $requirement) use ($asset) {
+        // Días con aritmética de fechas (UTC, sin horario de verano) en vez de Carbon por fila: con
+        // decenas de miles de requerimientos, diffInDays() era lo que más tardaba del reporte.
+        $today = strtotime(now()->format('Y-m-d') . ' UTC');
+
+        return $requirements->map(function (AssetRequirement $requirement) use ($asset, $today) {
             $expiresAt = $requirement->expires_at ?? $requirement->due_date;
 
             $riskLevel = 'normal';
             $daysToExpire = null;
 
             if ($expiresAt) {
-                $daysToExpire = (int) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false);
+                $daysToExpire = intdiv(strtotime($expiresAt->format('Y-m-d') . ' UTC') - $today, 86400);
 
                 if ($daysToExpire < 0) {
                     $riskLevel = 'danger';
@@ -167,106 +218,30 @@ class AssetComplianceReportController extends Controller
         })->all();
     }
 
-    private function buildSummarySheet(Spreadsheet $spreadsheet, $assets, $rowsByAsset): void
+    private function detailRow(array $r): array
     {
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Resumen');
-
-        $headers = ['Empresa', 'Activo', 'Tipo', 'Responsable', 'Total requerimientos', 'Cumplidos', '% Cumplimiento', 'Vencidos', 'Falta documento'];
-        $sheet->fromArray($headers, null, 'A1', true);
-        $this->styleHeaderRow($sheet, count($headers));
-
-        $row = 2;
-        foreach ($assets as $asset) {
-            $rows = $rowsByAsset[$asset->id];
-            $total = count($rows);
-            $cumplidos = count(array_filter($rows, fn ($r) => $r['cumplido'] === 'Sí'));
-            $vencidos = count(array_filter($rows, fn ($r) => $r['estado'] === self::STATUS_LABELS['expired']));
-            $sinDocumento = count(array_filter($rows, fn ($r) => $r['documento_cargado'] === 'No'));
-            $porcentaje = $total > 0 ? round(($cumplidos / $total) * 100, 1) : 0;
-
-            $sheet->fromArray([
-                $asset->company?->name ?? '—',
-                $asset->display_name,
-                $asset->type?->name ?? '—',
-                $asset->responsibleUser?->name ?? '—',
-                $total,
-                $cumplidos,
-                $porcentaje . '%',
-                $vencidos,
-                $sinDocumento,
-            ], null, "A{$row}", true);
-
-            $row++;
-        }
-
-        $this->autoSizeColumns($sheet, count($headers));
-    }
-
-    private function buildDetailSheet(Spreadsheet $spreadsheet, $rowsByAsset): void
-    {
-        $sheet = $spreadsheet->createSheet();
-        $sheet->setTitle('Detalle');
-
-        $headers = [
-            'Empresa', 'Activo', 'Tipo de activo', 'Responsable del activo',
-            'Requerimiento', 'Categoría', 'Entidad', 'Prioridad', 'Área responsable',
-            'Estado', 'Cumplido', 'Documento cargado', 'Subido por',
-            'Fecha de subida', 'Fecha de emisión', 'Vigencia', 'Días para vencer',
+        return [
+            $r['empresa'],
+            $r['activo'],
+            $r['tipo_activo'],
+            $r['responsable_activo'],
+            $r['requerimiento'],
+            $r['categoria'],
+            $r['entidad'],
+            $r['prioridad'],
+            $r['area_responsable'],
+            $r['estado'],
+            $r['cumplido'],
+            $r['documento_cargado'],
+            $r['subido_por'],
+            $r['fecha_subida']?->format('d/m/Y H:i') ?? '—',
+            $r['fecha_emision']?->format('d/m/Y') ?? '—',
+            $r['vigencia']?->format('d/m/Y') ?? '—',
+            $r['dias_para_vencer'] === null ? '—' : (
+                $r['dias_para_vencer'] >= 0
+                    ? $r['dias_para_vencer']
+                    : 'Vencido hace ' . abs($r['dias_para_vencer']) . ' día(s)'
+            ),
         ];
-        $sheet->fromArray($headers, null, 'A1', true);
-        $this->styleHeaderRow($sheet, count($headers));
-
-        $row = 2;
-        foreach ($rowsByAsset as $rows) {
-            foreach ($rows as $r) {
-                $sheet->fromArray([
-                    $r['empresa'],
-                    $r['activo'],
-                    $r['tipo_activo'],
-                    $r['responsable_activo'],
-                    $r['requerimiento'],
-                    $r['categoria'],
-                    $r['entidad'],
-                    $r['prioridad'],
-                    $r['area_responsable'],
-                    $r['estado'],
-                    $r['cumplido'],
-                    $r['documento_cargado'],
-                    $r['subido_por'],
-                    $r['fecha_subida']?->format('d/m/Y H:i') ?? '—',
-                    $r['fecha_emision']?->format('d/m/Y') ?? '—',
-                    $r['vigencia']?->format('d/m/Y') ?? '—',
-                    $r['dias_para_vencer'] === null ? '—' : (
-                        $r['dias_para_vencer'] >= 0
-                            ? $r['dias_para_vencer']
-                            : 'Vencido hace ' . abs($r['dias_para_vencer']) . ' día(s)'
-                    ),
-                ], null, "A{$row}", true);
-
-                $row++;
-            }
-        }
-
-        $this->autoSizeColumns($sheet, count($headers));
-    }
-
-    private function styleHeaderRow($sheet, int $columnCount): void
-    {
-        $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($columnCount);
-        $range = "A1:{$lastColumn}1";
-
-        $sheet->getStyle($range)->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
-        $sheet->getStyle($range)->getFill()
-            ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()->setRGB('1A428A');
-        $sheet->getStyle($range)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
-    }
-
-    private function autoSizeColumns($sheet, int $columnCount): void
-    {
-        for ($i = 1; $i <= $columnCount; $i++) {
-            $sheet->getColumnDimensionByColumn($i)->setAutoSize(true);
-        }
     }
 }

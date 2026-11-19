@@ -180,6 +180,12 @@ class AssetController extends Controller
             $query->whereIn('location', $locationGroups[$key]['raws'] ?? [trim($request->location)]);
         }
 
+        // Todos los activos que cumplen el filtro (no solo la página): para "seleccionar todos los
+        // del filtro" en el reporte de Excel. Son solo ids, unos cientos como mucho.
+        $filteredIds = $user->isAdmin()
+            ? (clone $query)->setEagerLoads([])->reorder()->pluck('id')->all()
+            : [];
+
         $assets = $query
             ->latest('id')
             ->paginate(15)
@@ -202,7 +208,7 @@ class AssetController extends Controller
 
         return view('assets.index', compact(
             'assets', 'assetTypes', 'locations', 'companies', 'otrasCompanies',
-            'selectedCompanyId', 'filterGrupo', 'filterOtraId', 'licenseInfo'
+            'selectedCompanyId', 'filterGrupo', 'filterOtraId', 'licenseInfo', 'filteredIds'
         ));
     }
 

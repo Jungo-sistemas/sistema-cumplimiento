@@ -43,7 +43,10 @@ class SyncInvestmentApprovalFlows extends Command
 
         $companies = $allCompanies->where('group_id', $groupId)
             ->groupBy(fn (Company $c) => $this->normalizeCompany($c->name));
-        $users = User::query()->where('group_id', $groupId)->get(['id', 'name', 'email', 'group_id', 'module_access', 'role_id']);
+        $users = User::query()->where('group_id', $groupId)->get(['id', 'name', 'email', 'group_id', 'module_access', 'role_id', 'status']);
+        // Un usuario invitado (sin aceptar) o inactivo sí queda ligado, pero todavía no puede entrar
+        // a aprobar: se marca aparte para que no parezca que ya está listo.
+        $notReadyIds = $users->where('status', '!=', 'active')->pluck('id')->all();
 
         $table = [];
         $warnings = [];
@@ -89,7 +92,11 @@ class SyncInvestmentApprovalFlows extends Command
             $table[] = [
                 $row['name'],
                 $company ? "{$company->name} (#{$company->id})" : '— (grupo)',
-                collect($steps)->map(fn ($s) => "{$s['position']}: " . ($s['user_id'] ? '✓ ' : '✗ ') . $s['approver_name'])->implode(' → '),
+                collect($steps)->map(fn ($s) => "{$s['position']}: " . match (true) {
+                    ! $s['user_id']                             => '✗ ',
+                    in_array($s['user_id'], $notReadyIds, true) => '⏳ ',
+                    default                                     => '✓ ',
+                } . $s['approver_name'])->implode(' → '),
             ];
         }
 
@@ -97,7 +104,18 @@ class SyncInvestmentApprovalFlows extends Command
             InvestmentEntity::where('group_id', $groupId)->whereNotIn('id', $keptIds)->update(['is_active' => false]);
         }
 
-        $this->table(['Razón social', 'Empresa del sistema', 'Flujo (✓ con usuario, ✗ sin usuario)'], $table);
+        $this->table(['Razón social', 'Empresa del sistema', 'Flujo (✓ activo, ⏳ invitado o inactivo, ✗ sin usuario)'], $table);
+
+        // Resumen de quién falta, para no tener que leerlo en toda la tabla.
+        $pending = collect($table)->flatMap(fn ($r) => preg_match_all('/(⏳|✗) ([^→]+)/u', $r[2], $m, PREG_SET_ORDER) ? $m : [])
+            ->map(fn ($m) => [$m[1], trim($m[2])])->unique(fn ($p) => $p[1])->sortBy(fn ($p) => $p[0] . $p[1]);
+        if ($pending->isNotEmpty()) {
+            $this->newLine();
+            $this->line('Personas que faltan para que los flujos funcionen:');
+            foreach ($pending as [$mark, $name]) {
+                $this->line("  {$mark} {$name}" . ($mark === '✗' ? ' — sin usuario en el sistema' : ' — no ha aceptado la invitación o está inactivo'));
+            }
+        }
 
         foreach (array_unique($warnings) as $warning) {
             $this->warn($warning);
