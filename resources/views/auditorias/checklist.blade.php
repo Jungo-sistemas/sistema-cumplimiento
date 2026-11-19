@@ -27,7 +27,7 @@
             'fija'        => true,
         ];
 
-         // Actividades del procedimiento auditado (subtítulo "Descripción del proceso / actividades"),
+        // Actividades del procedimiento auditado (subtítulo "Descripción del proceso / actividades"),
         // con el número que tienen en el documento. Solo van las que usan los criterios de la demo.
         // "como" es una lista: un renglón por paso, con su número ya escrito (1., 2., 6.1...).
         // Con la base de datos saldrán de los pasos guardados en la versión publicada del proceso.
@@ -70,7 +70,7 @@
                 'texto'       => 'La actividad cuenta con registro trazable.',
                 'descripcion' => 'Cada vez que se realiza la actividad queda un registro con fecha, responsable y resultado, de forma que se puede reconstruir qué se hizo y quién lo hizo.',
                 'evidencia'   => 'Bitácora fechada',
-                'actividad'   => 2
+                'actividad'   => 2,
             ],
             [
                 'texto'       => 'Las evidencias están completas y actualizadas.',
@@ -306,5 +306,4 @@
     @endif
     @include('auditorias.partials.reschedule-modal')
     @include('auditorias.partials.criteria-modal')
-
 </x-layouts.vigia>
