@@ -19,42 +19,41 @@ use Illuminate\Support\Facades\DB;
 class ApprovalFlowService
 {
     /**
-     * Flujos definidos por nivel de impacto.
-     * Cada paso es un array de posición-slug => lógica.
-     * 'requires_all' => true  = AND: todos los usuarios de TODOS los puestos deben aprobar.
-     * 'requires_all' => false = OR:  cualquier usuario de cualquier puesto en el paso basta.
-     */
-    /**
-     * Flujos bottom-up: cada paso espera a que el anterior se complete.
-     * Jerarquía: lider (1) → jefe (2) → gerente (3) → direccion/consejo (4, mismo paso).
-     * Desde nov 2026 el último paso también es "requires_all": si hay dos en Dirección, aprueba
-     * uno y luego el otro (antes bastaba uno y al otro se le cancelaba la solicitud).
+     * Flujos por nivel de impacto. Cada paso espera a que el anterior termine, y dentro de cada
+     * paso aprueban TODOS, uno después del otro (requires_all): desde nov 2026 ya no hay pasos en
+     * los que baste con uno. Con varios puestos en el mismo paso (Dirección y Consejo) el orden es
+     * el de la lista: primero Dirección y luego Consejo.
+     *
+     *   bajo        Líder
+     *   medio       Líder → Jefe
+     *   medio_alto  Líder → Jefe → Gerente
+     *   alto        Líder → Jefe → Gerente → Dirección/Consejo
      */
     private const FLOWS = [
         'bajo' => [
             1 => ['requires_all' => true, 'positions' => ['lider']],
         ],
         'medio' => [
-            1 => ['requires_all' => true,  'positions' => ['lider']],
-            2 => ['requires_all' => false, 'positions' => ['jefe', 'gerente']],
+            1 => ['requires_all' => true, 'positions' => ['lider']],
+            2 => ['requires_all' => true, 'positions' => ['jefe']],
         ],
         'medio_alto' => [
-            1 => ['requires_all' => true,  'positions' => ['lider']],
-            2 => ['requires_all' => true,  'positions' => ['gerente']],
-            3 => ['requires_all' => true,  'positions' => ['direccion', 'consejo']],
+            1 => ['requires_all' => true, 'positions' => ['lider']],
+            2 => ['requires_all' => true, 'positions' => ['jefe']],
+            3 => ['requires_all' => true, 'positions' => ['gerente']],
         ],
         'alto' => [
-            1 => ['requires_all' => true,  'positions' => ['lider']],
-            2 => ['requires_all' => true,  'positions' => ['jefe']],
-            3 => ['requires_all' => true,  'positions' => ['gerente']],
-            4 => ['requires_all' => true,  'positions' => ['direccion', 'consejo']],
+            1 => ['requires_all' => true, 'positions' => ['lider']],
+            2 => ['requires_all' => true, 'positions' => ['jefe']],
+            3 => ['requires_all' => true, 'positions' => ['gerente']],
+            4 => ['requires_all' => true, 'positions' => ['direccion', 'consejo']],
         ],
     ];
 
-    // Procesos confidenciales (tipo restringido): sin importar el impacto, solo aprueba Consejo,
-    // porque nadie más del flujo normal (líder, jefe, gerente, dirección) los puede ver.
+    // Procesos confidenciales: sin importar el impacto, solo aprueba Consejo, porque nadie más del
+    // flujo normal (líder, jefe, gerente, dirección) los puede ver. También aprueban todos.
     public const RESTRICTED_FLOW = [
-        1 => ['requires_all' => false, 'positions' => ['consejo']],
+        1 => ['requires_all' => true, 'positions' => ['consejo']],
     ];
 
     public static function getFlowSteps(string $level): array
@@ -62,8 +61,22 @@ class ApprovalFlowService
         return self::FLOWS[$level] ?? [];
     }
 
-    /** Pasos que de verdad sigue este reglamento (el flujo de su impacto, o el de Consejo si es confidencial). */
+    /**
+     * Pasos que de verdad sigue este reglamento: los que guardó su flujo al arrancar
+     * (flow_steps), así un cambio en FLOWS no altera un flujo que ya va a la mitad. Sin eso, la
+     * definición vigente para su impacto (o la de Consejo si es confidencial).
+     */
     public static function flowFor(Regulation $regulation): array
+    {
+        if (! empty($regulation->flow_steps)) {
+            return $regulation->flow_steps;
+        }
+
+        return self::currentFlowFor($regulation);
+    }
+
+    /** Definición vigente para el reglamento (la que toma un flujo que arranca ahora). */
+    public static function currentFlowFor(Regulation $regulation): array
     {
         if (! $regulation->impact_level) {
             return [];
@@ -172,6 +185,9 @@ class ApprovalFlowService
      */
     private function openFirstStep(Regulation $regulation, array $userMap, bool $notify = true): ?int
     {
+        // El flujo arranca: se queda con la definición de hoy hasta que termine (ver flowFor()).
+        $regulation->forceFill(['flow_steps' => self::currentFlowFor($regulation) ?: null])->save();
+
         $step = $this->openStepFrom($regulation, 1, $userMap, $notify);
 
         // Ningún paso tiene aprobadores (p. ej. los elegidos ya no existen): en vez de quedar

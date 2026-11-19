@@ -19,8 +19,9 @@ use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 /**
- * Cubre App\Services\ApprovalFlowService::FLOWS tal como está definido HOY (lider → jefe →
- * gerente → direccion). Antes de 2026-09 este archivo probaba un diseño de flujo viejo
+ * Cubre App\Services\ApprovalFlowService::FLOWS tal como está definido HOY (desde 19-nov-2026:
+ * bajo Líder · medio Líder → Jefe · medio alto Líder → Jefe → Gerente · alto Líder → Jefe →
+ * Gerente → Dirección/Consejo; en cada paso aprueban todos, uno después de otro). Antes de 2026-09 este archivo probaba un diseño de flujo viejo
  * (posiciones "ejecutivo_reglamentos"/"direccion_general"/"director_finanzas", pasos con 2
  * aprobadores en paralelo) que ya no existe en el código — JobPositionSeeder renombró/eliminó
  * esos puestos hace tiempo y ApprovalFlowService se rediseñó a 4 puestos jerárquicos, pero nadie
@@ -129,27 +130,27 @@ class ApprovalFlowTest extends TestCase
         return $reg->fresh();
     }
 
-    public function test_sin_lider_elegido_el_flujo_arranca_con_gerente_y_sigue_con_direccion(): void
+    public function test_sin_lider_elegido_el_flujo_arranca_con_jefe_y_sigue_con_gerente(): void
     {
         // Otro líder más en el grupo: no debe entrar a ningún paso.
         $otroLider = User::factory()->create(['group_id' => $this->group->id, 'scope_level' => 'group', 'role_id' => $this->opRoleId, 'status' => 'active']);
         $otroLider->jobPositions()->attach($this->positions['lider']->id);
 
         $reg = $this->makeRegulationWithUsers('medio_alto', [
-            'gerente'   => [(string) $this->users['gerente']->id],
-            'direccion' => [(string) $this->users['direccion']->id],
+            'jefe'    => [(string) $this->users['jefe']->id],
+            'gerente' => [(string) $this->users['gerente']->id],
         ]);
 
         $this->assertSame([2], $reg->approvals()->pluck('step_number')->unique()->values()->all());
-        $this->assertSame([$this->users['gerente']->id], $reg->pendingApprovals()->pluck('user_id')->all());
+        $this->assertSame([$this->users['jefe']->id], $reg->pendingApprovals()->pluck('user_id')->all());
         $this->assertSame('pending_authorization', $reg->approval_status);
-        Notification::assertSentTo($this->users['gerente'], ApprovalRequestedNotification::class);
+        Notification::assertSentTo($this->users['jefe'], ApprovalRequestedNotification::class);
         Notification::assertNotSentTo([$this->users['lider'], $otroLider], ApprovalRequestedNotification::class);
 
-        $this->approveAs($reg, $this->users['gerente']);
-        $this->assertSame([$this->users['direccion']->id], $reg->fresh()->pendingApprovals()->pluck('user_id')->all());
+        $this->approveAs($reg, $this->users['jefe']);
+        $this->assertSame([$this->users['gerente']->id], $reg->fresh()->pendingApprovals()->pluck('user_id')->all());
 
-        $this->approveAs($reg, $this->users['direccion']);
+        $this->approveAs($reg, $this->users['gerente']);
         $this->assertSame('approved', $reg->fresh()->approval_status);
     }
 
@@ -187,7 +188,7 @@ class ApprovalFlowTest extends TestCase
         // Así quedó P-SAV-111: solo se eligió Dirección y el paso 1 se llenó con todos los líderes.
         $reg = Regulation::create([
             'group_id' => $this->group->id, 'company_id' => $this->company->id, 'process_type_id' => $this->processType->id,
-            'code' => 'P-TST-111', 'name' => 'GESTION DEL CAMBIO', 'impact_level' => 'medio_alto', 'approval_status' => 'pending_review',
+            'code' => 'P-TST-111', 'name' => 'GESTION DEL CAMBIO', 'impact_level' => 'alto', 'approval_status' => 'pending_review',
             'flow_locked' => true, 'details' => [], 'is_active' => true,
             'flow_user_map' => ['direccion' => [(string) $this->users['direccion']->id]],
         ]);
@@ -205,7 +206,7 @@ class ApprovalFlowTest extends TestCase
         $this->assertSame(2, $reg->approvals()->count(), 'sin --aplicar no cambia nada');
 
         $this->artisan('procesos:revisar-aprobadores', ['--aplicar' => true])
-            ->expectsOutput('P-TST-111: queda en el paso 3')
+            ->expectsOutput('P-TST-111: queda en el paso 4')
             ->assertSuccessful();
 
         $reg = $reg->fresh();
@@ -219,7 +220,7 @@ class ApprovalFlowTest extends TestCase
 
     public function test_reiniciar_el_flujo_tambien_salta_los_pasos_sin_elegir(): void
     {
-        $reg = $this->makeRegulationWithUsers('medio_alto', ['direccion' => [(string) $this->users['direccion']->id]]);
+        $reg = $this->makeRegulationWithUsers('alto', ['direccion' => [(string) $this->users['direccion']->id]]);
         $this->approveAs($reg, $this->users['direccion'], 'rejected', 'Falta un anexo');
 
         $this->flow->resubmit($reg->fresh());
@@ -256,33 +257,96 @@ class ApprovalFlowTest extends TestCase
         ]);
     }
 
-    // ─── MEDIO: paso1 AND[lider] → paso2 OR[jefe, gerente] ──────────────────
+    // ─── MEDIO: paso1 [lider] → paso2 [jefe] ────────────────────────────────
 
-    public function test_medio_paso1_aprobado_crea_paso2_con_jefe_y_gerente(): void
+    public function test_medio_paso1_aprobado_crea_paso2_solo_con_jefe(): void
     {
         $reg = $this->makeRegulation('medio');
         $this->approveAs($reg, $this->users['lider']);
 
         $reg->refresh();
         $this->assertEquals('pending_authorization', $reg->approval_status);
-
-        $paso2Ids = $reg->approvalStep(2)->where('status', 'pending')->pluck('user_id')->sort()->values();
-        $expected = collect([$this->users['jefe']->id, $this->users['gerente']->id])->sort()->values();
-        $this->assertEquals($expected, $paso2Ids);
+        $this->assertSame([$this->users['jefe']->id], $reg->approvalStep(2)->pluck('user_id')->all());
     }
 
-    public function test_medio_paso2_or_jefe_aprueba_y_cancela_gerente(): void
+    public function test_medio_jefe_aprueba_y_queda_aprobado_sin_gerente(): void
     {
         $reg = $this->makeRegulation('medio');
         $this->approveAs($reg, $this->users['lider']);
         $this->approveAs($reg, $this->users['jefe']);
 
         $this->assertEquals('approved', $reg->fresh()->approval_status);
-        $this->assertDatabaseHas('regulation_approvals', [
-            'regulation_id' => $reg->id,
-            'user_id'       => $this->users['gerente']->id,
-            'status'        => 'cancelled',
+        $this->assertSame(0, $reg->approvals()->where('user_id', $this->users['gerente']->id)->count());
+    }
+
+    /** Ya no hay pasos en los que baste con uno: con dos jefes aprueban los dos, en orden. */
+    public function test_medio_con_dos_jefes_aprueban_los_dos(): void
+    {
+        $segundoJefe = User::factory()->create(['group_id' => $this->group->id, 'scope_level' => 'group', 'role_id' => $this->opRoleId, 'status' => 'active']);
+        $segundoJefe->jobPositions()->attach($this->positions['jefe']->id);
+
+        $reg = $this->makeRegulation('medio');
+        $this->approveAs($reg, $this->users['lider']);
+        $this->approveAs($reg, $this->users['jefe']);
+
+        $this->assertSame('pending_authorization', $reg->fresh()->approval_status);
+        $this->assertSame([$segundoJefe->id], $reg->fresh()->pendingApprovals()->pluck('user_id')->all());
+
+        $this->approveAs($reg, $segundoJefe);
+        $this->assertSame('approved', $reg->fresh()->approval_status);
+    }
+
+    /** Proceso confidencial: solo Consejo, y también aprueban todos los de Consejo. */
+    public function test_confidencial_aprueban_todos_los_de_consejo(): void
+    {
+        $consejoPos = JobPosition::create(['group_id' => $this->group->id, 'slug' => 'consejo', 'name' => 'Consejo']);
+        $consejeros = collect(range(1, 2))->map(function () use ($consejoPos) {
+            $u = User::factory()->create(['group_id' => $this->group->id, 'scope_level' => 'group', 'role_id' => $this->opRoleId, 'status' => 'active']);
+            $u->jobPositions()->attach($consejoPos->id);
+            return $u;
+        });
+        $direccionCo = Company::create(['name' => 'DIRECCIÓN', 'group_id' => $this->group->id, 'is_restricted' => true]);
+
+        $reg = Regulation::create([
+            'group_id' => $this->group->id, 'company_id' => $direccionCo->id, 'process_type_id' => $this->processType->id,
+            'name' => 'CONFIDENCIAL', 'impact_level' => 'bajo', 'approval_status' => 'pending_review',
+            'flow_locked' => true, 'details' => [], 'is_active' => true,
         ]);
+        $this->flow->initFlow($reg);
+
+        $this->assertSame([$consejeros[0]->id], $reg->fresh()->pendingApprovals()->pluck('user_id')->all());
+        $this->approveAs($reg, $consejeros[0]);
+        $this->assertNotSame('approved', $reg->fresh()->approval_status);
+
+        $this->approveAs($reg, $consejeros[1]);
+        $this->assertSame('approved', $reg->fresh()->approval_status);
+    }
+
+    /**
+     * Un flujo que ya iba abierto antes del cambio de reglas sigue con los pasos con los que
+     * arrancó (regulations.flow_steps, lo llena la migración): aquí el "medio" viejo, Jefe o
+     * Gerente y basta uno. Los flujos que arrancan ahora guardan la regla nueva.
+     */
+    public function test_un_flujo_abierto_sigue_con_los_pasos_con_los_que_arranco(): void
+    {
+        $reg = $this->makeRegulation('medio');
+        $this->assertSame(ApprovalFlowService::getFlowSteps('medio'), $reg->flow_steps);
+
+        $reg->forceFill(['flow_steps' => [
+            1 => ['requires_all' => true,  'positions' => ['lider']],
+            2 => ['requires_all' => false, 'positions' => ['jefe', 'gerente']],
+        ]])->save();
+
+        $this->approveAs($reg, $this->users['lider']);
+        $paso2 = $reg->fresh()->approvalStep(2)->where('status', 'pending')->pluck('user_id')->sort()->values()->all();
+        $this->assertSame(collect([$this->users['jefe']->id, $this->users['gerente']->id])->sort()->values()->all(), $paso2);
+
+        $this->approveAs($reg, $this->users['gerente']);
+        $this->assertSame('approved', $reg->fresh()->approval_status);
+
+        // Al reiniciarlo arranca con la regla de hoy.
+        $this->flow->resubmit($reg->fresh());
+        $this->assertSame(ApprovalFlowService::getFlowSteps('medio'), $reg->fresh()->flow_steps);
     }
 
     // ─── ALTO: paso1 AND[lider] → paso2 AND[jefe] → paso3 AND[gerente] → paso4 AND[direccion] ──
@@ -397,7 +461,7 @@ class ApprovalFlowTest extends TestCase
         $this->assertSame(0, $reg->approvals()->where('user_id', $this->users['direccion']->id)->count());
     }
 
-    // ─── MEDIO-ALTO: paso1 AND[lider] → paso2 AND[gerente] → paso3 AND[direccion] ──
+    // ─── MEDIO-ALTO: paso1 [lider] → paso2 [jefe] → paso3 [gerente] ──────────
 
     public function test_medio_alto_flujo_completo_tres_aprobaciones(): void
     {
@@ -406,11 +470,12 @@ class ApprovalFlowTest extends TestCase
         $this->approveAs($reg, $this->users['lider']);
         $this->assertEquals('pending_authorization', $reg->fresh()->approval_status);
 
-        $this->approveAs($reg, $this->users['gerente']);
+        $this->approveAs($reg, $this->users['jefe']);
         $this->assertEquals('pending_authorization', $reg->fresh()->approval_status);
 
-        $this->approveAs($reg, $this->users['direccion']);
+        $this->approveAs($reg, $this->users['gerente']);
         $this->assertEquals('approved', $reg->fresh()->approval_status);
+        $this->assertSame(0, $reg->approvals()->where('user_id', $this->users['direccion']->id)->count());
     }
 
     /**
@@ -422,12 +487,12 @@ class ApprovalFlowTest extends TestCase
      */
     public function test_paso_sin_usuarios_asignados_notifica_a_admins_en_vez_de_quedar_atorado_en_silencio(): void
     {
-        // 'direccion' existe como puesto pero nadie de este grupo está asignado a él.
-        $this->users['direccion']->jobPositions()->detach($this->positions['direccion']->id);
+        // 'gerente' existe como puesto pero nadie de este grupo está asignado a él.
+        $this->users['gerente']->jobPositions()->detach($this->positions['gerente']->id);
 
         $reg = $this->makeRegulation('medio_alto');
         $this->approveAs($reg, $this->users['lider']);
-        $this->approveAs($reg, $this->users['gerente']);
+        $this->approveAs($reg, $this->users['jefe']);
 
         $reg->refresh();
         $this->assertEquals('pending_authorization', $reg->approval_status);
@@ -465,18 +530,18 @@ class ApprovalFlowTest extends TestCase
         ]);
     }
 
-    public function test_rechazo_en_paso2_or_cancela_al_otro_aprobador_del_paso(): void
+    public function test_rechazo_en_paso2_cancela_al_que_esperaba_turno(): void
     {
+        $segundoJefe = User::factory()->create(['group_id' => $this->group->id, 'scope_level' => 'group', 'role_id' => $this->opRoleId, 'status' => 'active']);
+        $segundoJefe->jobPositions()->attach($this->positions['jefe']->id);
+
         $reg = $this->makeRegulation('medio');
         $this->approveAs($reg, $this->users['lider']);
-
-        $reg->refresh();
-        $jefeApproval = $reg->pendingApprovals()->where('user_id', $this->users['jefe']->id)->firstOrFail();
-        $this->flow->processApproval($jefeApproval, 'rejected', 'No procede');
+        $this->approveAs($reg, $this->users['jefe'], 'rejected', 'No procede');
 
         $this->assertEquals('rejected', $reg->fresh()->approval_status);
         $this->assertDatabaseHas('regulation_approvals', [
-            'regulation_id' => $reg->id, 'user_id' => $this->users['gerente']->id, 'status' => 'cancelled',
+            'regulation_id' => $reg->id, 'user_id' => $segundoJefe->id, 'status' => 'cancelled',
         ]);
     }
 
@@ -524,13 +589,13 @@ class ApprovalFlowTest extends TestCase
         $reg     = $this->makeRegulation('medio_alto', $creator->id);
 
         $this->approveAs($reg, $this->users['lider']);
+        $this->approveAs($reg, $this->users['jefe']);
         $this->approveAs($reg, $this->users['gerente']);
-        $this->approveAs($reg, $this->users['direccion']);
 
         Notification::assertSentTo($creator, RegulationApprovedNotification::class);
         Notification::assertSentTo($this->users['lider'], RegulationApprovedNotification::class);
+        Notification::assertSentTo($this->users['jefe'], RegulationApprovedNotification::class);
         Notification::assertSentTo($this->users['gerente'], RegulationApprovedNotification::class);
-        Notification::assertSentTo($this->users['direccion'], RegulationApprovedNotification::class);
     }
 
     public function test_rechazo_notifica_al_creador(): void
