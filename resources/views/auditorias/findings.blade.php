@@ -8,19 +8,20 @@
 
     @php
         $tabs = [
-            'todos'   => 'Todos',
-            'revisar' => 'Por revisar',
+            'todos'      => 'Todos',
+            'causas'     => 'Causas raíz por revisar',
+            'evidencias' => 'Evidencias por revisar',
         ];
-        // Pestaña activa (?tab=revisar). Si no viene o no se reconoce, se abre "Todos".
-        $tab = in_array(request('tab'), ['revisar'], true) ? request('tab') : 'todos';
+        // Pestaña activa (?tab=causas o ?tab=evidencias). Si no viene o no se reconoce, se abre "Todos".
+        $tab = in_array(request('tab'), ['causas', 'evidencias'], true) ? request('tab') : 'todos';
 
         // Datos de ejemplo para la demo. Cuando existan las tablas, esto lo manda el controlador.
         $hallazgos = [
-            ['codigo' => 'HAL-001', 'titulo' => 'Bitácora de maniobras sin firma del supervisor', 'empresa' => 'Asesorías Daval', 'responsable' => 'Laura Méndez',  'severidad' => 'No crítico',   'seguimiento' => 'Por revisar', 'compromiso' => '2026-11-25'],
+            ['codigo' => 'HAL-001', 'titulo' => 'Bitácora de maniobras sin firma del supervisor', 'empresa' => 'Asesorías Daval', 'responsable' => 'Laura Méndez',  'severidad' => 'No crítico',   'seguimiento' => 'Causa raíz por revisar', 'compromiso' => '2026-11-25'],
             ['codigo' => 'HAL-002', 'titulo' => 'Equipo de protección incompleto en patio',       'empresa' => 'Asesorías Daval', 'responsable' => 'Laura Méndez',  'severidad' => 'Crítico', 'seguimiento' => 'Con el auditado',             'compromiso' => '2026-12-20'],
-            ['codigo' => 'HAL-003', 'titulo' => 'Registro de temperatura sin capturar',           'empresa' => 'Vigía',           'responsable' => 'Jorge Salinas', 'severidad' => 'No crítico',   'seguimiento' => 'Por revisar',  'compromiso' => '2026-09-30'],
+            ['codigo' => 'HAL-003', 'titulo' => 'Registro de temperatura sin capturar',           'empresa' => 'Vigía',           'responsable' => 'Jorge Salinas', 'severidad' => 'No crítico',   'seguimiento' => 'Evidencia por revisar',  'compromiso' => '2026-09-30'],
             ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta',          'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres',    'severidad' => 'No crítico',   'seguimiento' => 'Rechazada',              'compromiso' => '2026-09-10'],
-            ['codigo' => 'HAL-005', 'titulo' => 'Capacitación de montacarguistas vencida',        'empresa' => 'Vigía',           'responsable' => 'Jorge Salinas', 'severidad' => 'Crítico', 'seguimiento' => 'Con el auditado',             'compromiso' => '2026-10-15'],
+            ['codigo' => 'HAL-005', 'titulo' => 'Capacitación de montacarguistas vencida',        'empresa' => 'Vigía',           'responsable' => 'Jorge Salinas', 'severidad' => 'Crítico', 'seguimiento' => 'Sin cargar',             'compromiso' => '2026-10-15'],
             ['codigo' => 'HAL-006', 'titulo' => 'Versión obsoleta del procedimiento en planta',   'empresa' => 'Vigía',           'responsable' => 'Luis Herrera',  'severidad' => 'No crítico',   'seguimiento' => 'Cerrado',                'compromiso' => '2026-09-05'],
         ];
 
@@ -28,7 +29,7 @@
         $empresas = collect($hallazgos)->pluck('empresa')->unique()->sort();
 
         // Qué seguimiento muestra cada pestaña ("Todos" no filtra).
-        $porPestana = ['revisar' => 'Por revisar'];
+        $porPestana = ['causas' => 'Causa raíz por revisar', 'evidencias' => 'Evidencia por revisar'];
 
         $filas = collect($hallazgos)
             ->when($porPestana[$tab] ?? null, fn ($c, $seguimiento) => $c->where('seguimiento', $seguimiento))
@@ -45,18 +46,21 @@
             'No crítico' => 'bg-gray-100 text-gray-700',
         ];
 
-        // Los mismos 4 estados que la vista del auditado (AuditFinding de André), dichos desde el lado del auditor:
-        // pendiente = Con el auditado, en_revision = Por revisar, rechazada = Rechazada, cerrada = Cerrado.
+        // Dos vueltas: el auditado envía la causa raíz y las acciones; si el auditor las aprueba, sube la evidencia;
+        // si el auditor aprueba la evidencia, el hallazgo se cierra. En cada vuelta el auditor puede rechazar.
         $seguimientos = [
-            'Con el auditado' => 'bg-amber-50 text-amber-700',
-            'Por revisar'     => 'bg-brand-50 text-brand',
-            'Rechazada'       => 'bg-red-50 text-red-700',
-            'Cerrado'         => 'bg-green-50 text-green-700',
+            'Con el auditado'        => 'bg-amber-50 text-amber-700',
+            'Causa raíz por revisar' => 'bg-brand-50 text-brand',
+            'Rechazada'              => 'bg-red-50 text-red-700',
+            'Sin cargar'             => 'bg-amber-50 text-amber-700',
+            'Evidencia por revisar'  => 'bg-brand-50 text-brand',
+            'Cerrado'                => 'bg-green-50 text-green-700',
         ];
 
         // El botón de cada fila cambia según lo que le toca hacer al auditor; si no le toca nada, "Abrir".
         $acciones = [
-            'Por revisar' => 'Revisar respuesta',
+            'Causa raíz por revisar' => 'Revisar causa raíz',
+            'Evidencia por revisar'  => 'Revisar evidencia',
         ];
     @endphp
 

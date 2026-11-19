@@ -75,10 +75,12 @@
 
         // La ventana de detalle usa los dos para pintar sus etiquetas (los mismos de la lista de Hallazgos).
         $seguimientos = [
-            'Con el auditado' => 'bg-amber-50 text-amber-700',
-            'Por revisar'     => 'bg-brand-50 text-brand',
-            'Rechazada'       => 'bg-red-50 text-red-700',
-            'Cerrado'         => 'bg-green-50 text-green-700',
+            'Con el auditado'        => 'bg-amber-50 text-amber-700',
+            'Causa raíz por revisar' => 'bg-brand-50 text-brand',
+            'Rechazada'              => 'bg-red-50 text-red-700',
+            'Sin cargar'             => 'bg-amber-50 text-amber-700',
+            'Evidencia por revisar'  => 'bg-brand-50 text-brand',
+            'Cerrado'                => 'bg-green-50 text-green-700',
         ];
     @endphp
 
