@@ -1030,10 +1030,11 @@
 
         {{-- Modal card --}}
         <div @click.outside="show = false"
-             class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden">
+             class="bg-white rounded-2xl shadow-2xl w-full mx-auto overflow-hidden flex flex-col max-h-[90vh]"
+             :class="(removing || directApproval) ? 'max-w-md' : 'max-w-3xl'">
 
             {{-- Header --}}
-            <div class="bg-brand px-6 py-4 flex items-center justify-between">
+            <div class="bg-brand px-6 py-4 flex items-center justify-between shrink-0">
                 <div>
                     <h3 class="text-white font-semibold text-base">Confirmar flujo de aprobación</h3>
                     <p class="text-blue-200 text-xs mt-0.5" x-text="regulationName"></p>
@@ -1047,8 +1048,8 @@
                 </button>
             </div>
 
-            {{-- Body --}}
-            <div class="px-6 py-5">
+            {{-- Body (con scroll propio para que el modal nunca pase del alto de la pantalla) --}}
+            <div class="px-6 py-5 overflow-y-auto flex-1 min-h-0">
 
                 {{-- Removing flow --}}
                 <template x-if="removing && !directApproval">
@@ -1077,13 +1078,17 @@
                             Asignar personas es opcional. Si eliges a alguien, los pasos que dejes sin nadie se saltan y el flujo sigue con el siguiente que sí tenga personas (por ejemplo, solo Jefe y Gerente). Si no eliges a nadie, entran todos los de cada puesto. En cada paso aprueban todas las personas, una después de otra. Una vez confirmado, el flujo no podrá modificarse.
                         </p>
 
-                        @include('processes.partials.flow-change-summary')
-                        @include('processes.partials.flow-change-evidences', ['formId' => 'flowForm', 'existing' => 'evidences'])
+                        <div class="grid gap-x-4 gap-y-4 md:grid-cols-2 items-start [&>div]:mb-0 mb-5">
+                            @include('processes.partials.flow-change-summary')
+                            @include('processes.partials.flow-change-evidences', ['formId' => 'flowForm', 'existing' => 'evidences'])
+                        </div>
 
-                        <div class="space-y-5">
+                        <div class="grid gap-x-5 gap-y-4 sm:grid-cols-2 pb-2">
                             <template x-for="pos in positions" :key="pos.slug">
                                 <div>
                                     <div class="flex items-center gap-1.5 mb-1.5">
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-brand-50 text-brand text-[10px] font-bold uppercase tracking-wide"
+                                              x-text="`Paso ${pos.step}`"></span>
                                         <label class="text-xs font-semibold text-gray-700" x-text="pos.label"></label>
                                         <span x-show="!pos.requiresAll"
                                               class="text-xs text-gray-400 font-normal">(cualquiera basta)</span>
@@ -1132,7 +1137,7 @@
                                         </button>
 
                                         {{-- Dropdown --}}
-                                        <div x-show="open[pos.slug] && filtered(pos.slug).length > 0"
+                                        <div x-show="open[pos.slug]"
                                              @click.outside="open[pos.slug] = false"
                                              class="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-44 overflow-y-auto">
                                             <template x-for="u in filtered(pos.slug)" :key="u.id">
@@ -1148,9 +1153,8 @@
                                                 </button>
                                             </template>
                                             <div x-show="filtered(pos.slug).length === 0"
-                                                 class="px-3 py-2 text-sm text-gray-400 italic">
-                                                Sin coincidencias
-                                            </div>
+                                                 class="px-3 py-2 text-sm text-gray-400 italic"
+                                                 x-text="emptyMessage(pos)"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -1161,7 +1165,7 @@
             </div>
 
             {{-- Footer --}}
-            <div class="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3">
+            <div class="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3 shrink-0">
                 <button type="button"
                         @click="show = false"
                         class="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 font-medium hover:bg-gray-100 transition">
@@ -1327,6 +1331,11 @@ function annexEditor(regulationId, companyId, initialAnnexes) {
     };
 }
 
+// Minúsculas y sin acentos: "jose" encuentra a "José".
+function flowNormalize(text) {
+    return (text || '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+
 function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders) {
     return {
         show: false,
@@ -1370,11 +1379,18 @@ function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders
             const users = usersByPosition[slug] || [];
             const selectedIds = (this.selected[slug] || []).map(u => u.id);
             const available = users.filter(u => !selectedIds.includes(u.id));
-            const q = (this.search[slug] || '').toLowerCase().trim();
+            const q = flowNormalize(this.search[slug]);
             if (!q) return available;
             return available.filter(u =>
-                u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+                flowNormalize(u.name).includes(q) || flowNormalize(u.email).includes(q)
             );
+        },
+
+        emptyMessage(pos) {
+            if ((usersByPosition[pos.slug] || []).length === 0) {
+                return `Nadie tiene asignado el puesto ${pos.label}. Asígnalo en Usuarios.`;
+            }
+            return (this.search[pos.slug] || '').trim() ? 'Sin coincidencias' : 'Ya elegiste a todos';
         },
 
         openModal(detail) {
@@ -1416,10 +1432,8 @@ function flowModal(usersByPosition, flowDefs, positionLabels, positionSortOrders
                 });
             }
 
-            // Sort highest hierarchy first (mayor sort_order = más importante = arriba)
-            this.positions.sort((a, b) =>
-                (positionSortOrders[b.slug] || 0) - (positionSortOrders[a.slug] || 0)
-            );
+            // Sin reordenar: los puestos quedan en el orden en que aprueban (Líder primero,
+            // Dirección antes que Consejo), igual que el flujo.
 
             this.show = true;
         },

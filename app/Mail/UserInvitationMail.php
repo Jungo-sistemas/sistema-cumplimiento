@@ -21,7 +21,7 @@ class UserInvitationMail extends Mailable
     public function build()
     {
         return $this
-            ->subject('You have been invited to VIGIA')
+            ->subject('Te invitaron a Jungo Cumple')
             ->view('emails.users.invitation');
     }
 }

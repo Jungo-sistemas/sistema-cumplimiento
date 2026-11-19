@@ -13,7 +13,7 @@ class ResetPasswordNotification extends ResetPassword
         $expiryMinutes = config('auth.passwords.'.config('auth.defaults.passwords').'.expire');
 
         return (new MailMessage)
-            ->subject('Restablecer contraseña — VIGIA')
+            ->subject('Restablecer contraseña — Jungo Cumple')
             ->view('emails.auth.reset-password', [
                 'url'           => $url,
                 'user'          => $notifiable,

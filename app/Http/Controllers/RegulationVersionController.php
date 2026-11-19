@@ -584,7 +584,18 @@ class RegulationVersionController extends Controller
         // regresa null en vez de lanzar, así que esto nunca bloquea el guardado de la versión.
         $changesTable = $changeTableService->generate($changeJustification, $changeDescription, $version->body_html, $html);
 
-        DB::transaction(function () use ($regulation, $version, $tmp, $user, $changeDescription, $changeJustification, $changesTable, $next, $html, $keepsDocxLayout) {
+        $duplicate = DB::transaction(function () use ($regulation, $version, $tmp, $user, $changeDescription, $changeJustification, $changesTable, $next, $html, $keepsDocxLayout) {
+            // El guardado tarda varios segundos (Word + IA): un doble clic o un reenvío del
+            // navegador mandaba dos peticiones que pasaban los controles de arriba antes de que la
+            // primera terminara, y quedaban dos versiones con el mismo número (P-SAV-019, 19-nov).
+            // Se serializa sobre el proceso y, si la versión que se editaba ya no es la actual o
+            // ya no tiene el bloqueo, es que otra petición ya guardó: esta se descarta.
+            Regulation::withoutGlobalScopes()->whereKey($regulation->id)->lockForUpdate()->first();
+            $fresh = RegulationVersion::whereKey($version->id)->first(['id', 'is_current', 'editing_by']);
+            if (! $fresh || ! $fresh->is_current || (int) $fresh->editing_by !== (int) $user->id) {
+                return true;
+            }
+
             $regulation->versions()->where('is_current', true)->update(['is_current' => false]);
 
             $rawName     = pathinfo($version->original_name ?? 'documento.docx', PATHINFO_FILENAME);
@@ -615,9 +626,17 @@ class RegulationVersionController extends Controller
 
             // Release lock and clear draft on the original version
             $this->clearLock($version, false);
+
+            return false;
         });
 
         @unlink($tmp);
+
+        if ($duplicate) {
+            return redirect()
+                ->route('processes.show', $regulation)
+                ->with('success', 'El documento ya se había guardado como nueva versión.');
+        }
 
         // Si el reglamento estaba rechazado, esta edición libre es (se asume) la corrección —
         // avisar a los admins que ya pueden reiniciar el flujo.
