@@ -101,6 +101,7 @@
                 texto = 'Aprobó la evidencia. Hallazgo cerrado.';
                 this.h.seguimiento = 'Cerrado';
             }
+
             this.h.historial = [...(this.h.historial ?? []), dia + ' · ' + this.auditor + ': ' + texto];
             this.comentario = '';
             this.mensaje = 'Decisión registrada (demo).';

@@ -1,7 +1,8 @@
 {{-- Ventana "Registrar hallazgo". Solo se incluye en el checklist de una auditoría abierta (En captura).
-     Cada criterio la abre con: @click="$dispatch('registrar-hallazgo', { criterio: número })"
-     Usa $auditoria y $criterios de esa página: la auditoría y el criterio se muestran, pero no se pueden cambiar.
-     De $participantes sale la lista para elegir al responsable. --}}
+    Cada criterio la abre con: @click="$dispatch('registrar-hallazgo', { criterio: número })"
+    El checklist también la abre solo cuando se elige No cumple o Parcial en un criterio sin hallazgo.
+    Usa $auditoria y $criterios de esa página: la auditoría y el criterio se muestran, pero no se pueden cambiar.
+    De $participantes sale la lista para elegir al responsable. --}}
 <div x-data="{
         abierto: false,
         criterios: @js(array_column($criterios, 'texto')),
@@ -32,8 +33,12 @@
             if (! this.fecha) this.errores.fecha = 'Elige la fecha compromiso.';
             if (! this.responsable) this.errores.responsable = 'Elige al responsable.';
 
-            // Sin errores = todo lleno. En la demo solo mostramos la confirmación.
-            if (Object.keys(this.errores).length === 0) this.registrado = true;
+            // Sin errores = todo lleno. En la demo solo mostramos la confirmación
+            // y le avisamos al checklist que este criterio ya tiene hallazgo.
+            if (Object.keys(this.errores).length === 0) {
+                this.registrado = true;
+                this.$dispatch('hallazgo-registrado', { criterio: this.criterio });
+            }
         },
      }"
      @registrar-hallazgo.window="abrir($event.detail)"

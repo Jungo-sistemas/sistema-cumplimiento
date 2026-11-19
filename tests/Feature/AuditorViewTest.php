@@ -114,11 +114,23 @@ class AuditorViewTest extends TestCase
     {
         // Auditoría 1 (En captura): un botón en cada uno de sus 3 criterios.
         $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1));
-        $this->assertSame(3, substr_count($checklist->getContent(), 'Registra los hallazgos que identifiques en este criterio.'));
+        $this->assertSame(3, substr_count($checklist->getContent(), '>Registrar hallazgo</button>'));
 
         // En una auditoría finalizada y en la lista de Hallazgos ya no se registran.
         $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))->assertDontSee('Registrar hallazgo');
         $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))->assertDontSee('Registrar hallazgo');
+    }
+
+    public function test_no_cumple_y_parcial_abren_solos_la_ventana_de_hallazgo(): void
+    {
+        // Cada resultado avisa cuando cambia. Si es No cumple o Parcial y el criterio todavía no tiene hallazgo,
+        // se abre "Registrar hallazgo". La ventana le avisa al checklist cuando se registra uno.
+        $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))->getContent();
+        // El @change tiene que estar DENTRO de la etiqueta <select ...>, antes del ">" que la cierra.
+        $this->assertSame(3, preg_match_all('/<select[^>]*@change="alCambiarResultado\(/', $checklist));
+        $this->assertStringContainsString("this.\$dispatch('registrar-hallazgo'", $checklist);
+        $this->assertStringContainsString('@hallazgo-registrado.window=', $checklist);
+        $this->assertStringContainsString("this.\$dispatch('hallazgo-registrado'", $checklist);
     }
 
     public function test_el_hallazgo_tiene_un_solo_responsable_del_equipo_auditado(): void
@@ -305,7 +317,6 @@ class AuditorViewTest extends TestCase
             ->assertSee('Revisar evidencia')
             ->assertSee('Aprobar evidencia y cerrar');
     }
-
 
     public function test_los_hallazgos_se_clasifican_como_critico_o_no_critico(): void
     {

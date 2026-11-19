@@ -111,6 +111,8 @@
             ponderaciones: @js(config('auditorias.ponderaciones')),
             asistencia: @js(array_fill(0, count($participantes), false)),
             obligatorios: @js(array_column($participantes, 'obligatorio')),
+            // Cuántos hallazgos lleva cada criterio. En la demo empiezan en 0; con la base de datos saldrán de los hallazgos guardados.
+            hallazgos: @js(array_fill(0, count($criterios), 0)),
             guardado: false,
             confirmando: false,
             finalizada: false,
@@ -121,6 +123,17 @@
                 if (this.noAplica(r)) return 'No cuenta';
                 return this.ponderaciones[r.resultado] + ' / 100';
             },
+            // No cumple y Parcial necesitan al menos un hallazgo en su criterio.
+            necesitaHallazgo(resultado) { return resultado === 'no_cumple' || resultado === 'parcial' },
+            faltaHallazgo(i) { return this.necesitaHallazgo(this.respuestas[i].resultado) && this.hallazgos[i] === 0 },
+            // Al elegir No cumple o Parcial en un criterio sin hallazgo, se abre sola la ventana para registrarlo.
+            // setTimeout espera a que termine el clic con el que se eligió la opción: si no, ese clic
+            // podría contar como un clic fuera de la ventana recién abierta y cerrarla.
+            alCambiarResultado(i, resultado) {
+                if (this.necesitaHallazgo(resultado) && this.hallazgos[i] === 0) {
+                    setTimeout(() => this.$dispatch('registrar-hallazgo', { criterio: i }));
+                }
+            },
             get capturados() { return this.respuestas.filter(r => this.capturado(r)).length },
             get asistieron() { return this.asistencia.filter(a => a).length },
             get faltanObligatorios() { return this.obligatorios.some((obligatorio, i) => obligatorio && ! this.asistencia[i]) },
@@ -130,7 +143,8 @@
                 if (evaluados.length === 0) return '—';
                 return Math.round(evaluados.reduce((suma, r) => suma + this.ponderaciones[r.resultado], 0) / evaluados.length);
             },
-         }">
+        }"
+        @hallazgo-registrado.window="hallazgos[$event.detail.criterio]++">
 
         {{-- Sesión de Teams, lista de asistencia y avance --}}
         <div class="mb-6 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-6">
@@ -217,7 +231,7 @@
                         <div>
                             <label for="resultado-{{ $i }}" class="mb-2 block text-sm font-semibold text-gray-900">Resultado del criterio</label>
                             <select id="resultado-{{ $i }}" name="respuestas[{{ $i }}][resultado]" x-model="respuestas[{{ $i }}].resultado"
-                                    class="h-12 w-full rounded-lg border-gray-200 bg-gray-50 text-[15px] focus:border-brand focus:ring-brand">
+                                    class="h-12 w-full rounded-lg border-gray-200 bg-gray-50 text-[15px] focus:border-brand focus:ring-brand" @change="alCambiarResultado({{ $i }}, $event.target.value)">
                                 <option value="">Selecciona</option>
                                 <option value="cumple">Cumple</option>
                                 <option value="no_cumple">No cumple</option>
@@ -249,9 +263,11 @@
                                    class="block w-full rounded-lg border border-gray-200 bg-gray-50 p-2 text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand">
                         </div>
 
-                        {{-- El hallazgo queda ligado a este criterio: la ventana lo recibe y no deja cambiarlo --}}
+                        {{-- El hallazgo queda ligado a este criterio: la ventana lo recibe y no deja cambiarlo.
+                             El texto avisa si a este criterio le falta su hallazgo o cuántos lleva registrados. --}}
                         <div class="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 pt-5">
-                            <p class="text-sm text-gray-600">Registra los hallazgos que identifiques en este criterio.</p>
+                            <p class="text-sm" :class="faltaHallazgo({{ $i }}) ? 'font-semibold text-red-700' : 'text-gray-600'"
+                               x-text="faltaHallazgo({{ $i }}) ? 'No cumple y Parcial necesitan un hallazgo: regístralo aquí.' : (hallazgos[{{ $i }}] > 0 ? 'Hallazgos registrados en este criterio: ' + hallazgos[{{ $i }}] + '.' : 'Registra los hallazgos que identifiques en este criterio.')">Registra los hallazgos que identifiques en este criterio.</p>
                             <button type="button" @click="$dispatch('registrar-hallazgo', { criterio: {{ $i }} })"
                                     class="rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">Registrar hallazgo</button>
                         </div>
