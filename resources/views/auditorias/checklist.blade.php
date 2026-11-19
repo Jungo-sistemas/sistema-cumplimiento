@@ -115,6 +115,9 @@
             // y al finalizar se envían a sus responsables. En la demo empiezan vacías.
             hallazgos: @js(array_fill(0, count($criterios), [])),
             clasificaciones: { critico: 'Crítico', no_critico: 'No crítico' },
+            // Archivos y fotos adjuntos a cada criterio (sus nombres), para verlos en lista y poder quitarlos.
+            // Con la base de datos, cada uno se subirá en cuanto se elija y aquí quedará su registro.
+            soportes: @js(array_fill(0, count($criterios), [])),
             guardado: false,
             confirmando: false,
             finalizada: false,
@@ -146,6 +149,16 @@
             eliminar(i, n) {
                 if (confirm('¿Eliminar el hallazgo «' + this.hallazgos[i][n].titulo + '»?')) this.hallazgos[i].splice(n, 1);
             },
+            // Agrega lo que se eligió en uno de los dos campos de archivo del criterio i. Las fotos del celular
+            // suelen llamarse igual (image.jpg), por eso se nombran con la hora en que se tomaron.
+            agregarSoportes(i, campo, esFoto) {
+                for (const archivo of campo.files) {
+                    this.soportes[i].push(esFoto ? 'Foto de las ' + new Date().toLocaleTimeString('es-MX') : archivo.name);
+                }
+                // Se vacía el campo para poder volver a elegir el mismo archivo o tomar otra foto.
+                campo.value = '';
+            },
+            quitarSoporte(i, n) { this.soportes[i].splice(n, 1) },
             // La fecha compromiso escrita como en el resto del módulo: 25 nov 2026.
             fechaTexto(fecha) { return new Date(fecha + 'T00:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) },
             get faltanHallazgos() { return this.respuestas.some((r, i) => this.faltaHallazgo(i)) },
@@ -274,9 +287,36 @@
 
                     @if($editable)
                         <div class="mt-5">
-                            <label for="soporte-{{ $i }}" class="mb-2 block text-sm font-semibold text-gray-900">Soporte de la revisión (opcional)</label>
-                            <input id="soporte-{{ $i }}" type="file" name="respuestas[{{ $i }}][soportes][]" multiple
-                                   class="block w-full rounded-lg border border-gray-200 bg-gray-50 p-2 text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand">
+                            <span class="mb-2 block text-sm font-semibold text-gray-900">Soporte de la revisión (opcional)</span>
+                            {{-- Dos formas de adjuntar: elegir archivos o tomar una foto. Los dos campos de archivo están escondidos
+                                 y cada botón abre el suyo. capture="environment" abre directo la cámara trasera del celular o tableta;
+                                 en una computadora solo deja elegir imágenes. --}}
+                            <div class="flex flex-wrap gap-3">
+                                <button type="button" @click="$refs.archivos{{ $i }}.click()"
+                                        class="inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">
+                                    <x-icon name="paperclip" class="h-4 w-4" />
+                                    <span>Elegir archivos</span>
+                                </button>
+                                <button type="button" @click="$refs.foto{{ $i }}.click()"
+                                        class="inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">
+                                    <x-icon name="camera" class="h-4 w-4" />
+                                    <span>Tomar foto</span>
+                                </button>
+                            </div>
+                            <input type="file" name="respuestas[{{ $i }}][soportes][]" multiple class="hidden"
+                                   x-ref="archivos{{ $i }}" @change="agregarSoportes({{ $i }}, $event.target, false)">
+                            <input type="file" name="respuestas[{{ $i }}][fotos][]" accept="image/*" capture="environment" class="hidden"
+                                   x-ref="foto{{ $i }}" @change="agregarSoportes({{ $i }}, $event.target, true)">
+
+                            {{-- Lo que ya se adjuntó a este criterio. Mientras no se finalice, cada uno se puede quitar. --}}
+                            <ul x-show="soportes[{{ $i }}].length" class="mt-3 space-y-2">
+                                <template x-for="(soporte, n) in soportes[{{ $i }}]" :key="n">
+                                    <li class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                        <span x-text="soporte"></span>
+                                        <button type="button" @click="quitarSoporte({{ $i }}, n)" class="font-semibold text-red-700 hover:underline">Quitar</button>
+                                    </li>
+                                </template>
+                            </ul>
                         </div>
 
                         {{-- Hallazgos de este criterio: la ventana recibe el criterio y no deja cambiarlo.

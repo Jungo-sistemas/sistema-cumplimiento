@@ -41,7 +41,9 @@ class AuditorViewTest extends TestCase
             route('auditorias.findings.index', ['tab' => 'evidencias']),
             route('auditorias.help'),
         ] as $url) {
-            $this->actingAs($this->auditor)->get($url)->assertOk();
+            $html = $this->actingAs($this->auditor)->get($url)->assertOk()->getContent();
+            // Cada <div> que se abre se cierra. Si falta o sobra uno, la página carga pero se acomoda raro.
+            $this->assertSame(substr_count($html, '<div'), substr_count($html, '</div>'), "Hay un <div> de más o de menos en $url");
         }
     }
 
@@ -108,6 +110,20 @@ class AuditorViewTest extends TestCase
             ->assertDontSee('Soporte de la revisión (opcional)')
             ->assertDontSee('Registrar hallazgo')
             ->assertSee('Conclusiones de la auditoría');
+    }
+
+    public function test_el_soporte_de_la_revision_se_adjunta_con_archivos_o_con_una_foto(): void
+    {
+        // Auditoría 1 (En captura): cada uno de sus 3 criterios trae "Elegir archivos" y "Tomar foto", y la lista de adjuntos.
+        // La foto usa capture="environment": en celular o tableta abre directo la cámara trasera.
+        $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))->getContent();
+        $this->assertSame(3, substr_count($checklist, '<span>Elegir archivos</span>'));
+        $this->assertSame(3, substr_count($checklist, '<span>Tomar foto</span>'));
+        $this->assertSame(3, substr_count($checklist, 'accept="image/*" capture="environment"'));
+        $this->assertSame(3, substr_count($checklist, 'x-for="(soporte, n) in soportes['));
+
+        // Auditoría 2 (Programada): todavía no se adjunta nada.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 2))->assertDontSee('Tomar foto');
     }
 
     public function test_los_hallazgos_se_registran_por_criterio_solo_en_auditorias_abiertas(): void
