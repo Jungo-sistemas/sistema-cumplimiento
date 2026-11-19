@@ -36,12 +36,6 @@ use App\Http\Controllers\MyApprovalsController;
 use App\Http\Controllers\ProcessReportController;
 use App\Http\Controllers\RegulationShareController;
 use App\Http\Controllers\RegulationPublicViewController;
-use App\Models\Regulation;
-use App\Notifications\ApprovalOverdueEscalationNotification;
-use App\Notifications\ApprovalReminderNotification;
-use App\Notifications\ApprovalRequestedNotification;
-use App\Notifications\RegulationApprovedNotification;
-use App\Notifications\RegulationRejectedNotification;
 
 Route::get('/', function () {
     return auth()->check()
@@ -62,6 +56,17 @@ Route::get('/dashboard/cumplimiento/exportar', [ComplianceDashboardController::c
 Route::get('/session/keep-alive', fn () => response()->json(['token' => csrf_token()]))
     ->middleware('auth')
     ->name('session.keepAlive');
+
+// Solo en desarrollo (APP_ENV=local) y con sesión: vista previa de todos los correos con datos de
+// ejemplo (App\Support\EmailPreviews). En producción estas rutas no existen.
+if (app()->environment('local')) {
+    Route::middleware('auth')->group(function () {
+        Route::get('/dev/correos', [\App\Http\Controllers\EmailPreviewController::class, 'index'])->name('dev.emails');
+        Route::get('/dev/correos/{key}', [\App\Http\Controllers\EmailPreviewController::class, 'show'])
+            ->where('key', '[a-z0-9-]+')
+            ->name('dev.emails.show');
+    });
+}
 
 Route::middleware(['auth', 'license.active', 'module.access'])->group(function () {
 
@@ -530,133 +535,5 @@ Route::post('/invitation/{token}', [UserInvitationController::class, 'store'])
 // Ver RegulationPublicViewController.
 Route::get('/p/{regulation}/{token}', [RegulationPublicViewController::class, 'show'])
     ->name('processes.public-view');
-
-/*
-|--------------------------------------------------------------------------
-| Previsualización de correos (solo entorno local)
-|--------------------------------------------------------------------------
-| Renderiza la vista real de cada notificación de aprobación con datos de un
-| reglamento existente en la base de datos local, sin enviar ningún correo.
-| Este bloque no se registra fuera de local, así que nunca queda expuesto.
-*/
-if (app()->environment('local')) {
-    Route::middleware('auth')->prefix('dev/mail-preview')->name('dev.mail-preview.')->group(function () {
-        $emails = [
-            'approval-requested'          => 'Aprobación requerida',
-            'approval-reminder'           => 'Recordatorio de aprobación',
-            'approval-overdue-escalation' => 'Escalación por aprobación vencida',
-            'regulation-approved'         => 'Documento aprobado',
-            'regulation-rejected'         => 'Documento rechazado',
-            'approval-step-unassigned'    => 'Flujo detenido — puesto sin asignar',
-        ];
-
-        Route::get('/', function () use ($emails) {
-            $regulation = Regulation::latest()->first();
-
-            $links = collect($emails)
-                ->map(fn ($label, $slug) => '<li><a href="' . route("dev.mail-preview.$slug") . '">' . $label . '</a></li>')
-                ->implode('');
-
-            $notice = $regulation
-                ? "Usando el reglamento #{$regulation->id}: {$regulation->name}"
-                : 'No hay reglamentos en la base de datos local — crea uno de prueba primero.';
-
-            return "<h1>Previsualización de correos — Procesos</h1><p>{$notice}</p><ul>{$links}</ul>";
-        })->name('index');
-
-        Route::get('/approval-requested', function () {
-            $regulation = Regulation::with('company')->latest()->first();
-            abort_unless($regulation, 404, 'No hay reglamentos para previsualizar.');
-
-            $notifiable = $regulation->approvals()->whereNotNull('user_id')->with('user')->first()?->user
-                ?? auth()->user();
-
-            $mail = (new ApprovalRequestedNotification($regulation))->toMail($notifiable);
-            $viewData = $mail->viewData;
-
-            // Si el reglamento elegido todavía no tiene aprobaciones reales, se rellena con datos
-            // de ejemplo solo para poder ver la tabla "Ya revisado y aprobado por" en el preview.
-            if ($viewData['previousApprovers']->isEmpty()) {
-                $viewData['previousApprovers'] = collect([
-                    (new \App\Models\RegulationApproval(['decided_at' => now()->subDays(3)]))
-                        ->setRelation('user', new \App\Models\User(['name' => 'Juan Pérez (ejemplo)']))
-                        ->setRelation('jobPosition', new \App\Models\JobPosition(['name' => 'Líder de Proceso (ejemplo)'])),
-                    (new \App\Models\RegulationApproval(['decided_at' => now()->subDay()]))
-                        ->setRelation('user', new \App\Models\User(['name' => 'María López (ejemplo)']))
-                        ->setRelation('jobPosition', new \App\Models\JobPosition(['name' => 'Jefe de Área (ejemplo)'])),
-                ]);
-            }
-
-            return view($mail->view, $viewData);
-        })->name('approval-requested');
-
-        Route::get('/approval-reminder', function () {
-            $regulation = Regulation::with('company')->latest()->first();
-            abort_unless($regulation, 404, 'No hay reglamentos para previsualizar.');
-
-            $notifiable = $regulation->approvals()->whereNotNull('user_id')->with('user')->first()?->user
-                ?? auth()->user();
-
-            $mail = (new ApprovalReminderNotification(
-                $regulation,
-                (int) request('days', 7),
-                (int) request('n', 1),
-            ))->toMail($notifiable);
-
-            return view($mail->view, $mail->viewData);
-        })->name('approval-reminder');
-
-        Route::get('/approval-overdue-escalation', function () {
-            $regulation = Regulation::with('company')->latest()->first();
-            abort_unless($regulation, 404, 'No hay reglamentos para previsualizar.');
-
-            $pendingUser = $regulation->approvals()->whereNotNull('user_id')->with('user')->first()?->user
-                ?? auth()->user();
-
-            $mail = (new ApprovalOverdueEscalationNotification(
-                $regulation,
-                $pendingUser,
-                (int) request('days', 21),
-            ))->toMail(auth()->user());
-
-            return view($mail->view, $mail->viewData);
-        })->name('approval-overdue-escalation');
-
-        Route::get('/regulation-approved', function () {
-            $regulation = Regulation::with('company')->latest()->first();
-            abort_unless($regulation, 404, 'No hay reglamentos para previsualizar.');
-
-            $mail = (new RegulationApprovedNotification($regulation))->toMail(auth()->user());
-
-            return view($mail->view, $mail->viewData);
-        })->name('regulation-approved');
-
-        Route::get('/regulation-rejected', function () {
-            $regulation = Regulation::with('company')->latest()->first();
-            abort_unless($regulation, 404, 'No hay reglamentos para previsualizar.');
-
-            $mail = (new RegulationRejectedNotification(
-                $regulation,
-                request('comments', 'Falta actualizar el anexo B con la firma del responsable.'),
-                auth()->user(),
-            ))->toMail(auth()->user());
-
-            return view($mail->view, $mail->viewData);
-        })->name('regulation-rejected');
-
-        Route::get('/approval-step-unassigned', function () {
-            $regulation = Regulation::with('company')->latest()->first();
-            abort_unless($regulation, 404, 'No hay reglamentos para previsualizar.');
-
-            $mail = (new \App\Notifications\ApprovalStepUnassignedNotification(
-                $regulation,
-                (int) request('step', 2),
-                [request('position', 'Gerente')],
-            ))->toMail(auth()->user());
-
-            return view($mail->view, $mail->viewData);
-        })->name('approval-step-unassigned');
-    });
-}
 
 require __DIR__ . '/auth.php';

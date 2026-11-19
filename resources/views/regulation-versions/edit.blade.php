@@ -849,7 +849,14 @@ document.getElementById('saveBtn').addEventListener('click', () => {
 });
 document.getElementById('cancelSaveBtn').addEventListener('click', hideSaveModal);
 
-document.getElementById('confirmSaveBtn').addEventListener('click', () => {
+document.getElementById('confirmSaveBtn').addEventListener('click', (e) => {
+    // El guardado tarda unos segundos (Word + IA): un segundo clic creaba otra versión igual.
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.classList.add('opacity-60', 'cursor-wait');
+    btn.textContent = 'Guardando…';
+    document.getElementById('cancelSaveBtn').disabled = true;
     clearTimeout(autoSaveTimer);
     dirty = false;   // evita el diálogo nativo "¿Deseas abandonar el sitio?"
     document.getElementById('contentInput').value       = getContentForSave();

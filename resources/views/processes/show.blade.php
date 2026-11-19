@@ -1250,7 +1250,8 @@
              class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
              style="display:none;">
 
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-auto overflow-hidden">
+            <div class="bg-white rounded-2xl shadow-2xl w-full mx-auto overflow-hidden"
+                 :class="stage === 2 ? 'max-w-3xl' : 'max-w-xl'">
 
                 {{-- Header --}}
                 <div class="bg-brand px-6 py-4 flex items-center justify-between">
@@ -1303,7 +1304,7 @@
 
                 {{-- Etapa 2: Nivel + personas --}}
                 <div x-show="stage === 2">
-                    <div class="px-6 py-5 space-y-5 max-h-[60vh] overflow-y-auto">
+                    <div class="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
 
                         {{-- Selector de nivel --}}
                         <div>
@@ -1317,20 +1318,25 @@
                             </select>
                         </div>
 
-                        @include('processes.partials.flow-change-summary')
-                        @include('processes.partials.flow-change-evidences', [
-                            'formId'   => 'reviewFlowForm',
-                            'existing' => \Illuminate\Support\Js::from($regulation->changeEvidences->map(fn ($e) => ['id' => $e->id, 'name' => $e->original_name])),
-                        ])
+                        <div class="grid gap-x-4 md:grid-cols-2 items-start [&>div]:mb-0 gap-y-4">
+                            @include('processes.partials.flow-change-summary')
+                            @include('processes.partials.flow-change-evidences', [
+                                'formId'   => 'reviewFlowForm',
+                                'existing' => \Illuminate\Support\Js::from($regulation->changeEvidences->map(fn ($e) => ['id' => $e->id, 'name' => $e->original_name])),
+                            ])
+                        </div>
 
                         <p class="text-xs text-gray-500">
                             Asignar personas es opcional. Si eliges a alguien, los pasos que dejes sin nadie se saltan y el flujo sigue con el siguiente que sí tenga personas (por ejemplo, solo Jefe y Gerente). Si no eliges a nadie, entran todos los de cada puesto. En cada paso aprueban todas las personas, una después de otra.
                         </p>
 
                         {{-- Personas por puesto --}}
+                        <div class="grid gap-x-5 gap-y-4 sm:grid-cols-2 pb-2">
                         <template x-for="pos in positions" :key="pos.slug">
                             <div>
                                 <div class="flex items-center gap-1.5 mb-1.5">
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-brand-50 text-brand text-[10px] font-bold uppercase tracking-wide"
+                                          x-text="`Paso ${pos.step}`"></span>
                                     <label class="text-xs font-semibold text-gray-700" x-text="pos.label"></label>
                                     <span x-show="!pos.requiresAll" class="text-xs text-gray-400 font-normal">(cualquiera basta)</span>
                                     <span class="ml-auto text-xs"
@@ -1357,7 +1363,7 @@
                                            @input="open[pos.slug] = true"
                                            @keydown.escape="open[pos.slug] = false; search[pos.slug] = ''"
                                            class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand">
-                                    <div x-show="open[pos.slug] && filtered(pos.slug).length > 0"
+                                    <div x-show="open[pos.slug]"
                                          @click.outside="open[pos.slug] = false"
                                          class="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                                         <template x-for="u in filtered(pos.slug)" :key="u.id">
@@ -1372,11 +1378,13 @@
                                             </button>
                                         </template>
                                         <div x-show="filtered(pos.slug).length === 0"
-                                             class="px-3 py-2 text-sm text-gray-400 italic">Sin coincidencias</div>
+                                             class="px-3 py-2 text-sm text-gray-400 italic"
+                                             x-text="emptyMessage(pos)"></div>
                                     </div>
                                 </div>
                             </div>
                         </template>
+                        </div>
                     </div>
 
                     {{-- Footer etapa 2 --}}
@@ -1555,9 +1563,8 @@
                         }
                     });
                 });
-                this.positions.sort((a, b) =>
-                    (this.positionSortOrders[a.slug] || 99) - (this.positionSortOrders[b.slug] || 99)
-                );
+                // Sin reordenar: los puestos quedan en el orden en que aprueban (Líder primero,
+                // Dirección antes que Consejo), igual que el flujo.
             },
 
             goStage2() { this.buildPositions(); this.stage = 2; },
@@ -1566,10 +1573,17 @@
                 const users = this.usersByPosition[slug] || [];
                 const ids   = (this.selected[slug] || []).map(u => u.id);
                 const avail = users.filter(u => !ids.includes(u.id));
-                const q     = (this.search[slug] || '').toLowerCase();
-                return q ? avail.filter(u =>
-                    u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
-                ) : avail;
+                // Minúsculas y sin acentos: "jose" encuentra a "José".
+                const norm  = t => (t || '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+                const q     = norm(this.search[slug]);
+                return q ? avail.filter(u => norm(u.name).includes(q) || norm(u.email).includes(q)) : avail;
+            },
+
+            emptyMessage(pos) {
+                if ((this.usersByPosition[pos.slug] || []).length === 0) {
+                    return `Nadie tiene asignado el puesto ${pos.label}. Asígnalo en Usuarios.`;
+                }
+                return (this.search[pos.slug] || '').trim() ? 'Sin coincidencias' : 'Ya elegiste a todos';
             },
 
             selectUser(slug, user) {

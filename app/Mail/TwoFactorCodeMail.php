@@ -21,7 +21,7 @@ class TwoFactorCodeMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Código de verificación — VIGIA',
+            subject: 'Código de verificación — Jungo Cumple',
         );
     }
 
