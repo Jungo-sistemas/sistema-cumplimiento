@@ -124,13 +124,33 @@ class AuditorViewTest extends TestCase
     public function test_no_cumple_y_parcial_abren_solos_la_ventana_de_hallazgo(): void
     {
         // Cada resultado avisa cuando cambia. Si es No cumple o Parcial y el criterio todavía no tiene hallazgo,
-        // se abre "Registrar hallazgo". La ventana le avisa al checklist cuando se registra uno.
+        // se abre "Registrar hallazgo". La ventana le manda al checklist cada hallazgo que se guarda.
         $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))->getContent();
         // El @change tiene que estar DENTRO de la etiqueta <select ...>, antes del ">" que la cierra.
         $this->assertSame(3, preg_match_all('/<select[^>]*@change="alCambiarResultado\(/', $checklist));
         $this->assertStringContainsString("this.\$dispatch('registrar-hallazgo'", $checklist);
-        $this->assertStringContainsString('@hallazgo-registrado.window=', $checklist);
-        $this->assertStringContainsString("this.\$dispatch('hallazgo-registrado'", $checklist);
+        $this->assertStringContainsString('@hallazgo-guardado.window=', $checklist);
+        $this->assertStringContainsString("this.\$dispatch('hallazgo-guardado'", $checklist);
+    }
+
+    public function test_los_hallazgos_se_editan_o_eliminan_hasta_finalizar(): void
+    {
+        // Cada criterio lista sus hallazgos con Editar y Eliminar. Son un borrador: se envían al finalizar,
+        // y no se puede finalizar mientras un criterio en No cumple o Parcial no tenga hallazgo.
+        $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))
+            ->assertSee('x-for="(hallazgo, n) in hallazgos[0]"', false)
+            ->assertSeeInOrder(['>Editar</button>', '>Eliminar</button>'], false)
+            ->assertSee('|| faltanHallazgos"', false)
+            ->assertSee('Para finalizar, registra un hallazgo en cada criterio con No cumple o Parcial.')
+            ->assertSee('El hallazgo se envía a su responsable cuando finalices la auditoría.')
+            ->assertSeeInOrder(['¿Finalizar la auditoría?', 'La calificación final será de', 'Se enviará 1 hallazgo a su responsable.'])
+            ->assertDontSee('Registrar y notificar hallazgo')
+            ->getContent();
+
+        // Cada x-data llega completo hasta su último método: una comilla doble adentro cortaría el atributo.
+        // preg_match da 1 si encuentra el patrón; así, si falla, el mensaje es corto y no imprime toda la página.
+        $this->assertSame(1, preg_match('/x-data="[^"]*get promedio\(\)/', $checklist), 'Una comilla doble corta el x-data del checklist.');
+        $this->assertSame(1, preg_match('/x-data="[^"]*guardar\(\) \{/', $checklist), 'Una comilla doble corta el x-data de la ventana de hallazgo.');
     }
 
     public function test_el_hallazgo_tiene_un_solo_responsable_del_equipo_auditado(): void

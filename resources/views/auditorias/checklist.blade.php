@@ -111,8 +111,10 @@
             ponderaciones: @js(config('auditorias.ponderaciones')),
             asistencia: @js(array_fill(0, count($participantes), false)),
             obligatorios: @js(array_column($participantes, 'obligatorio')),
-            // Cuántos hallazgos lleva cada criterio. En la demo empiezan en 0; con la base de datos saldrán de los hallazgos guardados.
-            hallazgos: @js(array_fill(0, count($criterios), 0)),
+            // Hallazgos de cada criterio (una lista por criterio). Son un borrador: se pueden editar o eliminar,
+            // y al finalizar se envían a sus responsables. En la demo empiezan vacías.
+            hallazgos: @js(array_fill(0, count($criterios), [])),
+            clasificaciones: { critico: 'Crítico', no_critico: 'No crítico' },
             guardado: false,
             confirmando: false,
             finalizada: false,
@@ -125,15 +127,29 @@
             },
             // No cumple y Parcial necesitan al menos un hallazgo en su criterio.
             necesitaHallazgo(resultado) { return resultado === 'no_cumple' || resultado === 'parcial' },
-            faltaHallazgo(i) { return this.necesitaHallazgo(this.respuestas[i].resultado) && this.hallazgos[i] === 0 },
+            faltaHallazgo(i) { return this.necesitaHallazgo(this.respuestas[i].resultado) && this.hallazgos[i].length === 0 },
             // Al elegir No cumple o Parcial en un criterio sin hallazgo, se abre sola la ventana para registrarlo.
             // setTimeout espera a que termine el clic con el que se eligió la opción: si no, ese clic
             // podría contar como un clic fuera de la ventana recién abierta y cerrarla.
             alCambiarResultado(i, resultado) {
-                if (this.necesitaHallazgo(resultado) && this.hallazgos[i] === 0) {
+                if (this.necesitaHallazgo(resultado) && this.hallazgos[i].length === 0) {
                     setTimeout(() => this.$dispatch('registrar-hallazgo', { criterio: i }));
                 }
             },
+            // La ventana manda el hallazgo guardado: si trae indice es uno que se editó y se reemplaza; si no, es nuevo.
+            guardarHallazgo(detalle) {
+                if (detalle.indice === null) this.hallazgos[detalle.criterio].push(detalle.hallazgo);
+                else this.hallazgos[detalle.criterio][detalle.indice] = detalle.hallazgo;
+            },
+            // Abre la ventana con los datos del hallazgo n del criterio i, para corregirlo.
+            editar(i, n) { this.$dispatch('registrar-hallazgo', { criterio: i, indice: n, hallazgo: { ...this.hallazgos[i][n] } }) },
+            eliminar(i, n) {
+                if (confirm('¿Eliminar el hallazgo «' + this.hallazgos[i][n].titulo + '»?')) this.hallazgos[i].splice(n, 1);
+            },
+            // La fecha compromiso escrita como en el resto del módulo: 25 nov 2026.
+            fechaTexto(fecha) { return new Date(fecha + 'T00:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) },
+            get faltanHallazgos() { return this.respuestas.some((r, i) => this.faltaHallazgo(i)) },
+            get totalHallazgos() { return this.hallazgos.flat().length },
             get capturados() { return this.respuestas.filter(r => this.capturado(r)).length },
             get asistieron() { return this.asistencia.filter(a => a).length },
             get faltanObligatorios() { return this.obligatorios.some((obligatorio, i) => obligatorio && ! this.asistencia[i]) },
@@ -144,7 +160,7 @@
                 return Math.round(evaluados.reduce((suma, r) => suma + this.ponderaciones[r.resultado], 0) / evaluados.length);
             },
         }"
-        @hallazgo-registrado.window="hallazgos[$event.detail.criterio]++">
+        @hallazgo-guardado.window="guardarHallazgo($event.detail)">
 
         {{-- Sesión de Teams, lista de asistencia y avance --}}
         <div class="mb-6 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-6">
@@ -263,13 +279,32 @@
                                    class="block w-full rounded-lg border border-gray-200 bg-gray-50 p-2 text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand">
                         </div>
 
-                        {{-- El hallazgo queda ligado a este criterio: la ventana lo recibe y no deja cambiarlo.
-                             El texto avisa si a este criterio le falta su hallazgo o cuántos lleva registrados. --}}
-                        <div class="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 pt-5">
-                            <p class="text-sm" :class="faltaHallazgo({{ $i }}) ? 'font-semibold text-red-700' : 'text-gray-600'"
-                               x-text="faltaHallazgo({{ $i }}) ? 'No cumple y Parcial necesitan un hallazgo: regístralo aquí.' : (hallazgos[{{ $i }}] > 0 ? 'Hallazgos registrados en este criterio: ' + hallazgos[{{ $i }}] + '.' : 'Registra los hallazgos que identifiques en este criterio.')">Registra los hallazgos que identifiques en este criterio.</p>
-                            <button type="button" @click="$dispatch('registrar-hallazgo', { criterio: {{ $i }} })"
-                                    class="rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">Registrar hallazgo</button>
+                        {{-- Hallazgos de este criterio: la ventana recibe el criterio y no deja cambiarlo.
+                             Mientras no se finalice, cada hallazgo se puede editar o eliminar. --}}
+                        <div class="mt-5 border-t border-gray-200 pt-5">
+                            <div class="flex flex-wrap items-center justify-between gap-4">
+                                <p class="text-sm" :class="faltaHallazgo({{ $i }}) ? 'font-semibold text-red-700' : 'text-gray-600'"
+                                   x-text="faltaHallazgo({{ $i }}) ? 'No cumple y Parcial necesitan un hallazgo: regístralo aquí.' : 'Registra los hallazgos que identifiques en este criterio.'">Registra los hallazgos que identifiques en este criterio.</p>
+                                <button type="button" @click="$dispatch('registrar-hallazgo', { criterio: {{ $i }} })"
+                                        class="rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">Registrar hallazgo</button>
+                            </div>
+
+                            <ul x-show="hallazgos[{{ $i }}].length" class="mt-4 space-y-3">
+                                <template x-for="(hallazgo, n) in hallazgos[{{ $i }}]" :key="n">
+                                    <li class="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                                        <div>
+                                            <p class="font-semibold text-gray-900" x-text="hallazgo.titulo"></p>
+                                            <p class="mt-1 text-sm text-gray-600" x-text="clasificaciones[hallazgo.severidad] + ' · Responsable: ' + hallazgo.responsable + ' · Compromiso: ' + fechaTexto(hallazgo.fecha)"></p>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button type="button" @click="editar({{ $i }}, n)"
+                                                    class="rounded-lg border-2 border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-brand-ink hover:bg-gray-50">Editar</button>
+                                            <button type="button" @click="eliminar({{ $i }}, n)"
+                                                    class="rounded-lg border-2 border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-50">Eliminar</button>
+                                        </div>
+                                    </li>
+                                </template>
+                            </ul>
                         </div>
                     @endif
                 </div>
@@ -290,19 +325,21 @@
                 <span x-show="guardado" x-cloak x-transition class="mr-auto text-sm font-semibold text-green-700">Avance guardado (demo: todavía no se guarda en la base de datos).</span>
                 <span x-show="! guardado && capturados < {{ count($criterios) }}" class="mr-auto text-sm text-gray-600">Para finalizar, captura el resultado de cada criterio.</span>
                 <span x-show="! guardado && capturados === {{ count($criterios) }} && faltanObligatorios" x-cloak class="mr-auto text-sm text-gray-600">Para finalizar, marca en la lista de asistencia al auditor y al auditado.</span>
+                <span x-show="! guardado && capturados === {{ count($criterios) }} && ! faltanObligatorios && faltanHallazgos" x-cloak class="mr-auto text-sm text-gray-600">Para finalizar, registra un hallazgo en cada criterio con No cumple o Parcial.</span>
 
                 <button type="button" @click="guardado = true; setTimeout(() => guardado = false, 3000)"
                         class="rounded-lg border-2 border-brand px-5 py-2.5 text-sm font-semibold text-brand hover:bg-brand-50">Guardar avance</button>
 
-                <button type="button" :disabled="capturados < {{ count($criterios) }} || faltanObligatorios"
+                <button type="button" :disabled="capturados < {{ count($criterios) }} || faltanObligatorios || faltanHallazgos"
                         class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50" @click="confirmando = true">Finalizar</button>
             </div>
         @endif
 
         {{-- Pregunta antes de finalizar --}}
-        <div x-show="confirmando" x-cloak x-transition class="mt-6 rounded-2xl border-2 border-brand-100 bg-brand-50 p-6">
-            <p class="font-semibold text-brand-ink">¿Finalizar la auditoría?</p>
+        <div x-show="confirmando" x-cloak x-transition class="mt-6 rounded-2xl border-2 border-brand-100 bg-brand-50 p-6"><p class="font-semibold text-brand-ink">¿Finalizar la auditoría?</p>
             <p class="mt-1 text-sm text-gray-600">Ya no podrás cambiar las respuestas. La calificación final será de <span class="font-semibold text-gray-900" x-text="promedio"></span> / 100.</p>
+            <p x-show="totalHallazgos > 0" class="mt-1 text-sm text-gray-600"
+               x-text="totalHallazgos === 1 ? 'Se enviará 1 hallazgo a su responsable.' : 'Se enviarán ' + totalHallazgos + ' hallazgos a sus responsables.'"></p>
             <div class="mt-4 flex justify-end gap-3">
                 <button type="button" @click="confirmando = false" class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancelar</button>
                 <button type="button" @click="finalizada = true; confirmando = false" class="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">Sí, finalizar</button>
@@ -312,7 +349,7 @@
         {{-- Ya finalizada (demo): con la base de datos, aquí ya se habrá guardado --}}
         <div x-show="finalizada" x-cloak class="mt-6 rounded-2xl border border-green-200 bg-green-50 p-6">
             <p class="font-semibold text-green-800">Auditoría finalizada (demo). Calificación final: <span x-text="promedio"></span> / 100.</p>
-            <p class="mt-1 text-sm text-green-700">Cuando exista la base de datos, se guardará y aparecerá en la pestaña Finalizadas.</p>
+            <p class="mt-1 text-sm text-green-700">Cuando exista la base de datos, se guardará, sus hallazgos se enviarán a los responsables y aparecerá en la pestaña Finalizadas.</p>
             <a href="{{ route('auditorias.audits.index', ['tab' => 'finalizadas']) }}" class="mt-4 inline-flex rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">Ir a Finalizadas</a>
         </div>
     </div>
