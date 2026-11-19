@@ -30,13 +30,14 @@ class ComplianceDashboardController extends Controller
         $level = $levelService->summary($companies->pluck('id')->all(), $levelFilters);
         $assetTypes = AssetType::orderBy('name')->get(['id', 'name']);
         $upcoming = $levelService->upcoming($companies->pluck('id')->all(), $levelFilters);
+        $authorities = $levelService->authorities();
 
-        return view('dashboard', compact('companies', 'level', 'levelFilters', 'assetTypes', 'upcoming'));
+        return view('dashboard', compact('companies', 'level', 'levelFilters', 'assetTypes', 'upcoming', 'authorities'));
     }
 
     /**
      * Excel del nivel de cumplimiento con los mismos filtros del tablero, como evidencia: resumen
-     * (general, por impacto, por empresa y por tipo de activo) y el detalle de cada requerimiento.
+     * (general, por impacto, por entidad, por empresa y por tipo de activo) y el detalle de cada requerimiento.
      */
     public function exportLevel(Request $request, ComplianceLevelService $levelService)
     {
@@ -52,6 +53,11 @@ class ComplianceDashboardController extends Controller
             'Empresa'        => $filters['company_id'] ? $companies->firstWhere('id', $filters['company_id'])?->name : 'Todas',
             'Tipo de activo' => $filters['asset_type_id'] ? (AssetType::find($filters['asset_type_id'])?->name ?? '—') : 'Todos',
             'Impacto'        => $filters['impact'] ? ComplianceLevelService::IMPACTS[$filters['impact']] : 'Todos',
+            'Entidad'        => match ($filters['authority']) {
+                null                                   => 'Todas',
+                ComplianceLevelService::NO_AUTHORITY   => ComplianceLevelService::NO_AUTHORITY_LABEL,
+                default                                => $filters['authority'],
+            },
         ];
 
         $xlsx = new StreamingXlsxWriter();
@@ -80,6 +86,7 @@ class ComplianceDashboardController extends Controller
 
         $sections = [
             'Por impacto'        => $level['by_impact'],
+            'Por entidad'        => $level['by_authority'],
             'Por empresa'        => $level['by_company'],
             'Por tipo de activo' => $level['by_type'],
         ];
@@ -92,8 +99,8 @@ class ComplianceDashboardController extends Controller
         }
 
         // ── Hoja 2: Detalle ──────────────────────────────────────────────────
-        $xlsx->startSheet('Detalle', [34, 18, 34, 16, 48, 12, 12, 13, 15, 40]);
-        $xlsx->addRow(['Empresa', 'Tipo de activo', 'Activo', 'No. económico / código', 'Requerimiento', 'Impacto',
+        $xlsx->startSheet('Detalle', [34, 18, 34, 16, 48, 14, 12, 12, 13, 15, 40]);
+        $xlsx->addRow(['Empresa', 'Tipo de activo', 'Activo', 'No. económico / código', 'Requerimiento', 'Entidad', 'Impacto',
             'Estado', 'Fecha límite', 'Vigencia del documento', 'Documento vigente'], 'header');
         foreach ($levelService->detail($companyIds, $filters) as $row) {
             $xlsx->addRow(array_values($row));

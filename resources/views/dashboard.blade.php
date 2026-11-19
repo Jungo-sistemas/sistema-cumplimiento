@@ -13,13 +13,21 @@
             $lvStates = \App\Application\Compliance\ComplianceLevelService::STATES;
             $lvImpacts = \App\Application\Compliance\ComplianceLevelService::IMPACTS;
             $lvOverall = $level['overall'];
-            $lvBreakdown = $levelFilters['company_id'] ? $level['by_type'] : $level['by_company'];
-            $lvFiltered = $levelFilters['company_id'] || $levelFilters['asset_type_id'] || $levelFilters['impact'];
+            $lvNoAuthority = \App\Application\Compliance\ComplianceLevelService::NO_AUTHORITY;
+            $lvFiltered = $levelFilters['company_id'] || $levelFilters['asset_type_id'] || $levelFilters['impact'] || $levelFilters['authority'];
             $lvQuery = array_filter([
                 'empresa' => $levelFilters['company_id'],
                 'tipo_activo' => $levelFilters['asset_type_id'],
                 'impacto' => $levelFilters['impact'],
+                'entidad' => $levelFilters['authority'],
             ]);
+            // Cortes de la tabla. Con una empresa elegida, "Por empresa" ya no dice nada: se abre en tipo de activo.
+            $lvTabs = [
+                'company'   => ['label' => 'Por empresa', 'column' => 'Empresa', 'rows' => $level['by_company']],
+                'type'      => ['label' => 'Por tipo de activo', 'column' => 'Tipo de activo', 'rows' => $level['by_type']],
+                'authority' => ['label' => 'Por entidad', 'column' => 'Entidad', 'rows' => $level['by_authority']],
+            ];
+            $lvDefaultTab = $levelFilters['company_id'] ? 'type' : 'company';
             $lvColor = fn ($pct) => $pct === null ? '#D1D5DB' : ($pct >= 80 ? '#22C55E' : ($pct >= 50 ? '#FFB529' : '#DB0000'));
         @endphp
 
@@ -64,6 +72,16 @@
                         @foreach($lvImpacts as $key => $label)
                             <option value="{{ $key }}" @selected($levelFilters['impact'] === $key)>{{ $label }}</option>
                         @endforeach
+                    </select>
+                </label>
+                <label class="text-xs font-medium text-gray-600">
+                    Entidad
+                    <select name="entidad" onchange="this.form.submit()" class="mt-1 w-full rounded-md border-gray-300 text-sm focus:ring-brand focus:border-brand">
+                        <option value="">Todas</option>
+                        @foreach($authorities as $authority)
+                            <option value="{{ $authority }}" @selected($levelFilters['authority'] === $authority)>{{ $authority }}</option>
+                        @endforeach
+                        <option value="{{ $lvNoAuthority }}" @selected($levelFilters['authority'] === $lvNoAuthority)>Sin entidad</option>
                     </select>
                 </label>
                 <noscript><button class="px-3 py-2 rounded-md border text-sm">Filtrar</button></noscript>
@@ -119,44 +137,62 @@
                     </div>
                 </div>
 
-                {{-- Por empresa (o por tipo de activo si ya se eligió una empresa) --}}
-                <div class="mt-6">
-                    <div class="text-sm font-semibold text-gray-700 mb-2">
-                        {{ $levelFilters['company_id'] ? 'Por tipo de activo' : 'Por empresa' }}
+                {{-- Por empresa / tipo de activo / entidad --}}
+                <div class="mt-6" x-data="{ tab: '{{ $lvDefaultTab }}' }">
+                    <div class="flex flex-wrap gap-2 mb-2">
+                        @foreach($lvTabs as $key => $tab)
+                            <button type="button" @click="tab = '{{ $key }}'"
+                                    class="px-3 py-1.5 rounded-md text-xs font-semibold border"
+                                    :class="tab === '{{ $key }}' ? 'bg-brand text-white border-brand' : 'text-gray-700 hover:bg-gray-50'">
+                                {{ $tab['label'] }}
+                            </button>
+                        @endforeach
                     </div>
-                    <div class="border rounded-lg overflow-x-auto max-h-80 overflow-y-auto">
-                        <table class="min-w-full text-sm">
-                            <thead class="bg-gray-50 text-xs text-gray-500 sticky top-0">
-                                <tr>
-                                    <th class="text-left font-medium px-3 py-2">{{ $levelFilters['company_id'] ? 'Tipo de activo' : 'Empresa' }}</th>
-                                    <th class="text-right font-medium px-3 py-2">Requerimientos</th>
-                                    @foreach($lvStates as $label)
-                                        <th class="text-right font-medium px-3 py-2 hidden md:table-cell">{{ $label }}</th>
-                                    @endforeach
-                                    <th class="text-left font-medium px-3 py-2 w-48">Cumplimiento</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y">
-                                @foreach($lvBreakdown as $row)
+
+                    @foreach($lvTabs as $key => $tab)
+                        <div x-show="tab === '{{ $key }}'" @if($key !== $lvDefaultTab) style="display:none" @endif
+                             class="border rounded-lg overflow-x-auto max-h-80 overflow-y-auto">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-gray-50 text-xs text-gray-500 sticky top-0">
                                     <tr>
-                                        <td class="px-3 py-2 text-gray-800">{{ $row['name'] }}</td>
-                                        <td class="px-3 py-2 text-right tabular-nums">{{ number_format($row['total']) }}</td>
-                                        @foreach(array_keys($lvStates) as $k)
-                                            <td class="px-3 py-2 text-right tabular-nums text-gray-600 hidden md:table-cell">{{ number_format($row[$k]) }}</td>
+                                        <th class="text-left font-medium px-3 py-2">{{ $tab['column'] }}</th>
+                                        <th class="text-right font-medium px-3 py-2">Requerimientos</th>
+                                        @foreach($lvStates as $label)
+                                            <th class="text-right font-medium px-3 py-2 hidden md:table-cell">{{ $label }}</th>
                                         @endforeach
-                                        <td class="px-3 py-2">
-                                            <div class="flex items-center gap-2">
-                                                <div class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
-                                                    <div class="h-full" style="width: {{ $row['pct'] ?? 0 }}%; background: {{ $lvColor($row['pct']) }}"></div>
-                                                </div>
-                                                <span class="text-xs font-semibold tabular-nums w-12 text-right">{{ $row['pct'] === null ? '—' : number_format($row['pct'], 1) . '%' }}</span>
-                                            </div>
-                                        </td>
+                                        <th class="text-left font-medium px-3 py-2 w-48">Cumplimiento</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody class="divide-y">
+                                    @foreach($tab['rows'] as $row)
+                                        <tr>
+                                            <td class="px-3 py-2 text-gray-800">
+                                                @if($key === 'authority' && ! $levelFilters['authority'])
+                                                    {{-- Clic en la entidad = filtrar todo el tablero por ella --}}
+                                                    <a href="{{ route('dashboard', array_merge($lvQuery, ['entidad' => $row['key']])) }}"
+                                                       class="hover:text-brand hover:underline">{{ $row['name'] }}</a>
+                                                @else
+                                                    {{ $row['name'] }}
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2 text-right tabular-nums">{{ number_format($row['total']) }}</td>
+                                            @foreach(array_keys($lvStates) as $k)
+                                                <td class="px-3 py-2 text-right tabular-nums text-gray-600 hidden md:table-cell">{{ number_format($row[$k]) }}</td>
+                                            @endforeach
+                                            <td class="px-3 py-2">
+                                                <div class="flex items-center gap-2">
+                                                    <div class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
+                                                        <div class="h-full" style="width: {{ $row['pct'] ?? 0 }}%; background: {{ $lvColor($row['pct']) }}"></div>
+                                                    </div>
+                                                    <span class="text-xs font-semibold tabular-nums w-12 text-right">{{ $row['pct'] === null ? '—' : number_format($row['pct'], 1) . '%' }}</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endforeach
                 </div>
             @endif
         </section>
@@ -189,6 +225,7 @@
                                 <th class="text-left font-medium px-3 py-2">Activo</th>
                                 <th class="text-left font-medium px-3 py-2 hidden md:table-cell">Empresa</th>
                                 <th class="text-left font-medium px-3 py-2 hidden lg:table-cell">Tipo de activo</th>
+                                <th class="text-left font-medium px-3 py-2 hidden lg:table-cell">Entidad</th>
                                 <th class="text-left font-medium px-3 py-2 hidden md:table-cell">Impacto</th>
                                 <th class="px-3 py-2"></th>
                             </tr>
@@ -216,6 +253,7 @@
                                     <td class="px-3 py-2 text-gray-700">{{ $r->asset_name }}</td>
                                     <td class="px-3 py-2 text-gray-600 hidden md:table-cell">{{ $r->company_name }}</td>
                                     <td class="px-3 py-2 text-gray-600 hidden lg:table-cell">{{ $r->asset_type_name ?? '—' }}</td>
+                                    <td class="px-3 py-2 text-gray-600 hidden lg:table-cell">{{ $r->authority !== '' ? $r->authority : '—' }}</td>
                                     <td class="px-3 py-2 text-gray-600 hidden md:table-cell">{{ $lvImpacts[$r->impact] ?? $lvImpacts['sin'] }}</td>
                                     <td class="px-3 py-2 text-right">
                                         <a href="{{ route('assets.requirements.show', [$r->asset_id, $r->id]) }}" class="text-brand font-medium hover:underline">Abrir</a>

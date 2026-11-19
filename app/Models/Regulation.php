@@ -89,6 +89,8 @@ class Regulation extends Model
         'details'                     => 'array',
         'previous_details'            => 'array',
         'flow_user_map'               => 'array',
+        // Pasos con los que arrancó su flujo de aprobación (ApprovalFlowService::flowFor()).
+        'flow_steps'                  => 'array',
         'is_annex'                    => 'boolean',
         'is_legacy'                   => 'boolean',
         'permanently_delete_at'       => 'datetime',

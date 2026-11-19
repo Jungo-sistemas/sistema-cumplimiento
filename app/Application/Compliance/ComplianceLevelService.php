@@ -35,9 +35,17 @@ final class ComplianceLevelService
 
     private const IMPACT_SQL = "COALESCE(NULLIF(LOWER(TRIM(requirement_templates.priority)), ''), 'sin')";
 
+    /** Entidad (autoridad) del requerimiento: ASEA, CRE, CNE… La plantilla sin entidad sale como ''. */
+    private const AUTHORITY_SQL = "COALESCE(UPPER(TRIM(requirement_templates.authority)), '')";
+
+    /** Valor del filtro para los requerimientos sin entidad. */
+    public const NO_AUTHORITY = 'sin';
+
+    public const NO_AUTHORITY_LABEL = 'Sin entidad';
+
     /**
      * @param  int[]  $companyIds  empresas que el usuario puede ver
-     * @param  array{company_id?:int|null, asset_type_id?:int|null, impact?:string|null}  $filters
+     * @param  array{company_id?:int|null, asset_type_id?:int|null, impact?:string|null, authority?:string|null}  $filters
      */
     public function summary(array $companyIds, array $filters = []): array
     {
@@ -46,6 +54,7 @@ final class ComplianceLevelService
         $rows = $this->baseQuery($companyIds, $filters)
             ->selectRaw('assets.company_id, companies.name as company_name, assets.asset_type_id, asset_types.name as asset_type_name')
             ->selectRaw(self::IMPACT_SQL . ' as impact')
+            ->selectRaw(self::AUTHORITY_SQL . ' as authority')
             ->selectRaw('COUNT(*) as total');
 
         foreach (array_keys(self::STATES) as $state) {
@@ -55,6 +64,7 @@ final class ComplianceLevelService
 
         $rows = $rows->groupBy('assets.company_id', 'companies.name', 'assets.asset_type_id', 'asset_types.name')
             ->groupByRaw(self::IMPACT_SQL)
+            ->groupByRaw(self::AUTHORITY_SQL)
             ->toBase()
             ->get();
 
@@ -62,8 +72,14 @@ final class ComplianceLevelService
         $byImpact  = array_map(fn () => $empty(), self::IMPACTS);
         $byCompany = [];
         $byType    = [];
+        $byAuthority = [];
 
         foreach ($rows as $r) {
+            $authority = (string) $r->authority;
+            $byAuthority[$authority] ??= [
+                'key'  => $authority === '' ? self::NO_AUTHORITY : $authority,
+                'name' => $authority === '' ? self::NO_AUTHORITY_LABEL : $authority,
+            ] + $empty();
             $byCompany[$r->company_id] ??= ['name' => $r->company_name] + $empty();
             $byType[$r->asset_type_id] ??= ['name' => $r->asset_type_name ?? 'Sin tipo'] + $empty();
             $impact = array_key_exists($r->impact, self::IMPACTS) ? $r->impact : 'sin';
@@ -74,6 +90,7 @@ final class ComplianceLevelService
                 $byImpact[$impact][$k] += $n;
                 $byCompany[$r->company_id][$k] += $n;
                 $byType[$r->asset_type_id][$k] += $n;
+                $byAuthority[$authority][$k] += $n;
             }
         }
 
@@ -93,6 +110,9 @@ final class ComplianceLevelService
                 ->values()->all(),
             'by_company' => $sortByName($byCompany),
             'by_type'    => $sortByName($byType),
+            // "Sin entidad" al final.
+            'by_authority' => collect($sortByName($byAuthority))
+                ->sortBy(fn ($row) => $row['key'] === self::NO_AUTHORITY ? 1 : 0)->values()->all(),
         ];
     }
 
@@ -111,6 +131,7 @@ final class ComplianceLevelService
                 'assets.code as codigo',
                 'assets.no_economico',
                 'requirement_templates.name as requerimiento',
+                'requirement_templates.authority as entidad',
                 'asset_requirements.type',
                 'asset_requirements.due_date',
                 'asset_requirements.expires_at',
@@ -137,6 +158,7 @@ final class ComplianceLevelService
                 'activo'        => $r->activo,
                 'codigo'        => $r->no_economico ?: ($r->codigo ?: ''),
                 'requerimiento' => $r->requerimiento ?? $r->type ?? 'Requerimiento',
+                'entidad'       => trim((string) $r->entidad) !== '' ? mb_strtoupper(trim($r->entidad)) : self::NO_AUTHORITY_LABEL,
                 'impacto'       => self::IMPACTS[$r->impact] ?? self::IMPACTS['sin'],
                 'estado'        => self::STATES[$r->estado] ?? $r->estado,
                 'fecha_limite'  => $r->due_date ? Carbon::parse($r->due_date)->format('d/m/Y') : '',
@@ -170,6 +192,7 @@ final class ComplianceLevelService
                 'requirement_templates.name as template_name',
             ])
             ->selectRaw(self::IMPACT_SQL . ' as impact')
+            ->selectRaw(self::AUTHORITY_SQL . ' as authority')
             ->selectRaw("{$dueSql} as vence")
             ->orderByRaw("{$dueSql} asc")
             ->orderBy('asset_requirements.id')
@@ -183,12 +206,30 @@ final class ComplianceLevelService
         $companyId = isset($input['empresa']) && $input['empresa'] !== '' ? (int) $input['empresa'] : null;
         $typeId    = isset($input['tipo_activo']) && $input['tipo_activo'] !== '' ? (int) $input['tipo_activo'] : null;
         $impact    = $input['impacto'] ?? null;
+        $authority = is_string($input['entidad'] ?? null) ? mb_strtoupper(trim($input['entidad'])) : '';
 
         return [
             'company_id'    => in_array($companyId, $companyIds, true) ? $companyId : null,
             'asset_type_id' => $typeId ?: null,
             'impact'        => array_key_exists((string) $impact, self::IMPACTS) ? $impact : null,
+            'authority'     => $authority === mb_strtoupper(self::NO_AUTHORITY)
+                ? self::NO_AUTHORITY
+                : ($authority !== '' ? mb_substr($authority, 0, 100) : null),
         ];
+    }
+
+    /** Entidades que existen en las plantillas de requerimientos (para el filtro). */
+    public function authorities(): array
+    {
+        return \App\Models\RequirementTemplate::query()
+            ->whereNotNull('authority')
+            ->pluck('authority')
+            ->map(fn ($a) => mb_strtoupper(trim($a)))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
     }
 
     private function baseQuery(array $companyIds, array $filters): Builder
@@ -201,7 +242,11 @@ final class ComplianceLevelService
             ->whereIn('assets.company_id', ! empty($filters['company_id']) ? [$filters['company_id']] : $companyIds)
             ->where('asset_requirements.status', '!=', 'cancelled')
             ->when($filters['asset_type_id'] ?? null, fn ($q, $id) => $q->where('assets.asset_type_id', $id))
-            ->when($filters['impact'] ?? null, fn ($q, $impact) => $q->whereRaw(self::IMPACT_SQL . ' = ?', [$impact]));
+            ->when($filters['impact'] ?? null, fn ($q, $impact) => $q->whereRaw(self::IMPACT_SQL . ' = ?', [$impact]))
+            ->when($filters['authority'] ?? null, fn ($q, $authority) => $q->whereRaw(
+                self::AUTHORITY_SQL . ' = ?',
+                [$authority === self::NO_AUTHORITY ? '' : $authority]
+            ));
     }
 
     /** @return array{0:string,1:array} condición SQL (portable) de cada estado */
