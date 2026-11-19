@@ -1,22 +1,36 @@
 {{-- Ventana "Solicitar reprogramación". Se incluye en el checklist de una auditoría que todavía no se finaliza.
      Se abre con: @click="$dispatch('solicitar-reprogramacion')"
-     Usa $auditoria de esa página. El auditor solo explica el motivo: la nueva fecha la agenda el auditor líder. --}}
+     Usa $auditoria de esa página. El auditor explica el motivo y propone una nueva fecha;
+     el auditor líder la aprueba o la rechaza. --}}
 <div x-data="{
         abierto: false,
         motivo: '',
-        error: '',
+        fecha: '',
+        // La fecha más próxima que se puede proponer: mañana, con la hora de México (la app trabaja en UTC).
+        minima: @js(today('America/Mexico_City')->addDay()->toDateString()),
+        errores: {},
         enviada: false,
         abrir() {
             this.abierto = true;
             this.motivo = '';
-            this.error = '';
+            this.fecha = '';
+            this.errores = {};
             this.enviada = false;
         },
         enviar() {
-            this.error = this.motivo.trim() ? '' : 'Explica por qué hay que reprogramarla.';
+            this.errores = {};
+            if (! this.motivo.trim()) this.errores.motivo = 'Explica por qué hay que reprogramarla.';
+            if (! this.fecha) this.errores.fecha = 'Elige la fecha que propones.';
+            // Las fechas vienen como 2026-11-20: comparadas como texto quedan en orden de calendario.
+            else if (this.fecha < this.minima) this.errores.fecha = 'La fecha propuesta debe ser a partir de mañana.';
 
-            // Sin error = todo bien. En la demo solo mostramos la confirmación.
-            if (! this.error) this.enviada = true;
+            // Sin errores = todo bien. En la demo solo mostramos la confirmación.
+            if (Object.keys(this.errores).length === 0) this.enviada = true;
+        },
+        // La fecha propuesta escrita como en el resto del módulo: 25 nov 2026.
+        get fechaTexto() {
+            if (! this.fecha) return '';
+            return new Date(this.fecha + 'T00:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
         },
      }"
      @solicitar-reprogramacion.window="abrir()"
@@ -45,10 +59,19 @@
                 <textarea id="reprogramacion-motivo" name="motivo" x-model="motivo" rows="3"
                           placeholder="Por ejemplo: el auditado no se presentó a la llamada."
                           class="w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand"></textarea>
-                <p x-show="error" x-text="error" class="mt-1 text-sm text-red-600"></p>
+                <p x-show="errores.motivo" x-text="errores.motivo" class="mt-1 text-sm text-red-600"></p>
             </div>
 
-            <p class="text-sm text-gray-600">El auditor líder revisa la solicitud y agenda la nueva fecha. Mientras tanto, la auditoría conserva su fecha actual.</p>
+            {{-- :min hace que el calendario no deje elegir días anteriores; enviar() lo revisa también,
+                 porque la fecha se puede escribir a mano. --}}
+            <div>
+                <label for="reprogramacion-fecha" class="mb-2 block text-sm font-semibold text-gray-900">Fecha propuesta</label>
+                <input id="reprogramacion-fecha" type="date" name="fecha_propuesta" x-model="fecha" :min="minima"
+                       class="h-12 w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand sm:w-60">
+                <p x-show="errores.fecha" x-text="errores.fecha" class="mt-1 text-sm text-red-600"></p>
+            </div>
+
+            <p class="text-sm text-gray-600">El auditor líder aprueba o rechaza la fecha propuesta. Mientras tanto, la auditoría conserva su fecha actual.</p>
 
             <button type="submit" class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">Enviar solicitud</button>
         </form>
@@ -57,8 +80,9 @@
         <div x-show="enviada" class="mt-5 rounded-2xl border border-green-200 bg-green-50 p-5">
             <p class="font-semibold text-green-800">Solicitud enviada (demo).</p>
             <p class="mt-1 text-sm text-green-700">
-                Cuando exista la base de datos, se guardará, se le avisará al auditor líder
-                y la auditoría aparecerá como "Reprogramación solicitada" hasta que la agende de nuevo.
+                Cuando exista la base de datos, se guardará y se le avisará al auditor líder, que aprobará o rechazará
+                la fecha propuesta: <span class="font-semibold" x-text="fechaTexto"></span>.
+                Mientras responde, la auditoría aparecerá como "Reprogramación solicitada".
             </p>
             <button type="button" @click="abierto = false" class="mt-4 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">Listo</button>
         </div>

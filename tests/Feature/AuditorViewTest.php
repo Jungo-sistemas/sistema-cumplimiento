@@ -223,12 +223,17 @@ class AuditorViewTest extends TestCase
 
     public function test_se_puede_solicitar_reprogramar_una_auditoria_no_finalizada(): void
     {
-        // En captura y Programada: el botón abre la ventana, que muestra la fecha actual y pide solo el motivo.
+        // En captura y Programada: el botón abre la ventana, que muestra la fecha actual y pide el motivo
+        // y la fecha propuesta. El auditor líder la aprueba o la rechaza.
+        // 20 nov 03:00 en UTC = 19 nov 21:00 en México: mañana es el 20, aunque en UTC ya sea 20.
+        $this->travelTo('2026-11-20 03:00:00');
+
         foreach ([1 => '11 sep 2026', 2 => '14 sep 2026'] as $id => $fecha) {
             $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $id))
                 ->assertSee('@click="$dispatch(\'solicitar-reprogramacion\')"', false)
-                ->assertSeeInOrder(['Solicitar reprogramación', 'Fecha actual: ' . $fecha, 'Motivo', 'El auditor líder revisa la solicitud y agenda la nueva fecha.'])
-                ->assertDontSee('id="reprogramacion-fecha"', false);
+                ->assertSeeInOrder(['Solicitar reprogramación', 'Fecha actual: ' . $fecha, 'Motivo', 'Fecha propuesta', 'El auditor líder aprueba o rechaza la fecha propuesta.'])
+                ->assertSee('id="reprogramacion-fecha" type="date"', false)
+                ->assertSee("minima: '2026-11-20'", false);
         }
 
         // Una auditoría finalizada ya no se reprograma.
