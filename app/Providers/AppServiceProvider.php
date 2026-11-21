@@ -6,6 +6,8 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
 use App\Models\Asset;
 use App\Models\Regulation;
+use App\Models\User;
+use Illuminate\Support\Facades\Gate;
 use App\Observers\AssetObserver;
 use App\Observers\RegulationObserver;
 
@@ -24,5 +26,7 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Carbon::setLocale('es');
         Asset::observe(AssetObserver::class);
         Regulation::observe(RegulationObserver::class);
+        // Pantallas del auditor (/auditorias): solo auditores y admins, igual que el menú.
+        Gate::define('auditorias', fn (User $user) => $user->isAuditor() || $user->isAdmin());
     }
 }

@@ -26,6 +26,11 @@ class GestionController extends Controller
             return redirect()->route('mi-espacio.home');
         }
 
+        // El auditor tiene su propio Inicio en Auditorías; los procesos solo los consulta desde el menú.
+        if ($user->isAuditor()) {
+            return redirect()->route('auditorias.home');
+        }
+
         $base = $this->processesFor($user);
 
         $released = (clone $base)->where('approval_status', 'approved')
