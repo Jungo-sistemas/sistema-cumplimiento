@@ -52,9 +52,9 @@ return [
     $row('Super Servicios 54', 'Vigia Combustibles', 'Gasolina', 'SUPER SERVICIO 54', $federico, $antonio),
     $row('Servicios Ramírez', 'Vigia Combustibles', 'Gasolina', 'SERVICIO RAMIREZ DE TEPATITLAN', $federico, $antonio),
     $row('Corporación Energía Veritas', 'Vigia Combustibles', 'Gasolina', null, $federico, $antonio),
-    $row('Propane Services', 'Vigia Combustibles', 'Propane Services', 'PROPANE SERVICES', $federico),
-    $row('Soluciones Petrolíferas', 'Vigia Combustibles', 'Propane Services', null, $federico),
-    $row('Alcom', 'Vigia Combustibles', 'Alcom', 'ALCOM', $federico, 'Vicente Saint Martin Ochoa'),
+    $row('Propane Services', 'Vigia Combustibles', 'Propane Services', 'PROPANE SERVICES', $daniel),
+    $row('Soluciones Petrolíferas', 'Vigia Combustibles', 'Propane Services', null, $daniel),
+    $row('Alcom', 'Vigia Combustibles', 'Alcom', 'ALCOM', $daniel, 'Vicente Saint Martin Ochoa'),
     $row('Videnci de México', 'Vigia Combustibles', 'Videnci', 'VIDENCI', $federico),
     $row('Grupo Vigía', 'Vigia Combustibles', 'Vigia Combustibles', null, null),
 
