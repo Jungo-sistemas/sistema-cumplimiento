@@ -152,6 +152,11 @@ class User extends Authenticatable
         return $this->role?->slug === 'auditor';
     }
 
+    public function isJefeAuditoria(): bool
+    {
+        return $this->role?->slug === 'jefe_auditoria';
+    }
+
     public function isInvited(): bool
     {
         return $this->status === 'invited';
@@ -356,10 +361,11 @@ class User extends Authenticatable
      * Rol con vista de Gestión: admins, auditores y operativos (los operativos crean y editan
      * procesos en línea). Los de solo lectura solo tienen Mi espacio. En Procesos y Auditorías
      * además hace falta tener acceso a Procesos: ver hasProcesosGestion().
+     * El Jefe de Auditoría también: planea las auditorías desde su propia vista.
      */
     public function hasGestion(): bool
     {
-        return $this->isAdmin() || $this->isAuditor() || $this->isOperative();
+        return $this->isAdmin() || $this->isAuditor() || $this->isOperative() || $this->isJefeAuditoria();
     }
 
     /**

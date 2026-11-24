@@ -222,6 +222,28 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
 
     /*
     |--------------------------------------------------------------------------
+    | Auditorías (vista del Jefe de Auditoría): planea el programa anual y asigna auditores
+    |--------------------------------------------------------------------------
+    | Solo entra el Jefe (ni admins ni auditores). Cada pantalla "en construcción" se
+    | reemplaza por la de verdad en su propia tarea.
+    */
+    Route::prefix('auditorias/jefe')->name('auditorias.jefe.')->middleware('can:jefe-auditoria')->group(function () {
+        Route::view('/', 'auditorias.jefe.en-construccion', [
+            'titulo' => 'Inicio', 'descripcion' => 'Resumen del programa anual de auditorías.',
+        ])->name('home');
+        Route::view('/programa', 'auditorias.jefe.en-construccion', [
+            'titulo' => 'Programa anual', 'descripcion' => 'Todas las auditorías del año, por mes, empresa y auditor.',
+        ])->name('program');
+        Route::view('/carga', 'auditorias.jefe.en-construccion', [
+            'titulo' => 'Carga por auditor', 'descripcion' => 'Cuántas auditorías tiene asignadas cada auditor y cuántas lleva realizadas.',
+        ])->name('workload');
+        Route::view('/reprogramaciones', 'auditorias.jefe.en-construccion', [
+            'titulo' => 'Reprogramaciones', 'descripcion' => 'Solicitudes de los auditores para cambiar la fecha de una auditoría.',
+        ])->name('reschedules');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
     | Processes / Regulations
     |--------------------------------------------------------------------------
     */

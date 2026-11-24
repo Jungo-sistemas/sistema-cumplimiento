@@ -10,13 +10,18 @@ use Illuminate\Support\Facades\Hash;
 
 class AuditUsersSeeder extends Seeder
 {
-    // Usuarios de prueba del módulo de Auditorías. El auditor queda limitado a 'procesos', igual
-    // que cuando se crea uno desde la pantalla de usuarios (UserController fuerza ese módulo).
+    // Usuarios de prueba del módulo de Auditorías. El auditor y el Jefe de Auditoría quedan en
+    // 'procesos', igual que cuando se crean desde la pantalla de usuarios (UserController lo fuerza).
     private const USERS = [
         [
             'name'  => 'Daniel Ruiz',
             'email' => 'auditor@vigia.com.mx',
             'role'  => 'auditor',
+        ],
+        [
+            'name'  => 'Patricia Vega',
+            'email' => 'jefe.auditoria@vigia.com.mx',
+            'role'  => 'jefe_auditoria',
         ],
     ];
 

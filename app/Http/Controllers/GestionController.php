@@ -31,6 +31,11 @@ class GestionController extends Controller
             return redirect()->route('auditorias.home');
         }
 
+        // El Jefe de Auditoría también tiene su propio Inicio, el de la planeación.
+        if ($user->isJefeAuditoria()) {
+            return redirect()->route('auditorias.jefe.home');
+        }
+
         $base = $this->processesFor($user);
 
         $released = (clone $base)->where('approval_status', 'approved')

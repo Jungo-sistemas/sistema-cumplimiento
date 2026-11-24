@@ -163,7 +163,12 @@
         // Gestión de Procesos y Auditorías. Admin: todo, con los dos tableros de indicadores.
         // Operativo: solo Procesos, sin indicadores (lo de auditorías lo ve en Mi espacio).
         // Auditor: Procesos para consultar y Auditorías.
-        $inicio = $user->isAuditor() ? 'auditorias.home' : 'gestion.home';
+        // Jefe de Auditoría: Procesos para consultar y Planeación (no audita).
+        $inicio = match (true) {
+            $user->isAuditor()       => 'auditorias.home',
+            $user->isJefeAuditoria() => 'auditorias.jefe.home',
+            default                  => 'gestion.home',
+        };
         $sections[] = ['title' => null, 'items' => [
             $item('Inicio', $inicio, 'home', request()->routeIs($inicio)),
         ]];
@@ -171,7 +176,7 @@
         $procesosItems = [
             $item('Procedimientos', 'processes.index', 'document', request()->routeIs('processes.index', 'processes.show', 'processes.create'), ['tour' => 'nav-procedimientos']),
         ];
-        if (! $user->isAuditor()) {
+        if (! $user->isAuditor() && ! $user->isJefeAuditoria()) {
             // Siempre visible: si quien aprueba se queda sin pendientes, la pantalla dice "Todo al día".
             $procesosItems[] = $item('Mis aprobaciones', 'my-approvals.index', 'badge', request()->routeIs('my-approvals.*'), ['tour' => 'nav-mis-aprobaciones', 'badge' => $pendingApprovalsCount]);
         }
@@ -198,7 +203,15 @@
             $sections[] = ['title' => 'Auditorías', 'items' => $auditoriasItems];
         }
 
-        $helpItem = request()->routeIs('auditorias.*')
+        if ($user->isJefeAuditoria()) {
+            $sections[] = ['title' => 'Planeación', 'items' => [
+                $item('Programa anual', 'auditorias.jefe.program', 'clipboard', request()->routeIs('auditorias.jefe.program')),
+                $item('Carga por auditor', 'auditorias.jefe.workload', 'users', request()->routeIs('auditorias.jefe.workload')),
+                $item('Reprogramaciones', 'auditorias.jefe.reschedules', 'clock', request()->routeIs('auditorias.jefe.reschedules')),
+            ]];
+        }
+
+        $helpItem = request()->routeIs('auditorias.*') && ! $user->isJefeAuditoria()
             ? $item('Ayuda', 'auditorias.help', 'help', request()->routeIs('auditorias.help'))
             : $item('Ayuda', 'processes.guide.manual', 'help', false, ['newTab' => true]);
     } else {

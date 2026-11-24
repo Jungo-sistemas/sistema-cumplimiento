@@ -28,5 +28,7 @@ class AppServiceProvider extends ServiceProvider
         Regulation::observe(RegulationObserver::class);
         // Pantallas del auditor (/auditorias): solo auditores y admins, igual que el menú.
         Gate::define('auditorias', fn (User $user) => $user->isAuditor() || $user->isAdmin());
+        // Pantallas del Jefe de Auditoría (/auditorias/jefe): solo él, ni admins ni auditores.
+        Gate::define('jefe-auditoria', fn (User $user) => $user->isJefeAuditoria());
     }
 }

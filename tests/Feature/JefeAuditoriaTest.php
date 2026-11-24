@@ -43,6 +43,14 @@ class JefeAuditoriaTest extends TestCase
         ]);
     }
 
+    private function jefe(): User
+    {
+        return User::factory()->create([
+            'name' => 'Patricia Vega', 'group_id' => $this->group->id, 'scope_level' => 'group', 'status' => 'active',
+            'role_id' => $this->jefeRole->id, 'module_access' => 'procesos',
+        ]);
+    }
+
     public function test_el_rol_llega_con_las_migraciones(): void
     {
         $this->assertSame('Jefe de Auditoría', $this->jefeRole->name);
@@ -104,5 +112,54 @@ class JefeAuditoriaTest extends TestCase
         $this->actingAs($admin)->post(route('users.store'), [
             'name' => 'Auditor Nuevo', 'email' => 'auditor@test.mx', 'role_id' => $auditorRole->id,
         ])->assertRedirect(route('users.index'));
+    }
+
+    // ── Su menú y sus pantallas ──
+
+    public function test_el_jefe_entra_a_su_inicio_y_ve_su_menu(): void
+    {
+        $jefe = $this->jefe();
+
+        // Al iniciar sesión, quien es "Solo Procesos" llega a Gestión; al Jefe de ahí lo manda a su Inicio.
+        $this->actingAs($jefe)->get(route('gestion.home'))->assertRedirect(route('auditorias.jefe.home'));
+
+        $this->actingAs($jefe)->get(route('auditorias.jefe.home'))
+            ->assertOk()
+            ->assertSee('Planeación')
+            ->assertSee('href="' . route('auditorias.jefe.home') . '"', false)
+            ->assertSee('href="' . route('auditorias.jefe.program') . '"', false)
+            ->assertSee('href="' . route('auditorias.jefe.workload') . '"', false)
+            ->assertSee('href="' . route('auditorias.jefe.reschedules') . '"', false)
+            ->assertSee('href="' . route('processes.index') . '"', false)
+            // No aprueba procesos ni audita: sin "Mis aprobaciones" ni la vista del auditor.
+            ->assertDontSee('href="' . route('my-approvals.index') . '"', false)
+            ->assertDontSee('href="' . route('auditorias.audits.index') . '"', false)
+            ->assertDontSee('href="' . route('auditorias.help') . '"', false);
+    }
+
+    public function test_todas_las_pantallas_del_jefe_cargan(): void
+    {
+        $jefe = $this->jefe();
+
+        foreach (['auditorias.jefe.home', 'auditorias.jefe.program', 'auditorias.jefe.workload', 'auditorias.jefe.reschedules'] as $ruta) {
+            $html = $this->actingAs($jefe)->get(route($ruta))->assertOk()->getContent();
+            // Cada <div> que se abre se cierra. Si falta o sobra uno, la página carga pero se acomoda raro.
+            $this->assertSame(substr_count($html, '<div'), substr_count($html, '</div>'), "Hay un <div> de más o de menos en $ruta");
+        }
+    }
+
+    public function test_solo_el_jefe_entra_a_la_planeacion_y_no_audita(): void
+    {
+        $auditor = User::factory()->create([
+            'group_id' => $this->group->id, 'scope_level' => 'group', 'status' => 'active', 'module_access' => 'procesos',
+            'role_id' => Role::create(['name' => 'Auditor', 'slug' => 'auditor'])->id,
+        ]);
+
+        // Ni un admin ni un auditor entran a la planeación.
+        $this->actingAs($this->admin('all'))->get(route('auditorias.jefe.home'))->assertForbidden();
+        $this->actingAs($auditor)->get(route('auditorias.jefe.program'))->assertForbidden();
+
+        // El Jefe no audita: la vista del auditor no es para él.
+        $this->actingAs($this->jefe())->get(route('auditorias.audits.index'))->assertForbidden();
     }
 }
