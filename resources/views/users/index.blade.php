@@ -16,6 +16,7 @@
             editCompanyIds: [],
             editModuleAccess: 'all',
             editPositionIds: [],
+            editAuditAlerts: false,
             companySearch: '',
             companySearchOpen: false,
             adminRoleId: '{{ $adminRoleId ?? '' }}',
@@ -50,7 +51,7 @@
             removeCompany(id) {
                 this.editCompanyIds = this.editCompanyIds.filter(x => x !== String(id));
             },
-            openEdit(id, name, roleId, groupId, companyIds, moduleAccess, positionIds) {
+            openEdit(id, name, roleId, groupId, companyIds, moduleAccess, positionIds, auditAlerts) {
                 this.editUserId = id;
                 this.editUserName = name;
                 this.editName = name;
@@ -59,6 +60,7 @@
                 this.editCompanyIds = (companyIds ?? []).map(String);
                 this.editModuleAccess = moduleAccess || 'all';
                 this.editPositionIds = (positionIds ?? []).map(String);
+                this.editAuditAlerts = !! auditAlerts;
                 this.editOpen = true;
             }
         };
@@ -239,6 +241,18 @@
                                    ? 'El auditor solo tiene acceso al módulo de Procesos.'
                                    : 'Define a qué módulo tendrá acceso. Sin Procesos, en Procesos y Auditorías solo verá Mi espacio.'">
                             </p>
+                            @if(auth()->user()->canAssignProcesosAccess())
+                            {{-- Avisos de auditorías: hallazgos críticos y plazos vencidos (aparte de sus avisos personales) --}}
+                            <input type="hidden" name="receives_audit_alerts" value="0">
+                            <label class="mt-3 flex items-start gap-2 rounded-lg border border-gray-200 px-3 py-2.5 text-sm cursor-pointer">
+                                <input type="checkbox" name="receives_audit_alerts" value="1" x-model="editAuditAlerts"
+                                       class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/40">
+                                <span class="text-gray-700">
+                                    Recibir los avisos de auditorías
+                                    <span class="block text-xs text-gray-400">Hallazgos críticos y plazos vencidos de los hallazgos del grupo.</span>
+                                </span>
+                            </label>
+                            @endif
                         </div>
 
                     </div>
@@ -440,7 +454,7 @@
                                             @php $canManage = auth()->user()->canManageUser($user); @endphp
                                             @if($canManage)
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', @json($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])), '{{ $user->module_access ?? 'all' }}', @json($user->jobPositions->pluck('id')))"
+                                                @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', @json($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])), '{{ $user->module_access ?? 'all' }}', @json($user->jobPositions->pluck('id')), @json((bool) $user->receives_audit_alerts))"
                                                 class="whitespace-nowrap px-3 py-1.5 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                                                 Editar
                                             </button>

@@ -98,6 +98,7 @@ class TwoFactorController extends Controller
 
         $defaultRoute = match (true) {
             $user->isAuditeeOnly()                => route('mi-espacio.home'),
+            $user->isAuditor()                    => route('auditorias.home'),
             $user->module_access === 'procesos'   => route('gestion.home'),
             default                               => route('dashboard'),
         };
