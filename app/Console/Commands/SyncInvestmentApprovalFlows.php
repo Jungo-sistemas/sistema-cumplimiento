@@ -177,6 +177,21 @@ class SyncInvestmentApprovalFlows extends Command
             ? $users->filter(fn (User $u) => strcasecmp($u->email, $name) === 0)
             : $users->filter(fn (User $u) => $this->normalizePerson($u->name) === $this->normalizePerson($name));
 
+        // El archivo puede traer el nombre corto ("Luvia Hernandez") y el usuario el completo
+        // ("Luvia Hernández García"): sirve si todas las palabras del archivo están en el nombre
+        // del usuario y solo hay uno así.
+        if ($matches->isEmpty() && ! str_contains($name, '@')) {
+            $wanted = explode(' ', $this->normalizePerson($name));
+            $partial = $users->filter(fn (User $u) => array_diff($wanted, explode(' ', $this->normalizePerson($u->name))) === []);
+
+            if ($partial->count() === 1) {
+                return $partial->first();
+            }
+            if ($partial->count() > 1) {
+                $warnings[] = "\"{$name}\" coincide con varios usuarios ({$partial->pluck('name')->implode(', ')}); usa su correo en el archivo para elegir uno.";
+            }
+        }
+
         if ($matches->count() > 1) {
             $warnings[] = "Hay {$matches->count()} usuarios llamados \"{$name}\"; usa su correo en el archivo para elegir uno.";
 
