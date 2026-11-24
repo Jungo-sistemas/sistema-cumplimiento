@@ -199,6 +199,7 @@ class UserController extends Controller
     /**
      * Roles que este admin puede asignar: Administrador solo con alcance de grupo (o global);
      * Auditor y Jefe de Auditoría solo si él tiene Procesos (son roles exclusivos de ese módulo).
+     *
      * @return list<string>
      */
     private function assignableRoleSlugs(User $authUser): array
@@ -207,6 +208,7 @@ class UserController extends Controller
             ($authUser->hasGroupScope() || $authUser->isGlobalScope()) ? 'admin' : null,
             'operative',
             'readonly',
+            $authUser->canAssignProcesosAccess() ? 'auditor' : null,
             $authUser->canAssignProcesosAccess() ? 'jefe_auditoria' : null,
         ]));
     }

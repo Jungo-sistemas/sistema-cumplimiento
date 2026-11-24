@@ -92,4 +92,17 @@ class JefeAuditoriaTest extends TestCase
             'name' => 'Jefa Nueva', 'email' => 'jefa@test.mx', 'role_id' => $this->jefeRole->id,
         ])->assertForbidden();
     }
+
+    public function test_el_jefe_se_suma_a_los_roles_de_procesos_sin_quitar_al_auditor(): void
+    {
+        $auditorRole = Role::create(['name' => 'Auditor', 'slug' => 'auditor']);
+        $admin = $this->admin('all');
+
+        $this->actingAs($admin)->get(route('users.create'))
+            ->assertViewHas('roles', fn ($roles) => $roles->contains('slug', 'auditor') && $roles->contains('slug', 'jefe_auditoria'));
+
+        $this->actingAs($admin)->post(route('users.store'), [
+            'name' => 'Auditor Nuevo', 'email' => 'auditor@test.mx', 'role_id' => $auditorRole->id,
+        ])->assertRedirect(route('users.index'));
+    }
 }
