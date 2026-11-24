@@ -15,7 +15,7 @@
             editRole: '',
             editGroup: '',
             editCompanyIds: [],
-            editModuleAccess: 'all',
+            editModules: [],
             editPositionIds: [],
             editAuditAlerts: false,
             companySearch: '',
@@ -54,14 +54,14 @@
             removeCompany(id) {
                 this.editCompanyIds = this.editCompanyIds.filter(x => x !== String(id));
             },
-            openEdit(id, name, roleId, groupId, companyIds, moduleAccess, positionIds, auditAlerts) {
+            openEdit(id, name, roleId, groupId, companyIds, modules, positionIds, auditAlerts) {
                 this.editUserId = id;
                 this.editUserName = name;
                 this.editName = name;
                 this.editRole = String(roleId ?? '');
                 this.editGroup = String(groupId ?? '');
                 this.editCompanyIds = (companyIds ?? []).map(String);
-                this.editModuleAccess = moduleAccess || 'all';
+                this.editModules = [...(modules ?? [])];
                 this.editPositionIds = (positionIds ?? []).map(String);
                 this.editAuditAlerts = !! auditAlerts;
                 this.editOpen = true;
@@ -212,10 +212,6 @@
                         @endif
 
                         {{-- Módulos --}}
-                        @php
-                            $moduleLabels  = ['all' => 'Ambos módulos', 'cumplimiento' => 'Solo Cumplimiento', 'procesos' => 'Solo Procesos'];
-                            $moduleOptions = auth()->user()->assignableModuleAccess();
-                        @endphp
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">
                                 <span x-text="isAuditorEdit ? 'Módulo' : 'Módulos visibles'"></span>
@@ -225,25 +221,16 @@
                                 <div>
                                     <input type="hidden" name="module_access" value="procesos">
                                     <div class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-500">
-                                        Solo Procesos
+                                        Solo Procesos y Auditorías
                                     </div>
                                 </div>
                             </template>
 
                             <template x-if="!isAuditorEdit">
-                                <select name="module_access" x-model="editModuleAccess"
-                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
-                                    @foreach($moduleOptions as $option)
-                                        <option value="{{ $option }}">{{ $moduleLabels[$option] }}</option>
-                                    @endforeach
-                                </select>
+                                <div>
+                                    @include('users.partials.module-checkboxes', ['model' => 'editModules', 'options' => auth()->user()->grantablePortalModules()])
+                                </div>
                             </template>
-
-                            <p class="mt-1 text-xs text-gray-400"
-                               x-text="isAuditorEdit
-                                   ? 'El auditor solo tiene acceso al módulo de Procesos.'
-                                   : 'Define a qué módulo tendrá acceso. Sin Procesos, en Procesos y Auditorías solo verá Mi espacio.'">
-                            </p>
                             @if(auth()->user()->canAssignProcesosAccess())
                             {{-- Avisos de auditorías: hallazgos críticos y plazos vencidos (aparte de sus avisos personales) --}}
                             <input type="hidden" name="receives_audit_alerts" value="0">
@@ -457,7 +444,7 @@
                                             @php $canManage = auth()->user()->canManageUser($user); @endphp
                                             @if($canManage)
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', @json($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])), '{{ $user->module_access ?? 'all' }}', @json($user->jobPositions->pluck('id')), @json((bool) $user->receives_audit_alerts))"
+                                                @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', @json($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])), {{ Js::from($user->portalModules()) }}, @json($user->jobPositions->pluck('id')), @json((bool) $user->receives_audit_alerts))"
                                                 class="whitespace-nowrap px-3 py-1.5 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                                                 Editar
                                             </button>

@@ -120,7 +120,9 @@ class TwoFactorController extends Controller
             $user->isAuditeeOnly()                => route('mi-espacio.home'),
             $user->isAuditor()                    => route('auditorias.home'),
             $user->module_access === 'procesos'   => route('gestion.home'),
-            default                               => route('dashboard'),
+            $user->canEnterPortalModule('regulatorio') => route('dashboard'),
+            // Sin Regulatorio: el primero de sus módulos (p. ej. solo Fiscal → Documentos generales).
+            default => \App\Support\PortalModules::homeUrl($user->portalModules()[0] ?? 'procesos', $user),
         };
 
         return redirect()->intended($defaultRoute);

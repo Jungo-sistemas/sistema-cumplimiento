@@ -1,8 +1,8 @@
 <x-layouts.vigia title="Solicitud de inversión">
 
     @php
-        // Sin Cumplimiento (aprobador "Solo Procesos") no hay listado general: regresa a sus aprobaciones.
-        $backUrl = auth()->user()->isSuperAdmin() || auth()->user()->canAccessModule('cumplimiento')
+        // Sin el módulo Flujos (aprobador "Solo Procesos") no hay listado general: regresa a sus aprobaciones.
+        $backUrl = auth()->user()->canEnterPortalModule('flujos')
             ? route('investment-requests.index')
             : route('investment-requests.my-approvals');
         $backLabel = $backUrl === route('investment-requests.index') ? 'Solicitud de Inversiones' : 'Mis aprobaciones de inversión';

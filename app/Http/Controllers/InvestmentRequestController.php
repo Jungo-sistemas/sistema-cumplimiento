@@ -301,8 +301,8 @@ class InvestmentRequestController extends Controller
             return;
         }
 
-        // Sin Cumplimiento solo entra como aprobador (ver EnsureModuleAccess).
-        abort_unless($user->isSuperAdmin() || $user->canAccessModule('cumplimiento'), 403);
+        // Sin el módulo Flujos solo entra como aprobador (ver EnsureModuleAccess).
+        abort_unless($user->canEnterPortalModule('flujos'), 403);
 
         if ($investmentRequest->company_id !== null) {
             abort_unless($user->canAccessCompany($investmentRequest->company), 403);

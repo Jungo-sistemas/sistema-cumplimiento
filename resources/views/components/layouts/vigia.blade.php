@@ -43,7 +43,7 @@
     // Auditorías con la licencia de Procesos (Auditorías en Mi espacio le queda a todos). Solo se
     // listan los módulos a los que de verdad puede entrar, para que el selector y "Volver a…" no
     // manden a pantallas que luego lo rechazan.
-    $hasCumplimiento = $user?->canAccessModule('cumplimiento') ?? true;
+    $hasFlujos = $user?->canEnterPortalModule('flujos') ?? true;
     $allModules = collect(\App\Support\PortalModules::LABELS)
         ->map(fn ($label, $key) => ['label' => $label, 'url' => \App\Support\PortalModules::homeUrl($key, $user)])
         ->all();
@@ -209,13 +209,13 @@
         ]];
     } elseif ($currentModule === 'flujos') {
         $flujosItems = [];
-        if ($hasCumplimiento) {
+        if ($hasFlujos) {
             $flujosItems[] = $item('Inversiones', 'investment-requests.index', 'cash', request()->routeIs('investment-requests.*') && ! request()->routeIs('investment-requests.my-approvals'));
         }
         if ($isInvestmentApprover) {
             $flujosItems[] = $item('Mis aprobaciones de inversión', 'investment-requests.my-approvals', 'badge', request()->routeIs('investment-requests.my-approvals'), ['badge' => $pendingInvestmentApprovalsCount]);
         }
-        if ($hasCumplimiento) {
+        if ($hasFlujos) {
             $flujosItems[] = $comingSoon('compras');
             $flujosItems[] = $comingSoon('tarjeta-clara');
         }
