@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Mail\TwoFactorCodeMail;
 use App\Models\User;
+use App\Support\TrustedDevice;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -71,10 +73,28 @@ class TwoFactorController extends Controller
             'two_factor_expires_at' => null,
         ]);
 
+        // "Recordar este equipo": no vuelve a pedir el código aquí y la sesión dura esos días.
+        $remember = TrustedDevice::enabled() && $request->boolean('remember_device');
+        if ($remember) {
+            Cookie::queue(TrustedDevice::cookie($user));
+        }
+
+        return self::completeLogin($request, $user, $remember ? TrustedDevice::days() * 24 * 60 : 0);
+    }
+
+    /**
+     * Termina el inicio de sesión (después del código o en un equipo recordado). Con
+     * $rememberMinutes > 0 la sesión se mantiene ese tiempo aunque se cierre el navegador.
+     */
+    public static function completeLogin(Request $request, User $user, int $rememberMinutes = 0): RedirectResponse
+    {
         $request->session()->forget('two_factor_pending_user_id');
         $request->session()->regenerate();
 
-        Auth::loginUsingId($user->id);
+        if ($rememberMinutes > 0) {
+            Auth::guard('web')->setRememberDuration($rememberMinutes);
+        }
+        Auth::loginUsingId($user->id, $rememberMinutes > 0);
 
         $user->increment('login_count');
         $user->update(['last_login_at' => now()]);
