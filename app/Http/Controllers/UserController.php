@@ -173,6 +173,8 @@ class UserController extends Controller
             'scope_level'       => $scopeLevel,
             'module_access'     => $moduleAccess,
             'notification_modules' => $notificationModules,
+            // Solo quien administra Procesos (y Auditorías) designa quién recibe estos avisos.
+            'receives_audit_alerts' => $authUser->canAssignProcesosAccess() && $request->boolean('receives_audit_alerts'),
             'password'          => null,
             'status'            => 'invited',
             'invite_token'      => Str::random(64),
@@ -341,6 +343,11 @@ class UserController extends Controller
             'scope_level'   => $scopeLevel,
             'module_access' => $moduleAccess,
         ]);
+
+        // Avisos de auditorías: solo los cambia quien administra Procesos y si el formulario los trae.
+        if ($authUser->canAssignProcesosAccess() && $request->has('receives_audit_alerts')) {
+            $user->update(['receives_audit_alerts' => $request->boolean('receives_audit_alerts')]);
+        }
 
         $user->companies()->sync($companiesToSync);
 

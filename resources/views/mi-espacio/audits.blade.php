@@ -7,7 +7,7 @@
 
     @include('mi-espacio.partials.header', [
         'title'    => 'Mis auditorías',
-        'subtitle' => 'El mes y la fecha de tus auditorías. Prepara tus evidencias con el checklist del proceso.',
+        'subtitle' => 'La fecha de tus auditorías. Prepara tus evidencias con el checklist del proceso.',
     ])
 
     @include('mi-espacio.partials.tabs', [
@@ -20,15 +20,6 @@
         @include('mi-espacio.partials.company-filter', ['selectedCompanyId' => request()->integer('company_id') ?: null])
         <input type="search" name="q" value="{{ request('q') }}" placeholder="Buscar por código o nombre del proceso..."
                class="h-14 w-full rounded-xl border-gray-200 px-4 text-[15px] focus:border-brand focus:ring-brand">
-        @if($tab === 'activas')
-            <select name="estado" onchange="this.form.submit()"
-                    class="h-14 shrink-0 rounded-xl border-gray-200 pr-10 text-[15px] focus:border-brand focus:ring-brand sm:w-72">
-                <option value="">Todas</option>
-                @foreach(['sin_fecha' => 'Sin fecha todavía', 'con_fecha' => 'Con fecha'] as $value => $label)
-                    <option value="{{ $value }}" @selected(request('estado') === $value)>{{ $label }}</option>
-                @endforeach
-            </select>
-        @endif
     </form>
 
     @if($audits->isEmpty())
@@ -38,10 +29,10 @@
                     <x-icon name="check" class="h-5 w-5" />
                 </span>
                 <p class="mt-4 text-[15px] text-gray-600">
-                    {{ $tab === 'activas' ? 'No tienes auditorías este mes.' : 'Todavía no tienes auditorías realizadas.' }}
+                    {{ $tab === 'activas' ? 'No tienes auditorías próximas.' : 'Todavía no tienes auditorías realizadas.' }}
                 </p>
                 @if($tab === 'activas')
-                    <p class="mt-1 text-sm text-gray-500">Cuando empiece el mes de tu próxima auditoría te llegará un aviso.</p>
+                    <p class="mt-1 text-sm text-gray-500">Te llegará un aviso {{ \App\Models\Audit::noticeDays() }} días antes de la fecha que fije el auditor.</p>
                 @endif
             </div>
         </div>
@@ -80,18 +71,12 @@
                         </div>
 
                         <div class="shrink-0 md:text-right">
-                            @if($audit->status === \App\Models\Audit::STATUS_PLANNED && $audit->scheduled_at)
+                            @if($audit->status === \App\Models\Audit::STATUS_PLANNED)
                                 <span class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                                    <span class="h-2 w-2 rounded-full bg-green-500"></span>Fecha acordada
+                                    <span class="h-2 w-2 rounded-full bg-green-500"></span>Programada
                                 </span>
-                                <p class="mt-2 text-lg font-bold text-gray-900">{{ $audit->scheduledLabel() }}</p>
+                                <p class="mt-2 text-lg font-bold text-gray-900">{{ $audit->scheduledLabel() ?? ucfirst($audit->plannedMonthLabel()) }}</p>
                                 <p class="text-xs text-gray-500">En vivo por Teams</p>
-                            @elseif($audit->status === \App\Models\Audit::STATUS_PLANNED)
-                                <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                                    <span class="h-2 w-2 rounded-full bg-amber-400"></span>Programada
-                                </span>
-                                <p class="mt-2 text-lg font-bold text-gray-900">{{ ucfirst($audit->plannedMonthLabel()) }}</p>
-                                <p class="text-xs text-gray-500">El auditor acordará contigo el día y la hora</p>
                             @elseif($audit->status === \App\Models\Audit::STATUS_COMPLETED)
                                 <span class="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand">
                                     <span class="h-2 w-2 rounded-full bg-brand"></span>Realizada
@@ -104,7 +89,7 @@
                                 <span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-500">
                                     <span class="h-2 w-2 rounded-full bg-gray-400"></span>Cancelada
                                 </span>
-                                <p class="mt-2 text-sm text-gray-500">{{ ucfirst($audit->plannedMonthLabel()) }}</p>
+                                <p class="mt-2 text-sm text-gray-500">{{ $audit->scheduledLabel() ?? ucfirst($audit->plannedMonthLabel()) }}</p>
                             @endif
                         </div>
                     </div>

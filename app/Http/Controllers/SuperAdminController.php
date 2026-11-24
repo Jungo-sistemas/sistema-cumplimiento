@@ -363,6 +363,10 @@ class SuperAdminController extends Controller
             'notification_modules' => $notificationModules,
         ]);
 
+        if ($request->has('receives_audit_alerts')) {
+            $user->update(['receives_audit_alerts' => $request->boolean('receives_audit_alerts')]);
+        }
+
         $user->companies()->sync($companiesToSync);
 
         $positionIds = array_filter((array) $request->input('job_position_ids', []));

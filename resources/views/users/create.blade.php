@@ -354,6 +354,18 @@
                         <span class="block text-xs text-gray-400">Solicitudes de acceso, escalamientos y avisos a administradores. Sus avisos personales le llegan siempre.</span>
                     </span>
                 </label>
+
+                @if(auth()->user()->canAssignProcesosAccess())
+                    {{-- Avisos de auditorías: hallazgos críticos y plazos vencidos (aparte de sus avisos personales) --}}
+                    <label class="mt-3 flex items-start gap-2 rounded-lg border border-gray-200 px-3 py-2.5 text-sm cursor-pointer">
+                        <input type="checkbox" name="receives_audit_alerts" value="1" @checked(old('receives_audit_alerts'))
+                               class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/40">
+                        <span class="text-gray-700">
+                            Recibir los avisos de auditorías
+                            <span class="block text-xs text-gray-400">Hallazgos críticos y plazos vencidos de los hallazgos del grupo.</span>
+                        </span>
+                    </label>
+                @endif
             </div>
 
             <div class="flex justify-end gap-3 pt-2">

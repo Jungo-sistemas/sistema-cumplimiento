@@ -1,3 +1,4 @@
+@use('App\Http\Controllers\AuditorController')
 <x-layouts.vigia title="Resultado · Auditorías">
     <x-slot name="breadcrumb">
         <a href="{{ route('auditorias.audits.index', ['tab' => 'finalizadas']) }}" class="hover:underline">Auditorías</a>
@@ -6,82 +7,16 @@
     </x-slot>
 
     @php
-        // Datos de ejemplo para la demo: las auditorías finalizadas, con el mismo número (id) que usa la lista.
-        $auditorias = [
-            3 => [
-                'procedimiento' => 'Manejo de residuos peligrosos', 'auditado' => 'Ana Torres', 'fecha' => '28 ago 2026',
-                'criterios' => [
-                    ['texto' => 'El auditado conoce sus procedimientos y sabe dónde consultarlos.', 'resultado' => 'cumple', 'observacion' => 'Explicó el procedimiento y mostró dónde lo consulta.'],
-                    ['texto' => 'Los contenedores están identificados con su etiqueta.',     'resultado' => 'no_cumple', 'observacion' => 'Dos contenedores del almacén no tienen etiqueta de identificación.'],
-                    ['texto' => 'El almacén temporal cuenta con bitácora de entradas.',      'resultado' => 'parcial', 'observacion' => 'La bitácora existe, pero le faltan las entradas del fin de semana.'],
-                    ['texto' => 'El manifiesto de entrega está firmado por el transportista.', 'resultado' => 'cumple', 'observacion' => 'El manifiesto mostrado está completo y firmado.'],
-                ],
-                'hallazgos' => [
-                    ['codigo' => 'HAL-004', 'titulo' => 'Contenedores de residuos sin etiqueta', 'empresa' => 'Asesorías Daval', 'responsable' => 'Ana Torres', 'severidad' => 'No crítico', 'seguimiento' => 'Rechazada', 'compromiso' => '2026-09-10'],
-                ],
-                'participantes' => [
-                    ['nombre' => auth()->user()->name, 'puesto' => 'Auditor',           'equipo' => 'auditor',  'asistio' => true],
-                    ['nombre' => 'Ana Torres',          'puesto' => 'Responsable del proceso', 'equipo' => 'auditado', 'asistio' => true],
-                    ['nombre' => 'Mariana Garza',       'puesto' => 'Supervisor de turno',     'equipo' => 'auditado', 'asistio' => false],
-                ],
-                // Comillas dobles para que "\n" sea un salto de línea, como cuando el auditor da Enter.
-                'conclusiones' => "El almacén de residuos se opera con orden y el manifiesto de entrega está completo.\nHay que etiquetar los dos contenedores del almacén y completar la bitácora con las entradas del fin de semana. Se acordó con Ana Torres revisarlo en la siguiente visita.",
-            ],
-            4 => [
-                'procedimiento' => 'Control de documentos', 'auditado' => 'Luis Herrera', 'fecha' => '20 ago 2026',
-                'criterios' => [
-                    ['texto' => 'El auditado conoce sus procedimientos y sabe dónde consultarlos.', 'resultado' => 'cumple', 'observacion' => 'Explicó el procedimiento y mostró dónde lo consulta.'],
-                    ['texto' => 'Los documentos en planta están en su versión vigente.', 'resultado' => 'cumple', 'observacion' => 'Las versiones en planta coinciden con el sistema.'],
-                    ['texto' => 'Los cambios tienen registro de aprobación.',            'resultado' => 'cumple', 'observacion' => 'Cada cambio revisado tiene su aprobación.'],
-                    ['texto' => 'Los documentos obsoletos están retirados del área.',    'resultado' => 'no_aplica', 'observacion' => 'El área ya no maneja copias impresas.'],
-                ],
-                'hallazgos' => [],
-                'participantes' => [
-                    ['nombre' => auth()->user()->name, 'puesto' => 'Auditor',           'equipo' => 'auditor',  'asistio' => true],
-                    ['nombre' => 'Luis Herrera',        'puesto' => 'Responsable del proceso', 'equipo' => 'auditado', 'asistio' => true],
-                    ['nombre' => 'Sofía Ramírez',       'puesto' => 'Encargada de documentos', 'equipo' => 'auditado', 'asistio' => true],
-                ],
-                'conclusiones' => '',
-            ],
-        ];
-
-        // $audit es el número que viene en la dirección (/auditorias/3/resultado). Si no existe: 404.
-        abort_unless(isset($auditorias[$audit]), 404);
-        $auditoria = $auditorias[$audit];
-
-        // La calificación final es el promedio de los criterios evaluados ("No aplica" no cuenta);
-        // lo que hay que corregir son los "No cumple" y los "Parcial".
-        // Cada criterio vale lo que diga su resultado (config/auditorias.php); "No aplica" se queda sin valor (null).
-        $ponderaciones   = config('auditorias.ponderaciones');
-        $criterios       = collect($auditoria['criterios'])
-            ->map(fn ($criterio) => $criterio + ['calificacion' => $ponderaciones[$criterio['resultado']] ?? null]);
-        $calificacion    = round($criterios->where('resultado', '!=', 'no_aplica')->avg('calificacion'));
-        $incumplimientos = $criterios->whereIn('resultado', ['no_cumple', 'parcial']);
-        $asistieron      = collect($auditoria['participantes'])->where('asistio', true)->count();
-
-        // Etiqueta y color de cada resultado del checklist.
+        $procedimiento = trim(($audit->regulation?->code ? $audit->regulation->code . ' · ' : '') . ($audit->regulation?->name ?? ''));
+        $incumplimientos = $items->filter(fn ($item) => in_array($item->result, \App\Models\AuditChecklistItem::NEEDS_FINDING, true));
+        $asistieron = collect($people)->filter(fn ($p) => in_array($p['id'], $audit->attendeeIds(), true))->count();
         $resultados = [
-            'cumple'    => ['texto' => 'Cumple',    'color' => 'bg-gray-100 text-gray-700'],
-            'parcial'   => ['texto' => 'Parcial',   'color' => 'bg-amber-50 text-amber-700'],
-            'no_cumple' => ['texto' => 'No cumple', 'color' => 'bg-red-50 text-red-700'],
-            'no_aplica' => ['texto' => 'No aplica', 'color' => 'border border-gray-200 bg-white text-gray-500'],
+            'cumple'    => 'bg-gray-100 text-gray-700',
+            'parcial'   => 'bg-amber-50 text-amber-700',
+            'no_cumple' => 'bg-red-50 text-red-700',
+            'no_aplica' => 'border border-gray-200 bg-white text-gray-500',
         ];
-
-        // Mismos colores de clasificación que la lista de Hallazgos.
-        $severidades = [
-            'Crítico'    => 'bg-red-50 text-red-700',
-            'No crítico' => 'bg-gray-100 text-gray-700',
-        ];
-
-        // La ventana de detalle usa los dos para pintar sus etiquetas (los mismos de la lista de Hallazgos).
-        $seguimientos = [
-            'Con el auditado'        => 'bg-amber-50 text-amber-700',
-            'Causa raíz por revisar' => 'bg-brand-50 text-brand',
-            'Rechazada'              => 'bg-red-50 text-red-700',
-            'Sin cargar'             => 'bg-amber-50 text-amber-700',
-            'Evidencia por revisar'  => 'bg-brand-50 text-brand',
-            'Cerrado'                => 'bg-green-50 text-green-700',
-        ];
+        $severidades = AuditorController::SEVERITY_COLORS;
     @endphp
 
     <div class="mb-4 flex items-center justify-between gap-4">
@@ -91,14 +26,13 @@
 
     @include('mi-espacio.partials.header', [
         'title'    => 'Resultado de auditoría',
-        'subtitle' => $auditoria['procedimiento'] . ' · ' . $auditoria['auditado'] . ' · ' . $auditoria['fecha'],
+        'subtitle' => $procedimiento . ' · ' . $audit->auditees->pluck('name')->join(', ') . ' · ' . $audit->shortDateLabel(),
     ])
 
-    {{-- Tarjetas resumen --}}
     <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
         <div class="rounded-2xl border border-gray-200 bg-white p-6">
             <div class="text-sm text-gray-600">Calificación final</div>
-            <div class="mt-2 text-3xl font-extrabold text-brand-ink">{{ $calificacion }} / 100</div>
+            <div class="mt-2 text-3xl font-extrabold text-brand-ink">{{ $audit->result ?? '—' }}</div>
         </div>
         <div class="rounded-2xl border border-gray-200 bg-white p-6">
             <div class="text-sm text-gray-600">Criterios con incumplimientos</div>
@@ -106,43 +40,43 @@
         </div>
         <div class="rounded-2xl border border-gray-200 bg-white p-6">
             <div class="text-sm text-gray-600">Auditor</div>
-            <div class="mt-2 text-xl font-bold text-brand-ink">{{ auth()->user()->name }}</div>
+            <div class="mt-2 text-xl font-bold text-brand-ink">{{ $audit->auditor?->name ?? '—' }}</div>
         </div>
     </div>
 
-    {{-- Qué necesitas corregir: solo los criterios "No cumple" --}}
     <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
-        <h2 class="text-lg font-semibold text-gray-900">Qué necesitas corregir</h2>
+        <h2 class="text-lg font-semibold text-gray-900">Qué hay que corregir</h2>
 
         <div class="mt-3 divide-y divide-gray-200">
             @forelse($incumplimientos as $i => $criterio)
                 <div class="flex flex-wrap items-start justify-between gap-4 py-5">
                     <div>
-                        <div class="font-semibold text-gray-900">{{ $i + 1 }}. {{ $criterio['texto'] }}</div>
-                        <p class="mt-1 text-[15px] text-gray-700">{{ $criterio['observacion'] }}</p>
-                        <p class="mt-3 text-sm text-gray-500">Calificación del criterio: {{ $criterio['calificacion'] }} / 100</p>
+                        <div class="font-semibold text-gray-900">{{ $i + 1 }}. {{ $criterio->text }}</div>
+                        @if($criterio->observations)
+                            <p class="mt-1 whitespace-pre-line text-[15px] text-gray-700">{{ $criterio->observations }}</p>
+                        @endif
+                        <p class="mt-3 text-sm text-gray-500">Calificación del criterio: {{ $criterio->points() }} / 100</p>
                     </div>
-                    <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $resultados[$criterio['resultado']]['color'] }}">{{ $resultados[$criterio['resultado']]['texto'] }}</span>
+                    <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $resultados[$criterio->result] }}">{{ $criterio->resultLabel() }}</span>
                 </div>
             @empty
-                <p class="py-5 text-[15px] text-gray-600">El auditor no marcó criterios como Parcial o No cumple.</p>
+                <p class="py-5 text-[15px] text-gray-600">No hubo criterios con Parcial o No cumple.</p>
             @endforelse
         </div>
     </div>
 
-    {{-- Hallazgos que el auditor registró en esta auditoría --}}
     <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
-        <h2 class="text-lg font-semibold text-gray-900">Hallazgos registrados por el auditor</h2>
+        <h2 class="text-lg font-semibold text-gray-900">Hallazgos registrados</h2>
 
         <div class="mt-3 divide-y divide-gray-200">
-            @forelse($auditoria['hallazgos'] as $hallazgo)
+            @forelse($findings as $hallazgo)
                 <div class="flex flex-wrap items-center justify-between gap-4 py-5">
                     <div>
                         <div class="font-semibold text-gray-900">{{ $hallazgo['titulo'] }}</div>
-                        <p class="mt-1 text-sm text-gray-500">{{ $hallazgo['codigo'] }} · {{ $hallazgo['seguimiento'] }}</p>
+                        <p class="mt-1 text-sm text-gray-500">{{ $hallazgo['codigo'] }} · {{ $hallazgo['responsable'] }} · {{ $hallazgo['seguimiento'] }}</p>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $severidades[$hallazgo['severidad']] }}">{{ $hallazgo['severidad'] }}</span>
+                        <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $severidades[$hallazgo['severidad']] ?? 'bg-gray-100 text-gray-700' }}">{{ $hallazgo['severidad'] }}</span>
                         <button type="button" @click="$dispatch('abrir-hallazgo', @js($hallazgo))"
                             class="whitespace-nowrap rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">Ver hallazgo</button>
                     </div>
@@ -153,63 +87,70 @@
         </div>
     </div>
 
-    {{-- Conclusiones generales que el auditor escribió al final del checklist. Si no escribió nada, no se muestra. --}}
-    @if(filled($auditoria['conclusiones']))
+    @if(filled($audit->conclusions))
         <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
             <h2 class="text-lg font-semibold text-gray-900">Conclusiones del auditor</h2>
-            <p class="mt-3 whitespace-pre-line text-[15px] text-gray-700">{{ $auditoria['conclusiones'] }}</p>
+            <p class="mt-3 whitespace-pre-line text-[15px] text-gray-700">{{ $audit->conclusions }}</p>
         </div>
     @endif
 
-    {{-- Quiénes asistieron a la llamada de la auditoría --}}
     <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <h2 class="text-lg font-semibold text-gray-900">Lista de asistencia</h2>
-            <span class="text-sm font-semibold text-brand">{{ $asistieron }} de {{ count($auditoria['participantes']) }} asistieron</span>
+            <span class="text-sm font-semibold text-brand">{{ $asistieron }} de {{ count($people) }} asistieron</span>
         </div>
 
         <div class="mt-3 divide-y divide-gray-200">
-            @foreach($auditoria['participantes'] as $participante)
+            @foreach($people as $participante)
+                @php $asistio = in_array($participante['id'], $audit->attendeeIds(), true); @endphp
                 <div class="flex flex-wrap items-center justify-between gap-4 py-4">
                     <div>
                         <div class="font-semibold text-gray-900">{{ $participante['nombre'] }}</div>
                         <p class="mt-1 text-sm text-gray-500">{{ $participante['puesto'] }} · Equipo {{ $participante['equipo'] }}</p>
                     </div>
-                    <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $participante['asistio'] ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600' }}">{{ $participante['asistio'] ? 'Asistió' : 'No asistió' }}</span>
+                    <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $asistio ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600' }}">{{ $asistio ? 'Asistió' : 'No asistió' }}</span>
                 </div>
             @endforeach
         </div>
     </div>
 
-    {{-- Evaluación completa: se abre y se cierra con un clic --}}
-    <details class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
-        <summary class="cursor-pointer text-base font-semibold text-brand">Consultar evaluación completa</summary>
+    @if($items->isNotEmpty())
+        <details class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
+            <summary class="cursor-pointer text-base font-semibold text-brand">Consultar evaluación completa</summary>
 
-        <div class="mt-4 overflow-x-auto rounded-xl border border-gray-200">
-            <table class="w-full text-left text-sm">
-                <thead class="bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-500">
-                    <tr>
-                        <th class="px-4 py-4">Criterio</th>
-                        <th class="px-4 py-4">Resultado</th>
-                        <th class="px-4 py-4 text-right">Calificación</th>
-                        <th class="px-4 py-4">Observación del auditor</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y">
-                    @foreach($criterios as $criterio)
+            <div class="mt-4 overflow-x-auto rounded-xl border border-gray-200">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-500">
                         <tr>
-                            <td class="px-4 py-4 text-gray-900">{{ $criterio['texto'] }}</td>
-                            <td class="px-4 py-4">
-                                <span class="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold {{ $resultados[$criterio['resultado']]['color'] }}">{{ $resultados[$criterio['resultado']]['texto'] }}</span>
-                            </td>
-                            <td class="px-4 py-4 text-right text-gray-900">{{ $criterio['calificacion'] ?? '—' }}</td>
-                            <td class="px-4 py-4 text-gray-700">{{ $criterio['observacion'] }}</td>
+                            <th class="px-4 py-4">Criterio</th>
+                            <th class="px-4 py-4">Resultado</th>
+                            <th class="px-4 py-4 text-right">Calificación</th>
+                            <th class="px-4 py-4">Observación del auditor</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </details>
+                    </thead>
+                    <tbody class="divide-y">
+                        @foreach($items as $criterio)
+                            <tr>
+                                <td class="px-4 py-4 text-gray-900">
+                                    {{ $criterio->text }}
+                                    @foreach($criterio->files as $file)
+                                        <a href="{{ route('auditorias.support.download', $file) }}" class="mt-1 block text-xs font-semibold text-brand hover:underline">{{ $file->original_name }}</a>
+                                    @endforeach
+                                </td>
+                                <td class="px-4 py-4">
+                                    @if($criterio->result)
+                                        <span class="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold {{ $resultados[$criterio->result] }}">{{ $criterio->resultLabel() }}</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-4 text-right text-gray-900">{{ $criterio->points() ?? '—' }}</td>
+                                <td class="px-4 py-4 whitespace-pre-line text-gray-700">{{ $criterio->observations }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    @endif
 
     @include('auditorias.partials.finding-detail-modal')
 </x-layouts.vigia>

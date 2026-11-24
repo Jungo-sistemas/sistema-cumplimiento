@@ -22,6 +22,7 @@ class User extends Authenticatable
         'role_id',
         'module_access',
         'notification_modules',
+        'receives_audit_alerts',
         'status',
         'login_count',
         'last_login_at',
@@ -58,6 +59,14 @@ class User extends Authenticatable
                 ->map(fn ($r) => $r->code ?: $r->name)
                 ->all();
         });
+
+        // El auditor solo trabaja en Procesos y Auditorías: se guarda así para que Usuarios lo muestre bien.
+        static::saving(function (User $user) {
+            if ($user->role_id && $user->isDirty(['role_id', 'module_access'])
+                && Role::whereKey($user->role_id)->value('slug') === 'auditor') {
+                $user->module_access = 'procesos';
+            }
+        });
     }
 
     /** Mensaje de éxito al eliminar, mencionando los flujos reiniciados si hubo. */
@@ -83,8 +92,21 @@ class User extends Authenticatable
             'two_factor_expires_at'  => 'datetime',
             'last_login_at'          => 'datetime',
             'procesos_guide_completed_at' => 'datetime',
+            'receives_audit_alerts'  => 'boolean',
             'password'               => 'hashed',
         ];
+    }
+
+    /**
+     * Quienes reciben los avisos de auditorías del grupo: hallazgos críticos y plazos vencidos. Es
+     * una opción por persona en Usuarios (receives_audit_alerts), aparte de sus avisos personales.
+     */
+    public static function auditAlertRecipients(int $groupId): \Illuminate\Support\Collection
+    {
+        return static::where('group_id', $groupId)
+            ->where('status', 'active')
+            ->where('receives_audit_alerts', true)
+            ->get();
     }
 
     public function company()
@@ -252,12 +274,16 @@ class User extends Authenticatable
 
     public function canAccessModule(string $module): bool
     {
-        $access = $this->module_access ?? 'all';
-        return $access === 'all' || $access === $module;
+        return in_array($module, $this->accessibleModules(), true);
     }
 
+    /** El auditor solo trabaja en Procesos y Auditorías, tenga lo que tenga en module_access. */
     public function accessibleModules(): array
     {
+        if ($this->isAuditor()) {
+            return ['procesos'];
+        }
+
         $access = $this->module_access ?? 'all';
         return $access === 'all' ? ['cumplimiento', 'procesos'] : [$access];
     }

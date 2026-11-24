@@ -2,41 +2,106 @@
 
 namespace Tests\Feature;
 
+use App\Models\Audit;
+use App\Models\AuditChecklistItem;
+use App\Models\AuditFinding;
+use App\Models\Company;
 use App\Models\Group;
+use App\Models\ProcessType;
+use App\Models\Regulation;
 use App\Models\Role;
 use App\Models\User;
+use App\Notifications\AuditFindingAssignedNotification;
+use App\Services\AuditFindingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
- * Vista del auditor (Gestión de Auditorías). Por ahora las pantallas usan datos de ejemplo;
- * estas pruebas cuidan que carguen y que los cálculos sigan dando lo mismo.
+ * Vista del auditor (menú Auditorías) con datos reales: programar, checklist, resultado y hallazgos.
+ * El recorrido completo junto con el auditado está en AuditWorkflowEndToEndTest.
  */
 class AuditorViewTest extends TestCase
 {
     use RefreshDatabase;
 
+    private Group $group;
+    private Company $company;
     private User $auditor;
+    private User $ana;
+    private User $luis;
+    private Regulation $regulation;
 
     protected function setUp(): void
     {
         parent::setUp();
+        Notification::fake();
+        Storage::fake('private');
+        $this->travelTo(Carbon::create(2026, 11, 17, 10, 0));
 
-        $group = Group::create(['name' => 'Test', 'slug' => 'test', 'is_active' => true]);
+        $this->group = Group::create(['name' => 'Test', 'slug' => 'test', 'is_active' => true]);
+        $this->company = Company::create(['name' => 'ALCOM', 'group_id' => $this->group->id]);
 
-        $this->auditor = User::factory()->create([
-            'name' => 'Daniel Ruiz', 'group_id' => $group->id, 'scope_level' => 'group', 'status' => 'active',
-            'role_id' => Role::create(['name' => 'Auditor', 'slug' => 'auditor'])->id,
+        $this->auditor = $this->user('Daniel Ruiz', 'auditor');
+        $this->ana = $this->user('Ana Torres', 'operative');
+        $this->luis = $this->user('Luis Ramos', 'operative');
+
+        $type = ProcessType::create(['group_id' => $this->group->id, 'name' => 'Operaciones', 'is_active' => true]);
+        $this->regulation = Regulation::create([
+            'group_id' => $this->group->id, 'company_id' => $this->company->id, 'process_type_id' => $type->id,
+            'code' => 'ALC-300', 'name' => 'Carga de autotanques', 'is_active' => true, 'approval_status' => 'approved',
         ]);
+    }
+
+    private function user(string $name, string $slug): User
+    {
+        return User::factory()->create([
+            'name' => $name, 'group_id' => $this->group->id, 'company_id' => $this->company->id,
+            'scope_level' => 'group', 'status' => 'active',
+            'role_id' => Role::firstOrCreate(['slug' => $slug], ['name' => ucfirst($slug)])->id,
+        ]);
+    }
+
+    private function audit(array $attributes = []): Audit
+    {
+        $audit = Audit::create($attributes + [
+            'group_id' => $this->group->id, 'company_id' => $this->company->id, 'regulation_id' => $this->regulation->id,
+            'auditor_id' => $this->auditor->id, 'planned_for' => '2026-11-01', 'scheduled_at' => '2026-11-17 09:00:00',
+        ]);
+        $audit->auditees()->attach([$this->ana->id, $this->luis->id]);
+
+        return $audit;
+    }
+
+    /** Abre el checklist (crea sus criterios) y regresa los criterios. */
+    private function openChecklist(Audit $audit)
+    {
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))->assertOk();
+
+        return $audit->checklistItems()->get();
+    }
+
+    private function finding(array $extra = []): array
+    {
+        return $extra + ['titulo' => 'Bitácora sin firma', 'descripcion' => 'Falta la firma.', 'severidad' => 'no_critico', 'responsable_id' => $this->ana->id];
     }
 
     public function test_todas_las_pantallas_del_auditor_cargan(): void
     {
+        $captura = $this->audit();
+        $programada = $this->audit(['scheduled_at' => '2026-11-25 10:00:00']);
+        $sinFecha = $this->audit(['scheduled_at' => null]);
+        $finalizada = $this->audit(['status' => Audit::STATUS_COMPLETED, 'completed_at' => now(), 'result' => '80 / 100', 'score' => 80]);
+        app(AuditFindingService::class)->register($finalizada, $this->ana, 'Hallazgo de prueba', 'Detalle');
+
         foreach ([
             route('auditorias.home'),
             route('auditorias.audits.index'), route('auditorias.audits.index', ['tab' => 'finalizadas']),
-            route('auditorias.audits.checklist', 1), route('auditorias.audits.checklist', 2),
-            route('auditorias.audits.result', 3), route('auditorias.audits.result', 4),
+            route('auditorias.audits.checklist', $captura), route('auditorias.audits.checklist', $programada),
+            route('auditorias.audits.checklist', $sinFecha), route('auditorias.audits.result', $finalizada),
             route('auditorias.findings.index'), route('auditorias.findings.index', ['tab' => 'causas']),
             route('auditorias.findings.index', ['tab' => 'evidencias']),
             route('auditorias.help'),
@@ -49,349 +114,239 @@ class AuditorViewTest extends TestCase
 
     public function test_el_auditor_entra_a_su_inicio_de_auditorias(): void
     {
-        // El Inicio de Gestión (procesos liberados, por aprobar, por vencer) es para admins y operativos.
         $this->actingAs($this->auditor)->get(route('gestion.home'))->assertRedirect(route('auditorias.home'));
-
-        // En el menú, "Inicio" lleva al Inicio de Auditorías.
         $this->actingAs($this->auditor)->get(route('auditorias.audits.index'))
             ->assertSee('href="' . route('auditorias.home') . '"', false);
     }
 
-    public function test_solo_auditores_y_admins_entran_a_auditorias(): void
+    public function test_el_auditor_no_entra_a_cumplimiento_aunque_tenga_todas_las_areas(): void
     {
-        // Mismo grupo que el auditor, otro rol.
-        $conRol = fn (string $slug): User => User::factory()->create([
-            'group_id' => $this->auditor->group_id, 'scope_level' => 'group', 'status' => 'active',
-            'role_id' => Role::create(['name' => ucfirst($slug), 'slug' => $slug])->id,
-        ]);
+        $this->auditor->forceFill(['module_access' => 'all'])->saveQuietly(); // dato viejo
+        $this->assertSame(['procesos'], $this->auditor->fresh()->accessibleModules());
 
-        // Un operativo que escribe la dirección a mano no entra.
-        $this->actingAs($conRol('operative'))->get(route('auditorias.audits.checklist', 1))->assertForbidden();
+        $this->actingAs($this->auditor)->get(route('dashboard'))->assertRedirect();
+        $this->actingAs($this->auditor)->get(route('assets.index'))->assertRedirect();
+        $this->actingAs($this->auditor)->get(route('auditorias.home'))
+            ->assertOk()->assertDontSee('href="' . route('dashboard') . '"', false);
 
-        // Un admin sí entra.
-        $this->actingAs($conRol('admin'))->get(route('auditorias.audits.checklist', 1))->assertOk();
+        // Al guardarlo (alta o edición en Usuarios) queda como solo Procesos.
+        $this->auditor->update(['module_access' => 'cumplimiento']);
+        $this->assertSame('procesos', $this->auditor->fresh()->module_access);
+    }
+
+    public function test_al_iniciar_sesion_el_auditor_llega_a_auditorias(): void
+    {
+        $this->auditor->update(['two_factor_code' => \Illuminate\Support\Facades\Hash::make('123456'), 'two_factor_expires_at' => now()->addMinutes(10)]);
+
+        $this->withSession(['two_factor_pending_user_id' => $this->auditor->id])
+            ->post(route('two-factor.store'), ['code' => '123456'])
+            ->assertRedirect(route('auditorias.home'));
+    }
+
+    public function test_solo_auditores_y_admins_entran_y_cada_auditor_ve_las_suyas(): void
+    {
+        $audit = $this->audit();
+        $otroAuditor = $this->user('Otro Auditor', 'auditor');
+        $admin = $this->user('Alma Admin', 'admin');
+
+        $this->actingAs($this->ana)->get(route('auditorias.audits.checklist', $audit))->assertForbidden();
+        $this->actingAs($otroAuditor)->get(route('auditorias.audits.checklist', $audit))->assertForbidden();
+        $this->actingAs($otroAuditor)->get(route('auditorias.audits.index'))->assertDontSee('Ana Torres, Luis Ramos');
+        $this->actingAs($admin)->get(route('auditorias.audits.checklist', $audit))->assertOk()->assertSee('Solo el auditor asignado');
+        $this->actingAs($admin)->postJson(route('auditorias.audits.checklist.save', $audit), [])->assertForbidden();
     }
 
     public function test_una_auditoria_que_no_existe_da_404(): void
     {
         $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 99))->assertNotFound();
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 1))->assertNotFound();
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 99))->assertNotFound();
     }
 
-    public function test_el_resultado_calcula_la_calificacion_final(): void
+    public function test_programar_auditoria_y_nadie_se_audita_a_si_mismo(): void
     {
-        // Auditoría 3: Cumple 100 + No cumple 0 + Parcial 50 + Cumple 100 = 250, entre 4 = 62.5, redondeado 63.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))->assertSee('50 / 100');
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 4))->assertSee('100 / 100');
+        $this->actingAs($this->auditor)->post(route('auditorias.audits.store'), [
+            'regulation_id' => $this->regulation->id, 'auditees' => [$this->auditor->id],
+        ])->assertSessionHasErrors('auditees');
+
+        $this->actingAs($this->auditor)->post(route('auditorias.audits.store'), [
+            'regulation_id' => $this->regulation->id, 'auditees' => [$this->ana->id], 'fecha' => '2026-11-16', 'hora' => '10:00',
+        ])->assertSessionHasErrors('fecha'); // ya pasó
+
+        $this->actingAs($this->auditor)->post(route('auditorias.audits.store'), [
+            'regulation_id' => $this->regulation->id, 'auditees' => [$this->ana->id],
+        ])->assertSessionHas('success');
+
+        $audit = Audit::sole();
+        $this->assertNull($audit->scheduled_at);
+        $this->assertSame(Audit::STAGE_UNSCHEDULED, $audit->auditorStage());
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.index'))->assertSee('Sin fecha')->assertSee('Poner fecha');
     }
 
-    public function test_el_auditor_no_escribe_la_calificacion(): void
+    public function test_el_admin_elige_al_auditor(): void
     {
-        // En el checklist ya no hay dónde escribirla. El "Valor del criterio" está oculto (pendiente con la cliente).
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))
-            ->assertDontSee('Calificación · 0 a 100')
-            ->assertDontSee('Valor del criterio');
+        $admin = $this->user('Alma Admin', 'admin');
 
-        // En el Resultado, el Parcial vale 50 aunque nadie lo haya escrito.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))
-            ->assertSeeInOrder(['El almacén temporal cuenta con bitácora de entradas.', 'Calificación del criterio: 50 / 100', 'Parcial']);
+        $this->actingAs($admin)->post(route('auditorias.audits.store'), [
+            'regulation_id' => $this->regulation->id, 'auditees' => [$this->ana->id], 'auditor_id' => $this->auditor->id,
+        ])->assertSessionHas('success');
+
+        $this->assertSame($this->auditor->id, Audit::sole()->auditor_id);
     }
 
     public function test_solo_la_auditoria_en_captura_se_puede_llenar(): void
     {
-        // Auditoría 1 está "En captura": trae los soportes, el botón de hallazgos y la ventana.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))
-            ->assertSee('Soporte de la revisión (opcional)')
-            ->assertSee('Registrar hallazgo')
-            ->assertSee('Conclusiones de la auditoría');
+        $programada = $this->audit(['scheduled_at' => '2026-11-25 10:00:00']);
 
-        // Auditoría 2 está "Programada": se consulta, pero no se captura.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 2))
-            ->assertDontSee('Soporte de la revisión (opcional)')
-            ->assertDontSee('Registrar hallazgo')
-            ->assertSee('Conclusiones de la auditoría');
-    }
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $programada))
+            ->assertOk()->assertSee('Programada')->assertDontSee('Guardar avance')->assertDontSee('Registrar hallazgo');
+        $this->actingAs($this->auditor)->postJson(route('auditorias.audits.checklist.save', $programada), [])->assertStatus(422);
 
-    public function test_el_soporte_de_la_revision_se_adjunta_con_archivos_o_con_una_foto(): void
-    {
-        // Auditoría 1 (En captura): cada uno de sus 3 criterios trae "Elegir archivos" y "Tomar foto", y la lista de adjuntos.
-        // La foto usa capture="environment": en celular o tableta abre directo la cámara trasera.
-        $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))->getContent();
-        $this->assertSame(3, substr_count($checklist, '<span>Elegir archivos</span>'));
-        $this->assertSame(3, substr_count($checklist, '<span>Tomar foto</span>'));
-        $this->assertSame(3, substr_count($checklist, 'accept="image/*" capture="environment"'));
-        $this->assertSame(3, substr_count($checklist, 'x-for="(soporte, n) in soportes['));
-
-        // Auditoría 2 (Programada): todavía no se adjunta nada.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 2))->assertDontSee('Tomar foto');
-    }
-
-    public function test_los_hallazgos_se_registran_por_criterio_solo_en_auditorias_abiertas(): void
-    {
-        // Auditoría 1 (En captura): un botón en cada uno de sus 3 criterios.
-        $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1));
-        $this->assertSame(3, substr_count($checklist->getContent(), '>Registrar hallazgo</button>'));
-
-        // En una auditoría finalizada y en la lista de Hallazgos ya no se registran.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))->assertDontSee('Registrar hallazgo');
-        $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))->assertDontSee('Registrar hallazgo');
-    }
-
-    public function test_no_cumple_y_parcial_abren_solos_la_ventana_de_hallazgo(): void
-    {
-        // Cada resultado avisa cuando cambia. Si es No cumple o Parcial y el criterio todavía no tiene hallazgo,
-        // se abre "Registrar hallazgo". La ventana le manda al checklist cada hallazgo que se guarda.
-        $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))->getContent();
-        // El @change tiene que estar DENTRO de la etiqueta <select ...>, antes del ">" que la cierra.
-        $this->assertSame(3, preg_match_all('/<select[^>]*@change="alCambiarResultado\(/', $checklist));
-        $this->assertStringContainsString("this.\$dispatch('registrar-hallazgo'", $checklist);
-        $this->assertStringContainsString('@hallazgo-guardado.window=', $checklist);
-        $this->assertStringContainsString("this.\$dispatch('hallazgo-guardado'", $checklist);
-    }
-
-    public function test_los_hallazgos_se_editan_o_eliminan_hasta_finalizar(): void
-    {
-        // Cada criterio lista sus hallazgos con Editar y Eliminar. Son un borrador: se envían al finalizar,
-        // y no se puede finalizar mientras un criterio en No cumple o Parcial no tenga hallazgo.
-        $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))
-            ->assertSee('x-for="(hallazgo, n) in hallazgos[0]"', false)
-            ->assertSeeInOrder(['>Editar</button>', '>Eliminar</button>'], false)
-            ->assertSee('|| faltanHallazgos"', false)
-            ->assertSee('Para finalizar, registra un hallazgo en cada criterio con No cumple o Parcial.')
-            ->assertSee('El hallazgo se envía a su responsable cuando finalices la auditoría.')
-            ->assertSeeInOrder(['¿Finalizar la auditoría?', 'La calificación final será de', 'Se enviará 1 hallazgo a su responsable.'])
-            ->assertDontSee('Registrar y notificar hallazgo')
-            ->getContent();
-
-        // Cada x-data llega completo hasta su último método: una comilla doble adentro cortaría el atributo.
-        // preg_match da 1 si encuentra el patrón; así, si falla, el mensaje es corto y no imprime toda la página.
-        $this->assertSame(1, preg_match('/x-data="[^"]*get promedio\(\)/', $checklist), 'Una comilla doble corta el x-data del checklist.');
-        $this->assertSame(1, preg_match('/x-data="[^"]*guardar\(\) \{/', $checklist), 'Una comilla doble corta el x-data de la ventana de hallazgo.');
-    }
-
-    public function test_el_hallazgo_tiene_un_solo_responsable_del_equipo_auditado(): void
-    {
-        // Auditoría 1: se elige a Laura o a Mariana (equipo auditado), nunca al auditor, y solo a una.
-        $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1));
-        $this->assertSame(2, substr_count($checklist->getContent(), 'type="radio" name="responsable"'));
-        $checklist->assertSee('value="Mariana Garza"', false)
-            ->assertDontSee('value="Daniel Ruiz"', false)
-            ->assertSee('Elige al responsable.');
-
-        // En la lista de Hallazgos cada hallazgo tiene un solo nombre.
-        $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))
-            ->assertSee('<th class="px-4 py-5">Responsable</th>', false)
-            ->assertDontSee('Laura Méndez, Mariana Garza');
-    }
-
-    public function test_cada_criterio_muestra_su_descripcion(): void
-    {
-        // La descripción va entre el título del criterio y la evidencia a verificar.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))
-            ->assertSeeInOrder([
-                '2. La actividad cuenta con registro trazable.',
-                'Cada vez que se realiza la actividad queda un registro',
-                'Evidencia a verificar:',
-            ]);
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $this->audit()))
+            ->assertOk()->assertSee('En captura')->assertSee('Guardar avance')->assertSee('Registrar hallazgo');
     }
 
     public function test_la_primera_pregunta_es_si_el_auditado_conoce_sus_procedimientos(): void
     {
-        // En el checklist va primero y con su etiqueta, en todas las auditorías.
-        foreach ([1, 2] as $id) {
-            $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $id))
-                ->assertSeeInOrder([
-                    'Pregunta fija · va en todas las auditorías',
-                    '1. El auditado conoce sus procedimientos y sabe dónde consultarlos.',
-                    '2. La actividad cuenta con registro trazable.',
-                ]);
-        }
+        $items = $this->openChecklist($this->audit());
 
-        // En el Resultado también es el criterio 1, así que lo que hay que corregir empieza en el 2.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))
-            ->assertSee('2. Los contenedores están identificados con su etiqueta.');
+        $this->assertSame('El auditado conoce sus procedimientos y sabe dónde consultarlos.', $items->first()->text);
+        $this->assertTrue($items->first()->isFixed());
     }
 
-    public function test_cada_criterio_abre_la_actividad_del_procedimiento_que_evalua(): void
+    public function test_criterios_propios_se_agregan_y_quitan_pero_no_los_del_proceso(): void
     {
-        $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1));
+        $audit = $this->audit();
+        [$fija] = $this->openChecklist($audit);
 
-        // La actividad va entre la descripción y la evidencia. La pregunta fija no trae actividad.
-        $checklist->assertSeeInOrder([
-            '1. El auditado conoce sus procedimientos', 'Evidencia a verificar:',
-            '2. La actividad cuenta con registro trazable.',
-            'Se evalúa con la actividad', '2. Registro de la maniobra en bitácora', 'Criterios a evaluar', 'Evidencia a verificar:',
-        ]);
-        $this->assertSame(2, substr_count($checklist->getContent(), 'Criterios a evaluar</a>'));
+        $this->actingAs($this->auditor)->postJson(route('auditorias.audits.items.store', $audit), ['text' => ''])->assertStatus(422);
+        $this->actingAs($this->auditor)->postJson(route('auditorias.audits.items.store', $audit), ['text' => 'Extintor vigente'])->assertOk();
+        $propio = $audit->checklistItems()->where('source', AuditChecklistItem::SOURCE_AUDITOR)->sole();
 
-        // La ventana trae la actividad con los apartados del procedimiento, en el mismo orden.
-        $checklist->assertSeeInOrder(['Quién:', 'Qué:', 'Cómo:', 'Cuándo:', 'Dónde:', 'Evidencia'])
-            ->assertSee('Los registros se conservan 12 meses');
-
-        // En una auditoría Programada (todavía no se captura) también se puede consultar.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 2))->assertOk()->assertSee('Criterios a evaluar</a>', false);
-
-        // El enlace abre el proceso en otra pestaña, para no perder lo capturado, y el auditor sí puede entrar.
-        $proceso = route('processes.index', ['q' => 'Control de maniobras y seguridad']);
-        $checklist->assertSee('href="' . $proceso . '" target="_blank"', false);
-        $this->actingAs($this->auditor)->get($proceso)->assertOk();
+        $this->actingAs($this->auditor)->deleteJson(route('auditorias.audits.items.destroy', [$audit, $fija]))->assertForbidden();
+        $this->actingAs($this->auditor)->deleteJson(route('auditorias.audits.items.destroy', [$audit, $propio]))->assertOk();
+        $this->assertSame(1, $audit->checklistItems()->count());
     }
 
-    public function test_se_puede_solicitar_reprogramar_una_auditoria_no_finalizada(): void
+    public function test_el_soporte_de_la_revision_se_sube_y_se_quita(): void
     {
-        // En captura y Programada: el botón abre la ventana, que muestra la fecha actual y pide el motivo
-        // y la fecha propuesta. El auditor líder la aprueba o la rechaza.
-        // 20 nov 03:00 en UTC = 19 nov 21:00 en México: mañana es el 20, aunque en UTC ya sea 20.
-        $this->travelTo('2026-11-20 03:00:00');
+        $audit = $this->audit();
+        [$fija] = $this->openChecklist($audit);
 
-        foreach ([1 => '11 sep 2026', 2 => '14 sep 2026'] as $id => $fecha) {
-            $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $id))
-                ->assertSee('@click="$dispatch(\'solicitar-reprogramacion\')"', false)
-                ->assertSeeInOrder(['Solicitar reprogramación', 'Fecha actual: ' . $fecha, 'Motivo', 'Fecha propuesta', 'El auditor líder aprueba o rechaza la fecha propuesta.'])
-                ->assertSee('id="reprogramacion-fecha" type="date"', false)
-                ->assertSee("minima: '2026-11-20'", false);
-        }
+        $subido = $this->actingAs($this->auditor)->post(route('auditorias.audits.items.support', [$audit, $fija]), [
+            'file' => UploadedFile::fake()->image('image.jpg'), 'name' => 'Foto de las 10.15.jpg',
+        ], ['Accept' => 'application/json'])->assertOk()->json();
 
-        // Una auditoría finalizada ya no se reprograma.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))->assertDontSee('Solicitar reprogramación');
+        $this->assertSame('Foto de las 10.15.jpg', $subido['name']);
+        $this->actingAs($this->auditor)->get($subido['url'])->assertOk();
+        $this->actingAs($this->ana)->get($subido['url'])->assertForbidden();
+
+        $this->actingAs($this->auditor)->deleteJson(route('auditorias.support.destroy', $subido['id']))->assertOk();
+        $this->assertSame(0, $fija->files()->count());
     }
 
-    public function test_la_lista_de_asistencia_muestra_a_los_convocados(): void
+    public function test_los_hallazgos_son_borrador_hasta_finalizar(): void
     {
-        // Auditoría 1 (En captura): el botón va arriba del contador y se marca quién asistió.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))
-            ->assertSeeInOrder([
-                'Lista de asistencia',
-                'Marca a las personas que asistieron a la llamada.',
-                'Daniel Ruiz', 'Auditor · Equipo auditor',
-                'Laura Méndez', 'Responsable del proceso · Equipo auditado',
-                'criterios capturados',
-            ]);
+        $audit = $this->audit();
+        [$fija] = $this->openChecklist($audit);
 
-        // Auditoría 2 (Programada): se ve quién está convocado, pero todavía no se marca.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 2))
-            ->assertSee('Podrás marcar la asistencia cuando la auditoría esté En captura.')
-            ->assertDontSee('Marca a las personas que asistieron a la llamada.');
+        $this->actingAs($this->auditor)->postJson(route('auditorias.audits.checklist.save', $audit), [
+            'items' => [['id' => $fija->id, 'result' => 'no_cumple', 'findings' => [
+                $this->finding(),
+                $this->finding(['responsable_id' => $this->auditor->id]), // no es auditado: se descarta
+                $this->finding(['severidad' => 'mayor']),                 // clasificación inválida: se descarta
+            ]]],
+        ])->assertOk();
+
+        $this->assertCount(1, $fija->fresh()->draft_findings);
+        $this->assertSame(0, AuditFinding::count());
+        Notification::assertNothingSent();
     }
 
-    public function test_para_finalizar_deben_asistir_el_auditor_y_el_auditado(): void
+    public function test_para_finalizar_todo_capturado_asistencia_y_hallazgos(): void
     {
-        // Auditoría 1: el auditor y el auditado llevan la etiqueta; la supervisora no.
-        $checklist = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1));
-        $this->assertSame(2, substr_count($checklist->getContent(), '>Obligatorio</span>'));
-        $checklist->assertSee('Para finalizar, marca en la lista de asistencia al auditor y al auditado.');
-    }
+        $audit = $this->audit();
+        [$fija] = $this->openChecklist($audit);
+        $finalizar = fn (array $data) => $this->actingAs($this->auditor)->postJson(route('auditorias.audits.finalize', $audit), $data);
 
-    public function test_el_resultado_muestra_la_asistencia(): void
-    {
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))
-            ->assertSeeInOrder(['Lista de asistencia', '2 de 3 asistieron', 'Ana Torres', 'Asistió', 'Mariana Garza', 'No asistió']);
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 4))
-            ->assertSee('3 de 3 asistieron')
-            ->assertDontSee('No asistió');
-    }
+        $finalizar(['attendance' => [$this->auditor->id, $this->ana->id]])
+            ->assertStatus(422)->assertJsonFragment(['Captura el resultado de cada criterio.']);
+        $finalizar(['items' => [['id' => $fija->id, 'result' => 'cumple']], 'attendance' => [$this->ana->id]])
+            ->assertStatus(422)->assertJsonFragment(['Marca en la lista de asistencia al auditor y al menos a un auditado.']);
+        $finalizar(['items' => [['id' => $fija->id, 'result' => 'parcial']], 'attendance' => [$this->auditor->id, $this->ana->id]])
+            ->assertStatus(422)->assertJsonFragment(['Registra un hallazgo en cada criterio con No cumple o Parcial.']);
 
-    public function test_el_resultado_muestra_las_conclusiones_del_auditor(): void
-    {
-        // Auditoría 3: las conclusiones van después de los hallazgos.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))
-            ->assertSeeInOrder(['Hallazgos registrados por el auditor', 'Conclusiones del auditor', 'Hay que etiquetar los dos contenedores']);
+        $finalizar(['items' => [['id' => $fija->id, 'result' => 'parcial', 'findings' => [$this->finding()]]], 'attendance' => [$this->auditor->id, $this->ana->id]])
+            ->assertOk();
 
-        // Auditoría 4: el auditor no escribió conclusiones, así que la tarjeta no aparece.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 4))
-            ->assertDontSee('Conclusiones del auditor');
-    }
-
-    public function test_el_resultado_muestra_sus_hallazgos(): void
-    {
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))
-            ->assertSee('Contenedores de residuos sin etiqueta');
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 4))
-            ->assertSee('No se registraron hallazgos en esta auditoría.');
-    }
-
-    public function test_parcial_sale_en_que_necesitas_corregir(): void
-    {
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 3))
-            ->assertSeeInOrder(['Qué necesitas corregir', 'Parcial', 'Hallazgos registrados por el auditor']);
+        $this->assertSame('50 / 100', $audit->fresh()->result);
+        Notification::assertSentTo($this->ana, AuditFindingAssignedNotification::class);
+        $this->actingAs($this->auditor)->postJson(route('auditorias.audits.checklist.save', $audit), [])->assertStatus(422); // ya no se edita
     }
 
     public function test_no_aplica_no_cuenta_en_la_calificacion(): void
     {
-        // Auditoría 4: cuentan 3 Cumple (promedio 100). Si "No aplica" contara como 0, daría 75.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', 4))
-            ->assertSee('100 / 100')
-            ->assertSee('No aplica');
+        $audit = $this->audit();
+        [$fija] = $this->openChecklist($audit);
+        $this->actingAs($this->auditor)->postJson(route('auditorias.audits.items.store', $audit), ['text' => 'Extintor vigente']);
+        $propio = $audit->checklistItems()->where('source', AuditChecklistItem::SOURCE_AUDITOR)->sole();
+
+        $this->actingAs($this->auditor)->postJson(route('auditorias.audits.finalize', $audit), [
+            'items' => [['id' => $fija->id, 'result' => 'cumple'], ['id' => $propio->id, 'result' => 'no_aplica']],
+            'attendance' => [$this->auditor->id, $this->ana->id],
+        ])->assertOk();
+
+        $this->assertSame(100, $audit->fresh()->score);
     }
 
-   public function test_hallazgos_marca_los_vencidos_segun_la_fecha(): void
+    public function test_el_resultado_muestra_asistencia_conclusiones_y_hallazgos(): void
     {
-        // La ventana de detalle siempre trae 1 etiqueta "Vencido" (escondida hasta que aplica); las demás son de la lista.
-        $this->travelTo('2026-11-03');
-        $lista = $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))->getContent();
-        $this->assertSame(1 + 3, substr_count($lista, '>Vencido</span>')); // HAL-003, HAL-004 y HAL-005
+        $audit = $this->audit();
+        [$fija] = $this->openChecklist($audit);
+        $this->actingAs($this->auditor)->postJson(route('auditorias.audits.finalize', $audit), [
+            'items' => [['id' => $fija->id, 'result' => 'no_cumple', 'observations' => 'No supo dónde consultarlo.', 'findings' => [$this->finding(['severidad' => 'critico'])]]],
+            'attendance' => [$this->auditor->id, $this->ana->id],
+            'conclusions' => 'Hay que capacitar al equipo.',
+        ])->assertOk();
 
-        $this->travelTo('2026-09-01');
-        $lista = $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))->getContent();
-        $this->assertSame(1, substr_count($lista, '>Vencido</span>')); // ninguno en la lista
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.result', $audit))
+            ->assertOk()
+            ->assertSee('0 / 100')
+            ->assertSee('No supo dónde consultarlo.')
+            ->assertSee('Hay que capacitar al equipo.')
+            ->assertSee('Bitácora sin firma')->assertSee('Crítico')
+            ->assertSee('2 de 3 asistieron')->assertSee('No asistió');
     }
 
     public function test_los_hallazgos_se_revisan_en_dos_vueltas(): void
     {
-        // Primero se revisa la causa raíz y las acciones; después, la evidencia. No hay "Por enviar":
-        // al registrarlo le llega al auditado.
-        $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))
-            ->assertSeeInOrder(['Todos', 'Causas raíz por revisar', 'Evidencias por revisar'])
-            ->assertSee('Con el auditado')
-            ->assertSee('Sin cargar')
-            ->assertDontSee('Por enviar');
+        $audit = $this->audit(['status' => Audit::STATUS_COMPLETED, 'completed_at' => now()]);
+        $service = app(AuditFindingService::class);
+        $finding = $service->register($audit, $this->ana, 'Bitácora sin firma', 'Falta la firma.');
 
-        // Cada pestaña trae solo lo que espera esa decisión del auditor.
+        $this->actingAs($this->auditor)->get(route('auditorias.findings.index', ['tab' => 'causas']))->assertDontSee('Bitácora sin firma');
+
+        $service->submitRootCause($finding, $this->ana, 'No sabía.', 'Capacitar.');
         $this->actingAs($this->auditor)->get(route('auditorias.findings.index', ['tab' => 'causas']))
-            ->assertSee('Bitácora de maniobras sin firma del supervisor')
-            ->assertDontSee('Registro de temperatura sin capturar')
-            ->assertSee('Revisar causa raíz')
-            ->assertSee('Aprobar causa raíz y acciones');
+            ->assertSee('Bitácora sin firma')->assertSee('Revisar causa raíz');
+        $this->actingAs($this->auditor)->post(route('auditorias.findings.review', $finding), ['decision' => 'aprobar'])->assertSessionHas('success');
+
+        $service->submitEvidence($finding->fresh(), $this->ana, [UploadedFile::fake()->create('evidencia.pdf', 10, 'application/pdf')]);
         $this->actingAs($this->auditor)->get(route('auditorias.findings.index', ['tab' => 'evidencias']))
-            ->assertSee('Registro de temperatura sin capturar')
-            ->assertDontSee('Bitácora de maniobras sin firma del supervisor')
-            ->assertSee('Revisar evidencia')
-            ->assertSee('Aprobar evidencia y cerrar');
+            ->assertSee('Revisar evidencia')->assertSee('evidencia.pdf');
+        $this->actingAs($this->auditor)->post(route('auditorias.findings.review', $finding), ['decision' => 'aprobar']);
+
+        $this->assertSame(AuditFinding::STATUS_CLOSED, $finding->fresh()->status);
+        $this->actingAs($this->auditor)->get(route('auditorias.findings.index', ['seguimiento' => 'cerrada']))->assertSee('Cerrado');
     }
 
-    public function test_los_hallazgos_se_clasifican_como_critico_o_no_critico(): void
+    public function test_hallazgos_marca_los_vencidos_y_filtra(): void
     {
-        // Al registrar un hallazgo solo hay dos opciones.
-        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', 1))
-            ->assertSeeInOrder(['Clasificación', '>Crítico</option>', '>No crítico</option>'], false);
+        $audit = $this->audit(['status' => Audit::STATUS_COMPLETED, 'completed_at' => now()]);
+        app(AuditFindingService::class)->register($audit, $this->ana, 'Hallazgo viejo', 'Detalle');
+        $this->travelTo(Carbon::create(2026, 11, 30, 9, 0));
 
-        // La lista de Hallazgos y el Resultado ya no usan Mayor ni Menor.
-        foreach ([route('auditorias.findings.index'), route('auditorias.audits.result', 3)] as $url) {
-            $this->actingAs($this->auditor)->get($url)
-                ->assertSee('No crítico')
-                ->assertDontSee('Mayor')
-                ->assertDontSee('Menor');
-        }
-    }
-
-    public function test_la_clasificacion_y_la_fecha_compromiso_solo_se_consultan_en_el_detalle(): void
-    {
-        // Se eligen al registrar el hallazgo. En el detalle ya no se pueden cambiar:
-        // si la fecha pasa y el hallazgo sigue abierto, solo se marca "Vencido".
-        foreach ([route('auditorias.findings.index'), route('auditorias.audits.result', 3)] as $url) {
-            $this->actingAs($this->auditor)->get($url)
-                ->assertOk()
-                ->assertSee('Fecha compromiso')
-                ->assertDontSee('Guardar clasificación')
-                ->assertDontSee('id="detalle-severidad"', false)
-                ->assertDontSee('id="detalle-fecha"', false);
-        }
-    }
-
-    public function test_hallazgos_filtra_por_empresa(): void
-    {
-        $this->actingAs($this->auditor)->get(route('auditorias.findings.index', ['empresa' => 'Vigía']))
-            ->assertSee('Registro de temperatura sin capturar')
-            ->assertDontSee('Bitácora de maniobras sin firma del supervisor');
+        $this->actingAs($this->auditor)->get(route('auditorias.findings.index'))->assertSee('Hallazgo viejo')->assertSee('Vencido');
+        $this->actingAs($this->auditor)->get(route('auditorias.findings.index', ['empresa' => 'Otra']))->assertDontSee('Hallazgo viejo');
+        $this->actingAs($this->auditor)->get(route('auditorias.findings.index', ['q' => 'ana torres']))->assertSee('Hallazgo viejo');
     }
 }

@@ -53,13 +53,13 @@
     $pendingInvestmentApprovalsCount = $user
         ? \App\Models\InvestmentRequestApproval::where('user_id', $user->id)->where('status', 'pending')->count()
         : 0;
-    // Auditorías programadas cuyo mes ya empezó (las de meses siguientes no se avisan).
+    // Auditorías programadas ya avisadas al auditado (unos días antes de la fecha que fijó el auditor).
     $activeAuditsCount = $user && ! $user->isSuperAdmin() && $user->canUseAuditeeView()
         ? \App\Models\Audit::activeForAuditee($user)->count()
         : 0;
-    // Hallazgos donde le toca subir evidencia (pendientes o con evidencia rechazada).
+    // Hallazgos donde le toca actuar: causa raíz o evidencia del seguimiento (también si se las devolvieron).
     $findingsToAttendCount = $user && ! $user->isSuperAdmin() && $user->canUseAuditeeView()
-        ? \App\Models\AuditFinding::forResponsible($user)->whereIn('status', \App\Models\AuditFinding::NEEDS_EVIDENCE)->count()
+        ? \App\Models\AuditFinding::forResponsible($user)->whereIn('status', \App\Models\AuditFinding::NEEDS_AUDITEE)->count()
         : 0;
     // Quien está en el flujo fijo de alguna empresa (o ya aprobó alguna vez) ve "Mis aprobaciones de
     // inversión", aunque su rol no tenga Solicitud de Inversiones.
@@ -261,7 +261,7 @@
             'count' => $pendingInvestmentApprovalsCount, 'url' => route('investment-requests.my-approvals'),
         ] : null,
         $activeAuditsCount > 0 ? [
-            'label' => 'Auditorías de este mes', 'module' => 'Procesos y Auditorías', 'icon' => 'check',
+            'label' => 'Próximas auditorías', 'module' => 'Procesos y Auditorías', 'icon' => 'check',
             'count' => $activeAuditsCount, 'url' => route('mi-espacio.audits'),
         ] : null,
         $findingsToAttendCount > 0 ? [

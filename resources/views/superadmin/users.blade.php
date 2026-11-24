@@ -22,6 +22,7 @@
             editCompanyIds: [],
             editModuleAccess: 'all',
             editNotificationModules: 'all',
+            editAuditAlerts: false,
             editPositionIds: [],
             createCompanySearch: '',
             createCompanySearchOpen: false,
@@ -94,7 +95,7 @@
                 else this.editPositionIds.splice(idx, 1);
             },
             hasEditPos(id) { return this.editPositionIds.includes(id); },
-            openEdit(id, name, roleId, groupId, companyIds, moduleAccess, positionIds, notificationModules) {
+            openEdit(id, name, roleId, groupId, companyIds, moduleAccess, positionIds, notificationModules, auditAlerts) {
                 this.editUserId = id;
                 this.editUserName = name;
                 this.editRole = String(roleId ?? '');
@@ -103,6 +104,7 @@
                 this.editModuleAccess = moduleAccess || 'all';
                 this.editPositionIds = (positionIds || []).map(String);
                 this.editNotificationModules = notificationModules || 'all';
+                this.editAuditAlerts = !! auditAlerts;
                 this.editOpen = true;
             }
         };
@@ -559,6 +561,16 @@
                                     <option value="none">Ninguna (solo avisos personales)</option>
                                 </select>
                                 <p class="mt-1 text-xs text-gray-400">De qué área recibirá avisos de administración (solicitudes de acceso, escalamientos, etc.). Sus propias aprobaciones le llegan siempre.</p>
+                            {{-- Avisos de auditorías: hallazgos críticos y plazos vencidos (aparte de sus avisos personales) --}}
+                            <input type="hidden" name="receives_audit_alerts" value="0">
+                            <label class="mt-3 flex items-start gap-2 rounded-lg border border-gray-200 px-3 py-2.5 text-sm cursor-pointer">
+                                <input type="checkbox" name="receives_audit_alerts" value="1" x-model="editAuditAlerts"
+                                       class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/40">
+                                <span class="text-gray-700">
+                                    Recibir los avisos de auditorías
+                                    <span class="block text-xs text-gray-400">Hallazgos críticos y plazos vencidos de los hallazgos del grupo.</span>
+                                </span>
+                            </label>
                             </div>
 
                         </div>
@@ -675,7 +687,7 @@
                                     @if($user->id !== auth()->id())
                                         <div class="inline-flex gap-1">
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', {{ Js::from($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])) }}, '{{ $user->module_access ?? 'all' }}', {{ Js::from($user->jobPositions->pluck('id')) }}, '{{ $user->notification_modules ?? 'all' }}')"
+                                                @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', {{ Js::from($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])) }}, '{{ $user->module_access ?? 'all' }}', {{ Js::from($user->jobPositions->pluck('id')) }}, '{{ $user->notification_modules ?? 'all' }}', {{ Js::from((bool) $user->receives_audit_alerts) }})"
                                                 class="px-2 py-1 rounded-md bg-brand text-white text-[11px] font-semibold hover:bg-brand-dark">
                                                 Editar
                                             </button>

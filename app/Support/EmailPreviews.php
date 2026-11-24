@@ -72,8 +72,7 @@ class EmailPreviews
             }],
 
             // ── Auditorías ──
-            'audit-month-started' => ['group' => 'Auditorías', 'label' => 'Este mes te toca auditoría', 'build' => fn () => (new Notifications\AuditMonthStartedNotification($this->audit()))->toMail($this->user())],
-            'audit-scheduled' => ['group' => 'Auditorías', 'label' => 'Fecha de auditoría', 'build' => fn () => (new Notifications\AuditScheduledNotification($this->audit()))->toMail($this->user())],
+            'audit-upcoming' => ['group' => 'Auditorías', 'label' => 'Tienes una auditoría (días antes)', 'build' => fn () => (new Notifications\AuditUpcomingNotification($this->audit()))->toMail($this->user())],
             'audit-rescheduled' => ['group' => 'Auditorías', 'label' => 'Cambió la fecha de auditoría', 'build' => fn () => (new Notifications\AuditScheduledNotification($this->audit(), true))->toMail($this->user())],
             'audit-completed' => ['group' => 'Auditorías', 'label' => 'Resultado de auditoría', 'build' => function () {
                 $mail = (new Notifications\AuditCompletedNotification($this->audit()))->toMail($this->user());
@@ -81,15 +80,21 @@ class EmailPreviews
 
                 return $mail;
             }],
-            'audit-finding-assigned' => ['group' => 'Auditorías', 'label' => 'Nuevo hallazgo', 'build' => fn () => (new Notifications\AuditFindingAssignedNotification($this->finding()))->toMail($this->user())],
-            'audit-evidence-submitted' => ['group' => 'Auditorías', 'label' => 'Evidencia por revisar', 'build' => function () {
-                $mail = (new Notifications\AuditFindingEvidenceSubmittedNotification($this->finding(), $this->submission(AuditFindingSubmission::STATUS_IN_REVIEW)))->toMail($this->user());
+            'audit-finding-assigned' => ['group' => 'Auditorías', 'label' => 'Nuevo hallazgo (responsable)', 'build' => fn () => (new Notifications\AuditFindingAssignedNotification($this->finding()))->toMail($this->user())],
+            'audit-finding-critical-owner' => ['group' => 'Auditorías', 'label' => 'Hallazgo crítico (responsable del procedimiento)', 'build' => fn () => (new Notifications\AuditFindingAssignedNotification($this->finding('critico'), asProcessOwner: true))->toMail($this->user('Laura Gómez', 'laura.gomez@ejemplo.com'))],
+            'audit-root-cause-submitted' => ['group' => 'Auditorías', 'label' => 'Causa raíz por validar (auditor)', 'build' => fn () => (new Notifications\AuditFindingSubmittedNotification($this->finding(), $this->submission(AuditFindingSubmission::STATUS_IN_REVIEW, AuditFindingSubmission::KIND_ROOT_CAUSE)))->toMail($this->user())],
+            'audit-root-cause-approved' => ['group' => 'Auditorías', 'label' => 'Causa raíz aprobada: seguimiento', 'build' => fn () => (new Notifications\AuditFindingReviewedNotification($this->finding(), $this->submission(AuditFindingSubmission::STATUS_ACCEPTED, AuditFindingSubmission::KIND_ROOT_CAUSE)))->toMail($this->user())],
+            'audit-root-cause-returned' => ['group' => 'Auditorías', 'label' => 'Causa raíz devuelta', 'build' => fn () => (new Notifications\AuditFindingReviewedNotification($this->finding(), $this->submission(AuditFindingSubmission::STATUS_REJECTED, AuditFindingSubmission::KIND_ROOT_CAUSE)))->toMail($this->user())],
+            'audit-evidence-submitted' => ['group' => 'Auditorías', 'label' => 'Evidencia por verificar (auditor)', 'build' => function () {
+                $mail = (new Notifications\AuditFindingSubmittedNotification($this->finding(), $this->submission(AuditFindingSubmission::STATUS_IN_REVIEW)))->toMail($this->user());
                 $mail->viewData['rows']['Archivos'] = '2';
 
                 return $mail;
             }],
-            'audit-evidence-accepted' => ['group' => 'Auditorías', 'label' => 'Evidencia aceptada', 'build' => fn () => (new Notifications\AuditFindingReviewedNotification($this->finding(), $this->submission(AuditFindingSubmission::STATUS_ACCEPTED)))->toMail($this->user())],
+            'audit-evidence-accepted' => ['group' => 'Auditorías', 'label' => 'Evidencia verificada: hallazgo cerrado', 'build' => fn () => (new Notifications\AuditFindingReviewedNotification($this->finding(), $this->submission(AuditFindingSubmission::STATUS_ACCEPTED)))->toMail($this->user())],
             'audit-evidence-rejected' => ['group' => 'Auditorías', 'label' => 'Evidencia rechazada', 'build' => fn () => (new Notifications\AuditFindingReviewedNotification($this->finding(), $this->submission(AuditFindingSubmission::STATUS_REJECTED)))->toMail($this->user())],
+            'audit-finding-alert-critical' => ['group' => 'Auditorías', 'label' => 'Aviso: hallazgo crítico', 'build' => fn () => (new Notifications\AuditFindingAlertNotification($this->finding('critico'), Notifications\AuditFindingAlertNotification::REASON_CRITICAL))->toMail($this->user())],
+            'audit-finding-alert-overdue' => ['group' => 'Auditorías', 'label' => 'Aviso: plazo vencido', 'build' => fn () => (new Notifications\AuditFindingAlertNotification($this->finding('critico'), Notifications\AuditFindingAlertNotification::REASON_OVERDUE))->toMail($this->user())],
 
             // ── Inversiones (Anexo 8) ──
             'investment-approval-requested' => ['group' => 'Inversiones', 'label' => 'Aprobación de inversión requerida', 'build' => function () {
@@ -208,7 +213,7 @@ class EmailPreviews
         $audit = (new Audit)->forceFill([
             'id'           => self::FAKE_ID,
             'planned_for'  => now()->startOfMonth(),
-            'scheduled_at' => now()->addDays(5)->setTime(10, 0),
+            'scheduled_at' => now()->addDays(3)->setTime(10, 0),
             'result'       => 'Satisfactoria',
         ]);
         $audit->setRelation('regulation', $this->regulation());
@@ -218,24 +223,29 @@ class EmailPreviews
         return $audit;
     }
 
-    private function finding(): AuditFinding
+    private function finding(string $severity = 'no_critico'): AuditFinding
     {
         $finding = (new AuditFinding)->forceFill([
             'id'          => self::FAKE_ID,
             'point'       => '4.2 Control de registros',
             'description' => 'Los registros de capacitación del último trimestre no tienen firma del responsable.',
-            'severity'    => 'mayor',
-            'due_at'      => now()->addDays(15),
+            'severity'    => $severity,
+            'status'      => AuditFinding::STATUS_ROOT_CAUSE_PENDING,
+            'due_at'      => now()->addDays(3),
         ]);
         $finding->setRelation('audit', $this->audit());
+        $finding->setRelation('responsible', $this->user());
 
         return $finding;
     }
 
-    private function submission(string $status): AuditFindingSubmission
+    private function submission(string $status, string $kind = AuditFindingSubmission::KIND_EVIDENCE): AuditFindingSubmission
     {
         $submission = (new AuditFindingSubmission)->forceFill([
             'id'             => self::FAKE_ID,
+            'kind'           => $kind,
+            'root_cause'     => 'El formato de la lista de asistencia no tenía un espacio para la firma del responsable.',
+            'actions'        => "Agregar la firma del responsable al formato.\nRecabar las firmas faltantes del trimestre.",
             'status'         => $status,
             'comment'        => 'Adjunto las listas de asistencia firmadas.',
             'review_comment' => $status === AuditFindingSubmission::STATUS_REJECTED

@@ -23,6 +23,10 @@ Schedule::command('licenses:check')
 Schedule::command('approvals:notify-reminders')
     ->dailyAt('08:00');
 
-// Aviso "este mes te toca una auditoría" (el día 1, y luego solo las que se programen ya empezado el mes).
-Schedule::command('audits:notify-month')
+// Aviso "tienes una auditoría": unos días antes de la fecha que fijó el auditor (auditorias.aviso_dias_antes).
+Schedule::command('audits:notify-upcoming')
     ->dailyAt('07:30');
+
+// Hallazgos con el plazo de su etapa vencido (días hábiles): aviso a quien le toca y a "Avisos de auditorías".
+Schedule::command('audits:findings-overdue')
+    ->dailyAt('08:15');

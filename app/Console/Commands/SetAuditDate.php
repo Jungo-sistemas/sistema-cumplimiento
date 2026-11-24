@@ -7,7 +7,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
 /**
- * Registra el día y la hora acordados de una auditoría — lo que hará el auditor desde su pantalla
+ * Registra el día y la hora de una auditoría — lo que hará el auditor desde su pantalla
  * cuando exista el lado del auditor. Mientras tanto sirve para probar la vista del auditado.
  *
  *   php artisan audits:set-date 12 "2026-11-18 10:00"
@@ -16,7 +16,7 @@ class SetAuditDate extends Command
 {
     protected $signature = 'audits:set-date {audit : id de la auditoría} {fecha : "AAAA-MM-DD HH:MM"}';
 
-    protected $description = 'Registra (o cambia) la fecha y hora acordadas de una auditoría y avisa a los auditados';
+    protected $description = 'Registra (o cambia) la fecha y hora de una auditoría (el aviso al auditado sale días antes)';
 
     public function handle(): int
     {
@@ -44,8 +44,9 @@ class SetAuditDate extends Command
         $audit->schedule($at);
 
         $this->info(sprintf('%s: fecha registrada para el %s.', $audit->regulation?->code ?? "Auditoría #{$audit->id}", $audit->scheduledLabel()));
-        if (! $audit->hasMonthStarted()) {
-            $this->line('Su mes todavía no empieza: el auditado la verá (ya con fecha) cuando empiece el mes.');
+        $audit->refresh();
+        if ($audit->notice_sent_at === null) {
+            $this->line(sprintf('Todavía no se avisa: al auditado le llegará el aviso %d días antes de la fecha.', Audit::noticeDays()));
         }
 
         return self::SUCCESS;
