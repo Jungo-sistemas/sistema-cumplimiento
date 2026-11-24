@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Services\LicenseService;
+use App\Support\PortalModules;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -100,10 +101,20 @@ class EnsureModuleAccess
             return $next($request);
         }
 
-        // Cumplimiento: cada quien en su sección, admins incluidos.
-        if ($module !== null && ! $user->canAccessModule($module) && ! $request->routeIs(...self::INVESTMENT_APPROVER_ROUTES)) {
-            return redirect($this->fallbackUrl($user))
-                ->with('error', 'No tienes acceso a este módulo.');
+        // Cumplimiento: cada quien en su sección, admins incluidos. Además, de los cinco módulos de
+        // ese lado (Fiscal, Regulatorio, Objetivos, Flujos, Cursos) solo los que tiene asignados.
+        if ($module !== null && ! $request->routeIs(...self::INVESTMENT_APPROVER_ROUTES)) {
+            $portalModule = PortalModules::forCurrentRoute();
+            $allowed = $user->canAccessModule($module)
+                && ($portalModule === null || $user->canEnterPortalModule($portalModule));
+
+            if (! $allowed) {
+                $fallback = $this->fallbackUrl($user);
+
+                // Sin ningún módulo al cual mandarlo, a su perfil (evita un ciclo de redirecciones).
+                return redirect($fallback === $request->url() ? route('profile.edit') : $fallback)
+                    ->with('error', 'No tienes acceso a este módulo.');
+            }
         }
 
         return $next($request);
@@ -121,18 +132,15 @@ class EnsureModuleAccess
         return null;
     }
 
+    /** Inicio del primer módulo que tiene asignado (Regulatorio primero, como antes). */
     private function fallbackUrl(mixed $user): string
     {
-        $modules = $user->accessibleModules();
-
-        if (in_array('cumplimiento', $modules, true)) {
+        if ($user->canEnterPortalModule('regulatorio')) {
             return route('assets.index');
         }
 
-        if (in_array('procesos', $modules, true)) {
-            return route('gestion.home');
-        }
+        $first = $user->portalModules()[0] ?? null;
 
-        return route('dashboard');
+        return $first ? PortalModules::homeUrl($first, $user) : route('mi-espacio.home');
     }
 }

@@ -13,7 +13,7 @@
             selectedRole: '{{ old('role_id', '') }}',
             selectedGroup: '{{ old('group_id', '') }}',
             selectedCompanies: @json(array_map('strval', (array) old('company_id', []))),
-            selectedModuleAccess: '{{ old('module_access', 'all') }}',
+            selectedModules: @js(array_values((array) old('modules', array_keys(\App\Support\PortalModules::LABELS)))),
             selectedNotifyAreas: notifyAreas('{{ old('notification_modules', 'all') }}'),
             selectedAuditAlerts: @json((bool) old('receives_audit_alerts')),
             selectedPositions: @json(array_map('strval', (array) old('job_position_ids', []))),
@@ -28,7 +28,7 @@
             editRole: '',
             editGroup: '',
             editCompanyIds: [],
-            editModuleAccess: 'all',
+            editModules: [],
             editNotifyAreas: ['cumplimiento', 'procesos'],
             editAuditAlerts: false,
             editPositionIds: [],
@@ -120,13 +120,13 @@
                 else this.editPositionIds.splice(idx, 1);
             },
             hasEditPos(id) { return this.editPositionIds.includes(id); },
-            openEdit(id, name, roleId, groupId, companyIds, moduleAccess, positionIds, notificationModules, auditAlerts) {
+            openEdit(id, name, roleId, groupId, companyIds, modules, positionIds, notificationModules, auditAlerts) {
                 this.editUserId = id;
                 this.editUserName = name;
                 this.editRole = String(roleId ?? '');
                 this.editGroup = String(groupId ?? '');
                 this.editCompanyIds = (companyIds || []).map(String);
-                this.editModuleAccess = moduleAccess || 'all';
+                this.editModules = [...(modules ?? [])];
                 this.editPositionIds = (positionIds || []).map(String);
                 this.editNotifyAreas = notifyAreas(notificationModules || 'all');
                 this.editAuditAlerts = !! auditAlerts;
@@ -337,7 +337,7 @@
                     {{-- Vista predeterminada / Módulos (hidden when superadmin) --}}
                     <div x-show="!isSuperadminCreate">
                         <label class="mb-1 block text-sm font-medium text-gray-700">
-                            <span x-text="isAdminCreate ? 'Vista predeterminada' : 'Módulos visibles'"></span>
+                            <span x-text="isAuditorCreate ? 'Módulo' : 'Módulos visibles'"></span>
                         </label>
                         <template x-if="isAuditorCreate">
                             <div>
@@ -346,19 +346,12 @@
                             </div>
                         </template>
                         <template x-if="!isAuditorCreate">
-                            <select name="module_access" x-model="selectedModuleAccess"
-                                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
-                                <option value="all">Ambos módulos</option>
-                                <option value="cumplimiento">Solo Cumplimiento</option>
-                                <option value="procesos">Solo Procesos</option>
-                            </select>
+                            <div>
+                                @include('users.partials.module-checkboxes', ['model' => 'selectedModules', 'options' => array_keys(\App\Support\PortalModules::LABELS)])
+                            </div>
                         </template>
-                        <p class="mt-1 text-xs text-gray-400"
-                           x-text="isAuditorCreate
-                               ? 'El auditor solo entra a Procesos y Auditorías; no ve Cumplimiento.'
-                               : (isAdminCreate
-                                   ? 'Define el módulo de inicio (el admin accede a todo).'
-                                   : 'Define a qué módulo tendrá acceso este usuario.')">
+                        <p class="mt-1 text-xs text-gray-400" x-show="isAuditorCreate">
+                            El auditor solo entra a Procesos y Auditorías; no ve los demás módulos.
                         </p>
                     </div>
 
@@ -551,7 +544,7 @@
                                  x-transition:enter-start="opacity-0 -translate-y-1"
                                  x-transition:enter-end="opacity-100 translate-y-0">
                                 <label class="block text-sm font-medium text-gray-700 mb-1.5">
-                                    <span x-text="isAdminEdit ? 'Vista predeterminada' : 'Módulos visibles'"></span>
+                                    <span x-text="isAuditorEdit ? 'Módulo' : 'Módulos visibles'"></span>
                                 </label>
                                 <template x-if="isAuditorEdit">
                                     <div>
@@ -560,19 +553,12 @@
                                     </div>
                                 </template>
                                 <template x-if="!isAuditorEdit">
-                                    <select name="module_access" x-model="editModuleAccess"
-                                        class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
-                                        <option value="all">Ambos módulos</option>
-                                        <option value="cumplimiento">Solo Cumplimiento</option>
-                                        <option value="procesos">Solo Procesos</option>
-                                    </select>
+                                    <div>
+                                        @include('users.partials.module-checkboxes', ['model' => 'editModules', 'options' => array_keys(\App\Support\PortalModules::LABELS)])
+                                    </div>
                                 </template>
-                                <p class="mt-1 text-xs text-gray-400"
-                                   x-text="isAuditorEdit
-                                       ? 'El auditor solo entra a Procesos y Auditorías; no ve Cumplimiento.'
-                                       : (isAdminEdit
-                                           ? 'Define el módulo de inicio (el admin accede a todo).'
-                                           : 'Define a qué módulo tendrá acceso este usuario.')">
+                                <p class="mt-1 text-xs text-gray-400" x-show="isAuditorEdit">
+                                    El auditor solo entra a Procesos y Auditorías; no ve los demás módulos.
                                 </p>
                             </div>
 
@@ -708,7 +694,7 @@
                                     @if($user->id !== auth()->id())
                                         <div class="inline-flex gap-1">
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', {{ Js::from($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])) }}, '{{ $user->module_access ?? 'all' }}', {{ Js::from($user->jobPositions->pluck('id')) }}, '{{ $user->notification_modules ?? 'all' }}', {{ Js::from((bool) $user->receives_audit_alerts) }})"
+                                                @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', {{ Js::from($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])) }}, {{ Js::from($user->portalModules()) }}, {{ Js::from($user->jobPositions->pluck('id')) }}, '{{ $user->notification_modules ?? 'all' }}', {{ Js::from((bool) $user->receives_audit_alerts) }})"
                                                 class="px-2 py-1 rounded-md bg-brand text-white text-[11px] font-semibold hover:bg-brand-dark">
                                                 Editar
                                             </button>

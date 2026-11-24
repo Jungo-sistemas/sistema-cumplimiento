@@ -168,12 +168,17 @@ class AreaAccessTest extends TestCase
         // El formulario ni ofrece lo de Procesos.
         $this->actingAs($this->cumplimientoAdmin)->get(route('users.create'))
             ->assertOk()
-            ->assertSee('Solo Cumplimiento')
+            ->assertSee('name="modules[]" value="fiscal"', false)
+            ->assertDontSee('name="modules[]" value="procesos"', false)
             ->assertDontSee('Puesto en la organización')
-            ->assertDontSee('Ambos módulos')
             ->assertDontSee('Evalúa y califica procedimientos');
         $this->actingAs($this->bothAdmin)->get(route('users.create'))
-            ->assertOk()->assertSee('Puesto en la organización')->assertSee('Ambos módulos');
+            ->assertOk()->assertSee('Puesto en la organización')->assertSee('name="modules[]" value="procesos"', false);
+
+        $this->actingAs($this->cumplimientoAdmin)->post(route('users.store'), [
+            'name' => 'Intruso', 'email' => 'intruso@test.mx', 'role_id' => $this->opRole->id,
+            'company_id' => [$this->company->id], 'modules' => ['fiscal', 'procesos'],
+        ])->assertSessionHasErrors('modules.1');
 
         $this->actingAs($this->cumplimientoAdmin)->post(route('users.store'), [
             'name' => 'Intruso', 'email' => 'intruso@test.mx', 'role_id' => $this->opRole->id,
@@ -215,11 +220,19 @@ class AreaAccessTest extends TestCase
         $this->assertTrue($adminP->receives_audit_alerts);
         $this->assertFalse($adminC->receives_audit_alerts);
 
-        // La pantalla separa las tres: Cumplimiento, Procesos y Auditorías.
+        // La pantalla separa las tres (Cumplimiento, Procesos y Auditorías) y trae "Todas".
         $this->actingAs($this->procesosAdmin)->get(route('users.create'))->assertOk()
-            ->assertSee('name="notify_areas[]" value="procesos"', false)
-            ->assertSee('Hallazgos críticos y plazos vencidos de los hallazgos del grupo.')
+            ->assertSee("fiscal: 'Fiscal', regulatorio: 'Regulatorio', objetivos: 'Objetivos', procesos: 'Procesos', flujos: 'Flujos', cursos: 'Cursos', auditorias: 'Auditorías'", false)
+            ->assertSee('Todas')
+            ->assertSee('Auditorías: hallazgos críticos y plazos vencidos del grupo.')
             ->assertDontSee('Recibir las notificaciones de administración');
+
+        // Lo que llega de las pastillas: auditorías apagadas viajan como 0.
+        $this->actingAs($this->procesosAdmin)->post(route('users.store'), [
+            'name' => 'Admin Q', 'email' => 'adminq@test.mx', 'role_id' => $this->adminRole->id,
+            'notify_areas' => ['procesos'], 'receives_audit_alerts' => '0',
+        ])->assertRedirect(route('users.index'));
+        $this->assertFalse(User::where('email', 'adminq@test.mx')->sole()->receives_audit_alerts);
     }
 
     public function test_al_dar_de_alta_el_modulo_va_antes_que_las_empresas_y_salen_sus_nombres_de_procesos(): void
@@ -227,7 +240,7 @@ class AreaAccessTest extends TestCase
         Company::create(['name' => 'VIDENCI', 'process_name' => 'SAVSA', 'group_id' => $this->group->id, 'show_in_processes' => true]);
 
         $this->actingAs($this->procesosAdmin)->get(route('users.create'))->assertOk()
-            ->assertSeeInOrder(['name="module_access"', 'Buscar empresa para agregar'], false)
+            ->assertSeeInOrder(['name="modules[]"', 'Buscar empresa para agregar'], false)
             ->assertSee('"process_name":"SAVSA"', false);
 
         $this->actingAs($this->procesosAdmin)->get(route('users.index'))->assertOk()
