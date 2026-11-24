@@ -30,6 +30,7 @@ class EnsureModuleAccess
             'documents.*',
             'investment-requests.*',
             'dashboard',
+            'coming-soon', // Fiscal, Regulatorio, Objetivos, Flujos y Cursos van con el acceso a Cumplimiento
         ],
     ];
 

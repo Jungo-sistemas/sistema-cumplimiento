@@ -16,37 +16,6 @@
 @php
     $user = auth()->user();
 
-    // Procesos y Auditorías son un solo módulo (nov 2026): Auditorías va con la licencia de Procesos
-    // y los dos lados están conectados (una auditoría revisa procesos).
-    $allModules = [
-        'cumplimiento' => ['label' => 'Cumplimiento',          'route' => 'dashboard'],
-        'procesos'     => ['label' => 'Procesos y Auditorías', 'route' => 'gestion.home'],
-    ];
-    // Solo los módulos a los que el usuario de verdad puede entrar: Procesos y Auditorías también
-    // depende de la licencia, no solo de module_access (si no, el menú y "Volver a…" mandaban a
-    // pantallas que luego lo rechazaban).
-    $modules = collect($allModules)
-        ->filter(fn ($_, $key) => match ($key) {
-            'procesos' => $user?->canUseProcesos() ?? false,
-            default    => $user?->canAccessModule($key) ?? true,
-        })
-        ->all();
-
-    // Módulo de la página actual. Las páginas que no son de un módulo (Usuarios, Mi perfil…) se
-    // muestran con el último módulo en el que anduvo el usuario, y "Volver a…" regresa a ese.
-    $routeModule = match (true) {
-        request()->routeIs('gestion.*', 'auditorias.*', 'processes.*', 'my-approvals.*', 'regulation-versions.*') => 'procesos',
-        request()->routeIs('dashboard', 'assets.*', 'requirements.*', 'tasks.*', 'documents.*', 'investment-requests.*') => 'cumplimiento',
-        default => null,
-    };
-    if ($routeModule && isset($modules[$routeModule])) {
-        session(['last_module' => $routeModule]);
-    }
-    $currentModule = $routeModule ?? session('last_module');
-    if (!isset($modules[$currentModule])) {
-        // Sin historial (o ya sin acceso a ese módulo): Cumplimiento si lo tiene, si no el primero.
-        $currentModule = isset($modules['cumplimiento']) ? 'cumplimiento' : (array_key_first($modules) ?? 'cumplimiento');
-    }
     $pendingApprovalsCount = $user && !$user->isSuperAdmin()
         ? \App\Models\RegulationApproval::where('user_id', $user->id)->where('status', 'pending')->count()
         : 0;
@@ -69,6 +38,31 @@
         || \App\Models\InvestmentRequestApproval::where('user_id', $user->id)->exists()
     );
 
+    // ── Módulos de Jungo Cumple (App\Support\PortalModules) ──
+    // Fiscal, Regulatorio, Objetivos, Flujos y Cursos van con el acceso "Cumplimiento"; Procesos y
+    // Auditorías con la licencia de Procesos (Auditorías en Mi espacio le queda a todos). Solo se
+    // listan los módulos a los que de verdad puede entrar, para que el selector y "Volver a…" no
+    // manden a pantallas que luego lo rechazan.
+    $hasCumplimiento = $user?->canAccessModule('cumplimiento') ?? true;
+    $allModules = collect(\App\Support\PortalModules::LABELS)
+        ->map(fn ($label, $key) => ['label' => $label, 'url' => \App\Support\PortalModules::homeUrl($key, $user)])
+        ->all();
+    $modules = collect($allModules)
+        ->filter(fn ($_, $key) => ! $user || \App\Support\PortalModules::canEnter($user, $key, $isInvestmentApprover))
+        ->all();
+
+    // Módulo de la página actual. Las páginas que no son de un módulo (Usuarios, Mi perfil…) se
+    // muestran con el último módulo en el que anduvo el usuario, y "Volver a…" regresa a ese.
+    $routeModule = \App\Support\PortalModules::forCurrentRoute();
+    if ($routeModule && isset($modules[$routeModule])) {
+        session(['last_module' => $routeModule]);
+    }
+    $currentModule = $routeModule ?? session('last_module');
+    if (!isset($modules[$currentModule])) {
+        // Sin historial (o ya sin acceso a ese módulo): Regulatorio si lo tiene, si no el primero.
+        $currentModule = isset($modules['regulatorio']) ? 'regulatorio' : (array_key_first($modules) ?? 'regulatorio');
+    }
+
     // ── Vista: Gestión o Mi espacio ──
     // Quien no tiene Gestión (solo lectura) solo tiene Mi espacio; admins, auditores y operativos
     // cambian con el botón del encabezado (que guarda la elección en sesión). Las páginas
@@ -78,11 +72,11 @@
     // Procesos y Auditorías es solo Mi espacio. En páginas que no son de un módulo (Usuarios, Mi
     // perfil) se le muestra Cumplimiento en vez de dejarlo en Mi espacio.
     $procesosGestion = $user?->hasProcesosGestion() ?? false;
-    if ($user && ! $procesosGestion && ! $routeModule && $currentModule === 'procesos' && isset($modules['cumplimiento'])) {
-        $currentModule = 'cumplimiento';
+    if ($user && ! $procesosGestion && ! $routeModule && $currentModule === 'procesos' && isset($modules['regulatorio'])) {
+        $currentModule = 'regulatorio';
     }
     if ($user && ! $procesosGestion && isset($modules['procesos'])) {
-        $modules['procesos']['route'] = 'mi-espacio.home';
+        $modules['procesos']['url'] = route('mi-espacio.home');
     }
     $canSwitchView = $user && $procesosGestion && $user->canUseAuditeeView();
     $sharedRoute = request()->routeIs('processes.show', 'processes.print', 'processes.preview', 'regulation-versions.preview', 'profile.*');
@@ -101,33 +95,40 @@
     // puede pasar backRoute/backLabel para regresar a esa sección en concreto en vez de saltarse
     // directo al módulo.
     if ($backRoute) {
-        $homeModule = ['label' => $backLabel ?? $title, 'route' => $backRoute];
+        $homeModule = ['label' => $backLabel ?? $title, 'url' => route($backRoute)];
     } elseif ($user?->isSuperAdmin()) {
-        // El superadmin no vive en Cumplimiento/Procesos (esos son los módulos de cliente) — su
-        // "inicio" real es el panel de Sistema, igual que ya es el primer bloque del menú lateral
-        // para ese rol.
-        $homeModule = ['label' => 'Panel general', 'route' => 'superadmin.dashboard'];
+        // El superadmin no vive en los módulos de cliente — su "inicio" real es el panel de
+        // Sistema, igual que ya es el primer bloque del menú lateral para ese rol.
+        $homeModule = ['label' => 'Panel general', 'url' => route('superadmin.dashboard')];
     } elseif ($viewMode === 'auditado') {
-        $homeModule = ['label' => 'Mi espacio', 'route' => 'mi-espacio.home'];
+        $homeModule = ['label' => 'Mi espacio', 'url' => route('mi-espacio.home')];
     } else {
         // Regresa al módulo en el que andaba el usuario (ya validado arriba contra lo que tiene
-        // autorizado), no siempre a Cumplimiento.
-        $homeModule = $modules[$currentModule] ?? $allModules['cumplimiento'];
+        // autorizado), no siempre al mismo.
+        $homeModule = $modules[$currentModule] ?? $allModules['regulatorio'];
     }
 
     // ── Menú lateral ──
     // Secciones con título y ligas; el mismo arreglo pinta el menú de escritorio (colapsable) y el
     // del celular. Cada liga: label, url, icon, active y, opcionales, badge, tour (data-tour de la
-    // guía de Procesos), children (el árbol activo → requisito → tarea de Cumplimiento).
-    $item = fn (string $label, string $route, string $icon, bool $active, array $extra = []) =>
-        ['label' => $label, 'url' => route($route), 'icon' => $icon, 'active' => $active] + $extra;
+    // guía de Procesos), children (el árbol activo → requisito → tarea de Cumplimiento Regulatorio).
+    // $route es un nombre de ruta o [nombre, parámetros].
+    $item = fn (string $label, string|array $route, string $icon, bool $active, array $extra = []) =>
+        ['label' => $label, 'url' => route(...(array) $route), 'icon' => $icon, 'active' => $active] + $extra;
+    // Secciones que aún no existen: abren la página de "Próximamente".
+    $comingSoon = fn (string $section) => $item(
+        \App\Support\PortalModules::COMING_SOON[$section]['label'],
+        ['coming-soon', ['section' => $section]],
+        \App\Support\PortalModules::COMING_SOON[$section]['icon'],
+        request()->routeIs('coming-soon') && request()->route('section') === $section,
+    );
 
     $sections = [];
     $helpItem = null;
 
     if ($minimal) {
         $sections[] = ['title' => null, 'items' => [
-            $item('Volver a ' . $homeModule['label'], $homeModule['route'], 'back', true),
+            ['label' => 'Volver a ' . $homeModule['label'], 'url' => $homeModule['url'], 'icon' => 'back', 'active' => true],
         ]];
     } elseif ($user?->isSuperAdmin()) {
         $sections[] = ['title' => 'Sistema', 'items' => [
@@ -180,13 +181,6 @@
         }
         $sections[] = ['title' => 'Procesos', 'items' => $procesosItems];
 
-        // Aprobador de Anexos 8 sin Cumplimiento: aprueba desde aquí (los demás, en Cumplimiento).
-        if ($isInvestmentApprover && ! $user->canAccessModule('cumplimiento')) {
-            $sections[] = ['title' => 'Inversiones', 'items' => [
-                $item('Mis aprobaciones de inversión', 'investment-requests.my-approvals', 'cash', request()->routeIs('investment-requests.*'), ['badge' => $pendingInvestmentApprovalsCount]),
-            ]];
-        }
-
         if ($user->isAdmin() || $user->isAuditor()) {
             $auditoriasItems = [
                 $item('Auditorías', 'auditorias.audits.index', 'clipboard', request()->routeIs('auditorias.audits.*')),
@@ -201,17 +195,40 @@
         $helpItem = request()->routeIs('auditorias.*')
             ? $item('Ayuda', 'auditorias.help', 'help', request()->routeIs('auditorias.help'))
             : $item('Ayuda', 'processes.guide.manual', 'help', false, ['newTab' => true]);
+    } elseif ($currentModule === 'fiscal') {
+        $sections[] = ['title' => 'Cumplimiento Fiscal', 'items' => [
+            $item('Documentos generales', 'documents.index', 'folder', request()->routeIs('documents.*')),
+            $comingSoon('expediente-fiscal'),
+            $comingSoon('mcp-infosat'),
+        ]];
+    } elseif ($currentModule === 'objetivos') {
+        $sections[] = ['title' => 'Objetivos', 'items' => [
+            $comingSoon('planeacion-estrategica'),
+            $comingSoon('cascadeo'),
+            $comingSoon('hoshin'),
+        ]];
+    } elseif ($currentModule === 'flujos') {
+        $flujosItems = [];
+        if ($hasCumplimiento) {
+            $flujosItems[] = $item('Inversiones', 'investment-requests.index', 'cash', request()->routeIs('investment-requests.*') && ! request()->routeIs('investment-requests.my-approvals'));
+        }
+        if ($isInvestmentApprover) {
+            $flujosItems[] = $item('Mis aprobaciones de inversión', 'investment-requests.my-approvals', 'badge', request()->routeIs('investment-requests.my-approvals'), ['badge' => $pendingInvestmentApprovalsCount]);
+        }
+        if ($hasCumplimiento) {
+            $flujosItems[] = $comingSoon('compras');
+            $flujosItems[] = $comingSoon('tarjeta-clara');
+        }
+        $sections[] = ['title' => 'Flujos', 'items' => $flujosItems];
+    } elseif ($currentModule === 'cursos') {
+        $sections[] = ['title' => 'Cursos', 'items' => [
+            $comingSoon('cursos'),
+        ]];
     } else {
+        // Cumplimiento Regulatorio.
         $cumplimientoItems = [
             $item('Tablero', 'dashboard', 'chart', request()->routeIs('dashboard')),
         ];
-        if ($user?->isAdmin() || $user?->isOperative() || $user?->isReadOnly()) {
-            $cumplimientoItems[] = $item('Documentos generales', 'documents.index', 'folder', request()->routeIs('documents.*'));
-            $cumplimientoItems[] = $item('Solicitud de Inversiones', 'investment-requests.index', 'cash', request()->routeIs('investment-requests.*') && ! request()->routeIs('investment-requests.my-approvals'));
-        }
-        if ($isInvestmentApprover) {
-            $cumplimientoItems[] = $item('Mis aprobaciones de inversión', 'investment-requests.my-approvals', 'badge', request()->routeIs('investment-requests.my-approvals'), ['badge' => $pendingInvestmentApprovalsCount]);
-        }
 
         // Árbol del activo abierto: Regulatorio → activo → requisito → tarea / documentos.
         $ctx = $navContext;
@@ -239,9 +256,11 @@
             };
         }
         $inCumplimiento = request()->routeIs('assets.*') || !empty($ctx['asset']);
-        $cumplimientoItems[] = $item('Regulatorio', 'assets.index', 'bolt', $inCumplimiento, ['children' => array_values(array_filter($children))]);
+        $cumplimientoItems[] = $item('Activos y Actividades', 'assets.index', 'bolt', $inCumplimiento, ['children' => array_values(array_filter($children))]);
+        $cumplimientoItems[] = $comingSoon('marcas');
+        $cumplimientoItems[] = $comingSoon('terrenos');
 
-        $sections[] = ['title' => 'Cumplimiento', 'items' => $cumplimientoItems];
+        $sections[] = ['title' => 'Cumplimiento Regulatorio', 'items' => $cumplimientoItems];
     }
 
     if (!$minimal && $viewMode === 'gestion' && !$user?->isSuperAdmin() && $user?->isAdmin()) {
@@ -257,7 +276,7 @@
         ] : null,
         $pendingInvestmentApprovalsCount > 0 ? [
             'label' => 'Aprobación de solicitudes de inversión (Anexos 8)',
-            'module' => $user->canAccessModule('cumplimiento') ? 'Cumplimiento' : 'Procesos y Auditorías', 'icon' => 'cash',
+            'module' => 'Flujos', 'icon' => 'cash',
             'count' => $pendingInvestmentApprovalsCount, 'url' => route('investment-requests.my-approvals'),
         ] : null,
         $activeAuditsCount > 0 ? [
@@ -319,11 +338,11 @@
                     </button>
 
                     {{-- El logo es el "inicio" de la vista/módulo en el que ya estás. --}}
-                    <a href="{{ route(match (true) {
-                            (bool) $user?->isSuperAdmin() => 'superadmin.dashboard',
-                            $viewMode === 'auditado'      => 'mi-espacio.home',
-                            default                       => $modules[$currentModule]['route'] ?? 'dashboard',
-                        }) }}" class="flex items-center">
+                    <a href="{{ match (true) {
+                            (bool) $user?->isSuperAdmin() => route('superadmin.dashboard'),
+                            $viewMode === 'auditado'      => route('mi-espacio.home'),
+                            default                       => $modules[$currentModule]['url'] ?? route('dashboard'),
+                        } }}" class="flex items-center">
                         <x-brand-logo class="h-9" />
                     </a>
 
@@ -341,11 +360,11 @@
                             </button>
 
                             <div x-show="open" x-transition.opacity @click.outside="open = false" style="display:none;"
-                                 class="absolute left-0 top-full z-50 mt-2 w-44 rounded-lg border border-gray-100 bg-white py-1 text-gray-700 shadow-lg">
+                                 class="absolute left-0 top-full z-50 mt-2 w-64 rounded-lg border border-gray-100 bg-white py-1 text-gray-700 shadow-lg">
                                 @foreach($modules as $key => $mod)
                                     {{-- Sin Gestión de Procesos, "Procesos y Auditorías" es su Mi espacio. --}}
                                     @php $isCurrent = $currentModule === $key && ($viewMode === 'gestion' || ! $canSwitchView); @endphp
-                                    <a href="{{ $viewMode === 'auditado' && $canSwitchView ? route('view-mode.switch', ['mode' => 'gestion', 'modulo' => $key]) : route($mod['route']) }}" @click="open = false"
+                                    <a href="{{ $viewMode === 'auditado' && $canSwitchView ? route('view-mode.switch', ['mode' => 'gestion', 'modulo' => $key]) : $mod['url'] }}" @click="open = false"
                                        class="flex items-center gap-2 px-3 py-2 text-sm {{ $isCurrent ? 'font-semibold text-brand' : 'hover:bg-gray-50' }}">
                                         @if($isCurrent)
                                             <x-icon name="check" class="h-3.5 w-3.5" />
