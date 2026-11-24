@@ -13,9 +13,7 @@
         $companiesByGroup = $companies->groupBy('group_id')->map->values();
         // Solo los módulos de quien crea: un admin de Cumplimiento crea usuarios de Cumplimiento.
         $moduleLabels  = ['all' => 'Ambos módulos', 'cumplimiento' => 'Solo Cumplimiento', 'procesos' => 'Solo Procesos'];
-        $moduleOptions = auth()->user()->assignableModuleAccess();
-        $areaNames     = ['all' => 'Cumplimiento y Procesos', 'cumplimiento' => 'Cumplimiento', 'procesos' => 'Procesos y Auditorías'];
-    @endphp
+        $moduleOptions = auth()->user()->assignableModuleAccess();    @endphp
 
     <script>
     function createUserData() {
@@ -30,12 +28,33 @@
             auditorRoleId: '{{ $auditorRoleId }}',
             companiesByGroup: @json($companiesByGroup),
             positionsByGroup: @json($positionsByGroup),
+            moduleAccess: @js(old('module_access', $moduleOptions[0])),
+            init() {
+                // Al cambiar de módulo se quitan las empresas que ya no salen en ese lado.
+                this.$watch('companyModule', () => {
+                    const ids = this.availableCompanies.map(c => String(c.id));
+                    this.selectedCompanyIds = this.selectedCompanyIds.filter(id => ids.includes(id));
+                });
+            },
             get isAdmin() { return this.selectedRole === this.adminRoleId; },
             get isAuditor() { return this.selectedRole === this.auditorRoleId; },
             get needsCompany() { return this.selectedRole !== ''; },
+            // El auditor solo está en Procesos aunque el selector diga otra cosa.
+            get companyModule() { return this.isAuditor ? 'procesos' : this.moduleAccess; },
+            // Solo Procesos: las empresas que salen en Procesos. Cumplimiento o ambos: todas.
             get availableCompanies() {
                 if (!this.selectedGroup) return [];
-                return this.companiesByGroup[this.selectedGroup] ?? [];
+                const list = this.companiesByGroup[this.selectedGroup] ?? [];
+                return this.companyModule === 'procesos' ? list.filter(c => c.show_in_processes && !c.otras) : list;
+            },
+            // Nombre según el módulo: en Procesos algunas se llaman distinto (VIDENCI → SAVSA).
+            companyLabel(c) {
+                const procesos = c.process_name || c.name;
+                if (this.companyModule === 'procesos') return procesos;
+                if (this.companyModule === 'all' && procesos !== c.name && c.show_in_processes) {
+                    return c.name + ' · ' + procesos + ' en Procesos';
+                }
+                return c.name;
             },
             get availablePositions() {
                 if (!this.selectedGroup) return [];
@@ -45,10 +64,12 @@
                 const q = this.companySearch.trim().toLowerCase();
                 return this.availableCompanies
                     .filter(c => !this.selectedCompanyIds.includes(String(c.id)))
-                    .filter(c => !q || c.name.toLowerCase().includes(q));
+                    // Se encuentra por cualquiera de sus dos nombres (VIDENCI o SAVSA).
+                    .filter(c => !q || [c.name, c.process_name].some(n => (n || '').toLowerCase().includes(q)));
             },
             companyName(id) {
-                return this.availableCompanies.find(c => String(c.id) === String(id))?.name ?? '—';
+                const c = this.availableCompanies.find(c => String(c.id) === String(id));
+                return c ? this.companyLabel(c) : '—';
             },
             addCompany(id) {
                 id = String(id);
@@ -193,6 +214,50 @@
             <hr class="border-gray-100" x-show="selectedRole !== ''" x-transition>
             @endif
 
+            {{-- ── MÓDULOS ── antes de las empresas: la lista de empresas se arma según el módulo
+                 (en Procesos algunas se llaman distinto, p. ej. VIDENCI → SAVSA, y otras no salen). --}}
+            <div x-show="selectedRole !== ''" x-transition class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700">
+                    <span x-text="isAuditor ? 'Módulo' : 'Módulos visibles'"></span>
+                </label>
+
+                <template x-if="isAuditor">
+                    <div>
+                        <input type="hidden" name="module_access" value="procesos">
+                        <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                            Solo Procesos y Auditorías
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="!isAuditor">
+                    @if(count($moduleOptions) === 1)
+                        <div>
+                            <input type="hidden" name="module_access" value="{{ $moduleOptions[0] }}">
+                            <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                                {{ $moduleLabels[$moduleOptions[0]] }}
+                            </div>
+                        </div>
+                    @else
+                        <select name="module_access" x-model="moduleAccess"
+                                class="w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand text-sm">
+                            @foreach($moduleOptions as $option)
+                                <option value="{{ $option }}">{{ $moduleLabels[$option] }}</option>
+                            @endforeach
+                        </select>
+                    @endif
+                </template>
+
+                <p class="text-xs text-gray-400"
+                   x-text="isAuditor
+                       ? 'El auditor solo entra a Procesos y Auditorías; no ve Cumplimiento.'
+                       : 'Define a qué sección del sistema tendrá acceso. Sin Procesos, en Procesos y Auditorías solo verá Mi espacio (sus procedimientos, aprobaciones y auditorías).'">
+                </p>
+                @if(count($moduleOptions) === 1)
+                    <p class="text-xs text-gray-400">Solo puedes dar acceso a los módulos que tú administras.</p>
+                @endif
+            </div>
+
             {{-- ── ALCANCE Y EMPRESA ─────────────────────────────────────── --}}
             @if($singleCompany)
 
@@ -273,7 +338,7 @@
                                 <template x-for="company in companySearchResults" :key="company.id">
                                     <div @click="addCompany(company.id)"
                                          class="px-3 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50"
-                                         x-text="company.name"></div>
+                                         x-text="companyLabel(company)"></div>
                                 </template>
                             </div>
 
@@ -301,71 +366,48 @@
 
             @endif
 
-            {{-- Módulos --}}
-            <div x-show="selectedRole !== ''" x-transition class="space-y-2"
-                 x-data="{ moduleAccess: @js(old('module_access', $moduleOptions[0])) }">
-                <label class="block text-sm font-medium text-gray-700">
-                    <span x-text="isAuditor ? 'Módulo' : 'Módulos visibles'"></span>
-                </label>
-
-                <template x-if="isAuditor">
-                    <div>
-                        <input type="hidden" name="module_access" value="procesos">
-                        <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
-                            Solo Procesos
-                        </div>
+            {{-- Notificaciones --}}
+            <div x-show="selectedRole !== ''" x-transition class="space-y-2">
+                {{--
+                    Notificaciones, una casilla por área. Cumplimiento y Procesos (avisos de
+                    administración) solo para un admin y solo de las áreas que tiene; Auditorías la
+                    designa quien administra Procesos. Sus avisos personales le llegan siempre.
+                --}}
+                @php
+                    $oldAreas = (array) old('notify_areas', ['cumplimiento', 'procesos']);
+                    $canAudit = auth()->user()->canAssignProcesosAccess();
+                @endphp
+                <div @unless($canAudit) x-show="isAdmin" @endunless class="mt-3">
+                    <p class="mb-1.5 text-sm font-medium text-gray-700">Notificaciones</p>
+                    <div class="divide-y divide-gray-100 rounded-lg border border-gray-200">
+                        <label x-show="isAdmin && ['all', 'cumplimiento'].includes(moduleAccess)"
+                               class="flex cursor-pointer items-start gap-2 px-3 py-2.5 text-sm">
+                            <input type="checkbox" name="notify_areas[]" value="cumplimiento" @checked(in_array('cumplimiento', $oldAreas, true))
+                                   class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/40">
+                            <span class="text-gray-700">Cumplimiento
+                                <span class="block text-xs text-gray-400">Solicitudes de acceso, escalamientos y avisos a administradores de Cumplimiento.</span>
+                            </span>
+                        </label>
+                        <label x-show="isAdmin && ['all', 'procesos'].includes(moduleAccess)"
+                               class="flex cursor-pointer items-start gap-2 px-3 py-2.5 text-sm">
+                            <input type="checkbox" name="notify_areas[]" value="procesos" @checked(in_array('procesos', $oldAreas, true))
+                                   class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/40">
+                            <span class="text-gray-700">Procesos
+                                <span class="block text-xs text-gray-400">Solicitudes de acceso, escalamientos y avisos a administradores de Procesos.</span>
+                            </span>
+                        </label>
+                        @if($canAudit)
+                            <label class="flex cursor-pointer items-start gap-2 px-3 py-2.5 text-sm">
+                                <input type="checkbox" name="receives_audit_alerts" value="1" @checked(old('receives_audit_alerts'))
+                                       class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/40">
+                                <span class="text-gray-700">Auditorías
+                                    <span class="block text-xs text-gray-400">Hallazgos críticos y plazos vencidos de los hallazgos del grupo.</span>
+                                </span>
+                            </label>
+                        @endif
                     </div>
-                </template>
-
-                <template x-if="!isAuditor">
-                    @if(count($moduleOptions) === 1)
-                        <div>
-                            <input type="hidden" name="module_access" value="{{ $moduleOptions[0] }}">
-                            <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
-                                {{ $moduleLabels[$moduleOptions[0]] }}
-                            </div>
-                        </div>
-                    @else
-                        <select name="module_access" x-model="moduleAccess"
-                                class="w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand text-sm">
-                            @foreach($moduleOptions as $option)
-                                <option value="{{ $option }}">{{ $moduleLabels[$option] }}</option>
-                            @endforeach
-                        </select>
-                    @endif
-                </template>
-
-                <p class="text-xs text-gray-400"
-                   x-text="isAuditor
-                       ? 'El auditor solo tiene acceso al módulo de Procesos.'
-                       : 'Define a qué sección del sistema tendrá acceso. Sin Procesos, en Procesos y Auditorías solo verá Mi espacio (sus procedimientos, aprobaciones y auditorías).'">
-                </p>
-                @if(count($moduleOptions) === 1)
-                    <p class="text-xs text-gray-400">Solo puedes dar acceso a los módulos que tú administras.</p>
-                @endif
-
-                {{-- Un admin nuevo queda en el área de quien lo crea: ¿recibe los avisos de esa área? --}}
-                <label x-show="isAdmin" class="mt-3 flex items-start gap-2 rounded-lg border border-gray-200 px-3 py-2.5 text-sm cursor-pointer">
-                    <input type="checkbox" name="receive_notifications" value="1" @checked(old('receive_notifications', true))
-                           class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/40">
-                    <span class="text-gray-700">
-                        Recibir las notificaciones de administración del área de
-                        <span class="font-semibold" x-text="@js($areaNames)[moduleAccess] ?? ''"></span>
-                        <span class="block text-xs text-gray-400">Solicitudes de acceso, escalamientos y avisos a administradores. Sus avisos personales le llegan siempre.</span>
-                    </span>
-                </label>
-
-                @if(auth()->user()->canAssignProcesosAccess())
-                    {{-- Avisos de auditorías: hallazgos críticos y plazos vencidos (aparte de sus avisos personales) --}}
-                    <label class="mt-3 flex items-start gap-2 rounded-lg border border-gray-200 px-3 py-2.5 text-sm cursor-pointer">
-                        <input type="checkbox" name="receives_audit_alerts" value="1" @checked(old('receives_audit_alerts'))
-                               class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/40">
-                        <span class="text-gray-700">
-                            Recibir los avisos de auditorías
-                            <span class="block text-xs text-gray-400">Hallazgos críticos y plazos vencidos de los hallazgos del grupo.</span>
-                        </span>
-                    </label>
-                @endif
+                    <p class="mt-1 text-xs text-gray-400">Sus avisos personales (sus aprobaciones, hallazgos y tareas) le llegan siempre.</p>
+                </div>
             </div>
 
             <div class="flex justify-end gap-3 pt-2">

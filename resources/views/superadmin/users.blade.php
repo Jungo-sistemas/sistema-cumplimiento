@@ -1,6 +1,12 @@
 <x-layouts.vigia title="Usuarios del Sistema">
 
+    @include('users.partials.company-names-js')
     <script>
+    // notification_modules guardado → áreas marcadas en la lista de Notificaciones.
+    function notifyAreas(value) {
+        return { all: ['cumplimiento', 'procesos'], cumplimiento: ['cumplimiento'], procesos: ['procesos'] }[value] ?? [];
+    }
+
     function usersPageData() {
         return {
             showForm: {{ old('role_id') ? 'true' : 'false' }},
@@ -8,10 +14,12 @@
             selectedGroup: '{{ old('group_id', '') }}',
             selectedCompanies: @json(array_map('strval', (array) old('company_id', []))),
             selectedModuleAccess: '{{ old('module_access', 'all') }}',
-            selectedNotificationModules: '{{ old('notification_modules', 'all') }}',
+            selectedNotifyAreas: notifyAreas('{{ old('notification_modules', 'all') }}'),
+            selectedAuditAlerts: @json((bool) old('receives_audit_alerts')),
             selectedPositions: @json(array_map('strval', (array) old('job_position_ids', []))),
             superadminId: '{{ $roles->where('slug', 'superadmin')->first()?->id }}',
             adminId: '{{ $roles->where('slug', 'admin')->first()?->id }}',
+            auditorId: '{{ $roles->where('slug', 'auditor')->first()?->id }}',
             allPositions: @json($jobPositions),
             allCompanies: @json($companiesByGroup),
             editOpen: false,
@@ -21,7 +29,7 @@
             editGroup: '',
             editCompanyIds: [],
             editModuleAccess: 'all',
-            editNotificationModules: 'all',
+            editNotifyAreas: ['cumplimiento', 'procesos'],
             editAuditAlerts: false,
             editPositionIds: [],
             createCompanySearch: '',
@@ -30,6 +38,20 @@
             editCompanySearchOpen: false,
             get isSuperadminCreate() { return this.selectedRole === this.superadminId; },
             get isAdminCreate() { return this.selectedRole === this.adminId; },
+            // El auditor solo entra a Procesos y Auditorías (User lo fuerza al guardar).
+            get isAuditorCreate() { return this.auditorId !== '' && this.selectedRole === this.auditorId; },
+            get isAuditorEdit() { return this.auditorId !== '' && this.editRole === this.auditorId; },
+            notifyValue(areas) {
+                const c = areas.includes('cumplimiento'), p = areas.includes('procesos');
+                return c && p ? 'all' : (c ? 'cumplimiento' : (p ? 'procesos' : 'none'));
+            },
+            notifySummary(areas, audit) {
+                const names = [];
+                if (areas.includes('cumplimiento')) names.push('Cumplimiento');
+                if (areas.includes('procesos')) names.push('Procesos');
+                if (audit) names.push('Auditorías');
+                return names.length ? names.join(', ') : 'Ninguna (solo avisos personales)';
+            },
             get createPositions() {
                 if (!this.selectedGroup) return [];
                 return this.allPositions.filter(p => String(p.group_id) === String(this.selectedGroup));
@@ -52,19 +74,22 @@
                 const q = this.createCompanySearch.trim().toLowerCase();
                 return this.createCompanies
                     .filter(c => !this.selectedCompanies.includes(String(c.id)))
-                    .filter(c => !q || c.name.toLowerCase().includes(q));
+                    .filter(c => companyMatches(c, q));
             },
             get editCompanySearchResults() {
                 const q = this.editCompanySearch.trim().toLowerCase();
                 return this.editCompanies
                     .filter(c => !this.editCompanyIds.includes(String(c.id)))
-                    .filter(c => !q || c.name.toLowerCase().includes(q));
+                    .filter(c => companyMatches(c, q));
             },
+            companyLabel: companyFullLabel,
             createCompanyName(id) {
-                return this.createCompanies.find(c => String(c.id) === String(id))?.name ?? '—';
+                const c = this.createCompanies.find(c => String(c.id) === String(id));
+                return c ? companyFullLabel(c) : '—';
             },
             editCompanyName(id) {
-                return this.editCompanies.find(c => String(c.id) === String(id))?.name ?? '—';
+                const c = this.editCompanies.find(c => String(c.id) === String(id));
+                return c ? companyFullLabel(c) : '—';
             },
             addCreateCompany(id) {
                 id = String(id);
@@ -103,7 +128,7 @@
                 this.editCompanyIds = (companyIds || []).map(String);
                 this.editModuleAccess = moduleAccess || 'all';
                 this.editPositionIds = (positionIds || []).map(String);
-                this.editNotificationModules = notificationModules || 'all';
+                this.editNotifyAreas = notifyAreas(notificationModules || 'all');
                 this.editAuditAlerts = !! auditAlerts;
                 this.editOpen = true;
             }
@@ -260,7 +285,7 @@
                                 <template x-for="c in createCompanySearchResults" :key="c.id">
                                     <div @click="addCreateCompany(c.id)"
                                          class="px-3 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50"
-                                         x-text="c.name"></div>
+                                         x-text="companyLabel(c)"></div>
                                 </template>
                             </div>
 
@@ -314,16 +339,26 @@
                         <label class="mb-1 block text-sm font-medium text-gray-700">
                             <span x-text="isAdminCreate ? 'Vista predeterminada' : 'Módulos visibles'"></span>
                         </label>
-                        <select name="module_access" x-model="selectedModuleAccess"
-                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
-                            <option value="all">Ambos módulos</option>
-                            <option value="cumplimiento">Solo Cumplimiento</option>
-                            <option value="procesos">Solo Procesos</option>
-                        </select>
+                        <template x-if="isAuditorCreate">
+                            <div>
+                                <input type="hidden" name="module_access" value="procesos">
+                                <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">Solo Procesos y Auditorías</div>
+                            </div>
+                        </template>
+                        <template x-if="!isAuditorCreate">
+                            <select name="module_access" x-model="selectedModuleAccess"
+                                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+                                <option value="all">Ambos módulos</option>
+                                <option value="cumplimiento">Solo Cumplimiento</option>
+                                <option value="procesos">Solo Procesos</option>
+                            </select>
+                        </template>
                         <p class="mt-1 text-xs text-gray-400"
-                           x-text="isAdminCreate
-                               ? 'Define el módulo de inicio (el admin accede a todo).'
-                               : 'Define a qué módulo tendrá acceso este usuario.'">
+                           x-text="isAuditorCreate
+                               ? 'El auditor solo entra a Procesos y Auditorías; no ve Cumplimiento.'
+                               : (isAdminCreate
+                                   ? 'Define el módulo de inicio (el admin accede a todo).'
+                                   : 'Define a qué módulo tendrá acceso este usuario.')">
                         </p>
                     </div>
 
@@ -337,14 +372,7 @@
                     {{-- Notificaciones (independiente de module_access: aplica también a superadmin) --}}
                     <div>
                         <label class="mb-1 block text-sm font-medium text-gray-700">Notificaciones</label>
-                        <select name="notification_modules" x-model="selectedNotificationModules"
-                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
-                            <option value="all">Ambas áreas</option>
-                            <option value="cumplimiento">Solo Cumplimiento</option>
-                            <option value="procesos">Solo Procesos</option>
-                            <option value="none">Ninguna (solo avisos personales)</option>
-                        </select>
-                        <p class="mt-1 text-xs text-gray-400">De qué área recibirá avisos de administración (solicitudes de acceso, escalamientos, etc.). Sus propias aprobaciones le llegan siempre.</p>
+                        @include('superadmin.partials.notification-picker', ['areas' => 'selectedNotifyAreas', 'audit' => 'selectedAuditAlerts'])
                     </div>
 
                 </div>
@@ -471,7 +499,7 @@
                                         <template x-for="c in editCompanySearchResults" :key="c.id">
                                             <div @click="addEditCompany(c.id)"
                                                  class="px-3 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50"
-                                                 x-text="c.name"></div>
+                                                 x-text="companyLabel(c)"></div>
                                         </template>
                                     </div>
 
@@ -525,16 +553,26 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1.5">
                                     <span x-text="isAdminEdit ? 'Vista predeterminada' : 'Módulos visibles'"></span>
                                 </label>
-                                <select name="module_access" x-model="editModuleAccess"
-                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
-                                    <option value="all">Ambos módulos</option>
-                                    <option value="cumplimiento">Solo Cumplimiento</option>
-                                    <option value="procesos">Solo Procesos</option>
-                                </select>
+                                <template x-if="isAuditorEdit">
+                                    <div>
+                                        <input type="hidden" name="module_access" value="procesos">
+                                        <div class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-500">Solo Procesos y Auditorías</div>
+                                    </div>
+                                </template>
+                                <template x-if="!isAuditorEdit">
+                                    <select name="module_access" x-model="editModuleAccess"
+                                        class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
+                                        <option value="all">Ambos módulos</option>
+                                        <option value="cumplimiento">Solo Cumplimiento</option>
+                                        <option value="procesos">Solo Procesos</option>
+                                    </select>
+                                </template>
                                 <p class="mt-1 text-xs text-gray-400"
-                                   x-text="isAdminEdit
-                                       ? 'Define el módulo de inicio (el admin accede a todo).'
-                                       : 'Define a qué módulo tendrá acceso este usuario.'">
+                                   x-text="isAuditorEdit
+                                       ? 'El auditor solo entra a Procesos y Auditorías; no ve Cumplimiento.'
+                                       : (isAdminEdit
+                                           ? 'Define el módulo de inicio (el admin accede a todo).'
+                                           : 'Define a qué módulo tendrá acceso este usuario.')">
                                 </p>
                             </div>
 
@@ -553,24 +591,7 @@
                             {{-- Notificaciones (independiente de module_access: aplica también a superadmin) --}}
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Notificaciones</label>
-                                <select name="notification_modules" x-model="editNotificationModules"
-                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
-                                    <option value="all">Ambas áreas</option>
-                                    <option value="cumplimiento">Solo Cumplimiento</option>
-                                    <option value="procesos">Solo Procesos</option>
-                                    <option value="none">Ninguna (solo avisos personales)</option>
-                                </select>
-                                <p class="mt-1 text-xs text-gray-400">De qué área recibirá avisos de administración (solicitudes de acceso, escalamientos, etc.). Sus propias aprobaciones le llegan siempre.</p>
-                            {{-- Avisos de auditorías: hallazgos críticos y plazos vencidos (aparte de sus avisos personales) --}}
-                            <input type="hidden" name="receives_audit_alerts" value="0">
-                            <label class="mt-3 flex items-start gap-2 rounded-lg border border-gray-200 px-3 py-2.5 text-sm cursor-pointer">
-                                <input type="checkbox" name="receives_audit_alerts" value="1" x-model="editAuditAlerts"
-                                       class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/40">
-                                <span class="text-gray-700">
-                                    Recibir los avisos de auditorías
-                                    <span class="block text-xs text-gray-400">Hallazgos críticos y plazos vencidos de los hallazgos del grupo.</span>
-                                </span>
-                            </label>
+                                @include('superadmin.partials.notification-picker', ['areas' => 'editNotifyAreas', 'audit' => 'editAuditAlerts'])
                             </div>
 
                         </div>

@@ -237,7 +237,7 @@ class SuperAdminController extends Controller
             ->withQueryString();
 
         $roles            = Role::orderBy('name')->get();
-        $companies        = Company::orderBy('name')->get(['id', 'name', 'group_id']);
+        $companies        = Company::orderBy('name')->get(['id', 'name', 'group_id', 'process_name', 'show_in_processes']);
         $companiesByGroup = $companies->groupBy('group_id')->map->values();
         $groups           = Group::orderBy('name')->get();
         $jobPositions     = JobPosition::where('is_active', true)
@@ -297,6 +297,7 @@ class SuperAdminController extends Controller
             'scope_level'       => $scopeLevel,
             'module_access'     => $moduleAccess,
             'notification_modules' => $notificationModules,
+            'receives_audit_alerts' => $request->boolean('receives_audit_alerts'),
             'password'          => null,
             'status'            => 'invited',
             'invite_token'      => Str::random(64),

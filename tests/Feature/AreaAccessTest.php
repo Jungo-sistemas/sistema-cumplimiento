@@ -199,7 +199,8 @@ class AreaAccessTest extends TestCase
     {
         $this->actingAs($this->procesosAdmin)->post(route('users.store'), [
             'name' => 'Admin P', 'email' => 'adminp@test.mx', 'role_id' => $this->adminRole->id,
-            'receive_notifications' => '1',
+            // Cumplimiento no cuenta: el admin nuevo solo tiene Procesos.
+            'notify_areas' => ['cumplimiento', 'procesos'], 'receives_audit_alerts' => '1',
         ])->assertRedirect(route('users.index'));
 
         $this->actingAs($this->cumplimientoAdmin)->post(route('users.store'), [
@@ -211,6 +212,26 @@ class AreaAccessTest extends TestCase
 
         $this->assertSame(['procesos', 'procesos'], [$adminP->module_access, $adminP->notification_modules]);
         $this->assertSame(['cumplimiento', 'none'], [$adminC->module_access, $adminC->notification_modules]);
+        $this->assertTrue($adminP->receives_audit_alerts);
+        $this->assertFalse($adminC->receives_audit_alerts);
+
+        // La pantalla separa las tres: Cumplimiento, Procesos y Auditorías.
+        $this->actingAs($this->procesosAdmin)->get(route('users.create'))->assertOk()
+            ->assertSee('name="notify_areas[]" value="procesos"', false)
+            ->assertSee('Hallazgos críticos y plazos vencidos de los hallazgos del grupo.')
+            ->assertDontSee('Recibir las notificaciones de administración');
+    }
+
+    public function test_al_dar_de_alta_el_modulo_va_antes_que_las_empresas_y_salen_sus_nombres_de_procesos(): void
+    {
+        Company::create(['name' => 'VIDENCI', 'process_name' => 'SAVSA', 'group_id' => $this->group->id, 'show_in_processes' => true]);
+
+        $this->actingAs($this->procesosAdmin)->get(route('users.create'))->assertOk()
+            ->assertSeeInOrder(['name="module_access"', 'Buscar empresa para agregar'], false)
+            ->assertSee('"process_name":"SAVSA"', false);
+
+        $this->actingAs($this->procesosAdmin)->get(route('users.index'))->assertOk()
+            ->assertSee('"process_name":"SAVSA"', false);
     }
 
     public function test_usuarios_de_otra_area_o_de_ambos_solo_los_toca_un_admin_de_ambos(): void
