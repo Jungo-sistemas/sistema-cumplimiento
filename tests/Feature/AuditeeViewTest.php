@@ -184,12 +184,15 @@ class AuditeeViewTest extends TestCase
         $this->actingAs($this->admin)->get(route('mi-espacio.home'))
             ->assertOk()
             ->assertSee(route('view-mode.switch', ['mode' => 'gestion', 'modulo' => 'procesos']), false)
-            ->assertSee(route('view-mode.switch', ['mode' => 'gestion', 'modulo' => 'cumplimiento']), false)
+            ->assertSee(route('view-mode.switch', ['mode' => 'gestion', 'modulo' => 'regulatorio']), false)
+            ->assertSee(route('view-mode.switch', ['mode' => 'gestion', 'modulo' => 'fiscal']), false)
             ->assertDontSee('Mis aprobaciones');
 
         $this->actingAs($this->admin)->get(route('view-mode.switch', ['mode' => 'gestion', 'modulo' => 'procesos']))
             ->assertRedirect(route('gestion.home'));
         $this->assertSame('gestion', session('view_mode'));
+        $this->actingAs($this->admin)->get(route('view-mode.switch', ['mode' => 'gestion', 'modulo' => 'fiscal']))
+            ->assertRedirect(route('documents.index'));
 
         // Quien solo es auditado no ve el selector de módulos.
         $this->actingAs($this->readonly)->get(route('mi-espacio.home'))

@@ -9,10 +9,10 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
- * "Este mes te toca una auditoría": se manda al empezar el mes programado. Nunca lleva el día —
- * ese lo acuerdan auditor y auditado por fuera.
+ * "Tienes una auditoría": le llega al auditado unos días antes de la fecha que fijó el auditor
+ * (config auditorias.aviso_dias_antes). Es el primer aviso que recibe; antes no la ve.
  */
-class AuditMonthStartedNotification extends Notification implements ShouldQueue
+class AuditUpcomingNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -28,8 +28,8 @@ class AuditMonthStartedNotification extends Notification implements ShouldQueue
         $regulation = $this->audit->regulation;
 
         return (new MailMessage)
-            ->subject('Este mes te toca una auditoría: ' . trim(($regulation->code ? $regulation->code . ' ' : '') . $regulation->name))
-            ->view('emails.audits.month-started', [
+            ->subject('Tienes una auditoría el ' . $this->audit->scheduledLabel() . ': ' . trim(($regulation->code ? $regulation->code . ' ' : '') . $regulation->name))
+            ->view('emails.audits.upcoming', [
                 'notifiable' => $notifiable,
                 'audit'      => $this->audit,
             ]);
@@ -38,11 +38,11 @@ class AuditMonthStartedNotification extends Notification implements ShouldQueue
     public function toDatabase(object $notifiable): array
     {
         return [
-            'type'            => 'audit_month_started',
+            'type'            => 'audit_upcoming',
             'audit_id'        => $this->audit->id,
             'regulation_id'   => $this->audit->regulation_id,
             'regulation_name' => $this->audit->regulation?->name,
-            'month'           => $this->audit->plannedMonthLabel(),
+            'scheduled_at'    => $this->audit->scheduled_at?->toIso8601String(),
         ];
     }
 

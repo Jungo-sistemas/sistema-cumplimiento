@@ -74,7 +74,7 @@ class UserController extends Controller
             ->when(! $authUser->hasGroupScope() && ! $authUser->hasMultipleCompanies() && ! $authUser->isGlobalScope(),
                 fn ($q) => $q->where('id', $authUser->company_id))
             ->orderBy('name')
-            ->get(['id', 'group_id', 'name'])
+            ->get(['id', 'group_id', 'name', 'process_name', 'show_in_processes'])
             ->groupBy('group_id')
             ->map->values();
 
@@ -156,13 +156,41 @@ class UserController extends Controller
             $request->group_id ?? $authUser->group_id,
         );
 
-        $moduleAccess = $this->resolveModuleAccess($request, $authUser, $role);
+        [$moduleAccess, $portalModules] = $this->resolveModuleAccess($request, $authUser, $role);
 
-        // Un admin nuevo queda en el área de quien lo crea; se le pregunta si recibe los avisos de
-        // administración de esa área (solicitudes de acceso, escalamientos…).
-        $notificationModules = $role->slug === 'admin'
-            ? ($request->boolean('receive_notifications') ? $moduleAccess : 'none')
-            : null;
+        // Un admin nuevo elige, área por área, de cuáles recibe los avisos de administración
+        // (solicitudes de acceso, escalamientos…). Solo cuentan las áreas a las que tiene acceso.
+        $notificationModules = null;
+        $notifyModules = null;
+        if ($role->slug === 'admin' && $request->has('notify_modules')) {
+            // Una pastilla por módulo: solo cuentan los módulos que tendrá el admin nuevo.
+            $userModules = $portalModules === null
+                ? array_keys(\App\Support\PortalModules::LABELS)
+                : array_merge($portalModules, ['procesos']);
+            $userModules = array_values(array_filter($userModules, fn ($m) => $m !== 'procesos'
+                ? in_array($moduleAccess, ['all', 'cumplimiento'], true)
+                : in_array($moduleAccess, ['all', 'procesos'], true)));
+            $notifyModules = array_values(array_intersect($userModules, (array) $request->input('notify_modules', [])));
+
+            $cumplimiento = array_intersect(\App\Support\PortalModules::cumplimientoModules(), $notifyModules) !== [];
+            $procesos = in_array('procesos', $notifyModules, true);
+            $notificationModules = match (true) {
+                $cumplimiento && $procesos => 'all',
+                $cumplimiento              => 'cumplimiento',
+                $procesos                  => 'procesos',
+                default                    => 'none',
+            };
+        } elseif ($role->slug === 'admin') {
+            $areas = array_intersect(
+                (array) $request->input('notify_areas', []),
+                $moduleAccess === 'all' ? ['cumplimiento', 'procesos'] : [$moduleAccess],
+            );
+            $notificationModules = match (true) {
+                count($areas) === 2 => 'all',
+                count($areas) === 1 => reset($areas),
+                default             => 'none',
+            };
+        }
 
         $user = User::create([
             'name'              => $request->name,
@@ -172,7 +200,11 @@ class UserController extends Controller
             'group_id'          => $groupId,
             'scope_level'       => $scopeLevel,
             'module_access'     => $moduleAccess,
+            'portal_modules'    => $portalModules,
             'notification_modules' => $notificationModules,
+            'notify_modules'    => $notifyModules,
+            // Solo quien administra Procesos (y Auditorías) designa quién recibe estos avisos.
+            'receives_audit_alerts' => $authUser->canAssignProcesosAccess() && $request->boolean('receives_audit_alerts'),
             'password'          => null,
             'status'            => 'invited',
             'invite_token'      => Str::random(64),
@@ -214,14 +246,35 @@ class UserController extends Controller
     }
 
     /**
-     * module_access del usuario creado o editado: solo de los módulos de quien lo asigna. El
-     * auditor y el Jefe de Auditoría siempre son "Solo Procesos". Si no llega (o llega uno que no
-     * puede dar), se usa el más amplio que sí puede dar.
+     * Módulos del usuario creado o editado: [module_access, portal_modules]. Llegan como casillas
+     * modules[] (los seis de PortalModules) y solo pueden ser de los que tiene quien los asigna. El
+     * auditor y el Jefe de Auditoría siempre son "Solo Procesos". Sin casillas se acepta el
+     * module_access de antes.
+     *
+     * @return array{0: string, 1: ?array}
      */
-    private function resolveModuleAccess(Request $request, User $authUser, Role $role): string
+    private function resolveModuleAccess(Request $request, User $authUser, Role $role): array
     {
         if (in_array($role->slug, ['auditor', 'jefe_auditoria'], true)) {
-            return 'procesos';
+            return ['procesos', null];
+        }
+
+        if ($request->has('modules')) {
+            $request->validate(
+                [
+                    'modules'   => ['required', 'array', 'min:1'],
+                    'modules.*' => ['in:' . implode(',', $authUser->grantablePortalModules())],
+                ],
+                [
+                    'modules.required' => 'Marca al menos un módulo.',
+                    'modules.min'      => 'Marca al menos un módulo.',
+                    'modules.*.in'     => 'Solo puedes dar acceso a los módulos que tú tienes.',
+                ]
+            );
+
+            $selection = \App\Support\PortalModules::fromSelection($request->input('modules'));
+
+            return [$selection['module_access'], $selection['portal_modules']];
         }
 
         $allowed = $authUser->assignableModuleAccess();
@@ -231,7 +284,14 @@ class UserController extends Controller
             ['module_access.in' => 'Solo puedes dar acceso a los módulos que tú administras.']
         );
 
-        return $request->filled('module_access') ? $request->module_access : $allowed[0];
+        $access = $request->filled('module_access') ? $request->module_access : $allowed[0];
+
+        // Un admin con solo algunos módulos de Cumplimiento no puede dar los que no tiene.
+        $portal = $authUser->isSuperAdmin() || $access === 'procesos'
+            ? null
+            : \App\Support\PortalModules::fromSelection(array_merge($authUser->grantablePortalModules(), ['procesos']))['portal_modules'];
+
+        return [$access, $portal];
     }
 
     /**
@@ -332,7 +392,7 @@ class UserController extends Controller
             $user->group_id,
         );
 
-        $moduleAccess = $this->resolveModuleAccess($request, $authUser, $role);
+        [$moduleAccess, $portalModules] = $this->resolveModuleAccess($request, $authUser, $role);
 
         $user->update([
             'name'          => $request->filled('name') ? trim($request->name) : $user->name,
@@ -341,7 +401,13 @@ class UserController extends Controller
             'group_id'      => $groupId,
             'scope_level'   => $scopeLevel,
             'module_access' => $moduleAccess,
+            'portal_modules' => $portalModules,
         ]);
+
+        // Avisos de auditorías: solo los cambia quien administra Procesos y si el formulario los trae.
+        if ($authUser->canAssignProcesosAccess() && $request->has('receives_audit_alerts')) {
+            $user->update(['receives_audit_alerts' => $request->boolean('receives_audit_alerts')]);
+        }
 
         $user->companies()->sync($companiesToSync);
 

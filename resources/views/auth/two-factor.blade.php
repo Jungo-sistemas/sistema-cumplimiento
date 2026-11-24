@@ -13,6 +13,17 @@
             @enderror
         </div>
 
+        @if(\App\Support\TrustedDevice::enabled())
+            <label class="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                <input type="checkbox" name="remember_device" value="1" @checked(old('remember_device'))
+                       class="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand">
+                <span class="text-sm text-gray-700">
+                    <span class="font-semibold text-gray-900">Recordar este equipo por {{ \App\Support\TrustedDevice::days() }} días</span>
+                    <span class="block text-gray-500">No te volveremos a pedir el código aquí y tu sesión seguirá abierta. No lo marques en un equipo compartido.</span>
+                </span>
+            </label>
+        @endif
+
         <button type="submit" class="h-12 w-full rounded-xl bg-brand font-semibold text-white transition hover:bg-brand-dark">
             Verificar
         </button>

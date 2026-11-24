@@ -1,3 +1,4 @@
+@use('App\Models\Audit')
 <x-layouts.vigia title="Auditorías">
     <x-slot name="breadcrumb">
         <span>Auditorías</span>
@@ -6,81 +7,45 @@
     </x-slot>
 
     @php
-        // Pestaña activa: viene en la dirección (?tab=finalizadas). Si no viene, se abre "En ejecución".
-        $tab = request('tab') === 'finalizadas' ? 'finalizadas' : 'ejecucion';
-
-        // Datos de ejemplo para la demo. Cuando existan las tablas, esto lo manda el controlador.
-        $auditorias = [
-            ['id' => 1, 'procedimiento' => 'Control de maniobras y seguridad', 'empresa' => 'Asesorías Daval', 'fecha' => '11 sep 2026', 'auditado' => 'Laura Méndez',  'estado' => 'En captura', 'calificacion' => null],
-            ['id' => 2, 'procedimiento' => 'Recepción de materia prima',       'empresa' => 'Vigía',           'fecha' => '14 sep 2026', 'auditado' => 'Jorge Salinas', 'estado' => 'Programada', 'calificacion' => null],
-            ['id' => 3, 'procedimiento' => 'Manejo de residuos peligrosos',    'empresa' => 'Asesorías Daval', 'fecha' => '28 ago 2026', 'auditado' => 'Ana Torres',    'estado' => 'Finalizada', 'calificacion' => 63],
-            ['id' => 4, 'procedimiento' => 'Control de documentos',            'empresa' => 'Vigía',           'fecha' => '20 ago 2026', 'auditado' => 'Luis Herrera',  'estado' => 'Finalizada', 'calificacion' => 100],
-        ];
-
-        // Filtros que vienen en la dirección (?empresa=...&estado=...&q=...). array_filter quita los vacíos.
-        $filtros  = array_filter(request()->only(['empresa', 'estado', 'q']));
-        $empresas = collect($auditorias)->pluck('empresa')->unique()->sort();
-
-        // Cada pestaña muestra solo sus auditorías, y luego se aplica cada filtro que venga lleno.
-        $filas = collect($auditorias)
-            ->filter(fn ($a) => $tab === 'finalizadas'
-                ? $a['estado'] === 'Finalizada'
-                : $a['estado'] !== 'Finalizada')
-            ->when($filtros['empresa'] ?? null, fn ($c, $empresa) => $c->where('empresa', $empresa))
-            ->when($tab === 'ejecucion' ? ($filtros['estado'] ?? null) : null, fn ($c, $estado) => $c->where('estado', $estado))
-            ->when($filtros['q'] ?? null, fn ($c, $q) => $c->filter(
-                fn ($a) => str_contains(mb_strtolower($a['procedimiento'].' '.$a['auditado']), mb_strtolower($q))
-            ));
-
         $colores = [
-            'Programada' => 'bg-brand-50 text-brand',
-            'En captura' => 'bg-amber-50 text-amber-700',
-            'Finalizada' => 'bg-green-50 text-green-700',
+            Audit::STAGE_UNSCHEDULED => 'bg-gray-100 text-gray-700',
+            Audit::STAGE_SCHEDULED   => 'bg-brand-50 text-brand',
+            Audit::STAGE_CAPTURE     => 'bg-amber-50 text-amber-700',
+            Audit::STAGE_DONE        => 'bg-green-50 text-green-700',
         ];
     @endphp
 
-    @include('mi-espacio.partials.header', [
-        'title'    => 'Auditorías',
-        'subtitle' => 'Captura y califica el checklist durante la llamada de Microsoft Teams.',
-    ])
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        @include('mi-espacio.partials.header', [
+            'title'    => 'Auditorías',
+            'subtitle' => 'Programa la fecha, captura y califica el checklist durante la llamada de Microsoft Teams.',
+        ])
+        @if($canCreate)
+            <button type="button" @click="$dispatch('nueva-auditoria')"
+                    class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">Programar auditoría</button>
+        @endif
+    </div>
 
-    {{-- Pestañas: son enlaces normales; cada una recarga la página con su ?tab= --}}
+    @if($errors->any())
+        <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            @foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach
+        </div>
+    @endif
+
     <div class="mb-7 flex gap-6 border-b border-gray-200">
         @foreach(['ejecucion' => 'En ejecución', 'finalizadas' => 'Finalizadas'] as $key => $label)
-            <a href="{{ route('auditorias.audits.index', ['tab' => $key] + $filtros) }}"
+            <a href="{{ route('auditorias.audits.index', ['tab' => $key] + $filters) }}"
                 class="-mb-px border-b-2 pb-3 text-base font-semibold {{ $tab === $key ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-700' }}">{{ $label }}</a>
         @endforeach
     </div>
 
-    {{-- Filtros: las listas se envían solas al cambiar (onchange) y la búsqueda con Enter --}}
-    <form method="GET" action="{{ route('auditorias.audits.index') }}" class="mb-7 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <input type="hidden" name="tab" value="{{ $tab }}">
-
-        <select name="empresa" onchange="this.form.submit()"
-                class="h-14 shrink-0 rounded-xl border-gray-200 pr-10 text-[15px] focus:border-brand focus:ring-brand sm:w-64">
-            <option value="">Todas</option>
-            @foreach($empresas as $empresa)
-                <option value="{{ $empresa }}" @selected(($filtros['empresa'] ?? '') === $empresa)>{{ $empresa }}</option>
-            @endforeach
-        </select>
-
-        <input type="search" name="q" value="{{ $filtros['q'] ?? '' }}" placeholder="Buscar por procedimiento o persona..."
-                class="h-14 w-full rounded-xl border-gray-200 px-4 text-[15px] focus:border-brand focus:ring-brand">
-
-        @if($tab === 'ejecucion')
-            <select name="estado" onchange="this.form.submit()"
-                    class="h-14 shrink-0 rounded-xl border-gray-200 pr-10 text-[15px] focus:border-brand focus:ring-brand sm:w-64">
-                <option value="">Todos</option>
-                @foreach(['Programada', 'En captura'] as $estado)
-                    <option value="{{ $estado }}" @selected(($filtros['estado'] ?? '') === $estado)>{{ $estado }}</option>
-                @endforeach
-            </select>
-        @endif
-
-        @if($filtros)
-            <a href="{{ route('auditorias.audits.index', ['tab' => $tab]) }}" class="shrink-0 text-sm font-semibold text-brand hover:underline">Limpiar</a>
-        @endif
-    </form>
+    @include('auditorias.partials.filters', [
+        'action'      => route('auditorias.audits.index'),
+        'placeholder' => 'Buscar por procedimiento o persona auditada...',
+        'selects'     => $tab === 'ejecucion'
+            ? [['name' => 'estado', 'label' => 'Estado', 'all' => 'Todos los estados', 'options' => collect([Audit::STAGE_UNSCHEDULED, Audit::STAGE_SCHEDULED, Audit::STAGE_CAPTURE])->mapWithKeys(fn ($s) => [$s => $s])->all()]]
+            : [],
+    ])
 
     <div class="rounded-2xl border border-gray-200 bg-white p-4 sm:p-8">
         <div class="overflow-x-auto rounded-xl border border-gray-200">
@@ -95,28 +60,48 @@
                 </tr>
                 </thead>
                 <tbody class="divide-y">
-                    @forelse($filas as $audit)
+                    @forelse($rows as $audit)
+                        @php $stage = $audit->auditorStage(); @endphp
                         <tr>
                             <td class="px-4 py-5">
-                                <div class="font-semibold text-gray-900">{{ $audit['procedimiento'] }}</div>
-                                <div class="mt-1 text-sm text-gray-500">{{ $audit['empresa'] }} · {{ $audit['fecha'] }}</div>
+                                <div class="font-semibold text-gray-900">{{ $audit->regulation?->code ? $audit->regulation->code . ' · ' : '' }}{{ $audit->regulation?->name }}</div>
+                                <div class="mt-1 text-sm text-gray-500">
+                                    {{ $audit->company?->procesos_name ?? $audit->company?->name }} · {{ $tab === 'finalizadas' ? $audit->shortDateLabel() : ($audit->scheduledLabel() ?? 'Sin fecha') }}
+                                    @if(auth()->user()->isAdmin() && $audit->auditor) · Auditor: {{ $audit->auditor->name }}@endif
+                                </div>
                             </td>
-                            <td class="px-4 py-5 text-gray-700">{{ $audit['auditado'] }}</td>
+                            <td class="px-4 py-5 text-gray-700">{{ $audit->auditees->pluck('name')->join(', ') }}</td>
                             <td class="px-4 py-5">
-                                <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $colores[$audit['estado']] }}">{{ $audit['estado'] }}</span>
+                                <span class="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold {{ $colores[$stage] }}">{{ $stage }}</span>
+                                @if($stage === Audit::STAGE_SCHEDULED && $audit->notice_sent_at)
+                                    <div class="mt-1 text-xs text-gray-500">Auditados avisados</div>
+                                @endif
                             </td>
-                            <td class="px-4 py-5 text-gray-700">{{ $audit['calificacion'] !== null ? $audit['calificacion'].' / 100' : '—' }}</td>
+                            <td class="px-4 py-5 text-gray-700">{{ $audit->result ?? '—' }}</td>
                             <td class="px-4 py-5 text-right">
-                                <a href="{{ $tab === 'finalizadas' ? route('auditorias.audits.result', $audit['id']) : route('auditorias.audits.checklist', $audit['id']) }}" class="inline-flex rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">{{ $tab === 'finalizadas' ? 'Ver resultado' : 'Consultar' }}</a>
+                                <div class="flex justify-end gap-2">
+                                    @if($tab === 'ejecucion' && $audit->isRunBy(auth()->user()))
+                                        <button type="button"
+                                                @click="$dispatch('programar-fecha', @js(['url' => route('auditorias.audits.schedule', $audit), 'proceso' => $audit->regulation?->name, 'auditados' => $audit->auditees->pluck('name')->join(', '), 'actual' => $audit->scheduledLabel(), 'fecha' => $audit->scheduled_at?->toDateString(), 'hora' => $audit->scheduled_at?->format('H:i')]))"
+                                                class="whitespace-nowrap rounded-lg border-2 border-gray-300 px-3 py-1.5 text-sm font-semibold text-brand-ink hover:bg-gray-50">{{ $audit->scheduled_at ? 'Cambiar fecha' : 'Poner fecha' }}</button>
+                                    @endif
+                                    <a href="{{ $tab === 'finalizadas' ? route('auditorias.audits.result', $audit) : route('auditorias.audits.checklist', $audit) }}"
+                                       class="whitespace-nowrap inline-flex rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">{{ $tab === 'finalizadas' ? 'Ver resultado' : ($stage === Audit::STAGE_CAPTURE && $audit->isRunBy(auth()->user()) ? 'Capturar checklist' : 'Consultar') }}</a>
+                                </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-6 text-center text-gray-500">{{ $filtros ? 'Ninguna auditoría coincide con los filtros.' : 'No hay auditorías en esta pestaña.' }}</td>
+                            <td colspan="5" class="px-4 py-6 text-center text-gray-500">{{ $filters ? 'Ninguna auditoría coincide con los filtros.' : 'No hay auditorías en esta pestaña.' }}</td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
     </div>
+
+    @include('auditorias.partials.reschedule-modal')
+    @if($canCreate)
+        @include('auditorias.partials.new-audit-modal')
+    @endif
 </x-layouts.vigia>

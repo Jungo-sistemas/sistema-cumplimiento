@@ -13,9 +13,7 @@
         $jefeRoleId       = $roles->where('slug', 'jefe_auditoria')->first()?->id;
         $companiesByGroup = $companies->groupBy('group_id')->map->values();
         // Solo los módulos de quien crea: un admin de Cumplimiento crea usuarios de Cumplimiento.
-        $moduleLabels  = ['all' => 'Ambos módulos', 'cumplimiento' => 'Solo Cumplimiento', 'procesos' => 'Solo Procesos'];
-        $moduleOptions = auth()->user()->assignableModuleAccess();
-        $areaNames     = ['all' => 'Cumplimiento y Procesos', 'cumplimiento' => 'Cumplimiento', 'procesos' => 'Procesos y Auditorías'];
+        $moduleOptions = auth()->user()->grantablePortalModules();
     @endphp
 
     <script>
@@ -32,14 +30,42 @@
             jefeRoleId: '{{ $jefeRoleId }}',
             companiesByGroup: @json($companiesByGroup),
             positionsByGroup: @json($positionsByGroup),
+            // Módulos marcados; de entrada, todos los que puede dar quien crea.
+            selectedModules: @js(array_values((array) old('modules', $moduleOptions))),
+            // Área que dan los módulos marcados (de ella dependen empresas y avisos).
+            get moduleAccess() {
+                const procesos = this.selectedModules.includes('procesos');
+                const otros = this.selectedModules.some(m => m !== 'procesos');
+                return procesos && otros ? 'all' : (procesos ? 'procesos' : 'cumplimiento');
+            },
+            init() {
+                // Al cambiar de módulo se quitan las empresas que ya no salen en ese lado.
+                this.$watch('companyModule', () => {
+                    const ids = this.availableCompanies.map(c => String(c.id));
+                    this.selectedCompanyIds = this.selectedCompanyIds.filter(id => ids.includes(id));
+                });
+            },
             get isAdmin() { return this.selectedRole === this.adminRoleId; },
             get isAuditor() { return this.selectedRole === this.auditorRoleId; },
             // Auditor y Jefe de Auditoría solo trabajan en Procesos: su módulo no se elige.
             get soloProcesos() { return this.isAuditor || this.selectedRole === this.jefeRoleId; },
             get needsCompany() { return this.selectedRole !== ''; },
+            // El auditor y el Jefe solo están en Procesos aunque las casillas digan otra cosa.
+            get companyModule() { return this.soloProcesos ? 'procesos' : this.moduleAccess; },
+            // Solo Procesos: las empresas que salen en Procesos. Cumplimiento o ambos: todas.
             get availableCompanies() {
                 if (!this.selectedGroup) return [];
-                return this.companiesByGroup[this.selectedGroup] ?? [];
+                const list = this.companiesByGroup[this.selectedGroup] ?? [];
+                return this.companyModule === 'procesos' ? list.filter(c => c.show_in_processes && !c.otras) : list;
+            },
+            // Nombre según el módulo: en Procesos algunas se llaman distinto (VIDENCI → SAVSA).
+            companyLabel(c) {
+                const procesos = c.process_name || c.name;
+                if (this.companyModule === 'procesos') return procesos;
+                if (this.companyModule === 'all' && procesos !== c.name && c.show_in_processes) {
+                    return c.name + ' · ' + procesos + ' en Procesos';
+                }
+                return c.name;
             },
             get availablePositions() {
                 if (!this.selectedGroup) return [];
@@ -49,10 +75,12 @@
                 const q = this.companySearch.trim().toLowerCase();
                 return this.availableCompanies
                     .filter(c => !this.selectedCompanyIds.includes(String(c.id)))
-                    .filter(c => !q || c.name.toLowerCase().includes(q));
+                    // Se encuentra por cualquiera de sus dos nombres (VIDENCI o SAVSA).
+                    .filter(c => !q || [c.name, c.process_name].some(n => (n || '').toLowerCase().includes(q)));
             },
             companyName(id) {
-                return this.availableCompanies.find(c => String(c.id) === String(id))?.name ?? '—';
+                const c = this.availableCompanies.find(c => String(c.id) === String(id));
+                return c ? this.companyLabel(c) : '—';
             },
             addCompany(id) {
                 id = String(id);
@@ -201,6 +229,33 @@
             <hr class="border-gray-100" x-show="selectedRole !== ''" x-transition>
             @endif
 
+            {{-- ── MÓDULOS ── antes de las empresas: la lista de empresas se arma según el módulo
+                 (en Procesos algunas se llaman distinto, p. ej. VIDENCI → SAVSA, y otras no salen). --}}
+            <div x-show="selectedRole !== ''" x-transition class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700">
+                    <span x-text="soloProcesos ? 'Módulo' : 'Módulos visibles'"></span>
+                </label>
+
+                <template x-if="soloProcesos">
+                    <div>
+                        <input type="hidden" name="module_access" value="procesos">
+                        <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                            Solo Procesos y Auditorías
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="!soloProcesos">
+                    <div>
+                        @include('users.partials.module-checkboxes', ['model' => 'selectedModules', 'options' => $moduleOptions])
+                    </div>
+                </template>
+
+                <p class="text-xs text-gray-400" x-show="soloProcesos">
+                    Este rol solo entra a Procesos y Auditorías; no ve los demás módulos.
+                </p>
+            </div>
+
             {{-- ── ALCANCE Y EMPRESA ─────────────────────────────────────── --}}
             @if($singleCompany)
 
@@ -281,7 +336,7 @@
                                 <template x-for="company in companySearchResults" :key="company.id">
                                     <div @click="addCompany(company.id)"
                                          class="px-3 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50"
-                                         x-text="company.name"></div>
+                                         x-text="companyLabel(company)"></div>
                                 </template>
                             </div>
 
@@ -309,59 +364,72 @@
 
             @endif
 
-            {{-- Módulos --}}
-            <div x-show="selectedRole !== ''" x-transition class="space-y-2"
-                 x-data="{ moduleAccess: @js(old('module_access', $moduleOptions[0])) }">
-                <label class="block text-sm font-medium text-gray-700">
-                    <span x-text="soloProcesos ? 'Módulo' : 'Módulos visibles'"></span>
-                </label>
-
-                <template x-if="soloProcesos">
-                    <div>
-                        <input type="hidden" name="module_access" value="procesos">
-                        <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
-                            Solo Procesos
-                        </div>
+            {{-- Notificaciones --}}
+            <div x-show="selectedRole !== ''" x-transition class="space-y-2">
+                {{--
+                    Notificaciones, una casilla por área. Cumplimiento y Procesos (avisos de
+                    administración) solo para un admin y solo de las áreas que tiene; Auditorías la
+                    designa quien administra Procesos. Sus avisos personales le llegan siempre.
+                --}}
+                @php
+                    $oldNotify = array_values((array) old('notify_modules', array_keys(\App\Support\PortalModules::LABELS)));
+                    $canAudit = auth()->user()->canAssignProcesosAccess();
+                @endphp
+                {{-- Pastillas compactas: una por módulo que tendrá (avisos de administración, solo
+                     admins; los módulos nuevos aún no mandan avisos pero ya queda la preferencia) y
+                     Auditorías. "Todas" prende o apaga las que aplican a este usuario. --}}
+                <div x-data="{
+                        notifyAreas: @js($oldNotify),
+                        notifyAudit: @js((bool) old('receives_audit_alerts')),
+                        canAudit: @js($canAudit),
+                        labels: { fiscal: 'Fiscal', regulatorio: 'Regulatorio', objetivos: 'Objetivos', procesos: 'Procesos', flujos: 'Flujos', cursos: 'Cursos', auditorias: 'Auditorías' },
+                        get notifyOptions() {
+                            // En el orden del menú, solo los módulos marcados arriba.
+                            const o = Object.keys(this.labels).filter(k => k !== 'auditorias' && this.isAdmin && this.selectedModules.includes(k));
+                            if (this.canAudit) o.push('auditorias');
+                            return o;
+                        },
+                        isOn(k) { return k === 'auditorias' ? this.notifyAudit : this.notifyAreas.includes(k); },
+                        toggle(k) {
+                            if (k === 'auditorias') { this.notifyAudit = ! this.notifyAudit; return; }
+                            this.notifyAreas = this.isOn(k) ? this.notifyAreas.filter(a => a !== k) : [...this.notifyAreas, k];
+                        },
+                        get allOn() { return this.notifyOptions.every(k => this.isOn(k)); },
+                        toggleAll() {
+                            const on = ! this.allOn;
+                            this.notifyOptions.forEach(k => { if (this.isOn(k) !== on) this.toggle(k); });
+                        },
+                     }"
+                     x-show="notifyOptions.length > 0" class="mt-3">
+                    <p class="mb-1.5 text-sm font-medium text-gray-700">Notificaciones</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" x-show="notifyOptions.length > 1" @click="toggleAll()" :aria-pressed="allOn"
+                                :class="allOn ? 'border-brand bg-brand text-white' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'"
+                                class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors">
+                            <x-icon name="check" class="h-3.5 w-3.5" x-show="allOn" />
+                            Todas
+                        </button>
+                        <template x-for="k in notifyOptions" :key="k">
+                            <button type="button" @click="toggle(k)" :aria-pressed="isOn(k)"
+                                    :class="isOn(k) ? 'border-brand bg-brand/10 text-brand' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'"
+                                    class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors">
+                                <x-icon name="check" class="h-3.5 w-3.5" x-show="isOn(k)" />
+                                <span x-text="labels[k]"></span>
+                            </button>
+                        </template>
                     </div>
-                </template>
-
-                <template x-if="!soloProcesos">
-                    @if(count($moduleOptions) === 1)
-                        <div>
-                            <input type="hidden" name="module_access" value="{{ $moduleOptions[0] }}">
-                            <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
-                                {{ $moduleLabels[$moduleOptions[0]] }}
-                            </div>
-                        </div>
-                    @else
-                        <select name="module_access" x-model="moduleAccess"
-                                class="w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand text-sm">
-                            @foreach($moduleOptions as $option)
-                                <option value="{{ $option }}">{{ $moduleLabels[$option] }}</option>
-                            @endforeach
-                        </select>
+                    <template x-for="k in notifyAreas.filter(a => notifyOptions.includes(a))" :key="k">
+                        <input type="hidden" name="notify_modules[]" :value="k">
+                    </template>
+                    @if($canAudit)
+                        <input type="hidden" name="receives_audit_alerts" :value="notifyAudit ? 1 : 0">
                     @endif
-                </template>
-
-                <p class="text-xs text-gray-400"
-                   x-text="soloProcesos
-                       ? 'Este rol solo tiene acceso al módulo de Procesos.'
-                       : 'Define a qué sección del sistema tendrá acceso. Sin Procesos, en Procesos y Auditorías solo verá Mi espacio (sus procedimientos, aprobaciones y auditorías).'">
-                </p>
-                @if(count($moduleOptions) === 1)
-                    <p class="text-xs text-gray-400">Solo puedes dar acceso a los módulos que tú administras.</p>
-                @endif
-
-                {{-- Un admin nuevo queda en el área de quien lo crea: ¿recibe los avisos de esa área? --}}
-                <label x-show="isAdmin" class="mt-3 flex items-start gap-2 rounded-lg border border-gray-200 px-3 py-2.5 text-sm cursor-pointer">
-                    <input type="checkbox" name="receive_notifications" value="1" @checked(old('receive_notifications', true))
-                           class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/40">
-                    <span class="text-gray-700">
-                        Recibir las notificaciones de administración del área de
-                        <span class="font-semibold" x-text="@js($areaNames)[moduleAccess] ?? ''"></span>
-                        <span class="block text-xs text-gray-400">Solicitudes de acceso, escalamientos y avisos a administradores. Sus avisos personales le llegan siempre.</span>
-                    </span>
-                </label>
+                    <p class="mt-1.5 text-xs text-gray-400">
+                        <span x-show="notifyOptions.some(k => k !== 'auditorias')">Módulos: solicitudes de acceso, escalamientos y avisos a administradores de ese módulo.</span>
+                        <span x-show="canAudit">Auditorías: hallazgos críticos y plazos vencidos del grupo.</span>
+                        Sus avisos personales le llegan siempre.
+                    </p>
+                </div>
             </div>
 
             <div class="flex justify-end gap-3 pt-2">

@@ -6,7 +6,7 @@
 
     @php
         $cards = [
-            ['label' => 'Mis auditorías activas', 'valor' => $activeAuditsCount, 'texto' => 'Las que te tocan este mes, con su fecha y auditor.', 'boton' => 'Ver mis auditorías',  'url' => route('mi-espacio.audits')],
+            ['label' => 'Mis auditorías activas', 'valor' => $activeAuditsCount, 'texto' => 'Tus próximas auditorías, con su fecha y auditor.', 'boton' => 'Ver mis auditorías',  'url' => route('mi-espacio.audits')],
             ['label' => 'Mis hallazgos',          'valor' => $findingsCount,     'texto' => 'Hallazgos donde te toca subir evidencia.', 'boton' => 'Ver mis hallazgos', 'url' => route('mi-espacio.findings')],
             ['label' => 'Mis documentos',         'valor' => $releasedDocsCount, 'texto' => 'Procesos relacionados con tu trabajo.',          'boton' => 'Consultar documentos', 'url' => route('mi-espacio.documents')],
         ];

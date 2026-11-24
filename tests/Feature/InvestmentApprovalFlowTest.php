@@ -54,7 +54,7 @@ class InvestmentApprovalFlowTest extends TestCase
             'status' => 'active', 'role_id' => $adminRole->id,
         ]);
         $this->dd = User::factory()->create([
-            'name' => 'Federico Martínez Navarro', 'group_id' => $this->group->id, 'company_id' => $this->company->id,
+            'name' => 'José Daniel Aguirre Chavarría', 'group_id' => $this->group->id, 'company_id' => $this->company->id,
             'scope_level' => 'company', 'status' => 'active', 'role_id' => $opRole->id,
         ]);
         $this->cfo = User::factory()->create([
@@ -92,7 +92,7 @@ class InvestmentApprovalFlowTest extends TestCase
 
         // El modal recibe el flujo de cada razón social para mostrarlo al elegirla.
         $this->actingAs($this->admin)->get(route('investment-requests.index'))
-            ->assertOk()->assertSee('Federico Martínez Navarro', false)->assertDontSee('approver_ids');
+            ->assertOk()->assertSee('José Daniel Aguirre Chavarría', false)->assertDontSee('approver_ids');
 
         $this->submit()->assertRedirect(route('investment-requests.index'));
 
@@ -221,12 +221,35 @@ class InvestmentApprovalFlowTest extends TestCase
         $this->assertSame(['Gerente', 'DD', 'CFO', 'CEO', 'Consejero'], $steps->keys()->all());
         $this->assertSame('Vicente Saint Martin Ochoa', $steps['Gerente']->approver_name);
         $this->assertNull($steps['Gerente']->user_id);              // aún no tiene usuario
-        $this->assertSame($this->dd->id, $steps['DD']->user_id);    // "Federico Martinez Navarro" sin acento
+        $this->assertSame($this->dd->id, $steps['DD']->user_id);    // "Jose Daniel Aguirre Chavarria" sin acentos
         $this->assertSame($this->cfo->id, $steps['CFO']->user_id);
 
         // Toda la lista del cliente, aunque la empresa no exista todavía en el sistema.
         $this->assertSame(26, InvestmentEntity::where('is_active', true)->count());
         $this->assertNull(InvestmentEntity::where('name', 'Grupo Vigía')->sole()->company_id);
         $this->assertSame(2, InvestmentEntity::whereHas('company', fn ($q) => $q->where('name', 'BIOMEX'))->count());
+    }
+
+    public function test_el_comando_liga_a_quien_esta_con_su_nombre_completo(): void
+    {
+        $this->cfo->update(['name' => 'Luvia Hernández García']);
+
+        $this->artisan('investments:sync-approval-flows')->assertSuccessful();
+
+        $cfoStep = InvestmentEntity::where('name', 'Alcom')->sole()->steps->firstWhere('position', 'CFO');
+        $this->assertSame($this->cfo->id, $cfoStep->user_id);
+    }
+
+    public function test_el_nombre_corto_no_liga_si_hay_dos_personas_que_coinciden(): void
+    {
+        $this->cfo->update(['name' => 'Luvia Hernández García']);
+        User::factory()->create([
+            'name' => 'Luvia Hernández López', 'group_id' => $this->group->id, 'company_id' => $this->company->id,
+            'scope_level' => 'company', 'status' => 'active', 'role_id' => $this->cfo->role_id,
+        ]);
+
+        $this->artisan('investments:sync-approval-flows')->assertSuccessful();
+
+        $this->assertNull(InvestmentEntity::where('name', 'Alcom')->sole()->steps->firstWhere('position', 'CFO')->user_id);
     }
 }

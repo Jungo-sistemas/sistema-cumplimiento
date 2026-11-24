@@ -237,7 +237,7 @@ class SuperAdminController extends Controller
             ->withQueryString();
 
         $roles            = Role::orderBy('name')->get();
-        $companies        = Company::orderBy('name')->get(['id', 'name', 'group_id']);
+        $companies        = Company::orderBy('name')->get(['id', 'name', 'group_id', 'process_name', 'show_in_processes']);
         $companiesByGroup = $companies->groupBy('group_id')->map->values();
         $groups           = Group::orderBy('name')->get();
         $jobPositions     = JobPosition::where('is_active', true)
@@ -279,9 +279,8 @@ class SuperAdminController extends Controller
                 $request->group_id,
             );
             $groupId      = $resolvedGroupId ?? $request->group_id;
-            $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
-                ? $request->module_access : 'all';
         }
+        [$moduleAccess, $portalModules] = $this->resolveSuperAdminModules($request, $role);
 
         // A diferencia de module_access, esto no se fuerza a 'all' para superadmin: un superadmin
         // también puede querer notificaciones de una sola área aunque tenga acceso a ambas.
@@ -296,7 +295,9 @@ class SuperAdminController extends Controller
             'group_id'          => $groupId,
             'scope_level'       => $scopeLevel,
             'module_access'     => $moduleAccess,
+            'portal_modules'    => $portalModules,
             'notification_modules' => $notificationModules,
+            'receives_audit_alerts' => $request->boolean('receives_audit_alerts'),
             'password'          => null,
             'status'            => 'invited',
             'invite_token'      => Str::random(64),
@@ -318,6 +319,34 @@ class SuperAdminController extends Controller
         return redirect()
             ->route('superadmin.users')
             ->with('success', 'Usuario invitado correctamente.');
+    }
+
+    /**
+     * [module_access, portal_modules] de las casillas modules[] (los seis de PortalModules). El
+     * superadmin tiene todo; sin casillas se acepta el module_access de antes (null = 'all').
+     *
+     * @return array{0: string, 1: ?array}
+     */
+    private function resolveSuperAdminModules(Request $request, Role $role): array
+    {
+        if ($role->slug === 'superadmin') {
+            return ['all', null];
+        }
+
+        if ($request->has('modules')) {
+            $request->validate(
+                [
+                    'modules'   => ['required', 'array', 'min:1'],
+                    'modules.*' => ['in:' . implode(',', array_keys(\App\Support\PortalModules::LABELS))],
+                ],
+                ['modules.required' => 'Marca al menos un módulo.', 'modules.min' => 'Marca al menos un módulo.']
+            );
+            $selection = \App\Support\PortalModules::fromSelection($request->input('modules'));
+
+            return [$selection['module_access'], $selection['portal_modules']];
+        }
+
+        return [in_array($request->module_access, ['all', 'cumplimiento', 'procesos'], true) ? $request->module_access : 'all', null];
     }
 
     public function updateUser(Request $request, User $user)
@@ -347,9 +376,8 @@ class SuperAdminController extends Controller
                 $request->group_id,
             );
             $groupId      = $resolvedGroupId ?? $request->group_id;
-            $moduleAccess = in_array($request->module_access, ['all', 'cumplimiento', 'procesos'])
-                ? $request->module_access : 'all';
         }
+        [$moduleAccess, $portalModules] = $this->resolveSuperAdminModules($request, $role);
 
         $notificationModules = in_array($request->notification_modules, ['all', 'cumplimiento', 'procesos', 'none'])
             ? $request->notification_modules : null;
@@ -360,8 +388,15 @@ class SuperAdminController extends Controller
             'group_id'      => $groupId,
             'scope_level'   => $scopeLevel,
             'module_access' => $moduleAccess,
+            'portal_modules' => $portalModules,
             'notification_modules' => $notificationModules,
+            // El superadmin elige por área: se deja de usar la elección por módulo.
+            'notify_modules' => null,
         ]);
+
+        if ($request->has('receives_audit_alerts')) {
+            $user->update(['receives_audit_alerts' => $request->boolean('receives_audit_alerts')]);
+        }
 
         $user->companies()->sync($companiesToSync);
 

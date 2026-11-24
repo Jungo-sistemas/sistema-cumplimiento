@@ -10,15 +10,15 @@ use App\Models\Regulation;
 use App\Models\RegulationVersion;
 use App\Models\Role;
 use App\Models\User;
-use App\Notifications\AuditMonthStartedNotification;
 use App\Notifications\AuditScheduledNotification;
+use App\Notifications\AuditUpcomingNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 /**
- * Mis auditorías (rol auditado): solo informativa. El auditado se entera del MES cuando empieza
- * (nunca antes, nunca el día) y ve la fecha y hora cuando el auditor la registra.
+ * Mis auditorías (rol auditado): solo informativa. El auditor fija la fecha y al auditado le llega
+ * el aviso 3 días antes (auditorias.aviso_dias_antes); antes de eso no la ve.
  */
 class AuditeeAuditsTest extends TestCase
 {
@@ -71,33 +71,21 @@ class AuditeeAuditsTest extends TestCase
         return $audit;
     }
 
-    public function test_solo_ve_las_de_su_mes_y_anteriores_nunca_las_de_meses_siguientes(): void
+    public function test_solo_ve_las_que_estan_a_tres_dias_o_menos_de_su_fecha(): void
     {
-        $this->audit('Carga de combustible', '2026-11-01');
-        $this->audit('Pendiente de octubre', '2026-10-01');
-        $this->audit('Auditoría de diciembre', '2026-12-01');
-        $this->audit('De otra persona', '2026-11-01', [], $this->other);
+        $this->audit('Proceso En Tres Dias', '2026-11-01', ['scheduled_at' => '2026-11-15 10:00:00']);
+        $this->audit('Proceso En Cuatro Dias', '2026-11-01', ['scheduled_at' => '2026-11-16 10:00:00']);
+        $this->audit('Proceso Sin Fecha', '2026-11-01');
+        $this->audit('De otra persona', '2026-11-01', ['scheduled_at' => '2026-11-13 10:00:00'], $this->other);
 
         $this->actingAs($this->auditee)->get(route('mi-espacio.audits'))
             ->assertOk()
-            ->assertSee('Carga de combustible')
-            ->assertSee('Pendiente de octubre')
-            ->assertSee('Noviembre 2026')
+            ->assertSee('Proceso En Tres Dias')
+            ->assertSee('15 de noviembre de 2026, 10:00')
             ->assertSee('Ver proceso')
-            ->assertDontSee('Auditoría de diciembre')
+            ->assertDontSee('Proceso En Cuatro Dias')
+            ->assertDontSee('Proceso Sin Fecha')
             ->assertDontSee('De otra persona');
-    }
-
-    public function test_sin_fecha_muestra_solo_el_mes_y_con_fecha_muestra_dia_y_hora(): void
-    {
-        $this->audit('Proceso Sin Agendar', '2026-11-01');
-        $this->audit('Proceso Agendado', '2026-11-01', ['scheduled_at' => '2026-11-18 10:00:00']);
-
-        $this->actingAs($this->auditee)->get(route('mi-espacio.audits', ['estado' => 'sin_fecha']))
-            ->assertSee('Proceso Sin Agendar')->assertSee('Programada')->assertDontSee('Proceso Agendado');
-
-        $this->actingAs($this->auditee)->get(route('mi-espacio.audits', ['estado' => 'con_fecha']))
-            ->assertSee('Proceso Agendado')->assertSee('18 de noviembre de 2026, 10:00')->assertDontSee('Proceso Sin Agendar');
     }
 
     public function test_historial_muestra_realizadas_con_su_calificacion(): void
@@ -106,69 +94,94 @@ class AuditeeAuditsTest extends TestCase
             'status' => Audit::STATUS_COMPLETED, 'scheduled_at' => '2026-08-20 12:00:00',
             'completed_at' => '2026-08-20 13:00:00', 'result' => '92 / 100',
         ]);
-        $this->audit('Proceso Todavia Pendiente', '2026-11-01');
+        $this->audit('Proceso Todavia Pendiente', '2026-11-01', ['scheduled_at' => '2026-11-13 10:00:00']);
 
         $this->actingAs($this->auditee)->get(route('mi-espacio.audits', ['tab' => 'historial']))
             ->assertSee('Auditoría realizada')->assertSee('92 / 100')->assertDontSee('Proceso Todavia Pendiente');
     }
 
-    public function test_el_aviso_del_mes_llega_una_vez_y_solo_cuando_empieza_el_mes(): void
+    public function test_el_aviso_llega_una_vez_tres_dias_antes_de_la_fecha(): void
     {
-        $nov = $this->audit('Noviembre', '2026-11-01');
-        $dic = $this->audit('Diciembre', '2026-12-01');
+        $cerca  = $this->audit('Cerca', '2026-11-01', ['scheduled_at' => '2026-11-15 10:00:00']);
+        $lejos  = $this->audit('Lejos', '2026-11-01', ['scheduled_at' => '2026-11-20 10:00:00']);
+        $sinDia = $this->audit('Sin fecha', '2026-11-01');
 
-        $this->artisan('audits:notify-month')->assertSuccessful();
-        $this->artisan('audits:notify-month')->assertSuccessful(); // segunda corrida: no repite
+        $this->artisan('audits:notify-upcoming')->assertSuccessful();
+        $this->artisan('audits:notify-upcoming')->assertSuccessful(); // segunda corrida: no repite
 
-        Notification::assertSentToTimes($this->auditee, AuditMonthStartedNotification::class, 1);
-        $this->assertNotNull($nov->fresh()->month_notified_at);
-        $this->assertNull($dic->fresh()->month_notified_at);
+        Notification::assertSentToTimes($this->auditee, AuditUpcomingNotification::class, 1);
+        $this->assertNotNull($cerca->fresh()->notice_sent_at);
+        $this->assertNull($lejos->fresh()->notice_sent_at);
+        $this->assertNull($sinDia->fresh()->notice_sent_at);
 
-        // Al llegar diciembre, se avisa la de diciembre.
-        $this->travelTo(now()->setDate(2026, 12, 1)->setTime(7, 30));
-        $this->artisan('audits:notify-month')->assertSuccessful();
-        Notification::assertSentToTimes($this->auditee, AuditMonthStartedNotification::class, 2);
+        // Tres días antes de la del 20, se avisa esa.
+        $this->travelTo(now()->setDate(2026, 11, 17)->setTime(7, 30));
+        $this->artisan('audits:notify-upcoming')->assertSuccessful();
+        Notification::assertSentToTimes($this->auditee, AuditUpcomingNotification::class, 2);
     }
 
-    public function test_el_aviso_del_mes_no_lleva_el_dia(): void
+    public function test_no_avisa_auditorias_cuya_fecha_ya_paso(): void
     {
-        $audit = $this->audit('Noviembre', '2026-11-01', ['scheduled_at' => '2026-11-18 10:00:00']);
+        $this->audit('Pasada', '2026-11-01', ['scheduled_at' => '2026-11-11 10:00:00']);
 
-        $html = (new AuditMonthStartedNotification($audit))->toMail($this->auditee)->render();
+        $this->artisan('audits:notify-upcoming')->assertSuccessful();
 
-        $this->assertStringContainsString('noviembre 2026', mb_strtolower($html));
-        $this->assertStringNotContainsString('18 de noviembre', $html);
+        Notification::assertNothingSent();
     }
 
-    public function test_registrar_la_fecha_avisa_al_auditado_si_su_mes_ya_empezo(): void
+    public function test_el_aviso_lleva_la_fecha_y_hora(): void
     {
-        $nov = $this->audit('Noviembre', '2026-11-01');
-        $dic = $this->audit('Diciembre', '2026-12-01');
+        $audit = $this->audit('Noviembre', '2026-11-01', ['scheduled_at' => '2026-11-15 10:00:00']);
 
-        $this->artisan('audits:set-date', ['audit' => $nov->id, 'fecha' => '2026-11-18 10:00'])->assertSuccessful();
-        Notification::assertSentTo($this->auditee, AuditScheduledNotification::class, fn ($n) => ! $n->rescheduled);
+        $html = (new AuditUpcomingNotification($audit))->toMail($this->auditee)->render();
 
-        $this->artisan('audits:set-date', ['audit' => $nov->id, 'fecha' => '2026-11-20 16:30'])->assertSuccessful();
+        $this->assertStringContainsString('15 de noviembre de 2026, 10:00', $html);
+    }
+
+    public function test_el_auditor_fija_la_fecha_y_el_aviso_sale_hasta_tres_dias_antes(): void
+    {
+        $audit = $this->audit('Proceso Agendado', '2026-11-01');
+
+        // Fecha lejana: se guarda, pero el auditado todavía no se entera ni la ve.
+        $this->artisan('audits:set-date', ['audit' => $audit->id, 'fecha' => '2026-11-25 10:00'])->assertSuccessful();
+        Notification::assertNothingSent();
+        $this->actingAs($this->auditee)->get(route('mi-espacio.audits'))->assertDontSee('Proceso Agendado');
+
+        // El auditor la adelanta a dentro de 2 días: el aviso sale en ese momento.
+        $this->artisan('audits:set-date', ['audit' => $audit->id, 'fecha' => '2026-11-14 16:30'])->assertSuccessful();
+        Notification::assertSentToTimes($this->auditee, AuditUpcomingNotification::class, 1);
+        Notification::assertNotSentTo($this->auditee, AuditScheduledNotification::class);
+        $this->actingAs($this->auditee)->get(route('mi-espacio.audits'))->assertSee('Proceso Agendado');
+
+        // Ya avisado, si la cambia de nuevo le llega "Cambió la fecha" (y la sigue viendo).
+        $this->artisan('audits:set-date', ['audit' => $audit->id, 'fecha' => '2026-11-30 09:00'])->assertSuccessful();
         Notification::assertSentTo($this->auditee, AuditScheduledNotification::class, fn ($n) => $n->rescheduled);
-        $this->assertSame('2026-11-20 16:30', $nov->fresh()->scheduled_at->format('Y-m-d H:i'));
-
-        // Diciembre todavía no empieza: se guarda la fecha pero no se avisa ni se ve.
-        $this->artisan('audits:set-date', ['audit' => $dic->id, 'fecha' => '2026-12-05 09:00'])->assertSuccessful();
-        Notification::assertSentToTimes($this->auditee, AuditScheduledNotification::class, 2);
-        $this->actingAs($this->auditee)->get(route('mi-espacio.audits'))->assertDontSee('Diciembre');
+        Notification::assertSentToTimes($this->auditee, AuditUpcomingNotification::class, 1);
+        $this->assertSame('2026-11-30 09:00', $audit->fresh()->scheduled_at->format('Y-m-d H:i'));
+        $this->actingAs($this->auditee)->get(route('mi-espacio.audits'))->assertSee('Proceso Agendado');
     }
 
-    public function test_inicio_y_campana_cuentan_las_auditorias_del_mes(): void
+    public function test_los_dias_de_aviso_se_configuran(): void
     {
-        $this->audit('Noviembre', '2026-11-01');
-        $this->audit('Diciembre', '2026-12-01');
+        config(['auditorias.aviso_dias_antes' => 5]);
+        $this->audit('Proceso En Cinco Dias', '2026-11-01', ['scheduled_at' => '2026-11-17 10:00:00']);
+
+        $this->artisan('audits:notify-upcoming')->assertSuccessful();
+
+        Notification::assertSentToTimes($this->auditee, AuditUpcomingNotification::class, 1);
+    }
+
+    public function test_inicio_y_campana_cuentan_las_proximas_auditorias(): void
+    {
+        $this->audit('Cerca', '2026-11-01', ['scheduled_at' => '2026-11-14 10:00:00']);
+        $this->audit('Lejos', '2026-11-01', ['scheduled_at' => '2026-12-05 10:00:00']);
 
         $this->actingAs($this->auditee)->get(route('mi-espacio.home'))
             ->assertOk()
             ->assertSeeInOrder(['Mis auditorías activas', '1'])
-            ->assertSee('Auditorías de este mes');
+            ->assertSee('Próximas auditorías');
 
         $this->actingAs($this->other)->get(route('mi-espacio.home'))
-            ->assertDontSee('Auditorías de este mes');
+            ->assertDontSee('Próximas auditorías');
     }
 }

@@ -13,6 +13,7 @@ use App\Http\Controllers\AssetRequirementDocumentController;
 use App\Http\Controllers\AssetExtraDocumentController;
 use App\Http\Controllers\RequirementAuditLogController;
 use App\Http\Controllers\AuditeeController;
+use App\Http\Controllers\AuditorController;
 use App\Http\Controllers\GestionController;
 use App\Http\Controllers\RequirementHistoryController;
 use App\Http\Controllers\DashboardController;
@@ -44,7 +45,7 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', [ComplianceDashboardController::class, 'index'])
-    ->middleware(['auth', 'verified', 'license.active'])
+    ->middleware(['auth', 'verified', 'license.active', 'module.access'])
     ->name('dashboard');
 
 Route::get('/dashboard/cumplimiento/exportar', [ComplianceDashboardController::class, 'exportLevel'])
@@ -69,6 +70,11 @@ if (app()->environment('local')) {
 }
 
 Route::middleware(['auth', 'license.active', 'module.access'])->group(function () {
+
+    // Secciones del menú que todavía no se construyen (App\Support\PortalModules::COMING_SOON).
+    Route::get('/proximamente/{section}', \App\Http\Controllers\ComingSoonController::class)
+        ->where('section', '[a-z-]+')
+        ->name('coming-soon');
 
     /*
     |--------------------------------------------------------------------------
@@ -189,6 +195,7 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
         Route::get('/auditorias', 'audits')->name('audits');
         Route::get('/hallazgos', 'findings')->name('findings');
         Route::get('/hallazgos/{finding}', 'showFinding')->whereNumber('finding')->name('findings.show');
+        Route::post('/hallazgos/{finding}/causa-raiz', 'submitRootCause')->whereNumber('finding')->name('findings.root-cause');
         Route::post('/hallazgos/{finding}/evidencia', 'submitEvidence')->whereNumber('finding')->name('findings.evidence');
         Route::get('/hallazgos/archivos/{file}', 'downloadFindingFile')->whereNumber('file')->name('findings.file');
         Route::get('/ayuda', 'help')->name('help');
@@ -207,11 +214,23 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     |--------------------------------------------------------------------------
     */
     Route::prefix('auditorias')->name('auditorias.')->middleware('can:auditorias')->group(function () {
-        Route::view('/', 'auditorias.home')->name('home');
-        Route::view('/lista', 'auditorias.audits')->name('audits.index');
-        Route::view('/{audit}/checklist', 'auditorias.checklist')->whereNumber('audit')->name('audits.checklist');
-        Route::view('/{audit}/resultado', 'auditorias.result')->whereNumber('audit')->name('audits.result');
-        Route::view('/hallazgos', 'auditorias.findings')->name('findings.index');
+        Route::controller(AuditorController::class)->group(function () {
+            Route::get('/', 'home')->name('home');
+            Route::get('/lista', 'index')->name('audits.index');
+            Route::post('/lista', 'store')->name('audits.store');
+            Route::post('/{audit}/fecha', 'schedule')->whereNumber('audit')->name('audits.schedule');
+            Route::get('/{audit}/checklist', 'checklist')->whereNumber('audit')->name('audits.checklist');
+            Route::post('/{audit}/checklist', 'saveChecklist')->whereNumber('audit')->name('audits.checklist.save');
+            Route::post('/{audit}/finalizar', 'finalize')->whereNumber('audit')->name('audits.finalize');
+            Route::post('/{audit}/criterios', 'addItem')->whereNumber('audit')->name('audits.items.store');
+            Route::delete('/{audit}/criterios/{item}', 'deleteItem')->whereNumber(['audit', 'item'])->name('audits.items.destroy');
+            Route::post('/{audit}/criterios/{item}/soportes', 'uploadSupport')->whereNumber(['audit', 'item'])->name('audits.items.support');
+            Route::delete('/soportes/{file}', 'deleteSupport')->whereNumber('file')->name('support.destroy');
+            Route::get('/soportes/{file}', 'downloadSupport')->whereNumber('file')->name('support.download');
+            Route::get('/{audit}/resultado', 'result')->whereNumber('audit')->name('audits.result');
+            Route::get('/hallazgos', 'findings')->name('findings.index');
+            Route::post('/hallazgos/{finding}/revision', 'reviewFinding')->whereNumber('finding')->name('findings.review');
+        });
         Route::view('/ayuda', 'auditorias.help')->name('help');
         Route::get('/indicadores', function () {
             abort_unless(auth()->user()->isAdmin(), 403);

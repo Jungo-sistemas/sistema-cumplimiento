@@ -21,7 +21,10 @@ class User extends Authenticatable
         'scope_level',
         'role_id',
         'module_access',
+        'portal_modules',
         'notification_modules',
+        'notify_modules',
+        'receives_audit_alerts',
         'status',
         'login_count',
         'last_login_at',
@@ -58,6 +61,15 @@ class User extends Authenticatable
                 ->map(fn ($r) => $r->code ?: $r->name)
                 ->all();
         });
+
+        // El auditor solo trabaja en Procesos y Auditorías: se guarda así para que Usuarios lo muestre bien.
+        static::saving(function (User $user) {
+            if ($user->role_id && $user->isDirty(['role_id', 'module_access'])
+                && Role::whereKey($user->role_id)->value('slug') === 'auditor') {
+                $user->module_access = 'procesos';
+                $user->portal_modules = null;
+            }
+        });
     }
 
     /** Mensaje de éxito al eliminar, mencionando los flujos reiniciados si hubo. */
@@ -83,8 +95,23 @@ class User extends Authenticatable
             'two_factor_expires_at'  => 'datetime',
             'last_login_at'          => 'datetime',
             'procesos_guide_completed_at' => 'datetime',
+            'receives_audit_alerts'  => 'boolean',
+            'portal_modules'         => 'array',
+            'notify_modules'         => 'array',
             'password'               => 'hashed',
         ];
+    }
+
+    /**
+     * Quienes reciben los avisos de auditorías del grupo: hallazgos críticos y plazos vencidos. Es
+     * una opción por persona en Usuarios (receives_audit_alerts), aparte de sus avisos personales.
+     */
+    public static function auditAlertRecipients(int $groupId): \Illuminate\Support\Collection
+    {
+        return static::where('group_id', $groupId)
+            ->where('status', 'active')
+            ->where('receives_audit_alerts', true)
+            ->get();
     }
 
     public function company()
@@ -257,14 +284,46 @@ class User extends Authenticatable
 
     public function canAccessModule(string $module): bool
     {
-        $access = $this->module_access ?? 'all';
-        return $access === 'all' || $access === $module;
+        return in_array($module, $this->accessibleModules(), true);
     }
 
+    /** El auditor solo trabaja en Procesos y Auditorías, tenga lo que tenga en module_access. */
     public function accessibleModules(): array
     {
+        if ($this->isAuditor()) {
+            return ['procesos'];
+        }
+
         $access = $this->module_access ?? 'all';
         return $access === 'all' ? ['cumplimiento', 'procesos'] : [$access];
+    }
+
+    /**
+     * Módulo del portal (App\Support\PortalModules). Procesos y Auditorías va con el área Procesos;
+     * los otros cinco con el área Cumplimiento y, si se eligieron algunos, solo esos
+     * (portal_modules null = los cinco, como quedaron los usuarios de antes).
+     */
+    public function canEnterPortalModule(string $module): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($module === 'procesos') {
+            return $this->canAccessModule('procesos');
+        }
+
+        return $this->canAccessModule('cumplimiento')
+            && ($this->portal_modules === null || in_array($module, $this->portal_modules, true));
+    }
+
+    /** Módulos del portal que tiene asignados, en el orden del menú. */
+    public function portalModules(): array
+    {
+        return array_values(array_filter(
+            array_keys(\App\Support\PortalModules::LABELS),
+            fn ($module) => $this->canEnterPortalModule($module),
+        ));
     }
 
     /*
@@ -279,6 +338,12 @@ class User extends Authenticatable
     public function grantableModules(): array
     {
         return $this->isSuperAdmin() ? ['cumplimiento', 'procesos'] : $this->accessibleModules();
+    }
+
+    /** Módulos del portal que puede dar o quitar: solo los que él mismo tiene (el superadmin, todos). */
+    public function grantablePortalModules(): array
+    {
+        return $this->isSuperAdmin() ? array_keys(\App\Support\PortalModules::LABELS) : $this->portalModules();
     }
 
     /** Valores de module_access que puede asignar al crear o editar. */
@@ -310,7 +375,8 @@ class User extends Authenticatable
             return false;
         }
 
-        return array_diff($target->accessibleModules(), $this->grantableModules()) === [];
+        return array_diff($target->accessibleModules(), $this->grantableModules()) === []
+            && array_diff($target->portalModules(), $this->portalModules()) === [];
     }
 
     /**
@@ -322,8 +388,30 @@ class User extends Authenticatable
      */
     public function wantsNotificationsFor(string $module): bool
     {
+        // Con la elección por módulo (notify_modules), el área Cumplimiento cuenta si eligió
+        // cualquiera de sus cinco módulos.
+        if ($this->notify_modules !== null) {
+            return $module === 'procesos'
+                ? in_array('procesos', $this->notify_modules, true)
+                : array_intersect(\App\Support\PortalModules::cumplimientoModules(), $this->notify_modules) !== [];
+        }
+
         $pref = $this->notification_modules ?? 'all';
         return $pref === 'all' || $pref === $module;
+    }
+
+    /**
+     * Avisos de administración de un módulo del portal (Fiscal, Regulatorio, Objetivos, Procesos y
+     * Auditorías, Flujos, Cursos). Los módulos nuevos aún no mandan avisos, pero la preferencia ya
+     * se guarda. Sin elección por módulo (usuarios de antes) se toma la de su área.
+     */
+    public function wantsModuleNotifications(string $module): bool
+    {
+        if ($this->notify_modules !== null) {
+            return in_array($module, $this->notify_modules, true);
+        }
+
+        return $this->wantsNotificationsFor($module === 'procesos' ? 'procesos' : 'cumplimiento');
     }
 
     /**

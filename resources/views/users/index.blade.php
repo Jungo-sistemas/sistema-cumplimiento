@@ -3,6 +3,7 @@
         <span class="text-gray-700 font-medium">Usuarios</span>
     </x-slot>
 
+    @include('users.partials.company-names-js')
     <script>
     function editUserData() {
         return {
@@ -14,8 +15,9 @@
             editRole: '',
             editGroup: '',
             editCompanyIds: [],
-            editModuleAccess: 'all',
+            editModules: [],
             editPositionIds: [],
+            editAuditAlerts: false,
             companySearch: '',
             companySearchOpen: false,
             adminRoleId: '{{ $adminRoleId ?? '' }}',
@@ -39,10 +41,12 @@
                 const q = this.companySearch.trim().toLowerCase();
                 return this.availableCompanies
                     .filter(c => !this.editCompanyIds.includes(String(c.id)))
-                    .filter(c => !q || c.name.toLowerCase().includes(q));
+                    .filter(c => companyMatches(c, q));
             },
+            companyLabel: companyFullLabel,
             companyName(id) {
-                return this.availableCompanies.find(c => String(c.id) === String(id))?.name ?? '—';
+                const c = this.availableCompanies.find(c => String(c.id) === String(id));
+                return c ? companyFullLabel(c) : '—';
             },
             addCompany(id) {
                 id = String(id);
@@ -53,15 +57,16 @@
             removeCompany(id) {
                 this.editCompanyIds = this.editCompanyIds.filter(x => x !== String(id));
             },
-            openEdit(id, name, roleId, groupId, companyIds, moduleAccess, positionIds) {
+            openEdit(id, name, roleId, groupId, companyIds, modules, positionIds, auditAlerts) {
                 this.editUserId = id;
                 this.editUserName = name;
                 this.editName = name;
                 this.editRole = String(roleId ?? '');
                 this.editGroup = String(groupId ?? '');
                 this.editCompanyIds = (companyIds ?? []).map(String);
-                this.editModuleAccess = moduleAccess || 'all';
+                this.editModules = [...(modules ?? [])];
                 this.editPositionIds = (positionIds ?? []).map(String);
+                this.editAuditAlerts = !! auditAlerts;
                 this.editOpen = true;
             }
         };
@@ -165,7 +170,7 @@
                                     <template x-for="company in companySearchResults" :key="company.id">
                                         <div @click="addCompany(company.id)"
                                              class="px-3 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50"
-                                             x-text="company.name"></div>
+                                             x-text="companyLabel(company)"></div>
                                     </template>
                                 </div>
 
@@ -210,10 +215,6 @@
                         @endif
 
                         {{-- Módulos --}}
-                        @php
-                            $moduleLabels  = ['all' => 'Ambos módulos', 'cumplimiento' => 'Solo Cumplimiento', 'procesos' => 'Solo Procesos'];
-                            $moduleOptions = auth()->user()->assignableModuleAccess();
-                        @endphp
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">
                                 <span x-text="soloProcesosEdit ? 'Módulo' : 'Módulos visibles'"></span>
@@ -223,25 +224,28 @@
                                 <div>
                                     <input type="hidden" name="module_access" value="procesos">
                                     <div class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-500">
-                                        Solo Procesos
+                                        Solo Procesos y Auditorías
                                     </div>
                                 </div>
                             </template>
 
                             <template x-if="!soloProcesosEdit">
-                                <select name="module_access" x-model="editModuleAccess"
-                                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
-                                    @foreach($moduleOptions as $option)
-                                        <option value="{{ $option }}">{{ $moduleLabels[$option] }}</option>
-                                    @endforeach
-                                </select>
+                                <div>
+                                    @include('users.partials.module-checkboxes', ['model' => 'editModules', 'options' => auth()->user()->grantablePortalModules()])
+                                </div>
                             </template>
-
-                            <p class="mt-1 text-xs text-gray-400"
-                               x-text="soloProcesosEdit
-                                   ? 'Este rol solo tiene acceso al módulo de Procesos.'
-                                   : 'Define a qué módulo tendrá acceso. Sin Procesos, en Procesos y Auditorías solo verá Mi espacio.'">
-                            </p>
+                            @if(auth()->user()->canAssignProcesosAccess())
+                            {{-- Avisos de auditorías: hallazgos críticos y plazos vencidos (aparte de sus avisos personales) --}}
+                            <input type="hidden" name="receives_audit_alerts" value="0">
+                            <label class="mt-3 flex items-start gap-2 rounded-lg border border-gray-200 px-3 py-2.5 text-sm cursor-pointer">
+                                <input type="checkbox" name="receives_audit_alerts" value="1" x-model="editAuditAlerts"
+                                       class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/40">
+                                <span class="text-gray-700">
+                                    Recibir los avisos de auditorías
+                                    <span class="block text-xs text-gray-400">Hallazgos críticos y plazos vencidos de los hallazgos del grupo.</span>
+                                </span>
+                            </label>
+                            @endif
                         </div>
 
                     </div>
@@ -443,7 +447,7 @@
                                             @php $canManage = auth()->user()->canManageUser($user); @endphp
                                             @if($canManage)
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', @json($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])), '{{ $user->module_access ?? 'all' }}', @json($user->jobPositions->pluck('id')))"
+                                                @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', @json($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])), {{ Js::from($user->portalModules()) }}, @json($user->jobPositions->pluck('id')), @json((bool) $user->receives_audit_alerts))"
                                                 class="whitespace-nowrap px-3 py-1.5 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand-dark">
                                                 Editar
                                             </button>

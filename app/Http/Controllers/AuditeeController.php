@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Audit;
 use App\Models\AuditFinding;
 use App\Models\AuditFindingFile;
+use App\Models\AuditFindingSubmission;
 use App\Models\Company;
 use App\Models\ProcessType;
 use App\Models\Regulation;
@@ -46,21 +47,26 @@ class AuditeeController extends Controller
             ->get();
 
         $findingsToAttend = AuditFinding::forResponsible($user)
-            ->whereIn('status', AuditFinding::NEEDS_EVIDENCE)
+            ->whereIn('status', AuditFinding::NEEDS_AUDITEE)
             ->with('audit.regulation')
             ->orderByRaw('due_at IS NULL')->orderBy('due_at')->orderBy('id')
             ->get();
         $activeAudits = Audit::activeForAuditee($user)->with('regulation')
-            ->orderBy('planned_for')->orderByRaw('scheduled_at IS NULL')->orderBy('scheduled_at')->get();
+            ->orderBy('scheduled_at')->get();
 
-        // Siguiente por atender: primero los hallazgos (son tareas), luego las auditorías del mes.
+        // Siguiente por atender: primero los hallazgos (son tareas), luego las próximas auditorías.
         $nextItems = $findingsToAttend->map(fn (AuditFinding $f) => [
-            'tag'   => $f->status === AuditFinding::STATUS_REJECTED ? 'Evidencia rechazada' : 'Hallazgo',
-            'tone'  => $f->status === AuditFinding::STATUS_REJECTED || $f->isOverdue() ? 'red' : 'amber',
+            'tag'   => match ($f->status) {
+                AuditFinding::STATUS_ROOT_CAUSE_REJECTED => 'Causa raíz devuelta',
+                AuditFinding::STATUS_EVIDENCE_REJECTED   => 'Evidencia rechazada',
+                AuditFinding::STATUS_EVIDENCE_PENDING    => 'Seguimiento',
+                default                                  => $f->isCritical() ? 'Hallazgo crítico' : 'Hallazgo',
+            },
+            'tone'  => in_array($f->status, [AuditFinding::STATUS_ROOT_CAUSE_REJECTED, AuditFinding::STATUS_EVIDENCE_REJECTED], true) || $f->isOverdue() || $f->isCritical() ? 'red' : 'amber',
             'title' => $f->point,
             'meta'  => trim(($f->audit->regulation?->code ? $f->audit->regulation->code . ' · ' : '') . ($f->due_at ? 'Fecha límite ' . $f->due_at->format('d/m/Y') : 'Fecha límite por definir')),
             'url'   => route('mi-espacio.findings.show', $f),
-            'cta'   => 'Subir evidencia',
+            'cta'   => $f->needsRootCause() ? 'Escribir causa raíz' : 'Subir evidencia',
         ])->concat($activeAudits->map(fn (Audit $a) => [
             'tag'   => 'Auditoría',
             'tone'  => 'brand',
@@ -200,8 +206,8 @@ class AuditeeController extends Controller
     }
 
     /**
-     * Mis auditorías: solo informativa. Activas = programadas cuyo mes ya empezó (las de meses
-     * siguientes no se ven); muestran el mes y, cuando el auditor la registra, la fecha y hora.
+     * Mis auditorías: solo informativa. Activas = programadas que ya se le avisaron (el auditor fija
+     * la fecha y el aviso llega unos días antes; antes no se ven), con su fecha y hora.
      * Historial = realizadas o canceladas. El checklist se consulta en el proceso mismo.
      */
     public function audits(Request $request)
@@ -212,13 +218,11 @@ class AuditeeController extends Controller
 
         $audits = Audit::query()
             ->forAuditee($user)
-            ->monthStarted()
+            ->noticeStarted()
             ->when($tab === 'activas',
                 fn ($q) => $q->where('status', Audit::STATUS_PLANNED),
                 fn ($q) => $q->whereIn('status', [Audit::STATUS_COMPLETED, Audit::STATUS_CANCELLED]))
             ->when($request->integer('company_id'), fn ($q, $id) => $q->where('company_id', $id))
-            ->when($tab === 'activas' && $request->query('estado') === 'sin_fecha', fn ($q) => $q->whereNull('scheduled_at'))
-            ->when($tab === 'activas' && $request->query('estado') === 'con_fecha', fn ($q) => $q->whereNotNull('scheduled_at'))
             ->when(trim((string) $request->query('q')), function ($q, $term) {
                 $like = '%' . mb_strtolower($term) . '%';
                 $q->whereHas('regulation', fn ($r) => $r->withoutGlobalScopes()
@@ -231,8 +235,8 @@ class AuditeeController extends Controller
                 'findings as my_open_findings_count' => fn ($q) => $q->where('status', '!=', AuditFinding::STATUS_CLOSED)->where('responsible_id', $user->id),
             ])
             ->when($tab === 'activas',
-                fn ($q) => $q->orderBy('planned_for')->orderByRaw('scheduled_at IS NULL')->orderBy('scheduled_at'),
-                fn ($q) => $q->orderByDesc('completed_at')->orderByDesc('planned_for'))
+                fn ($q) => $q->orderBy('scheduled_at'),
+                fn ($q) => $q->orderByDesc('completed_at')->orderByDesc('scheduled_at'))
             ->get();
 
         return view('mi-espacio.audits', [
@@ -264,8 +268,8 @@ class AuditeeController extends Controller
             })
             ->with(['audit.regulation', 'audit.auditor:id,name', 'latestSubmission'])
             ->when($tab === 'por-atender',
-                // Primero lo que le toca a él (pendiente / rechazada), luego lo que espera al auditor.
-                fn ($q) => $q->orderByRaw("CASE WHEN status = 'en_revision' THEN 1 ELSE 0 END")
+                // Primero lo que le toca a él, luego lo que espera al auditor.
+                fn ($q) => $q->orderByRaw("CASE WHEN status IN ('causa_en_revision', 'evidencia_en_revision') THEN 1 ELSE 0 END")
                     ->orderByRaw('due_at IS NULL')->orderBy('due_at')->orderBy('id'),
                 fn ($q) => $q->orderByDesc('closed_at'))
             ->get();
@@ -280,13 +284,48 @@ class AuditeeController extends Controller
     {
         $this->authorizeFinding($request->user(), $finding);
 
-        $finding->load(['audit.regulation.publishedVersion', 'audit.company', 'audit.auditor:id,name,email', 'submissions.files', 'submissions.user:id,name']);
+        $finding->load(['audit.regulation.publishedVersion', 'audit.company', 'audit.auditor:id,name,email', 'responsible:id,name', 'submissions.files', 'submissions.user:id,name', 'events.user:id,name']);
+        $isResponsible = $finding->responsible_id === $request->user()->id;
 
         return view('mi-espacio.finding', [
-            'finding'    => $finding,
-            'canSubmit'  => $finding->needsEvidence() && $finding->responsible_id === $request->user()->id,
-            'lastReject' => $finding->status === AuditFinding::STATUS_REJECTED ? $finding->submissions->first() : null,
+            'finding'           => $finding,
+            'isResponsible'     => $isResponsible,
+            'canSendRootCause'  => $isResponsible && $finding->needsRootCause(),
+            'canSubmit'         => $isResponsible && $finding->needsEvidence(),
+            // Lo último que devolvió el auditor, si el hallazgo está esperando la corrección.
+            'lastReject'        => in_array($finding->status, [AuditFinding::STATUS_ROOT_CAUSE_REJECTED, AuditFinding::STATUS_EVIDENCE_REJECTED], true)
+                ? $finding->submissions->first() : null,
+            'approvedRootCause' => $finding->submissions->first(fn ($s) => $s->isRootCause() && $s->status === AuditFindingSubmission::STATUS_ACCEPTED),
         ]);
+    }
+
+    public function submitRootCause(Request $request, AuditFinding $finding, AuditFindingService $service)
+    {
+        $user = $request->user();
+        abort_unless($finding->responsible_id === $user->id, 403);
+
+        if (! $finding->needsRootCause()) {
+            return redirect()->route('mi-espacio.findings.show', $finding)
+                ->with('warning', 'Este hallazgo ya no está esperando la causa raíz.');
+        }
+
+        $data = $request->validate([
+            'root_cause' => ['required', 'string', 'max:5000'],
+            'actions'    => ['required', 'string', 'max:5000'],
+            'files'      => ['nullable', 'array', 'max:' . AuditFinding::MAX_FILES],
+            'files.*'    => ['file', 'max:20480', 'mimes:' . self::EVIDENCE_MIMES],
+        ], [
+            'root_cause.required' => 'Escribe la causa raíz: por qué pasó, no solo qué pasó.',
+            'actions.required'    => 'Escribe las acciones para corregirlo.',
+            'files.max'           => 'Puedes adjuntar como máximo ' . AuditFinding::MAX_FILES . ' archivos.',
+            'files.*.max'         => 'Cada archivo puede pesar como máximo 20 MB.',
+            'files.*.mimes'       => 'Formato no permitido. Usa PDF, Word, Excel, PowerPoint o imagen (JPG, PNG, HEIC).',
+        ]);
+
+        $service->submitRootCause($finding, $user, $data['root_cause'], $data['actions'], $data['files'] ?? []);
+
+        return redirect()->route('mi-espacio.findings.show', $finding)
+            ->with('success', 'Causa raíz enviada. El auditor la revisará y te avisaremos si la aprueba o tiene observaciones.');
     }
 
     public function submitEvidence(Request $request, AuditFinding $finding, AuditFindingService $service)
@@ -326,7 +365,11 @@ class AuditeeController extends Controller
 
     private const EVIDENCE_MIMES = 'pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,jpeg,png,webp,heic,heif';
 
-    /** Ve el hallazgo su responsable, el auditor de la auditoría o cualquiera de sus auditados. */
+    /**
+     * Ve el hallazgo su responsable, el auditor de la auditoría, cualquiera de sus auditados, los
+     * responsables del procedimiento (lo acompañan en la causa raíz) y quien recibe los avisos de
+     * auditorías del grupo (le llegan los críticos y los vencidos).
+     */
     private function authorizeFinding(User $user, AuditFinding $finding): void
     {
         $audit = $finding->audit;
@@ -334,7 +377,10 @@ class AuditeeController extends Controller
         abort_unless(
             $finding->responsible_id === $user->id
             || $audit->auditor_id === $user->id
-            || $audit->auditees()->where('users.id', $user->id)->exists(),
+            || $audit->auditees()->where('users.id', $user->id)->exists()
+            || ($audit->regulation && $audit->regulation->responsables()->where('users.id', $user->id)->exists())
+            || ($user->receives_audit_alerts && $user->group_id === $audit->group_id)
+            || ($user->isAdmin() && $user->group_id === $audit->group_id),
             403
         );
     }
@@ -343,12 +389,6 @@ class AuditeeController extends Controller
     {
         return view('mi-espacio.help');
     }
-
-    // Inicio de cada módulo, para el selector de módulos de la vista de auditado.
-    private const MODULE_HOMES = [
-        'cumplimiento' => 'dashboard',
-        'procesos'     => 'gestion.home',
-    ];
 
     /**
      * Cambio "Gestión / Mi espacio" del encabezado de Procesos y Auditorías. Desde el selector de
@@ -368,7 +408,10 @@ class AuditeeController extends Controller
 
         $request->session()->put('view_mode', 'gestion');
 
-        return redirect()->route(self::MODULE_HOMES[$request->query('modulo')] ?? 'gestion.home');
+        // Inicio del módulo elegido en el selector de la vista de auditado (App\Support\PortalModules).
+        $module = $request->query('modulo');
+
+        return redirect(\App\Support\PortalModules::homeUrl(is_string($module) && isset(\App\Support\PortalModules::LABELS[$module]) ? $module : 'procesos', $user));
     }
 
     /** Empresas del usuario que se muestran en Procesos (mismo criterio que el listado de procesos). */
