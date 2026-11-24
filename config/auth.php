@@ -112,4 +112,10 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    | "Recordar este equipo" en la verificación en dos pasos: días en que ese equipo ya no pide el
+    | código y la sesión sigue abierta. 0 lo desactiva (siempre pide el código). Ver App\Support\TrustedDevice.
+    */
+    'two_factor_remember_days' => (int) env('TWO_FACTOR_REMEMBER_DAYS', 3),
+
 ];
