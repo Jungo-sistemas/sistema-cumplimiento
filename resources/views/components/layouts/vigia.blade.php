@@ -312,18 +312,24 @@
     {{-- El menú colapsado se recuerda en este navegador (localStorage puede fallar en modo privado).
          En pantallas de menos de 1536 px (laptops de 1366/1440 px o con zoom del sistema) arranca colapsado
          siempre: abierto ocupa 300 px y el contenido quedaba apretado y deformado. Ahí se puede
-         abrir con el botón, pero no se recuerda. --}}
+         abrir con el botón y se recuerda mientras dure la pestaña (sessionStorage): antes no se
+         recordaba y al elegir otra opción del menú la página nueva lo volvía a colapsar. --}}
     <div x-data="{
             mobileMenuOpen: false,
             userCollapsed: (() => { try { return localStorage.getItem('jc.sidebarCollapsed') === '1' } catch (e) { return false } })(),
             narrow: window.matchMedia('(max-width: 1535px)').matches,
-            narrowExpanded: false,
+            narrowExpanded: (() => { try { return sessionStorage.getItem('jc.sidebarNarrowExpanded') === '1' } catch (e) { return false } })(),
             get collapsed() { return this.narrow ? ! this.narrowExpanded : this.userCollapsed },
             init() {
-                window.matchMedia('(max-width: 1535px)').addEventListener('change', (e) => { this.narrow = e.matches; this.narrowExpanded = false; });
+                // Al cruzar los 1536 px (redimensionar o zoom) cada modo conserva su propia elección.
+                window.matchMedia('(max-width: 1535px)').addEventListener('change', (e) => { this.narrow = e.matches; });
             },
             toggleSidebar() {
-                if (this.narrow) { this.narrowExpanded = ! this.narrowExpanded; return; }
+                if (this.narrow) {
+                    this.narrowExpanded = ! this.narrowExpanded;
+                    try { sessionStorage.setItem('jc.sidebarNarrowExpanded', this.narrowExpanded ? '1' : '0') } catch (e) {}
+                    return;
+                }
                 this.userCollapsed = ! this.userCollapsed;
                 try { localStorage.setItem('jc.sidebarCollapsed', this.userCollapsed ? '1' : '0') } catch (e) {}
             },
