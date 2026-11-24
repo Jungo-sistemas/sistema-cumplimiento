@@ -1,14 +1,16 @@
-<x-layouts.vigia title="Documentos">
+<x-layouts.vigia title="Documentos generales">
 
     <x-slot name="breadcrumb">
-        <span class="text-gray-700 font-medium">Documentos</span>
+        <span>Cumplimiento Fiscal</span>
+        <span>/</span>
+        <span class="text-gray-700 font-medium">Documentos generales</span>
     </x-slot>
 
     @php $user = auth()->user(); @endphp
 
     {{-- HEADER --}}
     <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-brand">Documentos</h1>
+        <h1 class="text-2xl font-semibold text-brand">Documentos generales</h1>
         <div class="flex items-center gap-3">
             @if($user->isAdmin() || $user->isOperative())
                 <button type="button"

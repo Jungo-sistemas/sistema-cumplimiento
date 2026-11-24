@@ -390,12 +390,6 @@ class AuditeeController extends Controller
         return view('mi-espacio.help');
     }
 
-    // Inicio de cada módulo, para el selector de módulos de la vista de auditado.
-    private const MODULE_HOMES = [
-        'cumplimiento' => 'dashboard',
-        'procesos'     => 'gestion.home',
-    ];
-
     /**
      * Cambio "Gestión / Mi espacio" del encabezado de Procesos y Auditorías. Desde el selector de
      * módulos de Mi espacio llega con ?modulo= para pasar a Gestión directo en ese módulo.
@@ -414,7 +408,10 @@ class AuditeeController extends Controller
 
         $request->session()->put('view_mode', 'gestion');
 
-        return redirect()->route(self::MODULE_HOMES[$request->query('modulo')] ?? 'gestion.home');
+        // Inicio del módulo elegido en el selector de la vista de auditado (App\Support\PortalModules).
+        $module = $request->query('modulo');
+
+        return redirect(\App\Support\PortalModules::homeUrl(is_string($module) && isset(\App\Support\PortalModules::LABELS[$module]) ? $module : 'procesos', $user));
     }
 
     /** Empresas del usuario que se muestran en Procesos (mismo criterio que el listado de procesos). */

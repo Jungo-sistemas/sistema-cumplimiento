@@ -71,6 +71,11 @@ if (app()->environment('local')) {
 
 Route::middleware(['auth', 'license.active', 'module.access'])->group(function () {
 
+    // Secciones del menú que todavía no se construyen (App\Support\PortalModules::COMING_SOON).
+    Route::get('/proximamente/{section}', \App\Http\Controllers\ComingSoonController::class)
+        ->where('section', '[a-z-]+')
+        ->name('coming-soon');
+
     /*
     |--------------------------------------------------------------------------
     | Superadmin
