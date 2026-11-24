@@ -2,11 +2,6 @@
 
     @include('users.partials.company-names-js')
     <script>
-    // notification_modules guardado → áreas marcadas en la lista de Notificaciones.
-    function notifyAreas(value) {
-        return { all: ['cumplimiento', 'procesos'], cumplimiento: ['cumplimiento'], procesos: ['procesos'] }[value] ?? [];
-    }
-
     function usersPageData() {
         return {
             showForm: {{ old('role_id') ? 'true' : 'false' }},
@@ -14,7 +9,7 @@
             selectedGroup: '{{ old('group_id', '') }}',
             selectedCompanies: @json(array_map('strval', (array) old('company_id', []))),
             selectedModules: @js(array_values((array) old('modules', array_keys(\App\Support\PortalModules::LABELS)))),
-            selectedNotifyAreas: notifyAreas('{{ old('notification_modules', 'all') }}'),
+            selectedNotifyAreas: @js(array_values((array) old('notify_modules', old('notification_modules') === 'none' ? [] : array_keys(\App\Support\PortalModules::LABELS)))),
             selectedAuditAlerts: @json((bool) old('receives_audit_alerts')),
             selectedPositions: @json(array_map('strval', (array) old('job_position_ids', []))),
             superadminId: '{{ $roles->where('slug', 'superadmin')->first()?->id }}',
@@ -29,7 +24,7 @@
             editGroup: '',
             editCompanyIds: [],
             editModules: [],
-            editNotifyAreas: ['cumplimiento', 'procesos'],
+            editNotifyAreas: [],
             editAuditAlerts: false,
             editPositionIds: [],
             createCompanySearch: '',
@@ -41,17 +36,6 @@
             // El auditor solo entra a Procesos y Auditorías (User lo fuerza al guardar).
             get isAuditorCreate() { return this.auditorId !== '' && this.selectedRole === this.auditorId; },
             get isAuditorEdit() { return this.auditorId !== '' && this.editRole === this.auditorId; },
-            notifyValue(areas) {
-                const c = areas.includes('cumplimiento'), p = areas.includes('procesos');
-                return c && p ? 'all' : (c ? 'cumplimiento' : (p ? 'procesos' : 'none'));
-            },
-            notifySummary(areas, audit) {
-                const names = [];
-                if (areas.includes('cumplimiento')) names.push('Cumplimiento');
-                if (areas.includes('procesos')) names.push('Procesos');
-                if (audit) names.push('Auditorías');
-                return names.length ? names.join(', ') : 'Ninguna (solo avisos personales)';
-            },
             get createPositions() {
                 if (!this.selectedGroup) return [];
                 return this.allPositions.filter(p => String(p.group_id) === String(this.selectedGroup));
@@ -120,7 +104,7 @@
                 else this.editPositionIds.splice(idx, 1);
             },
             hasEditPos(id) { return this.editPositionIds.includes(id); },
-            openEdit(id, name, roleId, groupId, companyIds, modules, positionIds, notificationModules, auditAlerts) {
+            openEdit(id, name, roleId, groupId, companyIds, modules, positionIds, notifyModules, auditAlerts) {
                 this.editUserId = id;
                 this.editUserName = name;
                 this.editRole = String(roleId ?? '');
@@ -128,7 +112,7 @@
                 this.editCompanyIds = (companyIds || []).map(String);
                 this.editModules = [...(modules ?? [])];
                 this.editPositionIds = (positionIds || []).map(String);
-                this.editNotifyAreas = notifyAreas(notificationModules || 'all');
+                this.editNotifyAreas = [...(notifyModules ?? [])];
                 this.editAuditAlerts = !! auditAlerts;
                 this.editOpen = true;
             }
@@ -365,7 +349,7 @@
                     {{-- Notificaciones (independiente de module_access: aplica también a superadmin) --}}
                     <div>
                         <label class="mb-1 block text-sm font-medium text-gray-700">Notificaciones</label>
-                        @include('superadmin.partials.notification-picker', ['areas' => 'selectedNotifyAreas', 'audit' => 'selectedAuditAlerts'])
+                        @include('superadmin.partials.notification-picker', ['areas' => 'selectedNotifyAreas', 'audit' => 'selectedAuditAlerts', 'modules' => "this.isAuditorCreate ? ['procesos'] : this.selectedModules"])
                     </div>
 
                 </div>
@@ -577,7 +561,7 @@
                             {{-- Notificaciones (independiente de module_access: aplica también a superadmin) --}}
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Notificaciones</label>
-                                @include('superadmin.partials.notification-picker', ['areas' => 'editNotifyAreas', 'audit' => 'editAuditAlerts'])
+                                @include('superadmin.partials.notification-picker', ['areas' => 'editNotifyAreas', 'audit' => 'editAuditAlerts', 'modules' => "this.isAuditorEdit ? ['procesos'] : this.editModules"])
                             </div>
 
                         </div>
@@ -694,7 +678,7 @@
                                     @if($user->id !== auth()->id())
                                         <div class="inline-flex gap-1">
                                             <button type="button"
-                                                @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', {{ Js::from($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])) }}, {{ Js::from($user->portalModules()) }}, {{ Js::from($user->jobPositions->pluck('id')) }}, '{{ $user->notification_modules ?? 'all' }}', {{ Js::from((bool) $user->receives_audit_alerts) }})"
+                                                @click="openEdit({{ $user->id }}, '{{ $user->name }}', '{{ $user->role_id }}', '{{ $user->group_id ?? '' }}', {{ Js::from($user->hasMultipleCompanies() ? $user->companies->pluck('id') : array_filter([$user->company_id])) }}, {{ Js::from($user->portalModules()) }}, {{ Js::from($user->jobPositions->pluck('id')) }}, {{ Js::from($user->notifyModuleList()) }}, {{ Js::from((bool) $user->receives_audit_alerts) }})"
                                                 class="px-2 py-1 rounded-md bg-brand text-white text-[11px] font-semibold hover:bg-brand-dark">
                                                 Editar
                                             </button>

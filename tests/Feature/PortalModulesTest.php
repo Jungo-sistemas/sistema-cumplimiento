@@ -211,6 +211,22 @@ class PortalModulesTest extends TestCase
 
         $user->refresh();
         $this->assertSame(['cumplimiento', ['flujos', 'cursos']], [$user->module_access, $user->portal_modules]);
+
+        // Notificaciones en pastillas: solo cuentan los módulos que tiene.
+        $this->actingAs($superadmin)->patch(route('superadmin.users.update', $user), [
+            'role_id' => $user->role_id, 'group_id' => $this->group->id, 'modules' => ['flujos', 'procesos'],
+            'notify_modules' => ['flujos', 'cursos'], 'notification_modules' => 'all', 'receives_audit_alerts' => '1',
+        ])->assertRedirect();
+
+        $user->refresh();
+        $this->assertSame([['flujos'], 'cumplimiento', true], [$user->notify_modules, $user->notification_modules, $user->receives_audit_alerts]);
+        $this->assertSame(['flujos'], $user->notifyModuleList());
+
+        // La pantalla ya no usa la lista desplegable y abre la edición con lo que tiene elegido.
+        $this->actingAs($superadmin)->get(route('superadmin.users'))
+            ->assertOk()
+            ->assertSee("fiscal: 'Fiscal', regulatorio: 'Regulatorio'", false)
+            ->assertDontSee('Ninguna (solo avisos personales)');
     }
 
     public function test_quien_solo_tiene_cumplimiento_ve_todo_menos_la_gestion_de_procesos(): void

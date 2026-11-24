@@ -38,7 +38,7 @@ class SuperAdminUserNotificationsTest extends TestCase
     {
         $this->actingAs($this->superadmin)->get(route('superadmin.users'))
             ->assertOk()
-            ->assertSee('Hallazgos críticos y plazos vencidos de los hallazgos del grupo.')
+            ->assertSee('Auditorías: hallazgos críticos y plazos vencidos de los hallazgos del grupo.')
             ->assertDontSee('Recibir los avisos de auditorías');
     }
 
