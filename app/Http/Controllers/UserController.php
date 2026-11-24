@@ -74,7 +74,7 @@ class UserController extends Controller
             ->when(! $authUser->hasGroupScope() && ! $authUser->hasMultipleCompanies() && ! $authUser->isGlobalScope(),
                 fn ($q) => $q->where('id', $authUser->company_id))
             ->orderBy('name')
-            ->get(['id', 'group_id', 'name'])
+            ->get(['id', 'group_id', 'name', 'process_name', 'show_in_processes'])
             ->groupBy('group_id')
             ->map->values();
 
@@ -158,11 +158,20 @@ class UserController extends Controller
 
         $moduleAccess = $this->resolveModuleAccess($request, $authUser, $role);
 
-        // Un admin nuevo queda en el área de quien lo crea; se le pregunta si recibe los avisos de
-        // administración de esa área (solicitudes de acceso, escalamientos…).
-        $notificationModules = $role->slug === 'admin'
-            ? ($request->boolean('receive_notifications') ? $moduleAccess : 'none')
-            : null;
+        // Un admin nuevo elige, área por área, de cuáles recibe los avisos de administración
+        // (solicitudes de acceso, escalamientos…). Solo cuentan las áreas a las que tiene acceso.
+        $notificationModules = null;
+        if ($role->slug === 'admin') {
+            $areas = array_intersect(
+                (array) $request->input('notify_areas', []),
+                $moduleAccess === 'all' ? ['cumplimiento', 'procesos'] : [$moduleAccess],
+            );
+            $notificationModules = match (true) {
+                count($areas) === 2 => 'all',
+                count($areas) === 1 => reset($areas),
+                default             => 'none',
+            };
+        }
 
         $user = User::create([
             'name'              => $request->name,

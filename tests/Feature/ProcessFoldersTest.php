@@ -62,6 +62,35 @@ class ProcessFoldersTest extends TestCase
             ->assertDontSee('Tipo de documento');
     }
 
+    public function test_el_buscador_de_las_carpetas_encuentra_procesos_y_anexos_de_cualquier_carpeta(): void
+    {
+        $pago = $this->regulation('PAGO A PROVEEDORES', $this->finanzas);
+        $this->regulation('ALTA DE PROVEEDORES', $this->compras)->update(['code' => 'COM-001']);
+        $this->regulation('FORMATO DE PROVEEDORES', $this->compras)->update(['is_annex' => true]);
+        $this->regulation('CIERRE MENSUAL', $this->finanzas);
+
+        $company = ['company_id' => $this->company->id];
+
+        // Por nombre, sin importar mayúsculas: las dos carpetas y también el anexo.
+        $this->actingAs($this->admin)->get(route('processes.index', $company + ['q' => 'proveedores']))
+            ->assertOk()
+            ->assertSee('3 resultados')
+            ->assertSee('PAGO A PROVEEDORES')->assertSee('ALTA DE PROVEEDORES')->assertSee('FORMATO DE PROVEEDORES')
+            ->assertSee('05 · FINANZAS Y TESORERÍA')->assertSee('08 · COMPRAS')
+            ->assertSee('Anexo')
+            ->assertDontSee('CIERRE MENSUAL')
+            ->assertSee(route('processes.show', $pago), false);
+
+        // Por código.
+        $this->actingAs($this->admin)->get(route('processes.index', $company + ['q' => 'com-001']))
+            ->assertSee('1 resultado')->assertSee('ALTA DE PROVEEDORES')->assertDontSee('PAGO A PROVEEDORES');
+
+        // Sin búsqueda siguen las carpetas, con el buscador arriba.
+        $this->actingAs($this->admin)->get(route('processes.index', $company))
+            ->assertSee('Buscar procedimiento o anexo por código o nombre')
+            ->assertSee('FINANZAS Y TESORERÍA')->assertDontSee('PAGO A PROVEEDORES');
+    }
+
     public function test_dentro_de_la_carpeta_se_filtra_por_tipo_de_documento_y_se_busca(): void
     {
         $this->regulation('PAGO A PROVEEDORES', $this->finanzas);

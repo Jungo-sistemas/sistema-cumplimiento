@@ -3,6 +3,7 @@
         <span class="text-gray-700 font-medium">Usuarios</span>
     </x-slot>
 
+    @include('users.partials.company-names-js')
     <script>
     function editUserData() {
         return {
@@ -37,10 +38,12 @@
                 const q = this.companySearch.trim().toLowerCase();
                 return this.availableCompanies
                     .filter(c => !this.editCompanyIds.includes(String(c.id)))
-                    .filter(c => !q || c.name.toLowerCase().includes(q));
+                    .filter(c => companyMatches(c, q));
             },
+            companyLabel: companyFullLabel,
             companyName(id) {
-                return this.availableCompanies.find(c => String(c.id) === String(id))?.name ?? '—';
+                const c = this.availableCompanies.find(c => String(c.id) === String(id));
+                return c ? companyFullLabel(c) : '—';
             },
             addCompany(id) {
                 id = String(id);
@@ -164,7 +167,7 @@
                                     <template x-for="company in companySearchResults" :key="company.id">
                                         <div @click="addCompany(company.id)"
                                              class="px-3 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50"
-                                             x-text="company.name"></div>
+                                             x-text="companyLabel(company)"></div>
                                     </template>
                                 </div>
 
