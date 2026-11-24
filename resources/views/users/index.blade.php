@@ -20,10 +20,13 @@
             companySearchOpen: false,
             adminRoleId: '{{ $adminRoleId ?? '' }}',
             auditorRoleId: '{{ $roles->where('slug', 'auditor')->first()?->id ?? '' }}',
+            jefeRoleId: '{{ $roles->where('slug', 'jefe_auditoria')->first()?->id ?? '' }}',
             positionsByGroup: @json($positionsByGroup),
             companiesByGroup: @json($companiesByGroup),
             get isAdminEdit() { return this.editRole === this.adminRoleId; },
             get isAuditorEdit() { return this.editRole === this.auditorRoleId; },
+            // Auditor y Jefe de Auditoría solo trabajan en Procesos: su módulo no se elige.
+            get soloProcesosEdit() { return this.isAuditorEdit || this.editRole === this.jefeRoleId; },
             get availablePositions() {
                 if (!this.editGroup) return [];
                 return this.positionsByGroup[this.editGroup] ?? [];
@@ -213,10 +216,10 @@
                         @endphp
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">
-                                <span x-text="isAuditorEdit ? 'Módulo' : 'Módulos visibles'"></span>
+                                <span x-text="soloProcesosEdit ? 'Módulo' : 'Módulos visibles'"></span>
                             </label>
 
-                            <template x-if="isAuditorEdit">
+                            <template x-if="soloProcesosEdit">
                                 <div>
                                     <input type="hidden" name="module_access" value="procesos">
                                     <div class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-500">
@@ -225,7 +228,7 @@
                                 </div>
                             </template>
 
-                            <template x-if="!isAuditorEdit">
+                            <template x-if="!soloProcesosEdit">
                                 <select name="module_access" x-model="editModuleAccess"
                                     class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors">
                                     @foreach($moduleOptions as $option)
@@ -235,8 +238,8 @@
                             </template>
 
                             <p class="mt-1 text-xs text-gray-400"
-                               x-text="isAuditorEdit
-                                   ? 'El auditor solo tiene acceso al módulo de Procesos.'
+                               x-text="soloProcesosEdit
+                                   ? 'Este rol solo tiene acceso al módulo de Procesos.'
                                    : 'Define a qué módulo tendrá acceso. Sin Procesos, en Procesos y Auditorías solo verá Mi espacio.'">
                             </p>
                         </div>

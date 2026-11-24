@@ -10,6 +10,7 @@
     @php
         $adminRoleId      = $roles->where('slug', 'admin')->first()?->id;
         $auditorRoleId    = $roles->where('slug', 'auditor')->first()?->id;
+        $jefeRoleId       = $roles->where('slug', 'jefe_auditoria')->first()?->id;
         $companiesByGroup = $companies->groupBy('group_id')->map->values();
         // Solo los módulos de quien crea: un admin de Cumplimiento crea usuarios de Cumplimiento.
         $moduleLabels  = ['all' => 'Ambos módulos', 'cumplimiento' => 'Solo Cumplimiento', 'procesos' => 'Solo Procesos'];
@@ -28,10 +29,13 @@
             companySearchOpen: false,
             adminRoleId: '{{ $adminRoleId }}',
             auditorRoleId: '{{ $auditorRoleId }}',
+            jefeRoleId: '{{ $jefeRoleId }}',
             companiesByGroup: @json($companiesByGroup),
             positionsByGroup: @json($positionsByGroup),
             get isAdmin() { return this.selectedRole === this.adminRoleId; },
             get isAuditor() { return this.selectedRole === this.auditorRoleId; },
+            // Auditor y Jefe de Auditoría solo trabajan en Procesos: su módulo no se elige.
+            get soloProcesos() { return this.isAuditor || this.selectedRole === this.jefeRoleId; },
             get needsCompany() { return this.selectedRole !== ''; },
             get availableCompanies() {
                 if (!this.selectedGroup) return [];
@@ -126,7 +130,7 @@
                             </option>
                         @endforeach
                     </select>
-                    <div class="mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs text-gray-500">
+                    <div class="mt-2 grid grid-cols-2 lg:grid-cols-3 gap-2 text-xs text-gray-500">
                         <div class="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
                             <span class="font-medium text-gray-700">Administrador</span><br>
                             Gestiona usuarios, activos y configuración del grupo.
@@ -143,6 +147,10 @@
                         <div class="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
                             <span class="font-medium text-gray-700">Auditor</span><br>
                             Evalúa y califica procedimientos. Exclusivo del módulo Procesos.
+                        </div>
+                        <div class="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
+                            <span class="font-medium text-gray-700">Jefe de Auditoría</span><br>
+                            Planea el programa anual y asigna a los auditores. Exclusivo del módulo Procesos.
                         </div>
                         @endif
                     </div>
@@ -305,10 +313,10 @@
             <div x-show="selectedRole !== ''" x-transition class="space-y-2"
                  x-data="{ moduleAccess: @js(old('module_access', $moduleOptions[0])) }">
                 <label class="block text-sm font-medium text-gray-700">
-                    <span x-text="isAuditor ? 'Módulo' : 'Módulos visibles'"></span>
+                    <span x-text="soloProcesos ? 'Módulo' : 'Módulos visibles'"></span>
                 </label>
 
-                <template x-if="isAuditor">
+                <template x-if="soloProcesos">
                     <div>
                         <input type="hidden" name="module_access" value="procesos">
                         <div class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
@@ -317,7 +325,7 @@
                     </div>
                 </template>
 
-                <template x-if="!isAuditor">
+                <template x-if="!soloProcesos">
                     @if(count($moduleOptions) === 1)
                         <div>
                             <input type="hidden" name="module_access" value="{{ $moduleOptions[0] }}">
@@ -336,8 +344,8 @@
                 </template>
 
                 <p class="text-xs text-gray-400"
-                   x-text="isAuditor
-                       ? 'El auditor solo tiene acceso al módulo de Procesos.'
+                   x-text="soloProcesos
+                       ? 'Este rol solo tiene acceso al módulo de Procesos.'
                        : 'Define a qué sección del sistema tendrá acceso. Sin Procesos, en Procesos y Auditorías solo verá Mi espacio (sus procedimientos, aprobaciones y auditorías).'">
                 </p>
                 @if(count($moduleOptions) === 1)

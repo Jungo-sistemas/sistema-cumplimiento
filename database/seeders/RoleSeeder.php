@@ -34,5 +34,10 @@ class RoleSeeder extends Seeder
             ['slug' => 'auditor'],
             ['name' => 'Auditor']
         );
+
+        Role::updateOrCreate(
+            ['slug' => 'jefe_auditoria'],
+            ['name' => 'Jefe de Auditoría']
+        );
     }
 }

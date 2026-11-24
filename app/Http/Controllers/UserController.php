@@ -198,8 +198,7 @@ class UserController extends Controller
 
     /**
      * Roles que este admin puede asignar: Administrador solo con alcance de grupo (o global);
-     * Auditor solo si él tiene Procesos (es un rol exclusivo de ese módulo).
-     *
+     * Auditor y Jefe de Auditoría solo si él tiene Procesos (son roles exclusivos de ese módulo).
      * @return list<string>
      */
     private function assignableRoleSlugs(User $authUser): array
@@ -208,18 +207,18 @@ class UserController extends Controller
             ($authUser->hasGroupScope() || $authUser->isGlobalScope()) ? 'admin' : null,
             'operative',
             'readonly',
-            $authUser->canAssignProcesosAccess() ? 'auditor' : null,
+            $authUser->canAssignProcesosAccess() ? 'jefe_auditoria' : null,
         ]));
     }
 
     /**
      * module_access del usuario creado o editado: solo de los módulos de quien lo asigna. El
-     * auditor siempre es "Solo Procesos". Si no llega (o llega uno que no puede dar), se usa el
-     * más amplio que sí puede dar.
+     * auditor y el Jefe de Auditoría siempre son "Solo Procesos". Si no llega (o llega uno que no
+     * puede dar), se usa el más amplio que sí puede dar.
      */
     private function resolveModuleAccess(Request $request, User $authUser, Role $role): string
     {
-        if ($role->slug === 'auditor') {
+        if (in_array($role->slug, ['auditor', 'jefe_auditoria'], true)) {
             return 'procesos';
         }
 
