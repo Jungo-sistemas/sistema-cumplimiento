@@ -59,7 +59,7 @@ class TrustedDeviceTest extends TestCase
     public function test_la_pantalla_del_codigo_ofrece_recordar_el_equipo(): void
     {
         $this->login();
-        $this->get(route('two-factor'))->assertOk()->assertSee('Recordar este equipo por 3 días');
+        $this->get(route('two-factor'))->assertOk()->assertSee('Recordar este equipo por ' . TrustedDevice::days() . ' días');
     }
 
     public function test_sin_recordar_vuelve_a_pedir_el_codigo(): void
