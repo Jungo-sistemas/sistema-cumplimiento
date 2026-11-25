@@ -344,6 +344,19 @@ class AuditorViewTest extends TestCase
             ->assertSee('2. Recepcion del carrotanque')->assertSee('Paso 1. Recepcion del carrotanque')->assertDontSee('2. Paso 1.');
     }
 
+    public function test_ver_procedimiento_completo_abre_directo_el_documento(): void
+    {
+        Storage::disk('private')->put('procesos/p-alc-300.pdf', self::pdf([['Paso 1. Recepcion', 'Responsable: Jefe de patio']]));
+        $version = $this->version('procesos/p-alc-300.pdf', 'P-ALC-300.pdf');
+        $audit = $this->audit();
+
+        // Abre el documento vigente (como "Ver" en Procesos), no la página del proceso; el auditor sí puede verlo.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))->assertOk()
+            ->assertSee(route('regulation-versions.preview', $version), false)
+            ->assertDontSee(route('processes.show', $this->regulation), false);
+        $this->actingAs($this->auditor)->get(route('regulation-versions.preview', $version))->assertOk();
+    }
+
     public function test_un_word_se_convierte_una_sola_vez_para_leer_sus_pasos(): void
     {
         Storage::disk('private')->put('procesos/p-alc-300.docx', 'contenido de Word');

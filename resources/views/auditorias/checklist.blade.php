@@ -238,9 +238,10 @@
                 <h2 class="text-base font-semibold text-gray-900">Procedimiento auditado</h2>
                 <p class="mt-1 text-sm text-gray-600">{{ $procedimiento }}{{ $items->contains('source', 'proceso') ? ' · Los criterios de cada paso abren la actividad del procedimiento con la que se evalúa.' : ' · Este proceso no trae pasos estructurados: agrega los criterios que vas a evaluar.' }}</p>
             </div>
-            @if($audit->regulation)
-                <a href="{{ route('processes.show', $audit->regulation) }}" target="_blank" rel="noopener"
-                   class="rounded-lg border-2 border-brand px-4 py-2 text-sm font-semibold text-brand hover:bg-brand-50">Ver procedimiento completo y anexos</a>
+            {{-- Abre directo el documento vigente, igual que el botón "Ver" de Procesos. --}}
+            @if($audit->regulation?->currentVersion)
+                <a href="{{ route('regulation-versions.preview', $audit->regulation->currentVersion) }}" target="_blank" rel="noopener"
+                   class="rounded-lg border-2 border-brand px-4 py-2 text-sm font-semibold text-brand hover:bg-brand-50">Ver procedimiento completo</a>
             @endif
         </div>
 
