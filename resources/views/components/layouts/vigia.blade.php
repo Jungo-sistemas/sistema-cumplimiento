@@ -163,23 +163,23 @@
     } elseif ($currentModule === 'procesos') {
         // Gestión de Procesos y Auditorías. Admin: todo, con los dos tableros de indicadores.
         // Operativo: solo Procesos, sin indicadores (lo de auditorías lo ve en Mi espacio).
-        // Auditor: Procesos para consultar y Auditorías.
+        // Auditor: solo Auditorías; los procesos los consulta en Mi espacio, como cualquier auditado.
         $inicio = $user->isAuditor() ? 'auditorias.home' : 'gestion.home';
         $sections[] = ['title' => null, 'items' => [
             $item('Inicio', $inicio, 'home', request()->routeIs($inicio)),
         ]];
 
-        $procesosItems = [
-            $item('Procedimientos', 'processes.index', 'document', request()->routeIs('processes.index', 'processes.show', 'processes.create'), ['tour' => 'nav-procedimientos']),
-        ];
         if (! $user->isAuditor()) {
-            // Siempre visible: si quien aprueba se queda sin pendientes, la pantalla dice "Todo al día".
-            $procesosItems[] = $item('Mis aprobaciones', 'my-approvals.index', 'badge', request()->routeIs('my-approvals.*'), ['tour' => 'nav-mis-aprobaciones', 'badge' => $pendingApprovalsCount]);
+            $procesosItems = [
+                $item('Procedimientos', 'processes.index', 'document', request()->routeIs('processes.index', 'processes.show', 'processes.create'), ['tour' => 'nav-procedimientos']),
+                // Siempre visible: si quien aprueba se queda sin pendientes, la pantalla dice "Todo al día".
+                $item('Mis aprobaciones', 'my-approvals.index', 'badge', request()->routeIs('my-approvals.*'), ['tour' => 'nav-mis-aprobaciones', 'badge' => $pendingApprovalsCount]),
+            ];
+            if ($user->isAdmin()) {
+                $procesosItems[] = $item('Indicadores de procesos', 'processes.dashboard', 'chart', request()->routeIs('processes.dashboard'), ['tour' => 'nav-tablero']);
+            }
+            $sections[] = ['title' => 'Procesos', 'items' => $procesosItems];
         }
-        if ($user->isAdmin()) {
-            $procesosItems[] = $item('Indicadores de procesos', 'processes.dashboard', 'chart', request()->routeIs('processes.dashboard'), ['tour' => 'nav-tablero']);
-        }
-        $sections[] = ['title' => 'Procesos', 'items' => $procesosItems];
 
         if ($user->isAdmin() || $user->isAuditor()) {
             $auditoriasItems = [

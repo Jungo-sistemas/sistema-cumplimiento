@@ -105,6 +105,7 @@ class TwoFactorController extends Controller
         // cada página — por eso se marca en sesión y se consume (pull) al mostrarse.
         if (
             $user->canAccessModule('procesos')
+            && ! $user->isAuditor()
             && ! is_null($user->procesos_guide_completed_at)
             && $user->login_count > 0
             && $user->login_count % 5 === 0

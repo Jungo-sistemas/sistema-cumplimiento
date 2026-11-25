@@ -1,7 +1,7 @@
 <x-layouts.vigia title="Inicio · Auditorías">
     @php
         $cards = [
-            ['label' => 'Auditorías en ejecución', 'valor' => $inProgress,   'texto' => 'Programadas y en captura del checklist durante la llamada de Teams.', 'boton' => 'Ver auditorías',       'url' => route('auditorias.audits.index', ['tab' => 'ejecucion'])],
+            ['label' => 'Auditorías en ejecución', 'valor' => $inProgress,   'texto' => 'Programadas, por iniciar y en curso (checklist durante la llamada de Teams).', 'boton' => 'Ver auditorías',       'url' => route('auditorias.audits.index', ['tab' => 'ejecucion'])],
             ['label' => 'Hallazgos abiertos',      'valor' => $openFindings, 'texto' => $toReview === 1 ? 'Tienes 1 causa raíz o evidencia por revisar.' : "Tienes {$toReview} causas raíz o evidencias por revisar.", 'boton' => 'Ver hallazgos', 'url' => route('auditorias.findings.index')],
             ['label' => 'Auditorías finalizadas',  'valor' => $completed,    'texto' => 'Resultados publicados de tus auditorías.', 'boton' => 'Consultar auditorías', 'url' => route('auditorias.audits.index', ['tab' => 'finalizadas'])],
         ];
@@ -35,7 +35,11 @@
                         <div class="text-lg font-semibold text-gray-900">{{ $audit->regulation?->name }}</div>
                         <div class="mt-2 text-[15px] text-gray-600">{{ $audit->auditorStage() }}{{ $audit->scheduled_at ? ' · ' . $audit->scheduledLabel() : '' }}</div>
                     </div>
-                    <a href="{{ route('auditorias.audits.checklist', $audit) }}" class="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">{{ $audit->auditorStage() === \App\Models\Audit::STAGE_CAPTURE ? 'Continuar checklist' : 'Consultar' }}</a>
+                    @if($audit->isRunBy(auth()->user()) && $audit->canStart())
+                        @include('auditorias.partials.start-button', ['audit' => $audit, 'size' => 'lg'])
+                    @else
+                        <a href="{{ route('auditorias.audits.checklist', $audit) }}" class="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">{{ $audit->auditorStage() === \App\Models\Audit::STAGE_CAPTURE ? 'Continuar checklist' : 'Consultar' }}</a>
+                    @endif
                 </div>
             @empty
                 <p class="mt-5 text-[15px] text-gray-600">No tienes auditorías pendientes.</p>

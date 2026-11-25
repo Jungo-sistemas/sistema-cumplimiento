@@ -26,7 +26,7 @@ class Audit extends Model
 
     protected $fillable = [
         'group_id', 'company_id', 'regulation_id', 'auditor_id',
-        'planned_for', 'scheduled_at', 'status', 'result', 'completed_at', 'notice_sent_at',
+        'planned_for', 'scheduled_at', 'started_at', 'status', 'result', 'completed_at', 'notice_sent_at',
         'score', 'conclusions', 'attendance',
     ];
 
@@ -35,6 +35,7 @@ class Audit extends Model
         return [
             'planned_for'    => 'date',
             'scheduled_at'   => 'datetime',
+            'started_at'     => 'datetime',
             'completed_at'   => 'datetime',
             'notice_sent_at' => 'datetime',
             'attendance'     => 'array',
@@ -45,7 +46,8 @@ class Audit extends Model
     // Estado como lo ve el auditor.
     public const STAGE_UNSCHEDULED = 'Sin fecha';
     public const STAGE_SCHEDULED   = 'Programada';
-    public const STAGE_CAPTURE     = 'En captura';
+    public const STAGE_READY       = 'Por iniciar'; // ya llegó el día; el auditor la inicia con el botón
+    public const STAGE_CAPTURE     = 'En curso';    // iniciada: se captura el checklist
     public const STAGE_DONE        = 'Finalizada';
 
     public function checklistItems(): HasMany
@@ -72,20 +74,43 @@ class Audit extends Model
         return $this->auditor_id === $user->id;
     }
 
-    /** Sin fecha / Programada / En captura (ya llegó el día) / Finalizada. */
+    /**
+     * Sin fecha / Programada / Por iniciar (ya llegó el día) / En curso (el auditor la inició) /
+     * Finalizada.
+     */
     public function auditorStage(): string
     {
         return match (true) {
             $this->status === self::STATUS_COMPLETED => self::STAGE_DONE,
+            $this->started_at !== null               => self::STAGE_CAPTURE,
             $this->scheduled_at === null             => self::STAGE_UNSCHEDULED,
-            $this->scheduled_at->copy()->startOfDay()->lte(self::localNow()) => self::STAGE_CAPTURE,
+            $this->scheduled_at->copy()->startOfDay()->lte(self::localNow()) => self::STAGE_READY,
             default                                  => self::STAGE_SCHEDULED,
         };
     }
 
+    /** El checklist se captura solo ya iniciada y antes de finalizarla. */
     public function isCapturable(): bool
     {
-        return $this->status === self::STATUS_PLANNED && $this->auditorStage() === self::STAGE_CAPTURE;
+        return $this->status === self::STATUS_PLANNED && $this->started_at !== null;
+    }
+
+    /** El auditor ya puede iniciarla: llegó el día y no se ha iniciado. */
+    public function canStart(): bool
+    {
+        return $this->status === self::STATUS_PLANNED && $this->auditorStage() === self::STAGE_READY;
+    }
+
+    /** Inicia la auditoría (queda la hora, en el reloj del cliente como scheduled_at). */
+    public function start(): void
+    {
+        $this->update(['started_at' => self::localNow()]);
+    }
+
+    /** "25 de noviembre de 2026, 10:05" */
+    public function startedLabel(): ?string
+    {
+        return $this->started_at?->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm');
     }
 
     /** "18 nov 2026" */

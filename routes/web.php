@@ -219,6 +219,7 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
             Route::get('/lista', 'index')->name('audits.index');
             Route::post('/lista', 'store')->name('audits.store');
             Route::post('/{audit}/fecha', 'schedule')->whereNumber('audit')->name('audits.schedule');
+            Route::post('/{audit}/iniciar', 'start')->whereNumber('audit')->name('audits.start');
             Route::get('/{audit}/checklist', 'checklist')->whereNumber('audit')->name('audits.checklist');
             Route::post('/{audit}/checklist', 'saveChecklist')->whereNumber('audit')->name('audits.checklist.save');
             Route::post('/{audit}/finalizar', 'finalize')->whereNumber('audit')->name('audits.finalize');
