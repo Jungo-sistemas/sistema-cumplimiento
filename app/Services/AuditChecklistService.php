@@ -74,7 +74,8 @@ class AuditChecklistService
             $items[] = [
                 'position'    => $position++,
                 'source'      => AuditChecklistItem::SOURCE_PROCESS,
-                'text'        => "Paso {$step['numero']}. {$step['titulo']}",
+                // Solo el título: el número del paso va en "Se evalúa con la actividad" (antes se leía "9. Paso 8.").
+                'text'        => $step['titulo'],
                 'description' => $step['que'] ? 'Se realiza como indica el procedimiento: ' . $step['que'] : 'Se realiza como indica el procedimiento.',
                 'evidence'    => $step['evidencia'] ?: null,
                 'activity'    => $step,

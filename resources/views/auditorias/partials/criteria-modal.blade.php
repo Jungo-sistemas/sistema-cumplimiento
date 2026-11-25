@@ -28,7 +28,7 @@
         </div>
 
         <div>
-            <h3 class="text-lg font-semibold text-brand" x-text="a.numero + '. ' + a.titulo"></h3>
+            <h3 class="text-lg font-semibold text-brand" x-text="'Paso ' + a.numero + '. ' + a.titulo"></h3>
             <p x-show="a.responsable" class="mt-1 text-sm italic text-gray-500">Responsable: <span x-text="a.responsable"></span></p>
         </div>
 
@@ -45,6 +45,10 @@
             </div>
             <p x-show="a.cuando"><span class="font-semibold text-gray-900">Cuándo:</span> <span x-text="a.cuando"></span></p>
             <p x-show="a.donde"><span class="font-semibold text-gray-900">Dónde:</span> <span x-text="a.donde"></span></p>
+            {{-- Bloques propios del paso en los procesos subidos en Word o PDF ("Riesgo de Seguridad y Sanciones", "Nota"…). --}}
+            <template x-for="otro in (a.otros ?? [])">
+                <p><span class="font-semibold text-gray-900" x-text="otro.etiqueta + ':'"></span> <span x-text="otro.texto"></span></p>
+            </template>
         </div>
 
         <div x-show="a.evidencia" class="rounded-lg border-l-4 border-brand bg-brand-50 px-4 py-3">

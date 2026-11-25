@@ -326,16 +326,22 @@ class AuditorViewTest extends TestCase
     public function test_los_pasos_se_leen_del_pdf_del_proceso(): void
     {
         Storage::disk('private')->put('procesos/p-alc-300.pdf', self::pdf([
-            ['Descripcion del proceso / Actividades', 'Paso 1. Recepcion del carrotanque', 'Responsable: Jefe de patio', 'Que: Recibe el carrotanque.', 'Evidencia requerida: Bitacora firmada.'],
+            ['Descripcion del proceso / Actividades', 'Paso 1. Recepcion del carrotanque', 'Responsable: Jefe de patio', 'Que: Recibe el carrotanque.', 'Evidencia requerida: Bitacora firmada.', 'Riesgo de Seguridad y Sanciones: Multa del cliente.'],
             ['Paso 2. Descarga', 'Responsable: Operador', 'Que: Descarga el producto.'],
         ]));
         $this->version('procesos/p-alc-300.pdf', 'P-ALC-300.pdf');
+        $audit = $this->audit();
 
-        $items = $this->openChecklist($this->audit());
+        $items = $this->openChecklist($audit);
 
-        $this->assertSame(['El auditado conoce sus procedimientos y sabe dónde consultarlos.', 'Paso 1. Recepcion del carrotanque', 'Paso 2. Descarga'], $items->pluck('text')->all());
+        $this->assertSame(['El auditado conoce sus procedimientos y sabe dónde consultarlos.', 'Recepcion del carrotanque', 'Descarga'], $items->pluck('text')->all());
         $this->assertSame('Bitacora firmada.', $items[1]->evidence);
         $this->assertSame('Jefe de patio', $items[1]->activity['responsable']);
+        $this->assertSame([['etiqueta' => 'Riesgo de Seguridad y Sanciones', 'texto' => 'Multa del cliente.']], $items[1]->activity['otros']);
+
+        // La tarjeta dice "2. Recepcion…" (no "2. Paso 1. …"); el número del paso va en la actividad.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))->assertOk()
+            ->assertSee('2. Recepcion del carrotanque')->assertSee('Paso 1. Recepcion del carrotanque')->assertDontSee('2. Paso 1.');
     }
 
     public function test_un_word_se_convierte_una_sola_vez_para_leer_sus_pasos(): void

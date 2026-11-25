@@ -268,7 +268,7 @@
                         <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-brand bg-gray-50 px-4 py-3">
                             <div>
                                 <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">Se evalúa con la actividad</div>
-                                <p class="mt-1 text-sm font-semibold text-gray-900">{{ $criterio->activity['numero'] }}. {{ $criterio->activity['titulo'] }}</p>
+                                <p class="mt-1 text-sm font-semibold text-gray-900">Paso {{ $criterio->activity['numero'] }}. {{ $criterio->activity['titulo'] }}</p>
                             </div>
                             <a href="#" role="button" @click.prevent="$dispatch('ver-criterios', { indice: {{ $i }} })"
                                class="rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">Criterios a evaluar</a>
