@@ -201,11 +201,27 @@ class AuditorViewTest extends TestCase
         $programada = $this->audit(['scheduled_at' => '2026-11-25 10:00:00', 'started_at' => null]);
 
         $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $programada))
-            ->assertOk()->assertSee('Programada')->assertDontSee('Guardar avance')->assertDontSee('Registrar hallazgo');
+            ->assertOk()->assertSee('Programada')->assertDontSee('Guardar avance')->assertSee(':disabled="true || confirmando"', false);
         $this->actingAs($this->auditor)->postJson(route('auditorias.audits.checklist.save', $programada), [])->assertStatus(422);
 
         $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $this->audit()))
             ->assertOk()->assertSee('En curso')->assertSee('Guardar avance')->assertSee('Registrar hallazgo');
+    }
+
+    public function test_quien_consulta_ve_los_botones_bloqueados_y_los_hallazgos(): void
+    {
+        $audit = $this->audit();
+        $this->openChecklist($audit);
+
+        // El admin consulta: ve los botones, pero el fieldset los bloquea; ve la lista de hallazgos, sin Editar.
+        $this->actingAs($this->user('Alma Admin', 'admin'))->get(route('auditorias.audits.checklist', $audit))
+            ->assertOk()->assertSee('Elegir archivos')->assertSee('Tomar foto')->assertSee('Registrar hallazgo')
+            ->assertSee(':disabled="true || confirmando"', false)
+            ->assertSee('in hallazgos[0]', false)->assertDontSee('editar(0, n)', false);
+
+        // El auditor asignado, con la auditoría en curso, sí los usa.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))
+            ->assertOk()->assertSee(':disabled="false || confirmando"', false)->assertSee('editar(0, n)', false);
     }
 
     public function test_el_auditor_no_consulta_procesos_desde_gestion(): void
