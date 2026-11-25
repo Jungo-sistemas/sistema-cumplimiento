@@ -52,7 +52,7 @@ class AuditorViewTest extends TestCase
         $type = ProcessType::create(['group_id' => $this->group->id, 'name' => 'Operaciones', 'is_active' => true]);
         $this->regulation = Regulation::create([
             'group_id' => $this->group->id, 'company_id' => $this->company->id, 'process_type_id' => $type->id,
-            'code' => 'ALC-300', 'name' => 'Carga de autotanques', 'is_active' => true, 'approval_status' => 'approved',
+            'code' => 'P-ALC-300', 'name' => 'Carga de autotanques', 'is_active' => true, 'approval_status' => 'approved',
         ]);
     }
 

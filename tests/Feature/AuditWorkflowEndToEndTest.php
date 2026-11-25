@@ -94,7 +94,7 @@ class AuditWorkflowEndToEndTest extends TestCase
         $type = ProcessType::create(['group_id' => $group->id, 'name' => 'Operaciones', 'is_active' => true]);
         $regulation = Regulation::create([
             'group_id' => $group->id, 'company_id' => $company->id, 'process_type_id' => $type->id,
-            'code' => 'ALC-300', 'name' => 'Carga de autotanques', 'is_active' => true,
+            'code' => 'P-ALC-300', 'name' => 'Carga de autotanques', 'is_active' => true,
             'approval_status' => 'approved', 'impact_level' => 'alto',
         ]);
         RegulationVersion::create([
