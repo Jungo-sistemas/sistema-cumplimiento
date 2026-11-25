@@ -67,7 +67,7 @@ class SuperAdminController extends Controller
 
         $this->licenseService->activate($group, $request->boolean('includes_procesos'), auth()->user());
 
-        return back()->with('success', 'Licencia del grupo Â«' . $group->name . 'Â» activada por 1 mes.');
+        return back()->with('success', 'Licencia del grupo «' . $group->name . '» activada por 1 mes.');
     }
 
     public function updateGroupLimit(Request $request, Group $group)
@@ -80,7 +80,7 @@ class SuperAdminController extends Controller
 
         $group->update(['asset_limit' => $request->filled('asset_limit') ? (int) $request->asset_limit : null]);
 
-        return back()->with('success', 'LÃ­mite del grupo "' . $group->name . '" actualizado.');
+        return back()->with('success', 'Límite del grupo "' . $group->name . '" actualizado.');
     }
 
     public function storeGroup(Request $request)
@@ -154,12 +154,12 @@ class SuperAdminController extends Controller
         $licensable = $this->licenseService->resolveLicensable($company);
 
         if ($licensable instanceof Group) {
-            return back()->with('error', 'Esta empresa se licencia a travÃ©s de su grupo Â«' . $licensable->name . 'Â» â€” activa la licencia desde la secciÃ³n de Grupos.');
+            return back()->with('error', 'Esta empresa se licencia a través de su grupo «' . $licensable->name . '» — activa la licencia desde la sección de Grupos.');
         }
 
         $this->licenseService->activate($company, $request->boolean('includes_procesos'), auth()->user());
 
-        return back()->with('success', 'Licencia de Â«' . $company->name . 'Â» activada por 1 mes.');
+        return back()->with('success', 'Licencia de «' . $company->name . '» activada por 1 mes.');
     }
 
     public function updateCompanyLimit(Request $request, Company $company)
@@ -172,7 +172,7 @@ class SuperAdminController extends Controller
 
         $company->update(['asset_limit' => $request->filled('asset_limit') ? (int) $request->asset_limit : null]);
 
-        return back()->with('success', 'LÃ­mite de "' . $company->name . '" actualizado.');
+        return back()->with('success', 'Límite de "' . $company->name . '" actualizado.');
     }
 
     public function storeCompany(Request $request)
@@ -273,7 +273,7 @@ class SuperAdminController extends Controller
             $companiesToSync = [];
         } else {
             // Un admin puede quedarse con alcance de grupo completo (igual que antes, dejando las
-            // empresas sin seleccionar) o reducirse a una/varias empresas especÃ­ficas.
+            // empresas sin seleccionar) o reducirse a una/varias empresas específicas.
             [$companyId, $resolvedGroupId, $scopeLevel, $companiesToSync] = $this->resolveSuperAdminCompanyScope(
                 $request->input('company_id', []),
                 $request->group_id,
@@ -283,7 +283,7 @@ class SuperAdminController extends Controller
         [$moduleAccess, $portalModules] = $this->resolveSuperAdminModules($request, $role);
 
         // A diferencia de module_access, esto no se fuerza a 'all' para superadmin: un superadmin
-        // tambiÃ©n puede querer notificaciones de una sola Ã¡rea aunque tenga acceso a ambas.
+        // también puede querer notificaciones de una sola área aunque tenga acceso a ambas.
         [$notificationModules, $notifyModules] = $this->resolveSuperAdminNotifications($request, $role, $moduleAccess, $portalModules);
 
         $user = User::create([
@@ -339,7 +339,7 @@ class SuperAdminController extends Controller
                     'modules'   => ['required', 'array', 'min:1'],
                     'modules.*' => ['in:' . implode(',', array_keys(\App\Support\PortalModules::LABELS))],
                 ],
-                ['modules.required' => 'Marca al menos un mÃ³dulo.', 'modules.min' => 'Marca al menos un mÃ³dulo.']
+                ['modules.required' => 'Marca al menos un módulo.', 'modules.min' => 'Marca al menos un módulo.']
             );
             $selection = \App\Support\PortalModules::fromSelection($request->input('modules'));
 
@@ -350,9 +350,9 @@ class SuperAdminController extends Controller
     }
 
     /**
-     * [notification_modules, notify_modules]. Con las pastillas por mÃ³dulo (notify_modules[]) solo
-     * cuentan los mÃ³dulos que tendrÃ¡ el usuario y el Ã¡rea se deriva de ellos; sin pastillas
-     * marcadas (o con la forma anterior) se usa notification_modules y no hay elecciÃ³n por mÃ³dulo.
+     * [notification_modules, notify_modules]. Con las pastillas por módulo (notify_modules[]) solo
+     * cuentan los módulos que tendrá el usuario y el área se deriva de ellos; sin pastillas
+     * marcadas (o con la forma anterior) se usa notification_modules y no hay elección por módulo.
      *
      * @return array{0: ?string, 1: ?array}
      */
@@ -437,12 +437,12 @@ class SuperAdminController extends Controller
 
         return redirect()
             ->route('superadmin.users')
-            ->with('success', "Usuario Â«{$user->name}Â» actualizado correctamente.");
+            ->with('success', "Usuario «{$user->name}» actualizado correctamente.");
     }
 
     /**
      * Mismo criterio que UserController::resolveCompanyScope(), sin el chequeo de
-     * canAccessCompany() â€” el superadmin no tiene restricciÃ³n de quÃ© empresas puede asignar.
+     * canAccessCompany() — el superadmin no tiene restricción de qué empresas puede asignar.
      *
      * @param  array<int, mixed>  $companyIds
      * @return array{0: ?int, 1: ?int, 2: string, 3: array<int, int>} [companyId, groupId, scopeLevel, companiesToSync]
@@ -457,7 +457,7 @@ class SuperAdminController extends Controller
 
         $companies = Company::whereIn('id', $ids)->get();
 
-        abort_if($companies->count() !== $ids->count(), 422, 'Una o mÃ¡s empresas seleccionadas no existen.');
+        abort_if($companies->count() !== $ids->count(), 422, 'Una o más empresas seleccionadas no existen.');
 
         if ($companies->count() === 1) {
             $company = $companies->first();
@@ -486,15 +486,15 @@ class SuperAdminController extends Controller
     }
 
     /**
-     * Mismo criterio que UserController::resendInvitation() â€” regenera el token/vigencia y
-     * reenvÃ­a el correo, para cuando el enlace original se perdiÃ³, venciÃ³ (3 dÃ­as) o nunca llegÃ³.
+     * Mismo criterio que UserController::resendInvitation() — regenera el token/vigencia y
+     * reenvía el correo, para cuando el enlace original se perdió, venció (3 días) o nunca llegó.
      */
     public function resendInvitationUser(User $user)
     {
         abort_unless(auth()->user()->isSuperAdmin(), 403);
 
         if ($user->status !== 'invited') {
-            return back()->with('error', 'Este usuario ya activÃ³ su cuenta â€” no aplica reenviar invitaciÃ³n.');
+            return back()->with('error', 'Este usuario ya activó su cuenta — no aplica reenviar invitación.');
         }
 
         $user->update([
@@ -504,6 +504,6 @@ class SuperAdminController extends Controller
 
         Mail::to($user->email)->send(new UserInvitationMail($user));
 
-        return back()->with('success', "InvitaciÃ³n reenviada a {$user->email}.");
+        return back()->with('success', "Invitación reenviada a {$user->email}.");
     }
 }

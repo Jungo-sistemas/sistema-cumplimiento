@@ -115,7 +115,8 @@ return [
     /*
     | "Recordar este equipo" en la verificación en dos pasos: días en que ese equipo ya no pide el
     | código y la sesión sigue abierta. 0 lo desactiva (siempre pide el código). Ver App\Support\TrustedDevice.
+    | 7 días aunque el .env del servidor no traiga TWO_FACTOR_REMEMBER_DAYS.
     */
-    'two_factor_remember_days' => (int) env('TWO_FACTOR_REMEMBER_DAYS', 3),
+    'two_factor_remember_days' => (int) env('TWO_FACTOR_REMEMBER_DAYS', 7),
 
 ];
