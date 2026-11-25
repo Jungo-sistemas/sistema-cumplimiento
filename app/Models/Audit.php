@@ -78,7 +78,7 @@ class Audit extends Model
         return match (true) {
             $this->status === self::STATUS_COMPLETED => self::STAGE_DONE,
             $this->scheduled_at === null             => self::STAGE_UNSCHEDULED,
-            $this->scheduled_at->copy()->startOfDay()->lte(now()) => self::STAGE_CAPTURE,
+            $this->scheduled_at->copy()->startOfDay()->lte(self::localNow()) => self::STAGE_CAPTURE,
             default                                  => self::STAGE_SCHEDULED,
         };
     }
@@ -131,6 +131,23 @@ class Audit extends Model
         return $query->whereHas('auditees', fn ($q) => $q->where('users.id', $user->id));
     }
 
+    /**
+     * "Ahora" con el reloj del cliente (config auditorias.zona_horaria). scheduled_at se guarda tal
+     * como lo escribe el auditor (hora de México) en una columna sin zona; el sistema corre en UTC,
+     * así que se compara contra la hora local con la misma etiqueta de zona que la columna.
+     */
+    public static function localNow(): Carbon
+    {
+        return Carbon::now(config('auditorias.zona_horaria', 'America/Mexico_City'))
+            ->shiftTimezone(config('app.timezone'));
+    }
+
+    /** Ya pasó la fecha y hora (en el reloj del cliente). */
+    public static function isPastLocal(CarbonInterface $at): bool
+    {
+        return $at->lt(self::localNow());
+    }
+
     /** Días antes de la fecha en que se avisa al auditado (config auditorias.aviso_dias_antes). */
     public static function noticeDays(): int
     {
@@ -140,7 +157,7 @@ class Audit extends Model
     /** Último día que cae dentro del aviso: una auditoría con fecha hasta ese día ya se avisa. */
     private static function noticeLimit(?CarbonInterface $now = null): CarbonInterface
     {
-        return ($now ?? now())->copy()->startOfDay()->addDays(self::noticeDays());
+        return ($now ?? self::localNow())->copy()->startOfDay()->addDays(self::noticeDays());
     }
 
     /**
@@ -165,7 +182,7 @@ class Audit extends Model
         return $query->where('status', self::STATUS_PLANNED)
             ->whereNull('notice_sent_at')
             ->whereNotNull('scheduled_at')
-            ->where('scheduled_at', '>=', ($now ?? now())->copy())
+            ->where('scheduled_at', '>=', ($now ?? self::localNow())->copy())
             ->whereDate('scheduled_at', '<=', self::noticeLimit($now));
     }
 
@@ -174,7 +191,7 @@ class Audit extends Model
         return $this->status === self::STATUS_PLANNED
             && $this->notice_sent_at === null
             && $this->scheduled_at !== null
-            && $this->scheduled_at->gte($now ?? now())
+            && $this->scheduled_at->gte($now ?? self::localNow())
             && $this->scheduled_at->copy()->startOfDay()->lte(self::noticeLimit($now));
     }
 
