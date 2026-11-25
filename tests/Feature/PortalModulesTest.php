@@ -125,6 +125,26 @@ class PortalModulesTest extends TestCase
         $this->assertFalse($objetivos->canAccessModule('procesos'));
     }
 
+    public function test_sin_procesos_y_auditorias_igual_entra_a_mi_espacio_para_ser_auditado(): void
+    {
+        foreach (['operative', 'admin'] as $slug) {
+            $user = User::factory()->create([
+                'group_id' => $this->group->id, 'scope_level' => 'group', 'status' => 'active',
+                'module_access' => 'cumplimiento', 'portal_modules' => ['regulatorio'],
+                'role_id' => Role::firstOrCreate(['slug' => $slug], ['name' => ucfirst($slug)])->id,
+            ]);
+
+            // Mi espacio: sus auditorías, hallazgos y procedimientos.
+            foreach (['mi-espacio.home', 'mi-espacio.audits', 'mi-espacio.findings', 'mi-espacio.documents'] as $route) {
+                $this->actingAs($user)->get(route($route))->assertOk();
+            }
+
+            // La gestión de procesos y auditorías no: lo regresa a Mi espacio.
+            $this->actingAs($user)->get(route('gestion.home'))->assertRedirect(route('mi-espacio.home'));
+            $this->actingAs($user)->get(route('auditorias.audits.index'))->assertRedirect(route('mi-espacio.home'));
+        }
+    }
+
     public function test_las_notificaciones_se_eligen_por_modulo(): void
     {
         $this->actingAs($this->admin)->post(route('users.store'), [
@@ -211,6 +231,22 @@ class PortalModulesTest extends TestCase
 
         $user->refresh();
         $this->assertSame(['cumplimiento', ['flujos', 'cursos']], [$user->module_access, $user->portal_modules]);
+
+        // Notificaciones en pastillas: solo cuentan los módulos que tiene.
+        $this->actingAs($superadmin)->patch(route('superadmin.users.update', $user), [
+            'role_id' => $user->role_id, 'group_id' => $this->group->id, 'modules' => ['flujos', 'procesos'],
+            'notify_modules' => ['flujos', 'cursos'], 'notification_modules' => 'all', 'receives_audit_alerts' => '1',
+        ])->assertRedirect();
+
+        $user->refresh();
+        $this->assertSame([['flujos'], 'cumplimiento', true], [$user->notify_modules, $user->notification_modules, $user->receives_audit_alerts]);
+        $this->assertSame(['flujos'], $user->notifyModuleList());
+
+        // La pantalla ya no usa la lista desplegable y abre la edición con lo que tiene elegido.
+        $this->actingAs($superadmin)->get(route('superadmin.users'))
+            ->assertOk()
+            ->assertSee("fiscal: 'Fiscal', regulatorio: 'Regulatorio'", false)
+            ->assertDontSee('Ninguna (solo avisos personales)');
     }
 
     public function test_quien_solo_tiene_cumplimiento_ve_todo_menos_la_gestion_de_procesos(): void

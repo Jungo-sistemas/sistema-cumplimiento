@@ -284,8 +284,7 @@ class SuperAdminController extends Controller
 
         // A diferencia de module_access, esto no se fuerza a 'all' para superadmin: un superadmin
         // también puede querer notificaciones de una sola área aunque tenga acceso a ambas.
-        $notificationModules = in_array($request->notification_modules, ['all', 'cumplimiento', 'procesos', 'none'])
-            ? $request->notification_modules : null;
+        [$notificationModules, $notifyModules] = $this->resolveSuperAdminNotifications($request, $role, $moduleAccess, $portalModules);
 
         $user = User::create([
             'name'              => $request->name,
@@ -297,6 +296,7 @@ class SuperAdminController extends Controller
             'module_access'     => $moduleAccess,
             'portal_modules'    => $portalModules,
             'notification_modules' => $notificationModules,
+            'notify_modules'    => $notifyModules,
             'receives_audit_alerts' => $request->boolean('receives_audit_alerts'),
             'password'          => null,
             'status'            => 'invited',
@@ -349,6 +349,40 @@ class SuperAdminController extends Controller
         return [in_array($request->module_access, ['all', 'cumplimiento', 'procesos'], true) ? $request->module_access : 'all', null];
     }
 
+    /**
+     * [notification_modules, notify_modules]. Con las pastillas por módulo (notify_modules[]) solo
+     * cuentan los módulos que tendrá el usuario y el área se deriva de ellos; sin pastillas
+     * marcadas (o con la forma anterior) se usa notification_modules y no hay elección por módulo.
+     *
+     * @return array{0: ?string, 1: ?array}
+     */
+    private function resolveSuperAdminNotifications(Request $request, Role $role, string $moduleAccess, ?array $portalModules): array
+    {
+        if ($request->has('notify_modules')) {
+            $userModules = match ($role->slug) {
+                'superadmin' => array_keys(\App\Support\PortalModules::LABELS),
+                'auditor'    => ['procesos'],
+                default      => (new User(['module_access' => $moduleAccess, 'portal_modules' => $portalModules]))->portalModules(),
+            };
+            $notify = array_values(array_intersect($userModules, (array) $request->input('notify_modules', [])));
+
+            $cumplimiento = array_intersect(\App\Support\PortalModules::cumplimientoModules(), $notify) !== [];
+            $procesos = in_array('procesos', $notify, true);
+
+            return [match (true) {
+                $cumplimiento && $procesos => 'all',
+                $cumplimiento              => 'cumplimiento',
+                $procesos                  => 'procesos',
+                default                    => 'none',
+            }, $notify];
+        }
+
+        $legacy = in_array($request->notification_modules, ['all', 'cumplimiento', 'procesos', 'none'], true)
+            ? $request->notification_modules : null;
+
+        return [$legacy, null];
+    }
+
     public function updateUser(Request $request, User $user)
     {
         abort_unless(auth()->user()->isSuperAdmin(), 403);
@@ -379,8 +413,7 @@ class SuperAdminController extends Controller
         }
         [$moduleAccess, $portalModules] = $this->resolveSuperAdminModules($request, $role);
 
-        $notificationModules = in_array($request->notification_modules, ['all', 'cumplimiento', 'procesos', 'none'])
-            ? $request->notification_modules : null;
+        [$notificationModules, $notifyModules] = $this->resolveSuperAdminNotifications($request, $role, $moduleAccess, $portalModules);
 
         $user->update([
             'role_id'       => $role->id,
@@ -390,8 +423,7 @@ class SuperAdminController extends Controller
             'module_access' => $moduleAccess,
             'portal_modules' => $portalModules,
             'notification_modules' => $notificationModules,
-            // El superadmin elige por área: se deja de usar la elección por módulo.
-            'notify_modules' => null,
+            'notify_modules' => $notifyModules,
         ]);
 
         if ($request->has('receives_audit_alerts')) {

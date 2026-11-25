@@ -405,6 +405,15 @@ class User extends Authenticatable
      * Auditorías, Flujos, Cursos). Los módulos nuevos aún no mandan avisos, pero la preferencia ya
      * se guarda. Sin elección por módulo (usuarios de antes) se toma la de su área.
      */
+    /** Módulos de los que recibe avisos de administración (para marcar las pastillas al editar). */
+    public function notifyModuleList(): array
+    {
+        return array_values(array_filter(
+            array_keys(\App\Support\PortalModules::LABELS),
+            fn ($module) => $this->wantsModuleNotifications($module),
+        ));
+    }
+
     public function wantsModuleNotifications(string $module): bool
     {
         if ($this->notify_modules !== null) {

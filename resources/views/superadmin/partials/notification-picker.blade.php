@@ -1,46 +1,58 @@
 {{--
-    Notificaciones de administración: lista desplegable con casillas (Cumplimiento, Procesos,
-    Auditorías). Se guarda igual que antes: notification_modules (all / cumplimiento / procesos /
-    none) y receives_audit_alerts.
-    $areas: variable de Alpine con el arreglo de áreas marcadas; $audit: variable booleana de Auditorías.
+    Notificaciones de administración en pastillas compactas (en línea, sin lista desplegable que se
+    salga del modal): "Todas", una por cada módulo que tiene el usuario y Auditorías.
+    $areas:   variable de Alpine con el arreglo de módulos marcados (claves de PortalModules)
+    $audit:   variable booleana de Auditorías (receives_audit_alerts)
+    $modules: expresión JS con los módulos que tiene el usuario (los de "Módulos visibles"); se
+              evalúa dentro del objeto, así que sus variables van con this.
+    Se guarda notify_modules[] y, para los avisos que ya existen, notification_modules por área.
 --}}
-@php
-    $options = [
-        'cumplimiento' => ['Cumplimiento', 'Solicitudes de acceso, escalamientos y avisos a administradores.'],
-        'procesos'     => ['Procesos', 'Solicitudes de acceso, escalamientos y avisos a administradores.'],
-    ];
-@endphp
-<div x-data="{ open: false }" class="relative" @click.outside="open = false" @keydown.escape="open = false">
-    <input type="hidden" name="notification_modules" :value="notifyValue({{ $areas }})">
+<div x-data="{
+        labels: { fiscal: 'Fiscal', regulatorio: 'Regulatorio', objetivos: 'Objetivos', procesos: 'Procesos', flujos: 'Flujos', cursos: 'Cursos' },
+        get options() { return Object.keys(this.labels).filter(k => ({{ $modules }}).includes(k)); },
+        get chosen() { return this.{{ $areas }}.filter(k => this.options.includes(k)); },
+        isOn(k) { return this.{{ $areas }}.includes(k); },
+        toggle(k) { this.{{ $areas }} = this.isOn(k) ? this.{{ $areas }}.filter(a => a !== k) : [...this.{{ $areas }}, k]; },
+        get allOn() { return this.options.every(k => this.isOn(k)) && this.{{ $audit }}; },
+        toggleAll() {
+            const on = ! this.allOn;
+            this.{{ $areas }} = on ? [...this.options] : [];
+            this.{{ $audit }} = on;
+        },
+        get areaValue() {
+            const c = this.chosen.some(k => k !== 'procesos'), p = this.chosen.includes('procesos');
+            return c && p ? 'all' : (c ? 'cumplimiento' : (p ? 'procesos' : 'none'));
+        },
+     }">
+    <input type="hidden" name="notification_modules" :value="areaValue">
     <input type="hidden" name="receives_audit_alerts" :value="{{ $audit }} ? 1 : 0">
+    <template x-for="k in chosen" :key="k">
+        <input type="hidden" name="notify_modules[]" :value="k">
+    </template>
 
-    <button type="button" @click="open = ! open"
-            class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-left text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
-        <span x-text="notifySummary({{ $areas }}, {{ $audit }})"
-              :class="{{ $areas }}.length || {{ $audit }} ? 'text-gray-900' : 'text-gray-500'"></span>
-        <svg class="h-4 w-4 shrink-0 text-gray-400 transition" :class="open && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-        </svg>
-    </button>
-
-    <div x-show="open" x-cloak x-transition.opacity
-         class="absolute z-20 mt-1 w-full divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white shadow-lg">
-        @foreach($options as $value => [$label, $hint])
-            <label class="flex cursor-pointer items-start gap-2.5 px-3 py-2.5 text-sm hover:bg-gray-50">
-                <input type="checkbox" value="{{ $value }}" x-model="{{ $areas }}"
-                       class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/40">
-                <span class="text-gray-700">{{ $label }}
-                    <span class="block text-xs text-gray-400">{{ $hint }}</span>
-                </span>
-            </label>
-        @endforeach
-        <label class="flex cursor-pointer items-start gap-2.5 px-3 py-2.5 text-sm hover:bg-gray-50">
-            <input type="checkbox" x-model="{{ $audit }}"
-                   class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand/40">
-            <span class="text-gray-700">Auditorías
-                <span class="block text-xs text-gray-400">Hallazgos críticos y plazos vencidos de los hallazgos del grupo.</span>
-            </span>
-        </label>
+    <div class="flex flex-wrap gap-2">
+        <button type="button" @click="toggleAll()" :aria-pressed="allOn"
+                :class="allOn ? 'border-brand bg-brand text-white' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'"
+                class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors">
+            <x-icon name="check" class="h-3.5 w-3.5" x-show="allOn" />
+            Todas
+        </button>
+        <template x-for="k in options" :key="k">
+            <button type="button" @click="toggle(k)" :aria-pressed="isOn(k)"
+                    :class="isOn(k) ? 'border-brand bg-brand/10 text-brand' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'"
+                    class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors">
+                <x-icon name="check" class="h-3.5 w-3.5" x-show="isOn(k)" />
+                <span x-text="labels[k]"></span>
+            </button>
+        </template>
+        <button type="button" @click="{{ $audit }} = ! {{ $audit }}" :aria-pressed="{{ $audit }}"
+                :class="{{ $audit }} ? 'border-brand bg-brand/10 text-brand' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'"
+                class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors">
+            <x-icon name="check" class="h-3.5 w-3.5" x-show="{{ $audit }}" />
+            Auditorías
+        </button>
     </div>
 </div>
-<p class="mt-1 text-xs text-gray-400">Qué avisos de administración recibirá. Sin ninguna marcada, solo sus avisos personales (sus propias aprobaciones, hallazgos y tareas le llegan siempre).</p>
+<p class="mt-1.5 text-xs text-gray-400">
+    Módulos: solicitudes de acceso, escalamientos y avisos a administradores de ese módulo. Auditorías: hallazgos críticos y plazos vencidos de los hallazgos del grupo. Sus avisos personales le llegan siempre.
+</p>

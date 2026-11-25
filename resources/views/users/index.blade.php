@@ -83,7 +83,7 @@
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
-         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4"
+         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4 py-4"
          style="display:none;"
          @click.self="editOpen = false"
          @keydown.escape.window="editOpen = false">
@@ -91,10 +91,10 @@
         <div x-transition:enter="transition ease-out duration-200"
              x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
              x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-             class="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
+             class="flex max-h-full w-full max-w-lg flex-col rounded-2xl bg-white shadow-2xl overflow-hidden">
 
-            {{-- Header --}}
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+            {{-- Header (fijo; el contenido hace scroll si no cabe en la pantalla) --}}
+            <div class="flex shrink-0 items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
                 <div>
                     <p class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-0.5">Editar usuario</p>
                     <h2 class="text-base font-semibold text-gray-900" x-text="editUserName"></h2>
@@ -108,11 +108,11 @@
             </div>
 
             <template x-if="editUserId">
-                <form method="POST" :action="`/users/${editUserId}`">
+                <form method="POST" :action="`/users/${editUserId}`" class="flex min-h-0 flex-1 flex-col">
                     @csrf
                     @method('PATCH')
 
-                    <div class="px-6 py-5 space-y-4">
+                    <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5 space-y-4">
 
                         {{-- Nombre --}}
                         <div>
@@ -251,7 +251,7 @@
                     </div>
 
                     {{-- Footer --}}
-                    <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50">
+                    <div class="flex shrink-0 items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50">
                         <button type="button" @click="editOpen = false"
                             class="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-100 transition-colors">
                             Cancelar
@@ -268,7 +268,7 @@
 
     {{-- Modal: el admin cambia su propio nombre --}}
     <div x-show="selfNameOpen" x-transition.opacity
-         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4"
+         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4 py-4"
          style="display:none;"
          @click.self="selfNameOpen = false"
          @keydown.escape.window="selfNameOpen = false">
