@@ -26,7 +26,7 @@ class Audit extends Model
 
     protected $fillable = [
         'group_id', 'company_id', 'regulation_id', 'auditor_id',
-        'planned_for', 'scheduled_at', 'status', 'result', 'completed_at', 'notice_sent_at',
+        'planned_for', 'scheduled_at', 'started_at', 'status', 'result', 'completed_at', 'notice_sent_at',
         'score', 'conclusions', 'attendance',
     ];
 
@@ -35,6 +35,7 @@ class Audit extends Model
         return [
             'planned_for'    => 'date',
             'scheduled_at'   => 'datetime',
+            'started_at'     => 'datetime',
             'completed_at'   => 'datetime',
             'notice_sent_at' => 'datetime',
             'attendance'     => 'array',
@@ -45,7 +46,8 @@ class Audit extends Model
     // Estado como lo ve el auditor.
     public const STAGE_UNSCHEDULED = 'Sin fecha';
     public const STAGE_SCHEDULED   = 'Programada';
-    public const STAGE_CAPTURE     = 'En captura';
+    public const STAGE_READY       = 'Por iniciar'; // ya llegó el día; el auditor la inicia con el botón
+    public const STAGE_CAPTURE     = 'En curso';    // iniciada: se captura el checklist
     public const STAGE_DONE        = 'Finalizada';
 
     public function checklistItems(): HasMany
@@ -72,20 +74,43 @@ class Audit extends Model
         return $this->auditor_id === $user->id;
     }
 
-    /** Sin fecha / Programada / En captura (ya llegó el día) / Finalizada. */
+    /**
+     * Sin fecha / Programada / Por iniciar (ya llegó el día) / En curso (el auditor la inició) /
+     * Finalizada.
+     */
     public function auditorStage(): string
     {
         return match (true) {
             $this->status === self::STATUS_COMPLETED => self::STAGE_DONE,
+            $this->started_at !== null               => self::STAGE_CAPTURE,
             $this->scheduled_at === null             => self::STAGE_UNSCHEDULED,
-            $this->scheduled_at->copy()->startOfDay()->lte(now()) => self::STAGE_CAPTURE,
+            $this->scheduled_at->copy()->startOfDay()->lte(self::localNow()) => self::STAGE_READY,
             default                                  => self::STAGE_SCHEDULED,
         };
     }
 
+    /** El checklist se captura solo ya iniciada y antes de finalizarla. */
     public function isCapturable(): bool
     {
-        return $this->status === self::STATUS_PLANNED && $this->auditorStage() === self::STAGE_CAPTURE;
+        return $this->status === self::STATUS_PLANNED && $this->started_at !== null;
+    }
+
+    /** El auditor ya puede iniciarla: llegó el día y no se ha iniciado. */
+    public function canStart(): bool
+    {
+        return $this->status === self::STATUS_PLANNED && $this->auditorStage() === self::STAGE_READY;
+    }
+
+    /** Inicia la auditoría (queda la hora, en el reloj del cliente como scheduled_at). */
+    public function start(): void
+    {
+        $this->update(['started_at' => self::localNow()]);
+    }
+
+    /** "25 de noviembre de 2026, 10:05" */
+    public function startedLabel(): ?string
+    {
+        return $this->started_at?->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm');
     }
 
     /** "18 nov 2026" */
@@ -131,6 +156,23 @@ class Audit extends Model
         return $query->whereHas('auditees', fn ($q) => $q->where('users.id', $user->id));
     }
 
+    /**
+     * "Ahora" con el reloj del cliente (config auditorias.zona_horaria). scheduled_at se guarda tal
+     * como lo escribe el auditor (hora de México) en una columna sin zona; el sistema corre en UTC,
+     * así que se compara contra la hora local con la misma etiqueta de zona que la columna.
+     */
+    public static function localNow(): Carbon
+    {
+        return Carbon::now(config('auditorias.zona_horaria', 'America/Mexico_City'))
+            ->shiftTimezone(config('app.timezone'));
+    }
+
+    /** Ya pasó la fecha y hora (en el reloj del cliente). */
+    public static function isPastLocal(CarbonInterface $at): bool
+    {
+        return $at->lt(self::localNow());
+    }
+
     /** Días antes de la fecha en que se avisa al auditado (config auditorias.aviso_dias_antes). */
     public static function noticeDays(): int
     {
@@ -140,7 +182,7 @@ class Audit extends Model
     /** Último día que cae dentro del aviso: una auditoría con fecha hasta ese día ya se avisa. */
     private static function noticeLimit(?CarbonInterface $now = null): CarbonInterface
     {
-        return ($now ?? now())->copy()->startOfDay()->addDays(self::noticeDays());
+        return ($now ?? self::localNow())->copy()->startOfDay()->addDays(self::noticeDays());
     }
 
     /**
@@ -165,7 +207,7 @@ class Audit extends Model
         return $query->where('status', self::STATUS_PLANNED)
             ->whereNull('notice_sent_at')
             ->whereNotNull('scheduled_at')
-            ->where('scheduled_at', '>=', ($now ?? now())->copy())
+            ->where('scheduled_at', '>=', ($now ?? self::localNow())->copy())
             ->whereDate('scheduled_at', '<=', self::noticeLimit($now));
     }
 
@@ -174,7 +216,7 @@ class Audit extends Model
         return $this->status === self::STATUS_PLANNED
             && $this->notice_sent_at === null
             && $this->scheduled_at !== null
-            && $this->scheduled_at->gte($now ?? now())
+            && $this->scheduled_at->gte($now ?? self::localNow())
             && $this->scheduled_at->copy()->startOfDay()->lte(self::noticeLimit($now));
     }
 

@@ -94,7 +94,7 @@ class AuditWorkflowEndToEndTest extends TestCase
         $type = ProcessType::create(['group_id' => $group->id, 'name' => 'Operaciones', 'is_active' => true]);
         $regulation = Regulation::create([
             'group_id' => $group->id, 'company_id' => $company->id, 'process_type_id' => $type->id,
-            'code' => 'ALC-300', 'name' => 'Carga de autotanques', 'is_active' => true,
+            'code' => 'P-ALC-300', 'name' => 'Carga de autotanques', 'is_active' => true,
             'approval_status' => 'approved', 'impact_level' => 'alto',
         ]);
         RegulationVersion::create([
@@ -133,7 +133,7 @@ class AuditWorkflowEndToEndTest extends TestCase
 
         // Antes del día el checklist solo se consulta: ya muestra los pasos del proceso.
         $this->actingAs($auditor)->get(route('auditorias.audits.checklist', $audit))
-            ->assertOk()->assertSee('El checklist se captura a partir del día')
+            ->assertOk()->assertSee('La auditoría se inicia el día programado')
             ->assertSee('Paso 1. Conexión a tierra')->assertDontSee('Agregar criterio');
         $this->assertSame(0, AuditChecklistItem::count());
         $this->actingAs($auditor)->postJson(route('auditorias.audits.checklist.save', $audit), [])->assertStatus(422);
@@ -157,8 +157,14 @@ class AuditWorkflowEndToEndTest extends TestCase
         $this->actingAs($admin)->get(route('auditorias.audits.checklist', $audit))
             ->assertOk()->assertSee('Solo el auditor asignado'); // el admin solo consulta
 
+        // Llega el día: está "Por iniciar"; el auditor la inicia al empezar la reunión.
         $this->actingAs($auditor)->get(route('auditorias.audits.checklist', $audit))
-            ->assertOk()->assertSee('En captura')->assertSee('Agregar criterio')->assertSee('Pregunta fija');
+            ->assertOk()->assertSee('Por iniciar')->assertSee('Iniciar auditoría');
+        $this->actingAs($auditor)->post(route('auditorias.audits.start', $audit))
+            ->assertRedirect(route('auditorias.audits.checklist', $audit));
+
+        $this->actingAs($auditor)->get(route('auditorias.audits.checklist', $audit))
+            ->assertOk()->assertSee('En curso')->assertSee('Agregar criterio')->assertSee('Pregunta fija');
 
         $this->actingAs($auditor)->postJson(route('auditorias.audits.items.store', $audit), [
             'text' => 'El extintor del andén está vigente.', 'evidence' => 'Etiqueta del extintor',

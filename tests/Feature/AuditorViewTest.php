@@ -52,7 +52,7 @@ class AuditorViewTest extends TestCase
         $type = ProcessType::create(['group_id' => $this->group->id, 'name' => 'Operaciones', 'is_active' => true]);
         $this->regulation = Regulation::create([
             'group_id' => $this->group->id, 'company_id' => $this->company->id, 'process_type_id' => $type->id,
-            'code' => 'ALC-300', 'name' => 'Carga de autotanques', 'is_active' => true, 'approval_status' => 'approved',
+            'code' => 'P-ALC-300', 'name' => 'Carga de autotanques', 'is_active' => true, 'approval_status' => 'approved',
         ]);
     }
 
@@ -70,6 +70,7 @@ class AuditorViewTest extends TestCase
         $audit = Audit::create($attributes + [
             'group_id' => $this->group->id, 'company_id' => $this->company->id, 'regulation_id' => $this->regulation->id,
             'auditor_id' => $this->auditor->id, 'planned_for' => '2026-11-01', 'scheduled_at' => '2026-11-17 09:00:00',
+            'started_at' => '2026-11-17 09:05:00', // en curso (el auditor ya la inició)
         ]);
         $audit->auditees()->attach([$this->ana->id, $this->luis->id]);
 
@@ -92,15 +93,17 @@ class AuditorViewTest extends TestCase
     public function test_todas_las_pantallas_del_auditor_cargan(): void
     {
         $captura = $this->audit();
-        $programada = $this->audit(['scheduled_at' => '2026-11-25 10:00:00']);
-        $sinFecha = $this->audit(['scheduled_at' => null]);
+        $porIniciar = $this->audit(['started_at' => null]);
+        $programada = $this->audit(['scheduled_at' => '2026-11-25 10:00:00', 'started_at' => null]);
+        $sinFecha = $this->audit(['scheduled_at' => null, 'started_at' => null]);
         $finalizada = $this->audit(['status' => Audit::STATUS_COMPLETED, 'completed_at' => now(), 'result' => '80 / 100', 'score' => 80]);
         app(AuditFindingService::class)->register($finalizada, $this->ana, 'Hallazgo de prueba', 'Detalle');
 
         foreach ([
             route('auditorias.home'),
             route('auditorias.audits.index'), route('auditorias.audits.index', ['tab' => 'finalizadas']),
-            route('auditorias.audits.checklist', $captura), route('auditorias.audits.checklist', $programada),
+            route('auditorias.audits.checklist', $captura), route('auditorias.audits.checklist', $porIniciar),
+            route('auditorias.audits.checklist', $programada),
             route('auditorias.audits.checklist', $sinFecha), route('auditorias.audits.result', $finalizada),
             route('auditorias.findings.index'), route('auditorias.findings.index', ['tab' => 'causas']),
             route('auditorias.findings.index', ['tab' => 'evidencias']),
@@ -193,16 +196,71 @@ class AuditorViewTest extends TestCase
         $this->assertSame($this->auditor->id, Audit::sole()->auditor_id);
     }
 
-    public function test_solo_la_auditoria_en_captura_se_puede_llenar(): void
+    public function test_solo_la_auditoria_en_curso_se_puede_llenar(): void
     {
-        $programada = $this->audit(['scheduled_at' => '2026-11-25 10:00:00']);
+        $programada = $this->audit(['scheduled_at' => '2026-11-25 10:00:00', 'started_at' => null]);
 
         $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $programada))
             ->assertOk()->assertSee('Programada')->assertDontSee('Guardar avance')->assertDontSee('Registrar hallazgo');
         $this->actingAs($this->auditor)->postJson(route('auditorias.audits.checklist.save', $programada), [])->assertStatus(422);
 
         $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $this->audit()))
-            ->assertOk()->assertSee('En captura')->assertSee('Guardar avance')->assertSee('Registrar hallazgo');
+            ->assertOk()->assertSee('En curso')->assertSee('Guardar avance')->assertSee('Registrar hallazgo');
+    }
+
+    public function test_el_auditor_no_consulta_procesos_desde_gestion(): void
+    {
+        // Menú de Auditorías sin la sección Procesos.
+        $this->actingAs($this->auditor)->get(route('auditorias.home'))
+            ->assertOk()
+            ->assertDontSee(route('processes.index'), false)
+            ->assertDontSee('data-tour="nav-procedimientos"', false);
+
+        // Por liga tampoco: lo regresa a Auditorías.
+        $this->actingAs($this->auditor)->get(route('processes.index'))->assertRedirect(route('auditorias.home'));
+        $this->actingAs($this->auditor)->get(route('processes.create'))->assertRedirect(route('auditorias.home'));
+
+        // En Mi espacio sí ve sus procedimientos (y abre uno como cualquier auditado).
+        $this->actingAs($this->auditor)->get(route('mi-espacio.documents'))->assertOk();
+        $this->actingAs($this->auditor)->get(route('processes.show', $this->regulation))->assertOk();
+
+        // Ya no se le pide la guía de Procesos.
+        $this->assertFalse($this->auditor->fresh()->needsProcesosGuide());
+    }
+
+    public function test_iniciar_la_auditoria_habilita_el_checklist(): void
+    {
+        $audit = $this->audit(['started_at' => null]); // hoy es el día (17 nov)
+
+        // Por iniciar: sin captura, con el botón.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.index'))
+            ->assertOk()->assertSee('Por iniciar')->assertSee('Iniciar auditoría');
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))
+            ->assertOk()->assertSee('Por iniciar')->assertSee('Iniciar auditoría')->assertDontSee('Guardar avance');
+        $this->actingAs($this->auditor)->postJson(route('auditorias.audits.checklist.save', $audit), [])->assertStatus(422);
+
+        // Solo el auditor asignado la inicia.
+        $this->actingAs($this->user('Alma Admin', 'admin'))->post(route('auditorias.audits.start', $audit))->assertForbidden();
+
+        // Inicia: queda la hora y abre el checklist; ya no se cambia la fecha.
+        $this->actingAs($this->auditor)->post(route('auditorias.audits.start', $audit))
+            ->assertRedirect(route('auditorias.audits.checklist', $audit))->assertSessionHas('success');
+        $this->assertNotNull($startedAt = $audit->fresh()->started_at);
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))
+            ->assertOk()->assertSee('En curso')->assertSee('Iniciada:')->assertSee('Guardar avance')
+            ->assertDontSee("\$dispatch('programar-fecha'", false); // sin botón de Cambiar fecha
+        $this->actingAs($this->auditor)->post(route('auditorias.audits.schedule', $audit), ['fecha' => '2026-11-30', 'hora' => '10:00'])
+            ->assertSessionHas('error');
+
+        // Un segundo clic no cambia la hora de inicio.
+        $this->travel(5)->minutes();
+        $this->actingAs($this->auditor)->post(route('auditorias.audits.start', $audit))->assertRedirect();
+        $this->assertEquals($startedAt, $audit->fresh()->started_at);
+
+        // Antes del día no se puede iniciar.
+        $futura = $this->audit(['scheduled_at' => '2026-11-25 10:00:00', 'started_at' => null]);
+        $this->actingAs($this->auditor)->post(route('auditorias.audits.start', $futura))->assertSessionHas('error');
+        $this->assertNull($futura->fresh()->started_at);
     }
 
     public function test_la_primera_pregunta_es_si_el_auditado_conoce_sus_procedimientos(): void

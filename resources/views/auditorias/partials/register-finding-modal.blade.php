@@ -1,4 +1,4 @@
-{{-- Ventana "Registrar hallazgo". Solo se incluye en el checklist de una auditoría En captura.
+{{-- Ventana "Registrar hallazgo". Solo se incluye en el checklist de una auditoría En curso.
     Cada criterio la abre con: @click="$dispatch('registrar-hallazgo', { criterio: número })"
     También se abre sola al elegir No cumple o Parcial en un criterio sin hallazgo, y con los datos de
     un hallazgo al dar "Editar". Al guardar, le manda el hallazgo al checklist (hallazgo-guardado),

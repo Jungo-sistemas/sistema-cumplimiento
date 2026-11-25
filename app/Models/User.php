@@ -430,7 +430,8 @@ class User extends Authenticatable
      */
     public function needsProcesosGuide(): bool
     {
-        return $this->canAccessModule('procesos') && is_null($this->procesos_guide_completed_at);
+        // El auditor no entra a la gestión de Procesos (solo Auditorías y Mi espacio): no la necesita.
+        return $this->canAccessModule('procesos') && ! $this->isAuditor() && is_null($this->procesos_guide_completed_at);
     }
 
     /**

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -103,7 +104,9 @@ class AuditorController extends Controller
         ]);
 
         $regulation = $this->regulationsFor($user)->firstWhere('id', (int) $data['regulation_id']);
-        abort_unless($regulation, 422, 'Proceso no válido.');
+        if (! $regulation) {
+            return back()->withErrors(['regulation_id' => 'Solo se pueden auditar los procesos con código P-… (los demás están desactualizados).'])->withInput();
+        }
 
         $auditorId = $user->isAuditor() ? $user->id : (int) ($data['auditor_id'] ?? $user->id);
         if (! $user->isAuditor() && ! $this->auditorsFor($user)->contains('id', $auditorId)) {
@@ -120,21 +123,45 @@ class AuditorController extends Controller
         }
 
         $at = ! empty($data['fecha']) ? Carbon::parse("{$data['fecha']} {$data['hora']}") : null;
-        if ($at && $at->isPast()) {
+        if ($at && Audit::isPastLocal($at)) { // hora de México, no la UTC del servidor
             return back()->withErrors(['fecha' => 'La fecha tiene que ser futura.'])->withInput();
         }
 
-        $audit = Audit::create([
-            'group_id'      => $user->group_id,
-            'company_id'    => $regulation->company_id,
-            'regulation_id' => $regulation->id,
-            'auditor_id'    => $auditorId,
-            'planned_for'   => ($at ?? now())->copy()->startOfMonth()->toDateString(),
-        ]);
-        $audit->auditees()->attach($auditeeIds->all());
+        // Doble clic o reenvío: la misma auditoría (proceso, auditor y auditados) acabada de crear
+        // no se duplica. El botón también se bloquea, pero esto cubre conexiones lentas; el candado
+        // por usuario hace que dos envíos simultáneos se revisen uno después del otro.
+        $audit = Cache::lock('auditorias.store.' . $user->id, 15)->block(10, function () use ($user, $regulation, $auditorId, $auditeeIds, $at) {
+            $sameAuditees = $auditeeIds->sort()->values()->all();
+            $duplicate = Audit::where('regulation_id', $regulation->id)
+                ->where('auditor_id', $auditorId)
+                ->where('status', Audit::STATUS_PLANNED)
+                ->where('created_at', '>=', now()->subMinutes(2))
+                ->with('auditees:id')
+                ->get()
+                ->first(fn (Audit $a) => $a->auditees->pluck('id')->sort()->values()->all() === $sameAuditees);
+            if ($duplicate) {
+                return null;
+            }
 
-        if ($at) {
-            $audit->schedule($at);
+            $audit = Audit::create([
+                'group_id'      => $user->group_id,
+                'company_id'    => $regulation->company_id,
+                'regulation_id' => $regulation->id,
+                'auditor_id'    => $auditorId,
+                'planned_for'   => ($at ?? now())->copy()->startOfMonth()->toDateString(),
+            ]);
+            $audit->auditees()->attach($auditeeIds->all());
+
+            if ($at) {
+                $audit->schedule($at);
+            }
+
+            return $audit;
+        });
+
+        if (! $audit) {
+            return redirect()->route('auditorias.audits.index')
+                ->with('success', 'Esa auditoría ya se había creado; no se duplicó.');
         }
 
         return redirect()->route('auditorias.audits.index')
@@ -143,20 +170,59 @@ class AuditorController extends Controller
                 : 'Auditoría creada sin fecha. Ponle fecha cuando la acuerdes con el auditado.');
     }
 
+    /**
+     * "Iniciar auditoría": el auditor asignado la arranca el día de la auditoría; queda la hora y
+     * desde ahí captura el checklist. Repetir el clic no hace nada (ya está iniciada).
+     */
+    public function start(Request $request, Audit $audit)
+    {
+        $this->authorizeRun($request->user(), $audit);
+
+        if ($audit->started_at === null) {
+            if (! $audit->canStart()) {
+                return back()->with('error', $audit->scheduled_at
+                    ? "La auditoría se inicia el día programado ({$audit->scheduledLabel()})."
+                    : 'Ponle fecha a la auditoría antes de iniciarla.');
+            }
+            $audit->start();
+        }
+
+        return redirect()->route('auditorias.audits.checklist', $audit)
+            ->with('success', "Auditoría iniciada el {$audit->startedLabel()}. Ya puedes capturar el checklist.");
+    }
+
     /** Fija o cambia el día y la hora (el aviso al auditado lo maneja Audit::schedule). */
     public function schedule(Request $request, Audit $audit)
     {
         $this->authorizeRun($request->user(), $audit);
         abort_unless($audit->status === Audit::STATUS_PLANNED, 422, 'La auditoría ya está finalizada.');
+        if ($audit->started_at !== null) {
+            return back()->with('error', 'La auditoría ya se inició; ya no se le puede cambiar la fecha.');
+        }
 
-        $data = $request->validate([
-            'fecha' => ['required', 'date_format:Y-m-d'],
-            'hora'  => ['required', 'date_format:H:i'],
-        ], ['fecha.required' => 'Elige la fecha.', 'hora.required' => 'Elige la hora.']);
+        // Si algo falla se vuelve a abrir esta misma ventana con el mensaje (bolsa 'schedule'). Antes
+        // el error llegaba como 'fecha' y abría "Programar auditoría", que lo tapaba: parecía que
+        // no hacía nada.
+        $reopen = fn (string $message) => back()
+            ->withErrors(['fecha' => $message], 'schedule')
+            ->with('reprogramar', [
+                'url'       => route('auditorias.audits.schedule', $audit),
+                'proceso'   => ($audit->regulation?->code ? $audit->regulation->code . ' · ' : '') . $audit->regulation?->name,
+                'auditados' => $audit->auditees->pluck('name')->join(', '),
+                'actual'    => $audit->scheduledLabel(),
+                'fecha'     => $request->input('fecha'),
+                'hora'      => $request->input('hora'),
+            ]);
 
-        $at = Carbon::parse("{$data['fecha']} {$data['hora']}");
-        if ($at->isPast()) {
-            return back()->withErrors(['fecha' => 'La fecha tiene que ser futura.']);
+        $fecha = (string) $request->input('fecha');
+        $hora = (string) $request->input('hora');
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha) || ! preg_match('/^\d{2}:\d{2}$/', substr($hora, 0, 5))) {
+            return $reopen('Elige la fecha y la hora.');
+        }
+
+        $at = Carbon::parse("{$fecha} " . substr($hora, 0, 5));
+        if (Audit::isPastLocal($at)) { // hora de México, no la UTC del servidor
+            return $reopen('La fecha tiene que ser futura.');
         }
 
         $hadNotice = $audit->notice_sent_at !== null;
@@ -486,6 +552,13 @@ class AuditorController extends Controller
         return $audit?->company?->procesos_name ?? $audit?->company?->name;
     }
 
+    /** Código de los procesos que se pueden auditar: los nuevos (P-ALC-002…). Los REG-… están desactualizados (nov 2026). */
+    public const AUDITABLE_CODE_PREFIX = 'P-';
+
+    /**
+     * Procesos que se pueden auditar (lista de "Programar auditoría" y validación al crearla): solo
+     * los de código P-…; los demás (REG-…) están desactualizados y no se auditan.
+     */
     private function regulationsFor(User $user)
     {
         return Regulation::query()
@@ -494,6 +567,7 @@ class AuditorController extends Controller
             ->where('is_active', true)
             ->where('is_annex', false)
             ->whereNull('obsoleted_at')
+            ->whereRaw('UPPER(TRIM(code)) LIKE ?', [self::AUDITABLE_CODE_PREFIX . '%'])
             ->orderBy('code')
             ->get(['id', 'code', 'name', 'company_id', 'group_id']);
     }
@@ -519,7 +593,7 @@ class AuditorController extends Controller
     private function authorizeCapture(User $user, Audit $audit): void
     {
         $this->authorizeRun($user, $audit);
-        abort_unless($audit->isCapturable(), 422, 'El checklist solo se captura desde el día de la auditoría y antes de finalizarla.');
+        abort_unless($audit->isCapturable(), 422, 'El checklist se captura con la auditoría iniciada y antes de finalizarla.');
     }
 
     private function checklistPayload(Request $request): array

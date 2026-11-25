@@ -10,6 +10,7 @@
         $colores = [
             Audit::STAGE_UNSCHEDULED => 'bg-gray-100 text-gray-700',
             Audit::STAGE_SCHEDULED   => 'bg-brand-50 text-brand',
+            Audit::STAGE_READY       => 'bg-blue-50 text-blue-700',
             Audit::STAGE_CAPTURE     => 'bg-amber-50 text-amber-700',
             Audit::STAGE_DONE        => 'bg-green-50 text-green-700',
         ];
@@ -43,7 +44,7 @@
         'action'      => route('auditorias.audits.index'),
         'placeholder' => 'Buscar por procedimiento o persona auditada...',
         'selects'     => $tab === 'ejecucion'
-            ? [['name' => 'estado', 'label' => 'Estado', 'all' => 'Todos los estados', 'options' => collect([Audit::STAGE_UNSCHEDULED, Audit::STAGE_SCHEDULED, Audit::STAGE_CAPTURE])->mapWithKeys(fn ($s) => [$s => $s])->all()]]
+            ? [['name' => 'estado', 'label' => 'Estado', 'all' => 'Todos los estados', 'options' => collect([Audit::STAGE_UNSCHEDULED, Audit::STAGE_SCHEDULED, Audit::STAGE_READY, Audit::STAGE_CAPTURE])->mapWithKeys(fn ($s) => [$s => $s])->all()]]
             : [],
     ])
 
@@ -80,7 +81,10 @@
                             <td class="px-4 py-5 text-gray-700">{{ $audit->result ?? '—' }}</td>
                             <td class="px-4 py-5 text-right">
                                 <div class="flex justify-end gap-2">
-                                    @if($tab === 'ejecucion' && $audit->isRunBy(auth()->user()))
+                                    @if($tab === 'ejecucion' && $audit->isRunBy(auth()->user()) && $audit->canStart())
+                                        @include('auditorias.partials.start-button', ['audit' => $audit, 'size' => 'sm'])
+                                    @endif
+                                    @if($tab === 'ejecucion' && $audit->isRunBy(auth()->user()) && ! $audit->started_at)
                                         <button type="button"
                                                 @click="$dispatch('programar-fecha', @js(['url' => route('auditorias.audits.schedule', $audit), 'proceso' => $audit->regulation?->name, 'auditados' => $audit->auditees->pluck('name')->join(', '), 'actual' => $audit->scheduledLabel(), 'fecha' => $audit->scheduled_at?->toDateString(), 'hora' => $audit->scheduled_at?->format('H:i')]))"
                                                 class="whitespace-nowrap rounded-lg border-2 border-gray-300 px-3 py-1.5 text-sm font-semibold text-brand-ink hover:bg-gray-50">{{ $audit->scheduled_at ? 'Cambiar fecha' : 'Poner fecha' }}</button>

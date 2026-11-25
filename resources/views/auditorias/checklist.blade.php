@@ -28,17 +28,18 @@
 
     <div class="mb-4 flex items-center justify-between gap-4">
         <a href="{{ route('auditorias.audits.index') }}" class="text-sm font-semibold text-brand hover:underline">Volver a auditorías</a>
-        @if($canRun)
+        @if($canRun && ! $audit->started_at)
             <button type="button"
                     @click="$dispatch('programar-fecha', @js(['url' => route('auditorias.audits.schedule', $audit), 'proceso' => $procedimiento, 'auditados' => $auditados, 'actual' => $audit->scheduledLabel(), 'fecha' => $audit->scheduled_at?->toDateString(), 'hora' => $audit->scheduled_at?->format('H:i')]))"
                     class="ml-auto rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">{{ $audit->scheduled_at ? 'Cambiar fecha' : 'Poner fecha' }}</button>
         @endif
-        <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $stage === Audit::STAGE_CAPTURE ? 'bg-amber-50 text-amber-700' : 'bg-brand-50 text-brand' }}">{{ $stage }}</span>
+        <span class="rounded-full px-3 py-1 text-xs font-semibold {{ match ($stage) { Audit::STAGE_CAPTURE => 'bg-amber-50 text-amber-700', Audit::STAGE_READY => 'bg-blue-50 text-blue-700', default => 'bg-brand-50 text-brand' } }}">{{ $stage }}</span>
     </div>
 
     @include('mi-espacio.partials.header', [
         'title'    => 'Checklist de auditoría',
-        'subtitle' => $procedimiento . ' · ' . $auditados . ($audit->scheduled_at ? ' · ' . $audit->scheduledLabel() : ''),
+        'subtitle' => $procedimiento . ' · ' . $auditados . ($audit->scheduled_at ? ' · ' . $audit->scheduledLabel() : '')
+            . ($audit->started_at ? ' · Iniciada: ' . $audit->startedLabel() : ''),
     ])
 
     @if(! $editable)
@@ -46,9 +47,14 @@
             @if(! $canRun)
                 Solo el auditor asignado ({{ $audit->auditor?->name ?? 'sin asignar' }}) captura este checklist. Aquí puedes consultarlo.
             @elseif(! $audit->scheduled_at)
-                Esta auditoría todavía no tiene fecha. Ponle fecha cuando la acuerdes con el auditado; el checklist se captura ese día.
+                Esta auditoría todavía no tiene fecha. Ponle fecha cuando la acuerdes con el auditado; se inicia ese día.
+            @elseif($audit->canStart())
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <span>Hoy es la auditoría. Cuando empiece la reunión, iníciala para capturar el checklist; queda registrada la hora de inicio.</span>
+                    @include('auditorias.partials.start-button', ['audit' => $audit, 'size' => 'lg'])
+                </div>
             @else
-                El checklist se captura a partir del día de la auditoría ({{ $audit->scheduledLabel() }}). Mientras tanto puedes revisar los criterios que se van a evaluar.
+                La auditoría se inicia el día programado ({{ $audit->scheduledLabel() }}). Mientras tanto puedes revisar los criterios que se van a evaluar.
             @endif
         </div>
     @endif
@@ -186,7 +192,7 @@
         <div class="mb-6 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-6">
             <div class="sm:flex-1">
                 <h2 class="text-base font-semibold text-gray-900">Sesión por Microsoft Teams</h2>
-                <p class="mt-2 text-sm text-gray-600">{{ $editable ? 'Registra las respuestas y las observaciones durante la llamada. Guarda el avance de vez en cuando.' : 'La captura corresponde al auditor asignado el día de la auditoría.' }}</p>
+                <p class="mt-2 text-sm text-gray-600">{{ $editable ? 'Registra las respuestas y las observaciones durante la llamada. Guarda el avance de vez en cuando.' : 'La captura corresponde al auditor asignado, una vez que inicia la auditoría.' }}</p>
             </div>
 
             <div class="flex flex-col items-start gap-3 sm:items-end">

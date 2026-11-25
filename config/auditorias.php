@@ -9,6 +9,13 @@ return [
     'aviso_dias_antes' => (int) env('AUDITORIAS_AVISO_DIAS_ANTES', 3),
 
     /*
+    | Zona horaria en que el auditor escribe la fecha y hora de la auditoría (y en la que se muestra).
+    | El sistema corre en UTC: sin esto, "hoy a las 9:30" en México se comparaba contra la hora UTC
+    | (6 h adelante) y salía "La fecha tiene que ser futura".
+    */
+    'zona_horaria' => env('AUDITORIAS_ZONA_HORARIA', 'America/Mexico_City'),
+
+    /*
     | Valor fijo de cada resultado del checklist. El auditor ya no escribe la calificación
     | (así se evitan sesgos): cada criterio vale lo que diga su resultado, y la calificación
     | final es el promedio. "no_aplica" no está en la lista porque no cuenta en el promedio.
