@@ -2,6 +2,27 @@
      Usa $regulations, $people y $auditors del controlador. --}}
 <div x-data="{
         abierto: @js($errors->hasAny(['regulation_id', 'auditees', 'fecha', 'hora', 'auditor_id'])),
+        enviando: false,
+        // Proceso a auditar: buscador por código o nombre (la lista era muy larga para un select).
+        procesos: @js($regulations->map(fn ($r) => [
+            'id'      => $r->id,
+            'codigo'  => $r->code,
+            'nombre'  => $r->name,
+            'empresa' => $r->company?->procesos_name ?? $r->company?->name ?? 'Sin empresa',
+        ])->sortBy(fn ($p) => mb_strtoupper($p['empresa']) . ' ' . ($p['codigo'] ?? '') . ' ' . $p['nombre'])->values()),
+        proceso: @js(old('regulation_id') ? (int) old('regulation_id') : null),
+        buscarProceso: '',
+        listaProcesos: false,
+        get procesosFiltrados() {
+            const q = this.buscarProceso.trim().toLowerCase();
+            const lista = q
+                ? this.procesos.filter(p => ((p.codigo ?? '') + ' ' + p.nombre + ' ' + p.empresa).toLowerCase().includes(q))
+                : this.procesos;
+            return lista.slice(0, 80);
+        },
+        etiqueta(p) { return p ? (p.codigo ? p.codigo + ' · ' : '') + p.nombre : ''; },
+        get procesoElegido() { return this.procesos.find(p => p.id === this.proceso); },
+        elegirProceso(p) { this.proceso = p.id; this.buscarProceso = ''; this.listaProcesos = false; },
         buscar: '',
         elegidos: @js(array_map('intval', old('auditees', []))),
         personas: @js($people->map(fn ($p) => ['id' => $p->id, 'nombre' => $p->name, 'correo' => $p->email])->values()),
@@ -27,22 +48,43 @@
             <button type="button" @click="abierto = false" class="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">Cerrar</button>
         </div>
 
-        <form method="POST" action="{{ route('auditorias.audits.store') }}" class="mt-5 space-y-5">
+        {{-- Un solo envío: el botón se bloquea al primer clic (si no, varios clics creaban varias auditorías). --}}
+        <form method="POST" action="{{ route('auditorias.audits.store') }}" class="mt-5 space-y-5"
+              @submit="if (enviando || ! proceso) { $event.preventDefault(); if (! proceso) listaProcesos = true } else { enviando = true }">
             @csrf
 
-            <div>
+            <div class="relative" @click.outside="listaProcesos = false">
                 <label for="nueva-proceso" class="mb-2 block text-sm font-semibold text-gray-900">Proceso a auditar</label>
-                <select id="nueva-proceso" name="regulation_id" required
-                        class="h-12 w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand">
-                    <option value="">Selecciona</option>
-                    @foreach($regulations->groupBy(fn ($r) => $r->company?->procesos_name ?? $r->company?->name ?? 'Sin empresa') as $company => $list)
-                        <optgroup label="{{ $company }}">
-                            @foreach($list as $regulation)
-                                <option value="{{ $regulation->id }}" @selected((int) old('regulation_id') === $regulation->id)>{{ $regulation->code ? $regulation->code . ' · ' : '' }}{{ $regulation->name }}</option>
-                            @endforeach
-                        </optgroup>
-                    @endforeach
-                </select>
+                <input type="hidden" name="regulation_id" :value="proceso ?? ''">
+
+                {{-- Elegido: se muestra con opción de cambiarlo. --}}
+                <div x-show="procesoElegido" class="flex items-center justify-between gap-3 rounded-lg border border-brand/40 bg-brand-50 px-3 py-2.5">
+                    <div class="min-w-0">
+                        <div class="truncate text-[15px] font-semibold text-gray-900" x-text="etiqueta(procesoElegido)"></div>
+                        <div class="text-xs text-gray-500" x-text="procesoElegido?.empresa"></div>
+                    </div>
+                    <button type="button" @click="proceso = null; $nextTick(() => $refs.buscarProceso.focus())"
+                            class="shrink-0 text-sm font-semibold text-brand hover:underline">Cambiar</button>
+                </div>
+
+                <div x-show="! procesoElegido">
+                    <input id="nueva-proceso" type="search" x-ref="buscarProceso" x-model="buscarProceso"
+                           @focus="listaProcesos = true" @input="listaProcesos = true" autocomplete="off"
+                           placeholder="Buscar por código o nombre (p. ej. P-ALC-002 o carrotanques)..."
+                           class="h-12 w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand">
+                    <div x-show="listaProcesos" x-cloak
+                         class="absolute z-10 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                        <template x-for="(p, i) in procesosFiltrados" :key="p.id">
+                            <div>
+                                <div x-show="i === 0 || procesosFiltrados[i - 1].empresa !== p.empresa"
+                                     class="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-wider text-gray-400" x-text="p.empresa"></div>
+                                <button type="button" @click="elegirProceso(p)"
+                                        class="block w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50" x-text="etiqueta(p)"></button>
+                            </div>
+                        </template>
+                        <p x-show="procesosFiltrados.length === 0" class="px-3 py-2 text-sm text-gray-500">Ningún proceso coincide.</p>
+                    </div>
+                </div>
             </div>
 
             @if($auditors->isNotEmpty())
@@ -84,7 +126,7 @@
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                     <label for="nueva-fecha" class="mb-2 block text-sm font-semibold text-gray-900">Fecha (opcional)</label>
-                    <input id="nueva-fecha" type="date" name="fecha" value="{{ old('fecha') }}" min="{{ today()->toDateString() }}"
+                    <input id="nueva-fecha" type="date" name="fecha" value="{{ old('fecha') }}" min="{{ \App\Models\Audit::localNow()->toDateString() }}"
                            class="h-12 w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand">
                 </div>
                 <div>
@@ -95,7 +137,11 @@
             </div>
             <p class="text-sm text-gray-600">Sin fecha, el auditado todavía no se entera. Con fecha, recibe el aviso {{ \App\Models\Audit::noticeDays() }} días antes.</p>
 
-            <button type="submit" class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">Programar</button>
+            <button type="submit" :disabled="enviando"
+                    class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:cursor-wait disabled:opacity-60">
+                <span x-show="! enviando">Programar</span>
+                <span x-show="enviando" x-cloak>Programando…</span>
+            </button>
         </form>
     </div>
 </div>
