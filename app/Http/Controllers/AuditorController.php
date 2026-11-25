@@ -120,7 +120,7 @@ class AuditorController extends Controller
         }
 
         $at = ! empty($data['fecha']) ? Carbon::parse("{$data['fecha']} {$data['hora']}") : null;
-        if ($at && $at->isPast()) {
+        if ($at && Audit::isPastLocal($at)) { // hora de México, no la UTC del servidor
             return back()->withErrors(['fecha' => 'La fecha tiene que ser futura.'])->withInput();
         }
 
@@ -155,7 +155,7 @@ class AuditorController extends Controller
         ], ['fecha.required' => 'Elige la fecha.', 'hora.required' => 'Elige la hora.']);
 
         $at = Carbon::parse("{$data['fecha']} {$data['hora']}");
-        if ($at->isPast()) {
+        if (Audit::isPastLocal($at)) { // hora de México, no la UTC del servidor
             return back()->withErrors(['fecha' => 'La fecha tiene que ser futura.']);
         }
 
