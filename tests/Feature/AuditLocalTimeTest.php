@@ -22,8 +22,8 @@ class AuditLocalTimeTest extends TestCase
         $this->assertTrue(Audit::isPastLocal(Carbon::parse('2026-11-25 09:00')));  // ya pasó
         $this->assertFalse(Audit::isPastLocal(Carbon::parse('2026-11-25 14:00'))); // antes lo rechazaba
 
-        // Ya es "hoy" para el auditor: entra en captura.
+        // Ya es "hoy" para el auditor: lista para iniciar.
         $audit = new Audit(['status' => Audit::STATUS_PLANNED, 'scheduled_at' => Carbon::parse('2026-11-25 09:30')]);
-        $this->assertSame(Audit::STAGE_CAPTURE, $audit->auditorStage());
+        $this->assertSame(Audit::STAGE_READY, $audit->auditorStage());
     }
 }

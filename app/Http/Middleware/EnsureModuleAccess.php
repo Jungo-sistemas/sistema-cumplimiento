@@ -98,6 +98,16 @@ class EnsureModuleAccess
                 return redirect()->route('mi-espacio.home');
             }
 
+            // El auditor no consulta procesos desde Gestión: solo Auditorías. Los procedimientos los
+            // ve en Mi espacio (sus rutas están en AUDITEE_ROUTES), igual que cualquier auditado.
+            if ($user->isAuditor()
+                && $request->routeIs('processes.*', 'procesos.*', 'regulation-versions.*', 'gestion.*')
+                && ! $request->routeIs(...self::AUDITEE_ROUTES)) {
+                abort_unless($request->isMethod('GET'), 403, 'El auditor no tiene acceso a la gestión de Procesos.');
+
+                return redirect()->route('auditorias.home');
+            }
+
             return $next($request);
         }
 

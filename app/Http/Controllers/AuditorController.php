@@ -170,11 +170,35 @@ class AuditorController extends Controller
                 : 'Auditoría creada sin fecha. Ponle fecha cuando la acuerdes con el auditado.');
     }
 
+    /**
+     * "Iniciar auditoría": el auditor asignado la arranca el día de la auditoría; queda la hora y
+     * desde ahí captura el checklist. Repetir el clic no hace nada (ya está iniciada).
+     */
+    public function start(Request $request, Audit $audit)
+    {
+        $this->authorizeRun($request->user(), $audit);
+
+        if ($audit->started_at === null) {
+            if (! $audit->canStart()) {
+                return back()->with('error', $audit->scheduled_at
+                    ? "La auditoría se inicia el día programado ({$audit->scheduledLabel()})."
+                    : 'Ponle fecha a la auditoría antes de iniciarla.');
+            }
+            $audit->start();
+        }
+
+        return redirect()->route('auditorias.audits.checklist', $audit)
+            ->with('success', "Auditoría iniciada el {$audit->startedLabel()}. Ya puedes capturar el checklist.");
+    }
+
     /** Fija o cambia el día y la hora (el aviso al auditado lo maneja Audit::schedule). */
     public function schedule(Request $request, Audit $audit)
     {
         $this->authorizeRun($request->user(), $audit);
         abort_unless($audit->status === Audit::STATUS_PLANNED, 422, 'La auditoría ya está finalizada.');
+        if ($audit->started_at !== null) {
+            return back()->with('error', 'La auditoría ya se inició; ya no se le puede cambiar la fecha.');
+        }
 
         // Si algo falla se vuelve a abrir esta misma ventana con el mensaje (bolsa 'schedule'). Antes
         // el error llegaba como 'fecha' y abría "Programar auditoría", que lo tapaba: parecía que
@@ -569,7 +593,7 @@ class AuditorController extends Controller
     private function authorizeCapture(User $user, Audit $audit): void
     {
         $this->authorizeRun($user, $audit);
-        abort_unless($audit->isCapturable(), 422, 'El checklist solo se captura desde el día de la auditoría y antes de finalizarla.');
+        abort_unless($audit->isCapturable(), 422, 'El checklist se captura con la auditoría iniciada y antes de finalizarla.');
     }
 
     private function checklistPayload(Request $request): array
