@@ -125,6 +125,26 @@ class PortalModulesTest extends TestCase
         $this->assertFalse($objetivos->canAccessModule('procesos'));
     }
 
+    public function test_sin_procesos_y_auditorias_igual_entra_a_mi_espacio_para_ser_auditado(): void
+    {
+        foreach (['operative', 'admin'] as $slug) {
+            $user = User::factory()->create([
+                'group_id' => $this->group->id, 'scope_level' => 'group', 'status' => 'active',
+                'module_access' => 'cumplimiento', 'portal_modules' => ['regulatorio'],
+                'role_id' => Role::firstOrCreate(['slug' => $slug], ['name' => ucfirst($slug)])->id,
+            ]);
+
+            // Mi espacio: sus auditorías, hallazgos y procedimientos.
+            foreach (['mi-espacio.home', 'mi-espacio.audits', 'mi-espacio.findings', 'mi-espacio.documents'] as $route) {
+                $this->actingAs($user)->get(route($route))->assertOk();
+            }
+
+            // La gestión de procesos y auditorías no: lo regresa a Mi espacio.
+            $this->actingAs($user)->get(route('gestion.home'))->assertRedirect(route('mi-espacio.home'));
+            $this->actingAs($user)->get(route('auditorias.audits.index'))->assertRedirect(route('mi-espacio.home'));
+        }
+    }
+
     public function test_las_notificaciones_se_eligen_por_modulo(): void
     {
         $this->actingAs($this->admin)->post(route('users.store'), [
