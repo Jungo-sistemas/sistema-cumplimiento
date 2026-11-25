@@ -14,6 +14,7 @@ use App\Http\Controllers\AssetExtraDocumentController;
 use App\Http\Controllers\RequirementAuditLogController;
 use App\Http\Controllers\AuditeeController;
 use App\Http\Controllers\AuditorController;
+use App\Http\Controllers\JefeAuditoriaController;
 use App\Http\Controllers\GestionController;
 use App\Http\Controllers\RequirementHistoryController;
 use App\Http\Controllers\DashboardController;
@@ -247,9 +248,7 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     | reemplaza por la de verdad en su propia tarea.
     */
     Route::prefix('auditorias/jefe')->name('auditorias.jefe.')->middleware('can:jefe-auditoria')->group(function () {
-        Route::view('/', 'auditorias.jefe.en-construccion', [
-            'titulo' => 'Inicio', 'descripcion' => 'Resumen del programa anual de auditorías.',
-        ])->name('home');
+        Route::get('/', [JefeAuditoriaController::class, 'home'])->name('home');
         Route::view('/programa', 'auditorias.jefe.en-construccion', [
             'titulo' => 'Programa anual', 'descripcion' => 'Todas las auditorías del año, por mes, empresa y auditor.',
         ])->name('program');
