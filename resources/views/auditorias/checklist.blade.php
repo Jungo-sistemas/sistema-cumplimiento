@@ -277,7 +277,7 @@
                                     {{-- Los anexos que menciona este paso; cada uno abre su documento, como "Ver". Son
                                          enlaces (no botones) para que sirvan aunque el fieldset esté apagado. --}}
                                     <div x-data="{ abierto: false }" @click.outside="abierto = false" @keydown.escape.window="abierto = false">
-                                        <a href="#" role="button" @click.prevent="abierto = ! abierto"
+                                        <a href="#" role="button" @click.prevent="abierto = ! abierto" :aria-expanded="abierto" @keydown.space.prevent="$el.click()"
                                            class="inline-flex items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 text-sm font-semibold"
                                            :class="abierto ? 'border-brand bg-brand-50 text-brand' : 'border-gray-300 text-gray-700 hover:border-brand hover:text-brand'">
                                             <x-icon name="paperclip" class="h-4 w-4" />
@@ -299,7 +299,7 @@
                                         </div>
                                     </div>
                                 @endif
-                                <a href="#" role="button" @click.prevent="$dispatch('ver-criterios', { indice: {{ $i }} })"
+                                <a href="#" role="button" @click.prevent="$dispatch('ver-criterios', { indice: {{ $i }} })" @keydown.space.prevent="$el.click()"
                                    class="rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">Criterios a evaluar</a>
                             </div>
                         </div>

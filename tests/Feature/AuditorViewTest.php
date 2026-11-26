@@ -396,6 +396,10 @@ class AuditorViewTest extends TestCase
         $this->assertSame(1, substr_count($html, '>F-ALC-301-02</span>'));
         $this->assertSame(1, substr_count($html, '>F-ALC-301</span>'));
         $this->assertSame(0, substr_count($html, '>F-ALC-399</span>'));
+        // Con teclado: los 2 "Ver anexos" avisan si su lista está abierta, y Espacio da clic en esos 2 y en los
+        // 3 "Criterios a evaluar".
+        $this->assertSame(2, substr_count($html, ':aria-expanded="abierto"'));
+        $this->assertSame(5, substr_count($html, '@keydown.space.prevent="$el.click()"'));
         $this->actingAs($this->auditor)->get(route('regulation-versions.preview', $largo->publishedVersion))->assertOk();
     }
 
