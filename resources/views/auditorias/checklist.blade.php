@@ -266,7 +266,8 @@
                         <p class="mt-1 text-[15px] text-gray-700">{{ $criterio->description }}</p>
                     @endif
                     @if($criterio->activity)
-                        <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-brand bg-gray-50 px-4 py-3">
+                        {{-- relative: la lista de "Ver anexos" se acomoda respecto a este recuadro (a lo ancho en celular). --}}
+                        <div class="relative mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-brand bg-gray-50 px-4 py-3">
                             <div>
                                 <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">Se evalúa con la actividad</div>
                                 <p class="mt-1 text-sm font-semibold text-gray-900">Paso {{ $criterio->activity['numero'] }}. {{ $criterio->activity['titulo'] }}</p>
@@ -275,15 +276,15 @@
                                 @if($anexos[$i] ?? [])
                                     {{-- Los anexos que menciona este paso; cada uno abre su documento, como "Ver". Son
                                          enlaces (no botones) para que sirvan aunque el fieldset esté apagado. --}}
-                                    <div class="relative" x-data="{ abierto: false }" @click.outside="abierto = false" @keydown.escape.window="abierto = false">
+                                    <div x-data="{ abierto: false }" @click.outside="abierto = false" @keydown.escape.window="abierto = false">
                                         <a href="#" role="button" @click.prevent="abierto = ! abierto"
                                            class="inline-flex items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 text-sm font-semibold"
                                            :class="abierto ? 'border-brand bg-brand-50 text-brand' : 'border-gray-300 text-gray-700 hover:border-brand hover:text-brand'">
-                                            <x-icon name="link" class="h-4 w-4" />
+                                            <x-icon name="paperclip" class="h-4 w-4" />
                                             <span>Ver anexos</span>
                                         </a>
                                         <div x-show="abierto" x-cloak x-transition
-                                             class="absolute right-0 z-20 mt-2 w-80 max-w-[85vw] rounded-lg border border-gray-200 bg-white p-3 shadow-xl">
+                                             class="absolute inset-x-0 top-full z-20 mt-2 rounded-lg border border-gray-200 bg-white p-3 shadow-xl sm:left-auto sm:w-80">
                                             <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Anexos de este paso</div>
                                             <ul class="space-y-1">
                                                 @foreach($anexos[$i] as $anexo)

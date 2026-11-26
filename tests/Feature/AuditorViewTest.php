@@ -102,12 +102,13 @@ class AuditorViewTest extends TestCase
     }
 
     /** Un formato (anexo) de la misma empresa, cargado en Procesos con su versión vigente. */
-    private function annex(string $code, string $name): Regulation
+    private function annex(string $code, string $name, array $extra = []): Regulation
     {
-        $annex = Regulation::create([
+        $annex = Regulation::create($extra + [
             'group_id' => $this->group->id, 'company_id' => $this->company->id, 'process_type_id' => $this->regulation->process_type_id,
             'code' => $code, 'name' => $name, 'is_active' => true, 'is_annex' => true, 'approval_status' => 'approved',
         ]);
+        Storage::disk('private')->put("procesos/{$code}.pdf", self::pdf([[$code]]));
         RegulationVersion::create([
             'regulation_id' => $annex->id, 'version_number' => 1, 'is_current' => true,
             'file_path' => "procesos/{$code}.pdf", 'original_name' => "{$code}.pdf", 'disk' => 'private',
@@ -375,22 +376,50 @@ class AuditorViewTest extends TestCase
     public function test_ver_anexos_muestra_los_formatos_que_menciona_cada_paso(): void
     {
         Storage::disk('private')->put('procesos/p-alc-300.pdf', self::pdf([
-            ['Paso 1. Recepcion', 'Responsable: Jefe de patio', 'Como: Llena el F-ALC-301 y el F-ALC-399.', 'Evidencia: F-ALC-301 firmado.'],
-            ['Paso 2. Descarga', 'Responsable: Operador', 'Que: Descarga el producto.'],
+            ['Paso 1. Recepcion', 'Responsable: Jefe de patio', 'Como: Llena el f-alc-301-02 y el F-ALC-399.', 'Evidencia: F-ALC-301-02 firmado.'],
+            ['Paso 2. Descarga', 'Responsable: Operador', 'Que: Revisa el F-ALC-301.'],
+            ['Paso 3. Cierre', 'Responsable: Operador', 'Que: Archiva el expediente.'],
         ]));
         $this->version('procesos/p-alc-300.pdf', 'P-ALC-300.pdf');
-        $formato = $this->annex('F-ALC-301', 'Bitacora de recepcion');
+        $this->annex('F-ALC-301', 'Bitacora de recepcion');
+        $largo = $this->annex('F-ALC-301-02', 'Bitacora de recepcion parte 2');
         $audit = $this->audit();
 
         $html = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))->assertOk()
-            ->assertSee(route('regulation-versions.preview', $formato->currentVersion), false)
-            ->assertSee('Bitacora de recepcion')
+            ->assertSee(route('regulation-versions.preview', $largo->publishedVersion), false)
+            ->assertSee('Bitacora de recepcion parte 2')
             ->getContent();
 
-        // Solo el paso 1 lo menciona (una vez, aunque salga dos veces); F-ALC-399 no está cargado, no se muestra.
-        $this->assertSame(1, substr_count($html, '<span>Ver anexos</span>'));
+        // Paso 1: en minúsculas también cuenta, una sola vez, y no se confunde con F-ALC-301; F-ALC-399 no está
+        // cargado. Paso 2: F-ALC-301. Paso 3: no menciona formatos, no lleva botón.
+        $this->assertSame(2, substr_count($html, '<span>Ver anexos</span>'));
+        $this->assertSame(1, substr_count($html, '>F-ALC-301-02</span>'));
         $this->assertSame(1, substr_count($html, '>F-ALC-301</span>'));
         $this->assertSame(0, substr_count($html, '>F-ALC-399</span>'));
+        $this->actingAs($this->auditor)->get(route('regulation-versions.preview', $largo->publishedVersion))->assertOk();
+    }
+
+    public function test_ver_anexos_abre_la_version_aprobada_del_formato(): void
+    {
+        Storage::disk('private')->put('procesos/p-alc-300.pdf', self::pdf([
+            ['Paso 1. Recepcion', 'Responsable: Jefe de patio', 'Como: Llena el F-ALC-301 y el F-ALC-302.'],
+        ]));
+        $this->version('procesos/p-alc-300.pdf', 'P-ALC-300.pdf');
+        $formato = $this->annex('F-ALC-301', 'Bitacora de recepcion');
+        $aprobada = $formato->publishedVersion;
+        // Se está actualizando: la v2 ya es la vigente, pero todavía no se aprueba.
+        $aprobada->update(['is_current' => false]);
+        $borrador = RegulationVersion::create([
+            'regulation_id' => $formato->id, 'version_number' => 2, 'is_current' => true,
+            'file_path' => 'procesos/F-ALC-301-v2.pdf', 'original_name' => 'F-ALC-301.pdf', 'disk' => 'private',
+        ]);
+        $this->annex('F-ALC-302', 'Formato en revision', ['approval_status' => 'pending_review']); // nunca aprobado
+
+        // Abre la versión aprobada (la que usa el auditado), no el borrador; el que nunca se aprobó no sale.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $this->audit()))->assertOk()
+            ->assertSee(route('regulation-versions.preview', $aprobada), false)
+            ->assertDontSee(route('regulation-versions.preview', $borrador), false)
+            ->assertDontSee('>F-ALC-302</span>', false);
     }
 
     public function test_un_word_se_convierte_una_sola_vez_para_leer_sus_pasos(): void
