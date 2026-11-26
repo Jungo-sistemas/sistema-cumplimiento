@@ -238,9 +238,10 @@
                 <h2 class="text-base font-semibold text-gray-900">Procedimiento auditado</h2>
                 <p class="mt-1 text-sm text-gray-600">{{ $procedimiento }}{{ $items->contains('source', 'proceso') ? ' · Los criterios de cada paso abren la actividad del procedimiento con la que se evalúa.' : ' · Este proceso no trae pasos estructurados: agrega los criterios que vas a evaluar.' }}</p>
             </div>
-            @if($audit->regulation)
-                <a href="{{ route('processes.show', $audit->regulation) }}" target="_blank" rel="noopener"
-                   class="rounded-lg border-2 border-brand px-4 py-2 text-sm font-semibold text-brand hover:bg-brand-50">Ver procedimiento completo y anexos</a>
+            {{-- Abre directo el documento vigente, igual que el botón "Ver" de Procesos. --}}
+            @if($audit->regulation?->currentVersion)
+                <a href="{{ route('regulation-versions.preview', $audit->regulation->currentVersion) }}" target="_blank" rel="noopener"
+                   class="rounded-lg border-2 border-brand px-4 py-2 text-sm font-semibold text-brand hover:bg-brand-50">Ver procedimiento completo</a>
             @endif
         </div>
 
@@ -268,7 +269,7 @@
                         <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-brand bg-gray-50 px-4 py-3">
                             <div>
                                 <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">Se evalúa con la actividad</div>
-                                <p class="mt-1 text-sm font-semibold text-gray-900">{{ $criterio->activity['numero'] }}. {{ $criterio->activity['titulo'] }}</p>
+                                <p class="mt-1 text-sm font-semibold text-gray-900">Paso {{ $criterio->activity['numero'] }}. {{ $criterio->activity['titulo'] }}</p>
                             </div>
                             <a href="#" role="button" @click.prevent="$dispatch('ver-criterios', { indice: {{ $i }} })"
                                class="rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">Criterios a evaluar</a>
@@ -298,27 +299,28 @@
                                 class="w-full rounded-lg border-gray-200 bg-gray-50 text-[15px] focus:border-brand focus:ring-brand"></textarea>
                     </div>
 
-                    @if($editable)
-                        <div class="mt-5">
-                            <span class="mb-2 block text-sm font-semibold text-gray-900">Soporte de la revisión (opcional)</span>
-                            <div class="flex flex-wrap gap-3">
-                                <button type="button" @click="$refs.archivos{{ $i }}.click()"
-                                        class="inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">
-                                    <x-icon name="paperclip" class="h-4 w-4" />
-                                    <span>Elegir archivos</span>
-                                </button>
-                                <button type="button" @click="$refs.foto{{ $i }}.click()"
-                                        class="inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">
-                                    <x-icon name="camera" class="h-4 w-4" />
-                                    <span>Tomar foto</span>
-                                </button>
-                            </div>
+                    {{-- Los botones siempre se ven; el fieldset de arriba los bloquea a quien solo consulta. --}}
+                    <div class="mt-5">
+                        <span class="mb-2 block text-sm font-semibold text-gray-900">Soporte de la revisión (opcional)</span>
+                        <div class="flex flex-wrap gap-3">
+                            <button type="button" @click="$refs.archivos{{ $i }}.click()"
+                                    class="inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink enabled:hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50">
+                                <x-icon name="paperclip" class="h-4 w-4" />
+                                <span>Elegir archivos</span>
+                            </button>
+                            <button type="button" @click="$refs.foto{{ $i }}.click()"
+                                    class="inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink enabled:hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50">
+                                <x-icon name="camera" class="h-4 w-4" />
+                                <span>Tomar foto</span>
+                            </button>
+                        </div>
+                        @if($editable)
                             <input type="file" multiple class="hidden" x-ref="archivos{{ $i }}"
                                    @change="agregarSoportes({{ $i }}, @js(route('auditorias.audits.items.support', [$audit, $criterio])), $event.target, false)">
                             <input type="file" accept="image/*" capture="environment" class="hidden" x-ref="foto{{ $i }}"
                                    @change="agregarSoportes({{ $i }}, @js(route('auditorias.audits.items.support', [$audit, $criterio])), $event.target, true)">
-                        </div>
-                    @endif
+                        @endif
+                    </div>
 
                     <ul x-show="soportes[{{ $i }}].length" class="mt-3 space-y-2">
                         <template x-for="(soporte, n) in soportes[{{ $i }}]" :key="soporte.id">
@@ -331,33 +333,34 @@
                         </template>
                     </ul>
 
-                    @if($editable)
-                        <div class="mt-5 border-t border-gray-200 pt-5">
-                            <div class="flex flex-wrap items-center justify-between gap-4">
-                                <p class="text-sm" :class="faltaHallazgo({{ $i }}) ? 'font-semibold text-red-700' : 'text-gray-600'"
-                                   x-text="faltaHallazgo({{ $i }}) ? 'No cumple y Parcial necesitan un hallazgo: regístralo aquí.' : 'Registra los hallazgos que identifiques en este criterio.'">Registra los hallazgos que identifiques en este criterio.</p>
-                                <button type="button" @click="$dispatch('registrar-hallazgo', { criterio: {{ $i }} })"
-                                        class="rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">Registrar hallazgo</button>
-                            </div>
+                    {{-- Quien solo consulta ve los hallazgos registrados, sin Editar ni Eliminar. --}}
+                    <div class="mt-5 border-t border-gray-200 pt-5">
+                        <div class="flex flex-wrap items-center justify-between gap-4">
+                            <p class="text-sm" :class="faltaHallazgo({{ $i }}) ? 'font-semibold text-red-700' : 'text-gray-600'"
+                               x-text="faltaHallazgo({{ $i }}) ? 'No cumple y Parcial necesitan un hallazgo: regístralo aquí.' : 'Registra los hallazgos que identifiques en este criterio.'">Registra los hallazgos que identifiques en este criterio.</p>
+                            <button type="button" @click="$dispatch('registrar-hallazgo', { criterio: {{ $i }} })"
+                                    class="rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink enabled:hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50">Registrar hallazgo</button>
+                        </div>
 
-                            <ul x-show="hallazgos[{{ $i }}].length" class="mt-4 space-y-3">
-                                <template x-for="(hallazgo, n) in hallazgos[{{ $i }}]" :key="n">
-                                    <li class="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
-                                        <div>
-                                            <p class="font-semibold text-gray-900" x-text="hallazgo.titulo"></p>
-                                            <p class="mt-1 text-sm text-gray-600" x-text="clasificaciones[hallazgo.severidad] + ' · Responsable: ' + personas[hallazgo.responsable_id] + ' · Cierre en ' + (hallazgo.severidad === 'critico' ? {{ AuditFinding::totalDays('critico') }} : {{ AuditFinding::totalDays('no_critico') }}) + ' días hábiles'"></p>
-                                        </div>
+                        <ul x-show="hallazgos[{{ $i }}].length" class="mt-4 space-y-3">
+                            <template x-for="(hallazgo, n) in hallazgos[{{ $i }}]" :key="n">
+                                <li class="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                                    <div>
+                                        <p class="font-semibold text-gray-900" x-text="hallazgo.titulo"></p>
+                                        <p class="mt-1 text-sm text-gray-600" x-text="clasificaciones[hallazgo.severidad] + ' · Responsable: ' + personas[hallazgo.responsable_id] + ' · Cierre en ' + (hallazgo.severidad === 'critico' ? {{ AuditFinding::totalDays('critico') }} : {{ AuditFinding::totalDays('no_critico') }}) + ' días hábiles'"></p>
+                                    </div>
+                                    @if($editable)
                                         <div class="flex gap-2">
                                             <button type="button" @click="editar({{ $i }}, n)"
                                                     class="rounded-lg border-2 border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-brand-ink hover:bg-gray-50">Editar</button>
                                             <button type="button" @click="eliminar({{ $i }}, n)"
                                                     class="rounded-lg border-2 border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-50">Eliminar</button>
                                         </div>
-                                    </li>
-                                </template>
-                            </ul>
-                        </div>
-                    @endif
+                                    @endif
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
                 </div>
             @endforeach
 
