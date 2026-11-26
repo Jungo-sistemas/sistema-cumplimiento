@@ -190,6 +190,13 @@
                 </div>
                 <div class="shrink-0 flex items-center gap-2">
                     @include('processes.partials.edit-version-button', ['regulation' => $regulation, 'currentVersion' => $currentVersion, 'editLock' => $editLock])
+                    @if($currentVersion && $regulation->isEditableBy(auth()->user()))
+                        <button type="button" @click="$dispatch('open-corrected-file')"
+                                title="¿Hiciste los cambios en tu computadora? Sube el archivo; se queda en la misma versión."
+                                class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-brand border-brand hover:bg-brand-50">
+                            Cargar documento corregido
+                        </button>
+                    @endif
                     @if(auth()->user()->isProcessAdmin())
                         <button type="button" @click="$dispatch('open-resubmit')"
                                 class="px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-blue-800">
@@ -198,6 +205,51 @@
                     @endif
                 </div>
             </div>
+
+            {{-- Cargar documento corregido: reemplaza el archivo de la versión actual, sin crear otra --}}
+            @if($currentVersion && $regulation->isEditableBy(auth()->user()))
+                <div x-data="{ open: false, fileName: '', sending: false }"
+                     @open-corrected-file.window="open = true"
+                     x-show="open" x-cloak
+                     class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+                     @keydown.escape.window="open = false">
+                    <div class="w-full max-w-md rounded-xl bg-white shadow-xl" @click.outside="open = false">
+                        <form method="POST" action="{{ route('regulation-versions.replaceRejected', $currentVersion) }}"
+                              enctype="multipart/form-data" class="p-6" @submit="sending = true">
+                            @csrf
+                            <h3 class="text-base font-semibold text-gray-800">Cargar documento corregido</h3>
+                            <p class="text-sm text-gray-500 mt-1 mb-4">
+                                Si hiciste los cambios en tu computadora, sube aquí el archivo. Reemplaza al rechazado
+                                y se queda en la <span class="font-semibold text-gray-700">misma versión ({{ sprintf('%02d', $currentVersion->version_number) }})</span>
+                                del historial; no se crea una nueva.
+                            </p>
+
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Archivo corregido</label>
+                            <input type="file" name="file" required
+                                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                                   @change="fileName = $event.target.files[0]?.name ?? ''"
+                                   class="block w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand">
+                            <p class="text-xs text-gray-500 mt-1">PDF, Word, Excel o PowerPoint. Máximo 10 MB.</p>
+
+                            <label class="block text-sm font-medium text-gray-700 mt-4 mb-1">¿Qué corregiste? <span class="font-normal text-gray-400">(opcional)</span></label>
+                            <textarea name="change_description" rows="2" maxlength="1000"
+                                      placeholder="Ej. Se ajustaron los pasos 3 y 4 según los comentarios del rechazo"
+                                      class="w-full rounded-md border-gray-300 text-sm focus:border-brand focus:ring-brand"></textarea>
+
+                            <div class="mt-5 flex gap-3">
+                                <button type="button" @click="open = false"
+                                        class="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50">
+                                    Cancelar
+                                </button>
+                                <button type="submit" :disabled="sending || ! fileName"
+                                        class="flex-1 px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-blue-800 disabled:opacity-50">
+                                    <span x-text="sending ? 'Cargando…' : 'Cargar'"></span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            @endif
 
             {{-- Re-envío al mismo flujo: permite reemplazar la síntesis de cambios antes de reiniciar --}}
             @if(auth()->user()->isProcessAdmin())

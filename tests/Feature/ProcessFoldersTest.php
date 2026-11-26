@@ -12,8 +12,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Dentro de una empresa los procesos se ven por carpetas (tipo de proceso); el filtro de tipo de
- * documento y el buscador salen ya dentro de la carpeta.
+ * Dentro de una empresa los procesos se ven en lista, con el tipo de proceso como filtro (las
+ * carpetas por tipo se quitaron el 26-nov-2026). Solo quedan las carpetas de empresa y DIRECCIÓN.
  */
 class ProcessFoldersTest extends TestCase
 {
@@ -49,69 +49,44 @@ class ProcessFoldersTest extends TestCase
         ]);
     }
 
-    public function test_la_empresa_muestra_carpetas_por_tipo_sin_filtros(): void
+    public function test_la_empresa_muestra_la_lista_con_el_filtro_de_tipo_de_proceso(): void
     {
         $this->regulation('PAGO A PROVEEDORES', $this->finanzas);
-        $this->regulation('CIERRE MENSUAL', $this->finanzas);
+        $this->regulation('ALTA DE PROVEEDORES', $this->compras);
 
+        // Ya no hay carpetas: la lista sale directo, con todos los tipos y el filtro arriba.
         $this->actingAs($this->admin)->get(route('processes.index', ['company_id' => $this->company->id]))
             ->assertOk()
-            ->assertSeeInOrder(['05', 'FINANZAS Y TESORERÍA', '2 procedimientos', '08', 'COMPRAS', '0 procedimientos'])
+            ->assertSee('Tipo de proceso')
+            ->assertSee('Tipo de documento')
+            ->assertSee('05 · FINANZAS Y TESORERÍA')
             ->assertDontSee('Clientes')
-            ->assertDontSee('PAGO A PROVEEDORES')
-            ->assertDontSee('Tipo de documento');
+            ->assertSee('PAGO A PROVEEDORES')
+            ->assertSee('ALTA DE PROVEEDORES');
     }
 
-    public function test_el_buscador_de_las_carpetas_encuentra_procesos_y_anexos_de_cualquier_carpeta(): void
-    {
-        $pago = $this->regulation('PAGO A PROVEEDORES', $this->finanzas);
-        $this->regulation('ALTA DE PROVEEDORES', $this->compras)->update(['code' => 'COM-001']);
-        $this->regulation('FORMATO DE PROVEEDORES', $this->compras)->update(['is_annex' => true]);
-        $this->regulation('CIERRE MENSUAL', $this->finanzas);
-
-        $company = ['company_id' => $this->company->id];
-
-        // Por nombre, sin importar mayúsculas: las dos carpetas y también el anexo.
-        $this->actingAs($this->admin)->get(route('processes.index', $company + ['q' => 'proveedores']))
-            ->assertOk()
-            ->assertSee('3 resultados')
-            ->assertSee('PAGO A PROVEEDORES')->assertSee('ALTA DE PROVEEDORES')->assertSee('FORMATO DE PROVEEDORES')
-            ->assertSee('05 · FINANZAS Y TESORERÍA')->assertSee('08 · COMPRAS')
-            ->assertSee('Anexo')
-            ->assertDontSee('CIERRE MENSUAL')
-            ->assertSee(route('processes.show', $pago), false);
-
-        // Por código.
-        $this->actingAs($this->admin)->get(route('processes.index', $company + ['q' => 'com-001']))
-            ->assertSee('1 resultado')->assertSee('ALTA DE PROVEEDORES')->assertDontSee('PAGO A PROVEEDORES');
-
-        // Sin búsqueda siguen las carpetas, con el buscador arriba.
-        $this->actingAs($this->admin)->get(route('processes.index', $company))
-            ->assertSee('Buscar procedimiento o anexo por código o nombre')
-            ->assertSee('FINANZAS Y TESORERÍA')->assertDontSee('PAGO A PROVEEDORES');
-    }
-
-    public function test_dentro_de_la_carpeta_se_filtra_por_tipo_de_documento_y_se_busca(): void
+    public function test_se_filtra_por_tipo_de_proceso_tipo_de_documento_y_se_busca(): void
     {
         $this->regulation('PAGO A PROVEEDORES', $this->finanzas);
         $this->regulation('POLITICA DE GASTOS', $this->finanzas, 'Política');
         $this->regulation('ALTA DE PROVEEDORES', $this->compras);
 
-        $folder = ['company_id' => $this->company->id, 'process_type_id' => $this->finanzas->id];
+        $company = ['company_id' => $this->company->id];
 
-        $this->actingAs($this->admin)->get(route('processes.index', $folder))
+        $this->actingAs($this->admin)->get(route('processes.index', $company + ['process_type_id' => $this->finanzas->id]))
             ->assertOk()
-            ->assertSee('Tipo de documento')
             ->assertSee('PAGO A PROVEEDORES')
             ->assertSee('POLITICA DE GASTOS')
             ->assertDontSee('ALTA DE PROVEEDORES');
 
-        $this->actingAs($this->admin)->get(route('processes.index', $folder + ['document_type' => 'Política']))
+        $this->actingAs($this->admin)->get(route('processes.index', $company + ['process_type_id' => $this->finanzas->id, 'document_type' => 'Política']))
             ->assertSee('POLITICA DE GASTOS')
             ->assertDontSee('PAGO A PROVEEDORES');
 
-        $this->actingAs($this->admin)->get(route('processes.index', $folder + ['q' => 'pago']))
+        // El buscador busca en todos los tipos si no se elige uno.
+        $this->actingAs($this->admin)->get(route('processes.index', $company + ['q' => 'proveedores']))
             ->assertSee('PAGO A PROVEEDORES')
+            ->assertSee('ALTA DE PROVEEDORES')
             ->assertDontSee('POLITICA DE GASTOS');
     }
 

@@ -362,6 +362,9 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::post('/regulation-versions/{version}/edit', [RegulationVersionController::class, 'saveEdit'])
         ->name('regulation-versions.saveEdit');
 
+    Route::post('/regulation-versions/{version}/corrected-file', [RegulationVersionController::class, 'replaceRejected'])
+        ->name('regulation-versions.replaceRejected');
+
     Route::post('/regulation-versions/{version}/draft', [RegulationVersionController::class, 'saveDraft'])
         ->name('regulation-versions.saveDraft');
 

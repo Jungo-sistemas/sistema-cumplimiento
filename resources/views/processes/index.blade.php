@@ -3,11 +3,6 @@
     @php
         $user = auth()->user();
         $multiCompany = $user->picksProcessCompany();
-        // Liga a las carpetas de la empresa actual, conservando la pestaña Procesos/Anexos.
-        $foldersUrl = route('processes.index', array_filter([
-            'company_id' => $multiCompany ? $selectedCompanyId : null,
-            'anexos'     => $showAnnexes ? 1 : null,
-        ]));
     @endphp
 
     <x-slot name="breadcrumb">
@@ -16,21 +11,11 @@
             <span class="mx-2 text-gray-400">/</span>
             @if($globalSearch)
                 <span class="text-gray-700 font-medium">Búsqueda: "{{ request('q') }}"</span>
-            @elseif($selectedFolder)
-                <a href="{{ $foldersUrl }}" class="text-blue-600 hover:underline">
-                    {{ $companies->firstWhere('id', $selectedCompanyId)?->procesos_name ?? 'Empresa' }}
-                </a>
-                <span class="mx-2 text-gray-400">/</span>
-                <span class="text-gray-700 font-medium">{{ $selectedFolder['name'] }}</span>
             @else
                 <span class="text-gray-700 font-medium">
                     {{ $companies->firstWhere('id', $selectedCompanyId)?->procesos_name ?? 'Empresa' }}
                 </span>
             @endif
-        @elseif($selectedFolder)
-            <a href="{{ $foldersUrl }}" class="text-blue-600 hover:underline">Procesos</a>
-            <span class="mx-2 text-gray-400">/</span>
-            <span class="text-gray-700 font-medium">{{ $selectedFolder['name'] }}</span>
         @else
             <span class="text-gray-700 font-medium">Procesos</span>
         @endif
@@ -53,14 +38,6 @@
                     @include('processes.partials.restricted-badge')
                 @endif
             </h1>
-            @if($selectedFolder)
-                <p class="mt-0.5 flex items-center gap-2 text-sm font-semibold text-gray-600">
-                    <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-                    </svg>
-                    {{ $selectedFolder['name'] }}
-                </p>
-            @endif
         </div>
 
         <div class="flex items-center gap-2">
@@ -96,13 +73,8 @@
                     Generar reporte
                 </a>
             @else
-                {{-- Volver: de una carpeta a las carpetas de la empresa; de las carpetas a las empresas. --}}
-                @if($selectedFolder)
-                    <a href="{{ $foldersUrl }}"
-                       class="px-4 py-2 rounded-md border border-brand bg-white text-brand font-semibold hover:bg-brand-50">
-                        Volver
-                    </a>
-                @elseif($multiCompany)
+                {{-- Volver: de la lista de una empresa a las tarjetas de empresas. --}}
+                @if($multiCompany)
                     <a href="{{ route('processes.index') }}"
                        class="px-4 py-2 rounded-md border border-brand bg-white text-brand font-semibold hover:bg-brand-50">
                         Volver
@@ -111,7 +83,7 @@
 
                 {{-- Cargar documento por archivo — solo admins. En la pestaña Anexos carga un anexo. --}}
                 @if($user->isAdmin())
-                    <a href="{{ route('processes.cargar', array_filter(['company_id' => $selectedCompanyId, 'anexo' => $showAnnexes ? 1 : null, 'process_type_id' => $selectedFolder['id'] ?? null])) }}" data-tour="btn-cargar"
+                    <a href="{{ route('processes.cargar', array_filter(['company_id' => $selectedCompanyId, 'anexo' => $showAnnexes ? 1 : null, 'process_type_id' => request('process_type_id')])) }}" data-tour="btn-cargar"
                        class="flex items-center gap-1.5 px-4 py-2 rounded-md border border-brand bg-white text-brand font-semibold text-sm hover:bg-brand-50">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                              viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -122,7 +94,7 @@
                     </a>
                 @endif
                 @if($user->isAdmin() || $user->isOperative())
-                    <a href="{{ route('processes.create', array_filter(['company_id' => $selectedCompanyId, 'process_type_id' => $selectedFolder['id'] ?? null])) }}" data-tour="btn-nuevo-procedimiento"
+                    <a href="{{ route('processes.create', array_filter(['company_id' => $selectedCompanyId, 'process_type_id' => request('process_type_id')])) }}" data-tour="btn-nuevo-procedimiento"
                        class="px-4 py-2 rounded-md bg-brand text-white font-semibold hover:bg-brand-dark">
                         Nuevo procedimiento
                     </a>
@@ -148,8 +120,7 @@
         </div>
     @endunless
 
-    {{-- FILTROS — en las carpetas no hay: el tipo de documento y el buscador salen dentro de cada una. --}}
-    @unless($folderView)
+    {{-- FILTROS --}}
     <form method="GET" action="{{ route('processes.index') }}"
           class="mt-4 flex flex-wrap items-end gap-3">
 
@@ -192,9 +163,18 @@
             @if($selectedCompanyId && $multiCompany)
                 <input type="hidden" name="company_id" value="{{ $selectedCompanyId }}">
             @endif
-            @if($selectedFolder)
-                <input type="hidden" name="process_type_id" value="{{ $selectedFolder['id'] }}">
-            @endif
+
+            <div class="min-w-[200px]">
+                <label class="block text-xs text-gray-500 mb-1">Tipo de proceso</label>
+                <select name="process_type_id" class="w-full rounded-md border-gray-300 text-sm">
+                    <option value="">Todos</option>
+                    @foreach($processTypes as $pt)
+                        <option value="{{ $pt->id }}" @selected(request('process_type_id') == $pt->id)>
+                            {{ $pt->sort_order ? str_pad($pt->sort_order, 2, '0', STR_PAD_LEFT) . ' · ' : '' }}{{ $pt->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
 
             <div class="min-w-[160px]">
                 <label class="block text-xs text-gray-500 mb-1">Tipo de documento</label>
@@ -232,12 +212,12 @@
             Buscar
         </button>
 
-        <a href="{{ $selectedFolder ? route('processes.index', array_filter(['company_id' => $multiCompany ? $selectedCompanyId : null, 'process_type_id' => $selectedFolder['id'], 'anexos' => $showAnnexes ? 1 : null])) : route('processes.index') }}"
+        {{-- Limpiar se queda en la misma empresa y pestaña; desde las tarjetas regresa a ellas. --}}
+        <a href="{{ ($cardView || $globalSearch) ? route('processes.index') : route('processes.index', array_filter(['company_id' => $multiCompany ? $selectedCompanyId : null, 'anexos' => $showAnnexes ? 1 : null])) }}"
            class="px-5 py-2 rounded-md border border-gray-300 bg-white text-sm text-gray-700 font-semibold hover:bg-gray-50">
             Limpiar
         </a>
     </form>
-    @endunless
 
     {{-- ALERTS --}}
     @if(session('success'))
@@ -320,122 +300,6 @@
                 {{ $companiesWithCounts->count() }}
                 {{ \Illuminate\Support\Str::plural('empresa', $companiesWithCounts->count()) }} encontradas
             </p>
-        @endif
-
-    @elseif($folderView)
-
-        {{-- BUSCADOR DE LAS CARPETAS: procesos y anexos de cualquier carpeta, por código o nombre --}}
-        <form method="GET" action="{{ route('processes.index') }}" class="mt-5 flex flex-wrap items-center gap-2">
-            @if($multiCompany && $selectedCompanyId)
-                <input type="hidden" name="company_id" value="{{ $selectedCompanyId }}">
-            @endif
-            @if($showAnnexes)
-                <input type="hidden" name="anexos" value="1">
-            @endif
-            <div class="relative min-w-[240px] flex-1">
-                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
-                    </svg>
-                </span>
-                <input type="search" name="q" value="{{ $folderSearch }}" autocomplete="off"
-                       placeholder="Buscar procedimiento o anexo por código o nombre en todas las carpetas…"
-                       class="w-full rounded-md border-gray-300 pl-9 text-sm focus:border-brand focus:ring-brand">
-            </div>
-            <button type="submit" class="rounded-md bg-brand px-5 py-2 text-sm font-semibold text-white hover:bg-brand-dark">Buscar</button>
-            @if($folderSearch !== '')
-                <a href="{{ $foldersUrl }}" class="rounded-md border border-gray-300 bg-white px-5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Limpiar</a>
-            @endif
-        </form>
-
-        @if($folderSearch !== '')
-            {{-- RESULTADOS: en lugar de las carpetas --}}
-            <p class="mt-4 text-sm text-gray-500">
-                {{ $folderResults->count() }} {{ $folderResults->count() === 1 ? 'resultado' : 'resultados' }} para
-                <span class="font-semibold text-gray-700">"{{ $folderSearch }}"</span>
-                @if($folderResults->count() === 100) (se muestran los primeros 100; escribe algo más preciso) @endif
-            </p>
-
-            @if($folderResults->isEmpty())
-                <div class="mt-3 rounded-xl border border-dashed border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">
-                    No hay procedimientos ni anexos con ese código o nombre en esta empresa.
-                </div>
-            @else
-                <div class="mt-3 divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white">
-                    @foreach($folderResults as $result)
-                        <a href="{{ route('processes.show', $result) }}" class="group flex items-center gap-4 px-4 py-3 hover:bg-brand-50/40">
-                            <span class="w-28 shrink-0 font-mono text-xs font-semibold text-gray-600">{{ $result->code ?: '—' }}</span>
-                            <span class="min-w-0 flex-1">
-                                <span class="block truncate text-sm font-medium text-gray-800 group-hover:text-brand">{{ $result->name }}</span>
-                                <span class="mt-0.5 flex items-center gap-1 text-xs text-gray-400">
-                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-                                    </svg>
-                                    {{ $result->folder_label }}
-                                </span>
-                            </span>
-                            <span @class([
-                                'shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                                'bg-amber-50 text-amber-700' => $result->is_annex,
-                                'bg-brand-50 text-brand' => ! $result->is_annex,
-                            ])>{{ $result->is_annex ? 'Anexo' : 'Procedimiento' }}</span>
-                            <svg class="h-4 w-4 shrink-0 text-gray-300 group-hover:text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </a>
-                    @endforeach
-                </div>
-            @endif
-        @else
-
-        {{-- VISTA DE CARPETAS: una por tipo de proceso de la empresa --}}
-        <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" data-tour="processes-folders">
-            @foreach($folders as $folder)
-                <a href="{{ route('processes.index', array_filter([
-                        'company_id'      => $multiCompany ? $selectedCompanyId : null,
-                        'process_type_id' => $folder['id'],
-                        'anexos'          => $showAnnexes ? 1 : null,
-                    ])) }}"
-                   @class([
-                       'group flex flex-col rounded-xl border bg-white p-4 shadow-sm transition hover:border-brand hover:shadow-md',
-                       'border-gray-200' => $folder['count'] > 0,
-                       'border-dashed border-gray-200' => $folder['count'] === 0,
-                   ])>
-                    <div class="flex items-start gap-3">
-                        <div @class([
-                                'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition',
-                                'bg-brand-50 group-hover:bg-brand-100' => $folder['count'] > 0,
-                                'bg-gray-50 group-hover:bg-brand-50' => $folder['count'] === 0,
-                             ])>
-                            <svg xmlns="http://www.w3.org/2000/svg" @class(['h-5 w-5', 'text-brand' => $folder['count'] > 0, 'text-gray-400' => $folder['count'] === 0])
-                                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                      d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-                            </svg>
-                        </div>
-
-                        <div class="flex-1 min-w-0">
-                            @if($folder['number'])
-                                <p class="text-xs font-mono text-gray-400">{{ str_pad($folder['number'], 2, '0', STR_PAD_LEFT) }}</p>
-                            @endif
-                            <p class="font-semibold text-gray-800 leading-snug group-hover:text-brand transition">
-                                {{ $folder['name'] }}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 flex items-center justify-between">
-                        <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
-                            {{ $folder['count'] }} {{ \Illuminate\Support\Str::plural($showAnnexes ? 'anexo' : 'procedimiento', $folder['count']) }}
-                        </span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 group-hover:text-brand transition"
-                             fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                        </svg>
-                    </div>
-                </a>
-            @endforeach
-        </div>
         @endif
 
     @else
@@ -617,9 +481,7 @@
                             @endif
                             <th class="text-left px-4 py-3 font-semibold">Código</th>
                             <th class="text-left px-4 py-3 font-semibold">Nombre</th>
-                            @unless($selectedFolder)
                             <th class="text-left px-4 py-3 font-semibold">Proceso</th>
-                            @endunless
                             <th class="text-left px-4 py-3 font-semibold">Tipo</th>
                             @if(! $globalSearch)
                             <th class="text-left px-4 py-3 font-semibold">Anexos</th>
@@ -669,12 +531,10 @@
                                     @endif
                                 </td>
 
-                                @unless($selectedFolder)
                                 <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
                                     {{ $regulation->processType->name ?? '—' }}
 
                                 </td>
-                                @endunless
 
                                 <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
                                     {{ $regulation->document_type ?? '—' }}

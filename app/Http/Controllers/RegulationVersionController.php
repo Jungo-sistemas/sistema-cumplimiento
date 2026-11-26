@@ -109,6 +109,75 @@ class RegulationVersionController extends Controller
             ->with('success', 'Nueva versión subida correctamente.');
     }
 
+    /**
+     * "Cargar documento corregido": un documento rechazado se corrigió fuera de la plataforma (en
+     * Word, en la computadora) y se sube el archivo. Reemplaza el archivo de la versión actual sin
+     * crear otra: el número de versión y su renglón en el historial se quedan igual, porque esa
+     * versión nunca se aprobó. Lo puede hacer quien puede editar el documento.
+     */
+    public function replaceRejected(Request $request, RegulationVersion $version)
+    {
+        $user = auth()->user();
+        $regulation = $version->regulation;
+
+        abort_unless($regulation->isEditableBy($user), 403);
+        abort_unless($regulation->isRejected(), 403, 'Solo se puede cargar el documento corregido de un documento rechazado.');
+        abort_unless($version->is_current, 403, 'Solo se puede reemplazar la versión actual.');
+        if ($this->isLockedByOther($version, $user->id)) {
+            return back()->with('error', 'Otra persona está editando el documento en línea; espera a que termine.');
+        }
+
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            // "extensions" y no "mimes": ver store().
+            'file'               => ['required', 'file', 'max:10240', 'extensions:pdf,doc,docx,xls,xlsx,ppt,pptx'],
+            'change_description' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'file.required'   => 'Elige el archivo corregido.',
+            'file.max'        => 'El archivo no puede pesar más de 10 MB.',
+            'file.extensions' => 'El archivo debe ser PDF, Word, Excel o PowerPoint.',
+        ]);
+        // El formulario va en una ventana sin errores por campo: se avisa con el mensaje general.
+        if ($validator->fails()) {
+            return back()->with('error', $validator->errors()->first());
+        }
+        $data = $validator->validated();
+
+        $file = $request->file('file');
+        $path = $file->store("regulations/{$regulation->company_id}/{$regulation->id}/versions", 'private');
+        $oldPath = $version->file_path;
+
+        $version->update([
+            'file_path'          => $path,
+            'original_name'      => $file->getClientOriginalName(),
+            'disk'               => 'private',
+            'mime_type'          => $file->getMimeType(),
+            // El contenido ahora vive en el archivo subido: lo editado en línea y su tabla de cambios
+            // ya no corresponden (igual que una versión recién subida).
+            'body_html'          => null,
+            'keeps_docx_layout'  => false,
+            'changes_table'      => null,
+            'draft_html'         => null,
+            'draft_saved_at'     => null,
+            'editing_by'         => null,
+            'editing_expires_at' => null,
+            'change_description' => filled($data['change_description'] ?? null) ? $data['change_description'] : $version->change_description,
+            'responsible_name'   => $user->name,
+            'issued_at'          => now()->toDateString(),
+            'uploaded_by'        => $user->id,
+        ]);
+
+        // El archivo rechazado (y su vista previa en PDF) ya no se usa: la versión apunta al nuevo.
+        if ($oldPath && $oldPath !== $path) {
+            $stillUsed = RegulationVersion::withTrashed()->where('file_path', $oldPath)->exists();
+            Storage::disk('private')->delete(array_filter([$stillUsed ? null : $oldPath, $oldPath . '.preview.pdf']));
+        }
+
+        // Igual que editar: avisar a los admins que ya se puede re-enviar a aprobación.
+        app(ApprovalFlowService::class)->notifyIfCorrectedAfterRejection($regulation);
+
+        return back()->with('success', 'Documento corregido cargado en la versión ' . sprintf('%02d', $version->version_number) . '. Ya se puede re-enviar a aprobación.');
+    }
+
     private const LOCK_MINUTES = 30;
 
     /**
