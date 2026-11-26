@@ -271,8 +271,36 @@
                                 <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">Se evalúa con la actividad</div>
                                 <p class="mt-1 text-sm font-semibold text-gray-900">Paso {{ $criterio->activity['numero'] }}. {{ $criterio->activity['titulo'] }}</p>
                             </div>
-                            <a href="#" role="button" @click.prevent="$dispatch('ver-criterios', { indice: {{ $i }} })"
-                               class="rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">Criterios a evaluar</a>
+                            <div class="flex flex-wrap items-center gap-2">
+                                @if($anexos[$i] ?? [])
+                                    {{-- Los anexos que menciona este paso; cada uno abre su documento, como "Ver". Son
+                                         enlaces (no botones) para que sirvan aunque el fieldset esté apagado. --}}
+                                    <div class="relative" x-data="{ abierto: false }" @click.outside="abierto = false" @keydown.escape.window="abierto = false">
+                                        <a href="#" role="button" @click.prevent="abierto = ! abierto"
+                                           class="inline-flex items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 text-sm font-semibold"
+                                           :class="abierto ? 'border-brand bg-brand-50 text-brand' : 'border-gray-300 text-gray-700 hover:border-brand hover:text-brand'">
+                                            <x-icon name="link" class="h-4 w-4" />
+                                            <span>Ver anexos</span>
+                                        </a>
+                                        <div x-show="abierto" x-cloak x-transition
+                                             class="absolute right-0 z-20 mt-2 w-80 max-w-[85vw] rounded-lg border border-gray-200 bg-white p-3 shadow-xl">
+                                            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Anexos de este paso</div>
+                                            <ul class="space-y-1">
+                                                @foreach($anexos[$i] as $anexo)
+                                                    <li>
+                                                        <a href="{{ $anexo['url'] }}" target="_blank" rel="noopener" class="flex gap-2 rounded px-2 py-1.5 text-sm hover:bg-brand-50">
+                                                            <span class="shrink-0 font-mono font-semibold text-brand">{{ $anexo['code'] }}</span>
+                                                            <span class="text-gray-700">{{ $anexo['name'] }}</span>
+                                                        </a>
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        </div>
+                                    </div>
+                                @endif
+                                <a href="#" role="button" @click.prevent="$dispatch('ver-criterios', { indice: {{ $i }} })"
+                                   class="rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">Criterios a evaluar</a>
+                            </div>
                         </div>
                     @endif
                     @if($criterio->evidence)
