@@ -300,7 +300,7 @@ class RestrictedProcessesTest extends TestCase
         // Un operativo normal sigue entrando directo a su empresa, sin DIRECCIÓN.
         $this->actingAs($this->lider)->get(route('processes.index'))
             ->assertOk()
-            ->assertViewHas('folderView', true)
+            ->assertViewHas('cardView', false)
             ->assertDontSee('DIRECCIÓN');
         $this->actingAs($this->lider)->get(route('processes.index', ['company_id' => $this->restrictedCompany->id, 'process_type_id' => $this->normalType->id]))
             ->assertDontSee('Plan de sucesión directiva');

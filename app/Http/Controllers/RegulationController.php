@@ -61,8 +61,6 @@ class RegulationController extends Controller
                 'companiesWithCounts' => $companiesQuery->orderByRaw(Company::PROCESOS_NAME_SQL)->get(),
                 'companies'           => $companies,
                 'selectedCompanyId'   => null,
-                'folderView'          => false,
-                'selectedFolder'      => null,
                 'processTypes'        => collect(),
                 'documentTypes'       => Regulation::DOCUMENT_TYPES,
                 'regulations'         => collect(),
@@ -101,8 +99,6 @@ class RegulationController extends Controller
             $query->where('company_id', $user->company_id);
         }
 
-        // El buscador de las carpetas busca en todas las carpetas, procesos y anexos a la vez.
-        $folderSearchQuery = clone $query;
         $query->where('is_annex', $showAnnexes);
 
         // Búsqueda global: sin empresa seleccionada + búsqueda, o modo reporte (todas las empresas
@@ -110,21 +106,10 @@ class RegulationController extends Controller
         $globalSearch = $user->picksProcessCompany() && ! $selectedCompanyId
             && ($request->filled('q') || $request->boolean('report'));
 
-        // Dentro de una empresa los procesos se ven por carpetas, una por tipo de proceso. El filtro
-        // de tipo de documento y el buscador salen ya dentro de la carpeta.
-        $selectedFolder = $request->input('process_type_id');
-
-        if (! $globalSearch && ($selectedFolder === null || $selectedFolder === '')) {
-            $folderSearch = trim((string) $request->query('q', ''));
-
-            return view('processes.index', $this->folderViewData($user, $query, $processTypes, $companies, $selectedCompanyId, $showAnnexes) + [
-                'folderSearch'  => $folderSearch,
-                'folderResults' => $folderSearch === '' ? collect() : $this->searchFolders($folderSearchQuery, $folderSearch, $processTypes),
-            ]);
-        }
-
-        if ($selectedFolder !== null && $selectedFolder !== '') {
-            $query->where('process_type_id', (int) $selectedFolder);
+        // Dentro de una empresa los procesos se ven en lista; el tipo de proceso es un filtro más
+        // (las carpetas por tipo se quitaron el 26-nov-2026, a pedido del cliente).
+        if ($request->filled('process_type_id')) {
+            $query->where('process_type_id', (int) $request->process_type_id);
         }
 
         if ($request->filled('document_type')) {
@@ -174,8 +159,6 @@ class RegulationController extends Controller
 
         return view('processes.index', [
             'cardView'            => false,
-            'folderView'          => false,
-            'selectedFolder'      => $globalSearch ? null : $this->folderInfo($selectedFolder, $processTypes),
             'showAnnexes'         => $showAnnexes,
             'companiesWithCounts' => collect(),
             'regulations'         => $regulations,
@@ -190,78 +173,6 @@ class RegulationController extends Controller
             'positionSortOrders'  => $positionSortOrders,
             'flowDefinitions'     => ApprovalFlowService::getAllFlows(),
         ]);
-    }
-
-    /** Datos de la vista de carpetas: una por tipo de proceso, con cuántos procesos (o anexos) tiene. */
-    private function folderViewData($user, $query, $processTypes, $companies, ?int $selectedCompanyId, bool $showAnnexes): array
-    {
-        $counts = (clone $query)
-            ->reorder()
-            ->selectRaw('process_type_id, count(*) as total')
-            ->groupBy('process_type_id')
-            ->pluck('total', 'process_type_id');
-
-        $folders = $processTypes->map(fn ($type) => [
-            'id'         => $type->id,
-            'number'     => $type->sort_order,
-            'name'       => $type->name,
-            'count'      => (int) ($counts[$type->id] ?? 0),
-        ]);
-
-        return [
-            'cardView'            => false,
-            'folderView'          => true,
-            'folders'             => $folders,
-            'selectedFolder'      => null,
-            'showAnnexes'         => $showAnnexes,
-            'companiesWithCounts' => collect(),
-            'regulations'         => collect(),
-            'processTypes'        => $processTypes,
-            'companies'           => $companies,
-            'selectedCompanyId'   => $selectedCompanyId,
-            'documentTypes'       => Regulation::DOCUMENT_TYPES,
-            'pendingApprovalIds'  => collect(),
-            'globalSearch'        => false,
-            'usersByPosition'     => collect(),
-            'positionLabels'      => collect(),
-            'positionSortOrders'  => collect(),
-            'flowDefinitions'     => ApprovalFlowService::getAllFlows(),
-        ];
-    }
-
-    /**
-     * Buscador de la vista de carpetas: procesos y anexos de la empresa, de cualquier carpeta, por
-     * código o nombre (sin importar mayúsculas). Primero los procesos, luego los anexos.
-     */
-    private function searchFolders($query, string $term, $processTypes)
-    {
-        $like = '%' . Str::upper($term) . '%';
-
-        return $query
-            ->where(fn ($q) => $q->whereRaw('UPPER(name) LIKE ?', [$like])->orWhereRaw('UPPER(code) LIKE ?', [$like]))
-            ->reorder()
-            ->orderBy('is_annex')
-            ->orderBy('code')
-            ->orderBy('name')
-            ->limit(100)
-            ->get()
-            ->each(function (Regulation $regulation) use ($processTypes) {
-                $type = $processTypes->firstWhere('id', $regulation->process_type_id);
-                $regulation->folder_label = $type
-                    ? trim(($type->sort_order ? str_pad($type->sort_order, 2, '0', STR_PAD_LEFT) . ' · ' : '') . $type->name)
-                    : 'Sin carpeta';
-            });
-    }
-
-    /** La carpeta abierta, para el encabezado y la ruta de navegación. */
-    private function folderInfo($selectedFolder, $processTypes): ?array
-    {
-        $type = $processTypes->firstWhere('id', (int) $selectedFolder);
-
-        // Un tipo que no existe u oculto: se muestra la carpeta vacía.
-        return $type
-            ? ['id' => $type->id, 'number' => $type->sort_order, 'name' => $type->name]
-            : ['id' => (int) $selectedFolder, 'number' => null, 'name' => 'Carpeta'];
     }
 
     public function create(Request $request)
