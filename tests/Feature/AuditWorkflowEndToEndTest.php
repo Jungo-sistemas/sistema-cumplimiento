@@ -172,7 +172,7 @@ class AuditWorkflowEndToEndTest extends TestCase
 
         [$fija, $paso1, $paso2, $propio] = $audit->checklistItems()->get()->all();
         $this->assertSame(AuditChecklistItem::SOURCE_FIXED, $fija->source);
-        $this->assertSame('Paso 1. Conexión a tierra', $paso1->text);
+        $this->assertSame('Conexión a tierra', $paso1->text);
         $this->assertSame('F-OPE-001 Lista de verificación.', $paso1->evidence);
         $this->assertSame('Operador de llenado.', $paso1->activity['quien']);
         $this->assertSame(AuditChecklistItem::SOURCE_AUDITOR, $propio->source);

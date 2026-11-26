@@ -9,10 +9,12 @@ use App\Models\Company;
 use App\Models\Group;
 use App\Models\ProcessType;
 use App\Models\Regulation;
+use App\Models\RegulationVersion;
 use App\Models\Role;
 use App\Models\User;
 use App\Notifications\AuditFindingAssignedNotification;
 use App\Services\AuditFindingService;
+use App\Services\OfficeDocumentConverter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -88,6 +90,40 @@ class AuditorViewTest extends TestCase
     private function finding(array $extra = []): array
     {
         return $extra + ['titulo' => 'Bitácora sin firma', 'descripcion' => 'Falta la firma.', 'severidad' => 'no_critico', 'responsable_id' => $this->ana->id];
+    }
+
+    /** Versión vigente del proceso con su archivo (subido en Word o PDF, sin body_html). */
+    private function version(string $path, string $name): RegulationVersion
+    {
+        return RegulationVersion::create([
+            'regulation_id' => $this->regulation->id, 'version_number' => 1, 'is_current' => true,
+            'file_path' => $path, 'original_name' => $name, 'disk' => 'private',
+        ]);
+    }
+
+    /** PDF mínimo hecho a mano: una página por arreglo de renglones (texto sin acentos ni paréntesis). */
+    private static function pdf(array $pages): string
+    {
+        $objects = [1 => '<< /Type /Catalog /Pages 2 0 R >>', 3 => '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
+        $kids = [];
+        foreach ($pages as $lines) {
+            $stream = "BT /F1 11 Tf 14 TL 50 780 Td\n" . implode('', array_map(fn ($line) => "({$line}) Tj T*\n", $lines)) . 'ET';
+            $page = count($objects) + 2;
+            $objects[$page] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ' . ($page + 1) . ' 0 R >>';
+            $objects[$page + 1] = '<< /Length ' . strlen($stream) . " >>\nstream\n{$stream}\nendstream";
+            $kids[] = "{$page} 0 R";
+        }
+        $objects[2] = '<< /Type /Pages /Kids [' . implode(' ', $kids) . '] /Count ' . count($kids) . ' >>';
+        ksort($objects);
+
+        $pdf = "%PDF-1.4\n";
+        $xref = "xref\n0 " . (count($objects) + 1) . "\n0000000000 65535 f \n";
+        foreach ($objects as $number => $body) {
+            $xref .= sprintf("%010d 00000 n \n", strlen($pdf));
+            $pdf .= "{$number} 0 obj\n{$body}\nendobj\n";
+        }
+
+        return $pdf . $xref . 'trailer << /Size ' . (count($objects) + 1) . " /Root 1 0 R >>\nstartxref\n" . strlen($pdf) . "\n%%EOF";
     }
 
     public function test_todas_las_pantallas_del_auditor_cargan(): void
@@ -201,11 +237,27 @@ class AuditorViewTest extends TestCase
         $programada = $this->audit(['scheduled_at' => '2026-11-25 10:00:00', 'started_at' => null]);
 
         $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $programada))
-            ->assertOk()->assertSee('Programada')->assertDontSee('Guardar avance')->assertDontSee('Registrar hallazgo');
+            ->assertOk()->assertSee('Programada')->assertDontSee('Guardar avance')->assertSee(':disabled="true || confirmando"', false);
         $this->actingAs($this->auditor)->postJson(route('auditorias.audits.checklist.save', $programada), [])->assertStatus(422);
 
         $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $this->audit()))
             ->assertOk()->assertSee('En curso')->assertSee('Guardar avance')->assertSee('Registrar hallazgo');
+    }
+
+    public function test_quien_consulta_ve_los_botones_bloqueados_y_los_hallazgos(): void
+    {
+        $audit = $this->audit();
+        $this->openChecklist($audit);
+
+        // El admin consulta: ve los botones, pero el fieldset los bloquea; ve la lista de hallazgos, sin Editar.
+        $this->actingAs($this->user('Alma Admin', 'admin'))->get(route('auditorias.audits.checklist', $audit))
+            ->assertOk()->assertSee('Elegir archivos')->assertSee('Tomar foto')->assertSee('Registrar hallazgo')
+            ->assertSee(':disabled="true || confirmando"', false)
+            ->assertSee('in hallazgos[0]', false)->assertDontSee('editar(0, n)', false);
+
+        // El auditor asignado, con la auditoría en curso, sí los usa.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))
+            ->assertOk()->assertSee(':disabled="false || confirmando"', false)->assertSee('editar(0, n)', false);
     }
 
     public function test_el_auditor_no_consulta_procesos_desde_gestion(): void
@@ -269,6 +321,64 @@ class AuditorViewTest extends TestCase
 
         $this->assertSame('El auditado conoce sus procedimientos y sabe dónde consultarlos.', $items->first()->text);
         $this->assertTrue($items->first()->isFixed());
+    }
+
+    public function test_los_pasos_se_leen_del_pdf_del_proceso(): void
+    {
+        Storage::disk('private')->put('procesos/p-alc-300.pdf', self::pdf([
+            ['Descripcion del proceso / Actividades', 'Paso 1. Recepcion del carrotanque', 'Responsable: Jefe de patio', 'Que: Recibe el carrotanque.', 'Evidencia requerida: Bitacora firmada.', 'Riesgo de Seguridad y Sanciones: Multa del cliente.'],
+            ['Paso 2. Descarga', 'Responsable: Operador', 'Que: Descarga el producto.'],
+        ]));
+        $this->version('procesos/p-alc-300.pdf', 'P-ALC-300.pdf');
+        $audit = $this->audit();
+
+        $items = $this->openChecklist($audit);
+
+        $this->assertSame(['El auditado conoce sus procedimientos y sabe dónde consultarlos.', 'Recepcion del carrotanque', 'Descarga'], $items->pluck('text')->all());
+        $this->assertSame('Bitacora firmada.', $items[1]->evidence);
+        $this->assertSame('Jefe de patio', $items[1]->activity['responsable']);
+        $this->assertSame([['etiqueta' => 'Riesgo de Seguridad y Sanciones', 'texto' => 'Multa del cliente.']], $items[1]->activity['otros']);
+
+        // La tarjeta dice "2. Recepcion…" (no "2. Paso 1. …"); el número del paso va en la actividad.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))->assertOk()
+            ->assertSee('2. Recepcion del carrotanque')->assertSee('Paso 1. Recepcion del carrotanque')->assertDontSee('2. Paso 1.');
+    }
+
+    public function test_ver_procedimiento_completo_abre_directo_el_documento(): void
+    {
+        Storage::disk('private')->put('procesos/p-alc-300.pdf', self::pdf([['Paso 1. Recepcion', 'Responsable: Jefe de patio']]));
+        $version = $this->version('procesos/p-alc-300.pdf', 'P-ALC-300.pdf');
+        $audit = $this->audit();
+
+        // Abre el documento vigente (como "Ver" en Procesos), no la página del proceso; el auditor sí puede verlo.
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))->assertOk()
+            ->assertSee(route('regulation-versions.preview', $version), false)
+            ->assertDontSee(route('processes.show', $this->regulation), false);
+        $this->actingAs($this->auditor)->get(route('regulation-versions.preview', $version))->assertOk();
+    }
+
+    public function test_un_word_se_convierte_una_sola_vez_para_leer_sus_pasos(): void
+    {
+        Storage::disk('private')->put('procesos/p-alc-300.docx', 'contenido de Word');
+        $this->version('procesos/p-alc-300.docx', 'P-ALC-300.docx');
+        $pdf = self::pdf([['Paso 1. Recepcion', 'Responsable: Jefe de patio', 'Que: Recibe el carrotanque.']]);
+        $this->mock(OfficeDocumentConverter::class, function ($mock) use ($pdf) {
+            $mock->shouldReceive('isConvertible')->andReturn(true);
+            $mock->shouldReceive('toPdf')->once()->andReturn($pdf); // la segunda vez usa el PDF guardado
+        });
+        $audit = $this->audit(['scheduled_at' => '2026-11-25 10:00:00', 'started_at' => null]);
+
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))->assertOk()->assertSee('Paso 1. Recepcion');
+        $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))->assertOk()->assertSee('Paso 1. Recepcion');
+        Storage::disk('private')->assertExists('procesos/p-alc-300.docx.preview.pdf');
+    }
+
+    public function test_si_el_documento_no_se_puede_leer_queda_la_pregunta_fija(): void
+    {
+        Storage::disk('private')->put('procesos/p-alc-300.pdf', 'esto no es un PDF');
+        $this->version('procesos/p-alc-300.pdf', 'P-ALC-300.pdf');
+
+        $this->assertCount(1, $this->openChecklist($this->audit()));
     }
 
     public function test_criterios_propios_se_agregan_y_quitan_pero_no_los_del_proceso(): void

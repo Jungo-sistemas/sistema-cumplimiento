@@ -16,8 +16,8 @@ use Illuminate\Validation\ValidationException;
  *
  * Los criterios se copian a la auditoría la primera vez que se abre: la pregunta fija (va en todas)
  * y un criterio por cada "Paso N." de la versión vigente del proceso (los procesos hechos con el
- * asistente traen Quién/Qué/Cómo/Cuándo/Dónde/Evidencia). Los procesos subidos en Word no traen
- * pasos: ahí el auditor agrega sus propios criterios.
+ * asistente traen Quién/Qué/Cómo/Cuándo/Dónde/Evidencia). Los subidos en Word o PDF se leen de su
+ * archivo (ProcedureDocumentReader); si no se encuentran pasos, el auditor agrega sus criterios.
  *
  * Los hallazgos se guardan como borrador en su criterio y se vuelven hallazgos reales (con sus
  * avisos) al finalizar, junto con la calificación.
@@ -30,7 +30,7 @@ class AuditChecklistService
         'evidence'    => 'Explicación del auditado y ubicación del procedimiento vigente',
     ];
 
-    public function __construct(private AuditFindingService $findings) {}
+    public function __construct(private AuditFindingService $findings, private ProcedureDocumentReader $documents) {}
 
     /** Crea los criterios de la auditoría si todavía no tiene. */
     public function ensureItems(Audit $audit): void
@@ -63,12 +63,19 @@ class AuditChecklistService
         $position = 0;
         $items = [self::FIXED_QUESTION + ['position' => $position++, 'source' => AuditChecklistItem::SOURCE_FIXED]];
 
-        $html = $audit->regulation?->currentVersion?->body_html;
-        foreach (self::parseSteps((string) $html) as $step) {
+        $version = $audit->regulation?->currentVersion;
+        $steps = self::parseSteps((string) $version?->body_html);
+        // Los procesos subidos en Word o PDF no traen body_html: sus pasos se leen del archivo.
+        if (! $steps && $version) {
+            $steps = $this->documents->steps($version);
+        }
+
+        foreach ($steps as $step) {
             $items[] = [
                 'position'    => $position++,
                 'source'      => AuditChecklistItem::SOURCE_PROCESS,
-                'text'        => "Paso {$step['numero']}. {$step['titulo']}",
+                // Solo el título: el número del paso va en "Se evalúa con la actividad" (antes se leía "9. Paso 8.").
+                'text'        => $step['titulo'],
                 'description' => $step['que'] ? 'Se realiza como indica el procedimiento: ' . $step['que'] : 'Se realiza como indica el procedimiento.',
                 'evidence'    => $step['evidencia'] ?: null,
                 'activity'    => $step,
