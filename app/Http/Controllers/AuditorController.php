@@ -10,6 +10,7 @@ use App\Models\Regulation;
 use App\Models\User;
 use App\Services\AuditChecklistService;
 use App\Services\AuditFindingService;
+use App\Services\ChecklistAnnexes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -261,6 +262,7 @@ class AuditorController extends Controller
             'canRun'   => $audit->isRunBy($user),
             'items'    => $items,
             'people'   => $this->participants($audit),
+            'anexos'   => ChecklistAnnexes::forItems($audit, $items),
         ]);
     }
 
