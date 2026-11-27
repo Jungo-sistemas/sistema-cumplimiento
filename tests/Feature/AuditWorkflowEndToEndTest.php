@@ -123,7 +123,7 @@ class AuditWorkflowEndToEndTest extends TestCase
         Notification::assertNothingSent(); // faltan 5 días
 
         // Cambia la hora: todavía no se les había avisado, así que tampoco hay aviso de cambio.
-        $this->actingAs($auditor)->post(route('auditorias.audits.schedule', $audit), ['fecha' => '2026-11-17', 'hora' => '11:00'])
+        $this->actingAs($auditor)->post(route('auditorias.audits.schedule', $audit), ['fecha' => '2026-11-17', 'hora' => '11:00', 'motivo' => 'Luis tiene junta a las 10.'])
             ->assertSessionHas('success');
         $this->assertSame('11:00', $audit->fresh()->scheduled_at->format('H:i'));
         Notification::assertNothingSent();
@@ -148,7 +148,7 @@ class AuditWorkflowEndToEndTest extends TestCase
             ->assertOk()->assertSee('Carga de autotanques')->assertSee('17 de noviembre de 2026, 11:00');
 
         // Ya avisados, un cambio de hora sí les llega.
-        $this->actingAs($auditor)->post(route('auditorias.audits.schedule', $audit), ['fecha' => '2026-11-17', 'hora' => '10:00']);
+        $this->actingAs($auditor)->post(route('auditorias.audits.schedule', $audit), ['fecha' => '2026-11-17', 'hora' => '10:00', 'motivo' => 'Luis ya puede a las 10.']);
         Notification::assertSentTo($ana, AuditScheduledNotification::class);
 
         // ---- 3. Martes 17: el auditor captura el checklist y finaliza --------------------------

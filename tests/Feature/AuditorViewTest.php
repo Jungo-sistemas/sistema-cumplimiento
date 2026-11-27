@@ -316,7 +316,7 @@ class AuditorViewTest extends TestCase
         $this->assertNotNull($startedAt = $audit->fresh()->started_at);
         $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))
             ->assertOk()->assertSee('En curso')->assertSee('Iniciada:')->assertSee('Guardar avance')
-            ->assertDontSee("\$dispatch('programar-fecha'", false); // sin botón de Cambiar fecha
+            ->assertDontSee("\$dispatch('programar-fecha'", false); // sin botón de Reprogramar
         $this->actingAs($this->auditor)->post(route('auditorias.audits.schedule', $audit), ['fecha' => '2026-11-30', 'hora' => '10:00'])
             ->assertSessionHas('error');
 

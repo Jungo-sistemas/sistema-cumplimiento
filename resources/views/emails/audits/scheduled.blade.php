@@ -15,6 +15,9 @@
 
     <table class="info-table">
         <tr><td>Fecha y hora</td><td><strong>{{ $audit->scheduledLabel() }}</strong></td></tr>
+        @if($rescheduled && $audit->reschedule_reason)
+            <tr><td>Motivo del cambio</td><td>{!! nl2br(e($audit->reschedule_reason)) !!}</td></tr>
+        @endif
         <tr><td>Proceso</td><td>{{ $regulation->code ? $regulation->code . ' — ' : '' }}{{ $regulation->name }}</td></tr>
         <tr><td>Empresa</td><td>{{ $audit->company?->procesos_name ?? $audit->company?->name ?? '—' }}</td></tr>
         <tr><td>Auditor</td><td>{{ $audit->auditor?->name ?? '—' }}</td></tr>

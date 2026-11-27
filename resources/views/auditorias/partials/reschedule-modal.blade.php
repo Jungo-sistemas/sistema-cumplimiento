@@ -11,11 +11,13 @@
         a: {},
         fecha: '',
         hora: '',
+        motivo: '',
         minima: @js(\App\Models\Audit::localNow()->toDateString()),
         abrir(datos) {
             this.a = datos;
             this.fecha = datos.fecha ?? '';
             this.hora = datos.hora ?? '10:00';
+            this.motivo = datos.motivo ?? '';
             this.enviando = false;
             this.abierto = true;
         },
@@ -30,7 +32,7 @@
          class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
 
         <div class="flex items-center justify-between gap-4 border-b border-gray-200 pb-4">
-            <h2 class="text-xl font-bold text-brand-ink" x-text="a.actual ? 'Cambiar fecha' : 'Poner fecha'">Fecha de la auditoría</h2>
+            <h2 class="text-xl font-bold text-brand-ink" x-text="a.actual ? 'Reprogramar' : 'Poner fecha'">Fecha de la auditoría</h2>
             <button type="button" @click="abierto = false" class="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">Cerrar</button>
         </div>
 
@@ -60,10 +62,18 @@
                 </div>
             </div>
 
+            {{-- Solo al reprogramar (a.actual: ya tenía fecha). Se guarda y va en el aviso del cambio. --}}
+            <div x-show="a.actual">
+                <label for="motivo-reprogramacion" class="mb-2 block text-sm font-semibold text-gray-900">Motivo de la reprogramación</label>
+                <textarea id="motivo-reprogramacion" name="motivo" x-model="motivo" rows="3" maxlength="{{ \App\Models\Audit::RESCHEDULE_REASON_MAX }}"
+                          :required="Boolean(a.actual)" placeholder="Por ejemplo: el auditado está de vacaciones esa semana."
+                          class="w-full rounded-lg border-gray-200 text-[15px] focus:border-brand focus:ring-brand"></textarea>
+            </div>
+
             <p class="text-sm text-gray-600">
                 Manda la reunión por Teams como siempre; aquí solo queda el registro.
                 Los auditados reciben el aviso {{ \App\Models\Audit::noticeDays() }} días antes de la fecha (si ya están dentro de ese plazo, les llega en este momento).
-                <span x-show="a.actual">Si ya se les había avisado, se les avisa del cambio.</span>
+                <span x-show="a.actual">Si ya se les había avisado, se les avisa del cambio con el motivo.</span>
             </p>
 
             <button type="submit" :disabled="enviando"

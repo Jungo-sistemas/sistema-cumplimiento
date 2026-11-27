@@ -31,7 +31,7 @@
         @if($canRun && ! $audit->started_at)
             <button type="button"
                     @click="$dispatch('programar-fecha', @js(['url' => route('auditorias.audits.schedule', $audit), 'proceso' => $procedimiento, 'auditados' => $auditados, 'actual' => $audit->scheduledLabel(), 'fecha' => $audit->scheduled_at?->toDateString(), 'hora' => $audit->scheduled_at?->format('H:i')]))"
-                    class="ml-auto rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">{{ $audit->scheduled_at ? 'Cambiar fecha' : 'Poner fecha' }}</button>
+                    class="ml-auto rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-gray-50">{{ $audit->scheduled_at ? 'Reprogramar' : 'Poner fecha' }}</button>
         @endif
         <span class="rounded-full px-3 py-1 text-xs font-semibold {{ match ($stage) { Audit::STAGE_CAPTURE => 'bg-amber-50 text-amber-700', Audit::STAGE_READY => 'bg-blue-50 text-blue-700', default => 'bg-brand-50 text-brand' } }}">{{ $stage }}</span>
     </div>
@@ -41,6 +41,10 @@
         'subtitle' => $procedimiento . ' · ' . $auditados . ($audit->scheduled_at ? ' · ' . $audit->scheduledLabel() : '')
             . ($audit->started_at ? ' · Iniciada: ' . $audit->startedLabel() : ''),
     ])
+
+    @if($audit->reschedule_reason)
+        <p class="-mt-6 mb-6 whitespace-pre-line text-sm text-gray-600"><span class="font-semibold text-gray-900">Motivo de la última reprogramación:</span> {{ $audit->reschedule_reason }}</p>
+    @endif
 
     @if(! $editable)
         <div class="mb-6 rounded-2xl border border-brand-100 bg-brand-50 p-5 text-[15px] text-brand-ink">
