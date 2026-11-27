@@ -198,14 +198,14 @@ class AuditorController extends Controller
         $this->authorizeRun($request->user(), $audit);
         abort_unless($audit->status === Audit::STATUS_PLANNED, 422, 'La auditoría ya está finalizada.');
         if ($audit->started_at !== null) {
-            return back()->with('error', 'La auditoría ya se inició; ya no se le puede cambiar la fecha.');
+            return back()->with('error', 'La auditoría ya se inició; ya no se puede reprogramar.');
         }
 
         // Si algo falla se vuelve a abrir esta misma ventana con el mensaje (bolsa 'schedule'). Antes
         // el error llegaba como 'fecha' y abría "Programar auditoría", que lo tapaba: parecía que
         // no hacía nada.
-        $reopen = fn (string $message) => back()
-            ->withErrors(['fecha' => $message], 'schedule')
+        $reopen = fn (string $message, string $field = 'fecha') => back()
+            ->withErrors([$field => $message], 'schedule')
             ->with('reprogramar', [
                 'url'       => route('auditorias.audits.schedule', $audit),
                 'proceso'   => ($audit->regulation?->code ? $audit->regulation->code . ' · ' : '') . $audit->regulation?->name,
@@ -213,6 +213,7 @@ class AuditorController extends Controller
                 'actual'    => $audit->scheduledLabel(),
                 'fecha'     => $request->input('fecha'),
                 'hora'      => $request->input('hora'),
+                'motivo'    => $request->input('motivo'),
             ]);
 
         $fecha = (string) $request->input('fecha');
@@ -226,8 +227,20 @@ class AuditorController extends Controller
             return $reopen('La fecha tiene que ser futura.');
         }
 
+        // Reprogramar (cambiar una fecha que ya estaba puesta) pide el motivo; ponerla por primera vez no.
+        $motivo = null;
+        if ($audit->scheduled_at !== null) {
+            $motivo = trim((string) $request->input('motivo'));
+            if ($motivo === '') {
+                return $reopen('Escribe el motivo de la reprogramación.', 'motivo');
+            }
+            if (mb_strlen($motivo) > Audit::RESCHEDULE_REASON_MAX) {
+                return $reopen('El motivo no puede pasar de ' . Audit::RESCHEDULE_REASON_MAX . ' caracteres.', 'motivo');
+            }
+        }
+
         $hadNotice = $audit->notice_sent_at !== null;
-        $audit->schedule($at);
+        $audit->schedule($at, $motivo);
 
         return back()->with('success', "Fecha registrada: {$audit->scheduledLabel()}. " . match (true) {
             $hadNotice              => 'Se avisó a los auditados del cambio.',

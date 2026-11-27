@@ -87,7 +87,7 @@
                                     @if($tab === 'ejecucion' && $audit->isRunBy(auth()->user()) && ! $audit->started_at)
                                         <button type="button"
                                                 @click="$dispatch('programar-fecha', @js(['url' => route('auditorias.audits.schedule', $audit), 'proceso' => $audit->regulation?->name, 'auditados' => $audit->auditees->pluck('name')->join(', '), 'actual' => $audit->scheduledLabel(), 'fecha' => $audit->scheduled_at?->toDateString(), 'hora' => $audit->scheduled_at?->format('H:i')]))"
-                                                class="whitespace-nowrap rounded-lg border-2 border-gray-300 px-3 py-1.5 text-sm font-semibold text-brand-ink hover:bg-gray-50">{{ $audit->scheduled_at ? 'Cambiar fecha' : 'Poner fecha' }}</button>
+                                                class="whitespace-nowrap rounded-lg border-2 border-gray-300 px-3 py-1.5 text-sm font-semibold text-brand-ink hover:bg-gray-50">{{ $audit->scheduled_at ? 'Reprogramar' : 'Poner fecha' }}</button>
                                     @endif
                                     <a href="{{ $tab === 'finalizadas' ? route('auditorias.audits.result', $audit) : route('auditorias.audits.checklist', $audit) }}"
                                        class="whitespace-nowrap inline-flex rounded-lg border-2 border-brand px-3 py-1.5 text-sm font-semibold text-brand hover:bg-brand-50">{{ $tab === 'finalizadas' ? 'Ver resultado' : ($stage === Audit::STAGE_CAPTURE && $audit->isRunBy(auth()->user()) ? 'Capturar checklist' : 'Consultar') }}</a>

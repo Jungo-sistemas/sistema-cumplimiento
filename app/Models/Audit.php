@@ -27,8 +27,11 @@ class Audit extends Model
     protected $fillable = [
         'group_id', 'company_id', 'regulation_id', 'auditor_id',
         'planned_for', 'scheduled_at', 'started_at', 'status', 'result', 'completed_at', 'notice_sent_at',
-        'score', 'conclusions', 'attendance',
+        'score', 'conclusions', 'attendance', 'reschedule_reason',
     ];
+
+    /** Largo máximo del motivo de una reprogramación. */
+    public const RESCHEDULE_REASON_MAX = 500;
 
     protected function casts(): array
     {
@@ -251,10 +254,11 @@ class Audit extends Model
      * El auditor fija (o cambia) el día y la hora. El auditado se entera unos días antes
      * (aviso_dias_antes): si la fecha ya cae dentro de ese plazo, el aviso sale ahora; si no, lo
      * manda audits:notify-upcoming cuando llegue. Si ya se le había avisado, se le avisa del cambio.
+     * $reason es el motivo de la reprogramación: se guarda solo el último (al ponerla por primera vez, null).
      */
-    public function schedule(CarbonInterface $at): void
+    public function schedule(CarbonInterface $at, ?string $reason = null): void
     {
-        $this->update(['scheduled_at' => Carbon::instance($at)]);
+        $this->update(['scheduled_at' => Carbon::instance($at), 'reschedule_reason' => $reason]);
 
         if ($this->status !== self::STATUS_PLANNED) {
             return;
