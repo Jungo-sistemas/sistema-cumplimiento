@@ -43,7 +43,7 @@
     ])
 
     @if($audit->reschedule_reason)
-        <p class="-mt-6 mb-6 text-sm text-gray-600"><span class="font-semibold text-gray-900">Motivo de la última reprogramación:</span> {{ $audit->reschedule_reason }}</p>
+        <p class="-mt-6 mb-6 whitespace-pre-line text-sm text-gray-600"><span class="font-semibold text-gray-900">Motivo de la última reprogramación:</span> {{ $audit->reschedule_reason }}</p>
     @endif
 
     @if(! $editable)

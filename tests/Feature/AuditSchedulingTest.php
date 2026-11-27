@@ -136,10 +136,10 @@ class AuditSchedulingTest extends TestCase
 
     public function test_reprogramar_pide_el_motivo_y_lo_manda_en_el_aviso(): void
     {
-        // Poner la fecha por primera vez no pide motivo.
+        // Poner la fecha por primera vez no pide motivo (y si llega uno, no se guarda).
         $this->create(['fecha' => null, 'hora' => null]);
         $audit = Audit::sole();
-        $this->actingAs($this->auditor)->post(route('auditorias.audits.schedule', $audit), ['fecha' => '2026-11-26', 'hora' => '10:00'])
+        $this->actingAs($this->auditor)->post(route('auditorias.audits.schedule', $audit), ['fecha' => '2026-11-26', 'hora' => '10:00', 'motivo' => 'No se guarda.'])
             ->assertSessionHas('success');
         $this->assertNull($audit->fresh()->reschedule_reason);
         $this->assertNotNull($audit->fresh()->notice_sent_at); // es mañana: ya se les avisó
@@ -168,5 +168,36 @@ class AuditSchedulingTest extends TestCase
         $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))
             ->assertOk()->assertSee('Motivo de la última reprogramación:')->assertSee($motivo)
             ->assertSee('>Reprogramar</button>', false)->assertDontSee('Cambiar fecha');
+    }
+
+    public function test_reprogramar_cuida_el_largo_los_renglones_y_la_misma_fecha(): void
+    {
+        $this->create(); // hoy a las 9:30
+        $audit = Audit::sole();
+        $index = route('auditorias.audits.index');
+        $reprogramar = fn (array $datos) => $this->actingAs($this->auditor)->from($index)
+            ->post(route('auditorias.audits.schedule', $audit), $datos + ['fecha' => '2026-11-27', 'hora' => '10:00']);
+
+        // La misma fecha y hora: se rechaza aunque traiga motivo.
+        $reprogramar(['fecha' => '2026-11-25', 'hora' => '09:30', 'motivo' => 'Sin cambio.'])
+            ->assertSessionHasErrorsIn('schedule', 'fecha');
+        $this->actingAs($this->auditor)->get($index)->assertSee('Elige una fecha u hora distinta.');
+        $this->assertNull($audit->fresh()->reschedule_reason);
+
+        // Más de 500 caracteres: se rechaza.
+        $reprogramar(['motivo' => str_repeat('a', 501)])->assertSessionHasErrorsIn('schedule', 'motivo');
+        $this->assertSame('2026-11-25', $audit->fresh()->scheduled_at->toDateString());
+
+        // 500 en tres renglones: el navegador manda cada salto como \r\n, pero cuenta 1 (como el maxlength).
+        $motivo = str_repeat('a', 166) . "\r\n" . str_repeat('b', 166) . "\r\n" . str_repeat('c', 166);
+        $reprogramar(['motivo' => $motivo])->assertSessionHas('success');
+        $this->assertSame(str_replace("\r\n", "\n", $motivo), $audit->fresh()->reschedule_reason);
+
+        // Los renglones se respetan en el checklist y en el correo.
+        $html = $this->actingAs($this->auditor)->get(route('auditorias.audits.checklist', $audit))->getContent();
+        $this->assertSame(1, preg_match('/<p class="[^"]*whitespace-pre-line[^"]*"><span[^>]*>Motivo de la última reprogramación:/u', $html),
+            'El motivo del checklist debe respetar los renglones (whitespace-pre-line).');
+        $correo = (new AuditScheduledNotification($audit->fresh(), rescheduled: true))->toMail($this->ana)->render();
+        $this->assertStringContainsString(str_repeat('a', 166) . '<br />', (string) $correo);
     }
 }

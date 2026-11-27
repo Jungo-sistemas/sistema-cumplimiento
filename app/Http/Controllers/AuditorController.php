@@ -227,10 +227,17 @@ class AuditorController extends Controller
             return $reopen('La fecha tiene que ser futura.');
         }
 
+        // La misma fecha y hora no es una reprogramación: no se guarda nada ni se avisa a nadie.
+        if ($audit->scheduled_at?->format('Y-m-d H:i') === $at->format('Y-m-d H:i')) {
+            return $reopen('Elige una fecha u hora distinta.');
+        }
+
         // Reprogramar (cambiar una fecha que ya estaba puesta) pide el motivo; ponerla por primera vez no.
         $motivo = null;
         if ($audit->scheduled_at !== null) {
-            $motivo = trim((string) $request->input('motivo'));
+            // El navegador manda cada salto de línea como \r\n (2 caracteres), pero el maxlength del
+            // campo lo cuenta como 1: se deja en \n para que los dos cuenten igual.
+            $motivo = str_replace("\r\n", "\n", trim((string) $request->input('motivo')));
             if ($motivo === '') {
                 return $reopen('Escribe el motivo de la reprogramación.', 'motivo');
             }
